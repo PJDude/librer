@@ -156,11 +156,11 @@ cfg_defaults={
     CFG_KEY_EXCLUDE:''
 }
 
-DELETE=0
-SOFTLINK=1
-HARDLINK=2
+#DELETE=0
+#SOFTLINK=1
+#HARDLINK=2
 
-NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink'}
+#NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink'}
 
 HOMEPAGE='https://github.com/PJDude/librer'
 
@@ -228,8 +228,6 @@ class Config:
 ###########################################################
 
 class Gui:
-    MAX_PATHS=8
-
     sel_path_full=''
     sel_record=''
     tagged=set()
@@ -419,6 +417,8 @@ class Gui:
         self_main_bind('<KeyPress-s>', lambda event : self.scan_dialog_show())
         self_main_bind('<KeyPress-S>', lambda event : self.scan_dialog_show())
 
+        #self_main_bind('<KeyPress>', self.main_key_press)
+
         #self.defaultFont = font.nametofont("TkDefaultFont")
         #self.defaultFont.configure(family="Monospace regular",size=8,weight=font.BOLD)
         #self.defaultFont.configure(family="Monospace regular",size=10)
@@ -515,12 +515,20 @@ class Gui:
         # ~ Label(status_frame_groups,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
         Label(status_frame_groups,width=10,text='Record: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
-        self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
+        #self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
 
-        self.status_record=Label(status_frame_groups,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
+        #self.status_record=Label(status_frame_groups,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
+        self.status_record=Label(status_frame_groups,text='--',width=30,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_record.pack(fill='x',expand=0,side='left')
         self.status_record_configure = self.status_record.configure
 
-        self.status_record.pack(fill='x',expand=0,side='left')
+        Label(status_frame_groups,width=10,text='Scan Path: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
+        self.status_scan_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
+
+        #self.status_record=Label(status_frame_groups,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
+        self.status_scan_path=Label(status_frame_groups,text='--',width=30,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_scan_path.pack(fill='x',expand=0,side='left')
+        self.status_scan_path_configure = self.status_scan_path.configure
 
         self.status_record.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of groups with consideration od "cross paths" option'))
         self.status_record.bind("<Leave>", lambda event : self.widget_leave())
@@ -530,7 +538,7 @@ class Gui:
         #self.status_path.bind("<Motion>", lambda event : self.motion_on_widget(event,'The full path of a directory shown in the bottom panel.'))
         #self.status_path.bind("<Leave>", lambda event : self.widget_leave())
 
-        self.status_path_configure=self.status_path.configure
+        #self.status_scan_path_configure=self.status_path.configure
 
         (status_frame_folder := Frame(frame_folder,bg=self.bg_color)).pack(side='bottom',fill='both')
 
@@ -550,7 +558,7 @@ class Gui:
 
         #Label(status_frame_folder,width=18,text='Marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
-        #self_main_unbind_class = self.main_unbind_class = self_main.unbind_class
+        self_main_unbind_class = self.main_unbind_class = self_main.unbind_class
 
         self_main_bind_class = self.main_bind_class = self_main.bind_class
 
@@ -564,13 +572,19 @@ class Gui:
         #self_main_unbind_class('Treeview', '<KeyPress-Right>')
         #self_main_unbind_class('Treeview', '<Double-Button-1>')
 
-        self_main_bind_class('Treeview','<KeyPress>', self.key_press )
-        self_main_bind_class('Treeview','<<TreeviewOpen>>', self.open_item )
-        self_main_bind_class('Treeview','<ButtonPress-3>', self.context_menu_show)
-
         self.main_tree=Treeview(frame_groups,takefocus=True,show=('tree','headings') )
-        #,selectmode='none'
         self_main_tree = self.main_tree
+
+        self_main_tree.bind('<KeyPress>', self.key_press )
+        self_main_tree.bind('<<TreeviewOpen>>', self.open_item )
+        self_main_tree.bind('<ButtonPress-3>', self.context_menu_show)
+
+        self_main_tree.bind("<<TreeviewSelect>>", self.main_tree_select)
+        self.selected_record_item=''
+        self.selected_record_name=''
+
+        #selectmode='none',
+
         self.main_tree_set = self_main_tree.set
         self.main_tree_see = self_main_tree.see
         self.main_tree_get_children = self.main_tree.get_children
@@ -588,7 +602,7 @@ class Gui:
         self_org_label['ctime_h']='Time'
 
         self_main_tree["columns"]=('record','opened','path','file','size','size_h','ctime','ctime_h','info','dev','inode','crc','kind')
-        self_main_tree["displaycolumns"]=('size_h','ctime_h')
+        self_main_tree["displaycolumns"]=('size','size_h','ctime_h')
 
         self_main_tree_column = self_main_tree.column
 
@@ -672,8 +686,8 @@ class Gui:
 
         self_main_tree_tag_configure(self.RECORD, foreground='green')
 
-        #self_main_tree_tag_configure(self.MARK, foreground='red')
-        #self_main_tree_tag_configure(self.MARK, background='red')
+        self_main_tree_tag_configure(self.MARK, foreground='red')
+        self_main_tree_tag_configure(self.MARK, background='red')
         self_main_tree_tag_configure(self.CRC, foreground='gray')
 
         #self_files_tree_tag_configure = self_files_tree.tag_configure
@@ -1121,14 +1135,14 @@ class Gui:
         self_REAL_SORT_COLUMN['size_h'] = 'size'
         self_REAL_SORT_COLUMN['ctime_h'] = 'ctime'
 
-        #self_files_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h')
+        #self_main_tree["columns"]=('record','opened','path','file','size','size_h','ctime','ctime_h','info','dev','inode','crc','kind')
         self.REAL_SORT_COLUMN_INDEX={}
         self_REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX
 
-        self_REAL_SORT_COLUMN_INDEX['path'] = 0
-        self_REAL_SORT_COLUMN_INDEX['file'] = 1
-        self_REAL_SORT_COLUMN_INDEX['size_h'] = 6
-        self_REAL_SORT_COLUMN_INDEX['ctime_h'] = 8
+        self_REAL_SORT_COLUMN_INDEX['path'] = 3
+        self_REAL_SORT_COLUMN_INDEX['file'] = 4
+        self_REAL_SORT_COLUMN_INDEX['size_h'] = 5
+        self_REAL_SORT_COLUMN_INDEX['ctime_h'] = 7
 
         self.REAL_SORT_COLUMN_IS_NUMERIC={}
         self_REAL_SORT_COLUMN_IS_NUMERIC = self.REAL_SORT_COLUMN_IS_NUMERIC
@@ -1584,7 +1598,6 @@ class Gui:
     @block_actions_processing
     @gui_block
     def goto_next_prev_record(self,direction):
-        print('goto_next_prev_record',direction)
         #status ='selecting next record' if direction==1 else 'selecting prev record'
 
         current_record_name=None
@@ -1678,11 +1691,44 @@ class Gui:
                 prev_item=last_parent
         return prev_item
 
+
+    current_record=None
+    def main_tree_select(self,event):
+        #print('main_tree_select',event)
+
+        item=self.main_tree.focus()
+        parent = self.main_tree.parent(item)
+
+        if not parent:
+            record_name = self.main_tree.item(item,'text')
+            self.status_record_configure(text=record_name)
+            self.current_record = record = self.item_to_record[item]
+            self.status_scan_path_configure(text=record.db.path)
+
+    #def main_key_press(self,event):
+    #    print('main_key_press',event.keysym)
+    #    if self.actions_processing:
+    #        self.hide_tooltip()
+    #        self.menubar_unpost()
+    #        self.popup_groups_unpost()
+    #        try:
+    #            tree=event.widget
+    #            item=tree.focus()
+    #            key=event.keysym
+
+    #            if key in ("Prior","Next"):
+    #                self.goto_next_prev_record(self.KEY_DIRECTION[key])
+
+    #        except Exception as e:
+    #            #l_error(e)
+    #            print(e)
+    #            self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
+
     def key_press(self,event):
-        print('key_press',event)
+        #print('key_press',event.keysym)
 
         if self.actions_processing:
-            #self.main_unbind_class('Treeview','<KeyPress>')
+            #self.main.unbind_class('Treeview','<KeyPress>')
 
             self.hide_tooltip()
             self.menubar_unpost()
@@ -1695,19 +1741,20 @@ class Gui:
                 key=event.keysym
                 #state=event.state
 
-                if key in ("Up","Down"):
-                    new_item = self.my_next(tree,item) if key=='Down' else self.my_prev(tree,item)
+                #if key in ("Up","Down"):
+                #    new_item = self.my_next(tree,item) if key=='Down' else self.my_prev(tree,item)
 
-                    if new_item:
-                        tree.focus(new_item)
-                        tree.see(new_item)
-                        tree.selection_set(tree.focus())
+                #    if new_item:
+                #        tree.focus(new_item)
+                #        tree.see(new_item)
+                #        tree.selection_set(tree.focus())
 
-                        if tree==self.main_tree:
-                            self.main_tree_sel_change(new_item)
+                #        if tree==self.main_tree:
+                #            self.main_tree_sel_change(new_item)
                         #else:
                         #    self.files_tree_sel_change(new_item)
-                elif key in ("Right","Left"):
+                #el
+                if key in ("Right","Left"):
                     pass
                     #for record in librer_core.records:
                         #print('record.db.path:',record.db.path,' record.db.time:',record.db.time)
@@ -1750,6 +1797,9 @@ class Gui:
                             self.find_prev()
                         else:
                             self.find_next()
+
+                    #elif key == "Right":
+                    #elif key == "Left":
                     elif key in ('KP_Add','plus'):
                         self.mark_expression(self.set_mark,'Mark files',ctrl_pressed)
                     elif key in ('KP_Subtract','minus'):
@@ -1773,7 +1823,8 @@ class Gui:
                     #elif key=='F8':
                     #    self.goto_max_group(0,-1 if shift_pressed else 1)
                     elif key=='BackSpace':
-                        self.go_to_parent_dir()
+                        #self.go_to_parent_dir()
+                        pass
                     elif key in ('i','I'):
                         if ctrl_pressed:
                             self.mark_on_all(self.invert_mark)
@@ -1877,19 +1928,11 @@ class Gui:
 
             if tree_focus:=tree.focus():
                 tree.selection_set(tree_focus)
-            self.main_bind_class('Treeview','<KeyPress>', self.key_press )
-
-    #def go_to_parent_dir(self):
-        #sel_record
-    #    if self.sel_path_full :
-    #        if self.two_dots_condition(self.sel_path_full):
-    #            self.tree_semi_focus(self.files_tree)
-    #            head,tail=path_split(self.sel_path_full)
-    #            self.enter_dir(normpath(str(Path(self.sel_path_full).parent.absolute())),tail)
+            #self.main.bind_class('Treeview','<KeyPress>', self.key_press )
 
 #################################################
     def select_and_focus(self,item):
-        print('select_and_focus',item)
+        #print('select_and_focus',item)
         #if try_to_show_all:
         #    self.main_tree_see(self.main_tree_get_children(item)[-1])
         #    self.main_tree.update()
@@ -1976,18 +2019,18 @@ class Gui:
             #else:
             #    self.files_tree_sel_change(item)
 
-    def set_full_path_to_file_win(self):
-        self.sel_full_path_to_file=str(Path(sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
+    #def set_full_path_to_file_win(self):
+    #    self.sel_full_path_to_file=str(Path(sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
 
-    def set_full_path_to_file_lin(self):
-        self.sel_full_path_to_file=(self.sel_path_full+self.sel_file if self.sel_path_full=='/' else sep.join([self.sel_path_full,self.sel_file])) if self.sel_path_full and self.sel_file else None
+    #def set_full_path_to_file_lin(self):
+    #    self.sel_full_path_to_file=(self.sel_path_full+self.sel_file if self.sel_path_full=='/' else sep.join([self.sel_path_full,self.sel_file])) if self.sel_path_full and self.sel_file else None
 
-    set_full_path_to_file = set_full_path_to_file_win if windows else set_full_path_to_file_lin
+    #set_full_path_to_file = set_full_path_to_file_win if windows else set_full_path_to_file_lin
 
     def sel_path_set(self,path):
         if self.sel_path_full != path:
             self.sel_path_full = path
-            self.status_path_configure(text=self.sel_path_full)
+            self.status_scan_path_configure(text=self.sel_path_full)
 
             self.dominant_groups_folder={0:-1,1:-1}
 
@@ -2023,7 +2066,7 @@ class Gui:
             self.sel_path = None
             self.sel_path_set(None)
 
-            self.set_full_path_to_file()
+            #self.set_full_path_to_file()
 
         self.sel_kind = self_main_tree_set_item('kind')
 
@@ -2041,7 +2084,6 @@ class Gui:
             l_error(e)
 
     def context_menu_show(self,event):
-        return
 
         tree=event.widget
 
@@ -2065,161 +2107,16 @@ class Gui:
         pop_add_cascade = pop.add_cascade
         pop_add_command = pop.add_command
 
-        duplicate_file_actions_state=('disabled',item_actions_state)[self.sel_kind==self.FILE]
-        file_actions_state=('disabled',item_actions_state)[self.sel_kind in (self.FILE,self.SINGLE,self.SINGLEHARDLINKED) ]
-        file_or_dir_actions_state=('disabled',item_actions_state)[self.sel_kind in (self.FILE,self.SINGLE,self.SINGLEHARDLINKED,self.DIR,self.DIRLINK,self.CRC) ]
+        c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
+        c_nav_add_command = c_nav.add_command
+        c_nav_add_separator = c_nav.add_separator
 
-        parent_dir_state = ('disabled','normal')[self.two_dots_condition(self.sel_path_full) and self.sel_kind!=self.CRC]
+        c_nav_add_command(label = 'Go to next record'       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico['empty'],compound='left')
+        c_nav_add_command(label = 'Go to previous record'   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico['empty'],compound='left')
+        c_nav_add_separator()
+        c_nav_add_command(label = 'Go to first crc group'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico['empty'],compound='left')
+        c_nav_add_command(label = 'Go to last crc group'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
 
-        if tree==self.main_tree:
-            c_local = Menu(pop,tearoff=0,bg=self.bg_color)
-            c_local_add_command = c_local.add_command
-            c_local_add_separator = c_local.add_separator
-            c_local_add_cascade = c_local.add_cascade
-            c_local_entryconfig = c_local.entryconfig
-
-            c_local_add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space", image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-            c_local_add_command(label = "Mark all files",        command = lambda : self.mark_in_group(self.set_mark),accelerator="A", image = self.ico['empty'],compound='left')
-            c_local_add_command(label = "Unmark all files",        command = lambda : self.mark_in_group(self.unset_mark),accelerator="N", image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-            c_local_add_command(label = 'Mark By expression ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',False),accelerator="+", image = self.ico['empty'],compound='left')
-            c_local_add_command(label = 'Unmark By expression ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',False),accelerator="-", image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-            c_local_add_command(label = "Toggle mark on oldest file",     command = lambda : self.mark_in_group_by_ctime('oldest',self.invert_mark),accelerator="O", image = self.ico['empty'],compound='left')
-            c_local_add_command(label = "Toggle mark on youngest file",   command = lambda : self.mark_in_group_by_ctime('youngest',self.invert_mark),accelerator="Y", image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-            c_local_add_command(label = "Invert marks",   command = lambda : self.mark_in_group(self.invert_mark),accelerator="I", image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-
-            mark_cascade_path = Menu(c_local, tearoff = 0,bg=self.bg_color)
-            unmark_cascade_path = Menu(c_local, tearoff = 0,bg=self.bg_color)
-
-            #row=0
-            #for path in librer_core.scanned_paths:
-            #    mark_cascade_path.add_command(image=self.icon_nr[row], label = path, compound = 'left',command  = lambda pathpar=path: self.action_on_path(pathpar,self.set_mark,False),accelerator=str(row+1)  )
-            #    unmark_cascade_path.add_command(image=self.icon_nr[row], label = path, compound = 'left', command  = lambda pathpar=path: self.action_on_path(pathpar,self.unset_mark,False),accelerator="Shift+"+str(row+1)  )
-            #    row+=1
-
-            #c_local_add_command(label = "Mark on specified directory ...",   command = lambda : self.mark_subpath(self.set_mark,False), image = self.ico['empty'],compound='left')
-            #c_local_add_command(label = "Unmark on specified directory ...",   command = lambda : self.mark_subpath(self.unset_mark,False), image = self.ico['empty'],compound='left')
-            #c_local_add_separator()
-
-            c_local_add_cascade(label = "Mark on scan path",             menu = mark_cascade_path, image = self.ico['empty'],compound='left')
-            c_local_add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-
-            marks_state=('disabled','normal')[len(tree.tag_has(self.MARK))!=0]
-
-            #c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=marks_state, image = self.ico['empty'],compound='left')
-            #c_local_entryconfig(19,foreground='red',activeforeground='red')
-            #c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico['empty'],compound='left')
-            #c_local_entryconfig(20,foreground='red',activeforeground='red')
-            #c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=marks_state, image = self.ico['empty'],compound='left')
-            #c_local_entryconfig(21,foreground='red',activeforeground='red')
-
-            pop_add_cascade(label = 'Local (this record)',menu = c_local,state=item_actions_state, image = self.ico['empty'],compound='left')
-            pop_add_separator()
-
-            c_all = Menu(pop,tearoff=0,bg=self.bg_color)
-
-            c_all.add_command(label = "Mark all files",        command = lambda : self.mark_on_all(self.set_mark),accelerator="Ctrl+A", image = self.ico['empty'],compound='left')
-            c_all.add_command(label = "Unmark all files",        command = lambda : self.mark_on_all(self.unset_mark),accelerator="Ctrl+N", image = self.ico['empty'],compound='left')
-            c_all.add_separator()
-            c_all.add_command(label = 'Mark By expression ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',True),accelerator="Ctrl+", image = self.ico['empty'],compound='left')
-            c_all.add_command(label = 'Unmark By expression ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',True),accelerator="Ctrl-", image = self.ico['empty'],compound='left')
-            c_all.add_separator()
-            c_all.add_command(label = "Mark Oldest files",     command = lambda : self.mark_all_by_ctime('oldest',self.set_mark),accelerator="Ctrl+O", image = self.ico['empty'],compound='left')
-            c_all.add_command(label = "Unmark Oldest files",     command = lambda : self.mark_all_by_ctime('oldest',self.unset_mark),accelerator="Ctrl+Shift+O", image = self.ico['empty'],compound='left')
-            c_all.add_separator()
-            c_all.add_command(label = "Mark Youngest files",   command = lambda : self.mark_all_by_ctime('youngest',self.set_mark),accelerator="Ctrl+Y", image = self.ico['empty'],compound='left')
-            c_all.add_command(label = "Unmark Youngest files",   command = lambda : self.mark_all_by_ctime('youngest',self.unset_mark),accelerator="Ctrl+Shift+Y", image = self.ico['empty'],compound='left')
-            c_all.add_separator()
-            c_all.add_command(label = "Invert marks",   command = lambda : self.mark_on_all(self.invert_mark),accelerator="Ctrl+I, *", image = self.ico['empty'],compound='left')
-            c_all.add_separator()
-
-            mark_cascade_path = Menu(c_all, tearoff = 0,bg=self.bg_color)
-            unmark_cascade_path = Menu(c_all, tearoff = 0,bg=self.bg_color)
-
-            #row=0
-            #for path in librer_core.scanned_paths:
-            #    mark_cascade_path.add_command(image=self.icon_nr[row], label = path, compound = 'left', command  = lambda pathpar=path: self.action_on_path(pathpar,self.set_mark,True) ,accelerator="Ctrl+"+str(row+1) )
-            #    unmark_cascade_path.add_command(image=self.icon_nr[row], label = path, compound = 'left',  command  = lambda pathpar=path: self.action_on_path(pathpar,self.unset_mark,True) ,accelerator="Ctrl+Shift+"+str(row+1))
-            #    row+=1
-
-            #c_all.add_command(label = "Mark on specified directory ...",   command = lambda : self.mark_subpath(self.set_mark,True), image = self.ico['empty'],compound='left')
-            #c_all.add_command(label = "Unmark on specified directory ...",   command = lambda : self.mark_subpath(self.unset_mark,True), image = self.ico['empty'],compound='left')
-            #c_all.add_separator()
-
-            c_all.add_cascade(label = "Mark on scan path",             menu = mark_cascade_path, image = self.ico['empty'],compound='left')
-            c_all.add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico['empty'],compound='left')
-            c_all.add_separator()
-
-            pop_add_cascade(label = 'All Files',menu = c_all,state=item_actions_state, image = self.ico['empty'],compound='left')
-
-            c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
-            c_nav_add_command = c_nav.add_command
-            c_nav_add_separator = c_nav.add_separator
-
-            c_nav_add_command(label = 'Go to parent directory'   ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico['empty'],compound='left')
-            c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next record'       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico['empty'],compound='left')
-            c_nav_add_command(label = 'Go to previous record'   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico['empty'],compound='left')
-            c_nav_add_separator()
-            c_nav_add_command(label = 'Go to first record'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico['empty'],compound='left')
-            c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
-
-        else:
-            dir_actions_state=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK)]
-
-            c_local = Menu(pop,tearoff=0,bg=self.bg_color)
-            c_local_add_command = c_local.add_command
-            c_local_add_separator = c_local.add_separator
-            c_local_entryconfig = c_local.entryconfig
-
-            c_local_add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space",state=duplicate_file_actions_state, image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-            c_local_add_command(label = "Mark all files",        command = lambda : self.mark_in_folder(self.set_mark),accelerator="A",state=duplicate_file_actions_state, image = self.ico['empty'],compound='left')
-            c_local_add_command(label = "Unmark all files",        command = lambda : self.mark_in_folder(self.unset_mark),accelerator="N",state=duplicate_file_actions_state, image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-            c_local_add_command(label = 'Mark By expression',command = lambda : self.mark_expression(self.set_mark,'Mark files'),accelerator="+", image = self.ico['empty'],compound='left')
-            c_local_add_command(label = 'Unmark By expression',command = lambda : self.mark_expression(self.unset_mark,'Unmark files'),accelerator="-", image = self.ico['empty'],compound='left')
-            c_local_add_separator()
-
-            marks_state=('disabled','normal')[len(tree.tag_has(self.MARK))!=0]
-
-            c_local_entryconfig(8,foreground='red',activeforeground='red')
-            c_local_entryconfig(9,foreground='red',activeforeground='red')
-            #c_local_entryconfig(10,foreground='red',activeforeground='red')
-
-            pop_add_cascade(label = 'Local (this folder)',menu = c_local,state=item_actions_state, image = self.ico['empty'],compound='left')
-            pop_add_separator()
-
-            c_sel_sub = Menu(pop,tearoff=0,bg=self.bg_color)
-            c_sel_sub_add_command = c_sel_sub.add_command
-            c_sel_sub_add_command(label = "Mark All Duplicates in Subdirectory",  command = lambda : self.sel_dir(self.set_mark),accelerator="D",state=dir_actions_state, image = self.ico['empty'],compound='left')
-            c_sel_sub_add_command(label = "Unmark All Duplicates in Subdirectory",  command = lambda : self.sel_dir(self.unset_mark),accelerator="Shift+D",state=dir_actions_state, image = self.ico['empty'],compound='left')
-            c_sel_sub.add_separator()
-
-            c_sel_sub.entryconfig(3,foreground='red',activeforeground='red')
-            c_sel_sub.entryconfig(4,foreground='red',activeforeground='red')
-
-            pop_add_cascade(label = 'Selected Subdirectory',menu = c_sel_sub,state=dir_actions_state, image = self.ico['empty'],compound='left')
-
-            c_nav = Menu(pop,tearoff=0,bg=self.bg_color)
-            c_nav_add_command = c_nav.add_command
-            c_nav_add_separator = c_nav.add_separator
-
-            c_nav_add_command(label = 'Go to parent directory'       ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico['empty'],compound='left')
-            c_nav_add_separator()
-            c_nav_add_command(label = 'Go to first entry'       ,command = lambda : self.goto_first_last_dir_entry(0),accelerator="Home",state='normal', image = self.ico['empty'],compound='left')
-            c_nav_add_command(label = 'Go to last entry'   ,command = lambda : self.goto_first_last_dir_entry(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
-
-        pop_add_separator()
-        pop_add_command(label = 'Open File',command = self.open_file,accelerator="Return",state=file_actions_state, image = self.ico['empty'],compound='left')
-        pop_add_command(label = 'Open Folder(s)',command = self.open_folder,accelerator="Alt+Return",state=file_or_dir_actions_state, image = self.ico['empty'],compound='left')
-
-        pop_add_separator()
         pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
         pop_add_command(label = 'Settings ...',  command = self.settings_dialog.show,accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
@@ -2241,11 +2138,8 @@ class Gui:
         pop.grab_release()
 
     @logwrapper
-    #def sel_dir(self,action):
-    #    self.action_on_path(self.sel_full_path_to_file,action,True)
-
-    @logwrapper
     def column_sort_click(self, tree, colname):
+
         prev_colname,prev_sort_index,prev_is_numeric,prev_reverse,prev_updir_code,prev_dir_code,prev_non_dir_code=self.column_sort_last_params[tree]
         reverse = not prev_reverse if colname == prev_colname else prev_reverse
         tree.heading(prev_colname, text=self.org_label[prev_colname])
@@ -2360,7 +2254,7 @@ class Gui:
         self.cfg.write()
 
         #librer_core.reset()
-        self.status_path_configure(text='')
+        #self.status_path_configure(text='')
         self.records_show()
 
         path_to_scan_from_entry = self.path_to_scan_entry_var.get()
@@ -2799,9 +2693,6 @@ class Gui:
         if update0:
             self.records_show()
 
-        if update1:
-            self.main_tree_update_crc_and_path()
-
         #if update2:
         #    if self.sel_crc and self.sel_item and self.sel_path_full:
         #        self.files_tree_update()
@@ -2839,67 +2730,8 @@ class Gui:
                 self_main_tree_delete(crc)
                 #l_debug('crc_node_update-4:%s',crc)
 
-    @catched
-    @logwrapper
-    def data_precalc(self):
-        self.status('Precalculating data...')
-        self_main_tree_get_children = self.main_tree_get_children
-
-        self.status_record_configure(text=str(len(self_main_tree_get_children())),image=self.ico['warning' if self.cfg_get_bool(CFG_KEY_CROSS_MODE) else 'empty'],compound='right',width=80,anchor='w')
-
-        path_stat_size={}
-        path_stat_size_get=path_stat_size.get
-
-        path_stat_quant={}
-        path_stat_quant_get=path_stat_quant.get
-
-        self.id2crc = {}
-        self_id2crc = self.id2crc
-
-        self.biggest_file_of_path.clear()
-        self.biggest_file_of_path_id.clear()
-        self_biggest_file_of_path = self.biggest_file_of_path
-        self_biggest_file_of_path_get = self_biggest_file_of_path.get
-        self_biggest_file_of_path_id = self.biggest_file_of_path_id
-
-        self_idfunc=self.idfunc
-
-        self_active_crcs = self.active_crcs
-
-        for size,size_dict in librer_core.files_of_size_of_crc_items():
-            for crc,crc_dict in size_dict.items():
-                if crc in self_active_crcs:
-                    for path,file,ctime,dev,inode in crc_dict:
-                        self_id2crc[self_idfunc(inode,dev)]=(crc,ctime)
-
-                        path_index=path
-                        path_stat_size[path_index] = path_stat_size_get(path_index,0) + size
-                        path_stat_quant[path_index] = path_stat_quant_get(path_index,0) + 1
-
-                        if size>self_biggest_file_of_path_get(path_index,0):
-                            self_biggest_file_of_path[path_index]=size
-                            self_biggest_file_of_path_id[path_index]=self_idfunc(inode,dev)
-
-        self_main_tree_set = self.main_tree_set
-
-        self.path_stat_list_size=tuple(sorted([(path,number) for path,number in path_stat_size.items()],key=lambda x : x[2],reverse=True))
-        self.path_stat_list_quant=tuple(sorted([(path,number) for path,number in path_stat_quant.items()],key=lambda x : x[2],reverse=True))
-        self.groups_combos_size = tuple(sorted([(crc_item,sum([int(self_main_tree_set(item,'size')) for item in self_main_tree_get_children(crc_item)])) for crc_item in self_main_tree_get_children()],key = lambda x : x[1],reverse = True))
-        self.groups_combos_quant = tuple(sorted([(crc_item,len(self_main_tree_get_children(crc_item))) for crc_item in self_main_tree_get_children()],key = lambda x : x[1],reverse = True))
-        self.status('')
-
-    def initial_focus(self):
-        if children := self.main_tree_get_children():
-            first_node_file=next(iter(self.main_tree_get_children(next(iter(children)))))
-            self.main_tree.focus_set()
-            self.main_tree_focus(first_node_file)
-            self.main_tree_see(first_node_file)
-            self.main_tree_sel_change(first_node_file)
-        else:
-            #self.files_tree_update_none()
-            self.reset_sels()
-
     def open_item(self,event):
+        #print('open_item',event)
         tree=self.main_tree
 
         item=tree.focus()
@@ -2935,13 +2767,16 @@ class Gui:
             for path_component in reversed(current_path_components_reversed):
                 local_dict = local_dict[path_component][5]
 
+            self_ico_folder = self.ico['folder']
+            self_FILE = self.FILE
+            core_bytes_to_str = core.bytes_to_str
             for entry_name,(is_dir,is_file,is_symlink,size,mtime,sub_dictionary) in sorted(sorted(local_dict.items(),key=lambda x : x[0]),key = lambda x : x[1][0],reverse=True):
-                if sub_dictionary:
-                    image=self.ico['exit']
+                if is_dir:
+                    image=self_ico_folder
                 else:
                     image=''
                     #self.ico['empty']
-                record_item=tree.insert(item,'end',iid=None,values=('','0',entry_name,'file',size,core.bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),'info','dev','inode'),open=False,text=entry_name,tags=self.FILE,image=image)
+                record_item=tree.insert(item,'end',iid=None,values=('','0',entry_name,'file',size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),'info','dev','inode'),open=False,text=entry_name,tags=self_FILE,image=image)
                 if sub_dictionary:
                     dummy_sub_item=tree.insert(record_item,'end')
 
@@ -2961,130 +2796,28 @@ class Gui:
 
         self_main_tree_insert=self_main_tree.insert
 
+        self_ico_record = self.ico['record']
+        self_RECORD = self.RECORD
+        core_bytes_to_str = core.bytes_to_str
+
+        self.item_to_record={}
+        self_item_to_record = self.item_to_record
         for record in sorted(librer_core.records,key=lambda x : x.file_name):
             #('record','opened','path','file','size','size_h','ctime','ctime_h','info','dev','inode','crc','kind')
             #print('record.file_name:',record.file_name)
+            record_db = record.db
+            size=record_db.size
 
-            size=record.db.size
-            record_item=self_main_tree_insert('','end',iid=None,values=(record.file_name,'0',record.db.path,'record_file',size,core.bytes_to_str(size),record.db.time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.db.get_time())) ),open=False,text=record.db.label,tags=self.RECORD,image=self.ico['settings'])
+            record_item=self_main_tree_insert('','end',iid=None,values=(record.file_name,'0',record_db.path,'record_file',size,core_bytes_to_str(size),record_db.time,strftime('%Y/%m/%d %H:%M:%S',localtime(record_db.get_time())) ),open=False,text=record_db.label,tags=self_RECORD,image=self_ico_record)
             dummy_sub_item=self_main_tree_insert(record_item,'end',text='dummy')
+
+            self_item_to_record[record_item]=record
 
         self.menu_enable()
 
         self_status=self.status=self.status_progress
 
         self_status('')
-
-    @block_actions_processing
-    @gui_block
-    @logwrapper
-    def groups_show(self):
-        return
-
-        self.menu_disable()
-
-        self_idfunc=self.idfunc = (lambda i,d : '%s-%s' % (i,d)) if len(librer_core.devs)>1 else (lambda i,d : str(i))
-        self_status=self.status
-
-        self_status('Cleaning tree...')
-        self.reset_sels()
-        self_main_tree = self.main_tree
-
-        self_main_tree.delete(*self_main_tree.get_children())
-
-        cross_mode = self.cfg_get_bool(CFG_KEY_CROSS_MODE)
-        show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)
-        show_full_paths=self.cfg_get_bool(CFG_KEY_FULL_PATHS)
-
-        self.active_crcs=set()
-        self_active_crcs_add=self.active_crcs.add
-
-        self_status('Rendering data...')
-
-        self.tagged.clear()
-
-        sizes_counter=0
-        self.iid_to_size.clear()
-
-        self_main_tree_insert=self_main_tree.insert
-
-        librer_core_crc_cut_len=librer_core.crc_cut_len
-
-        self_iid_to_size=self.iid_to_size
-
-        self_CRC = self.CRC
-        self_FILE = self.FILE
-
-        local_core_bytes_to_str = core_bytes_to_str
-        #self_icon_nr=self.icon_nr
-
-        for size,size_dict in librer_core.files_of_size_of_crc_items() :
-            size_h = local_core_bytes_to_str(size)
-            size_str = str(size)
-            if not sizes_counter%128:
-                self_status('Rendering data... (%s)' % size_h,do_log=False)
-
-            sizes_counter+=1
-            for crc,crc_dict in size_dict.items():
-
-                self_active_crcs_add(crc)
-
-                #self_main_tree["columns"]=('path','file','size','size_h','ctime','dev','inode','crc','ctime_h','kind')
-                crc_item=self_main_tree_insert('','end',crc, values=('','','',size_str,size_h,'','','',crc,'',self_CRC),tags=self_CRC,open=True,text= crc if show_full_crc else crc[:librer_core_crc_cut_len])
-
-                for path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
-                    iid=self_idfunc(inode,dev)
-                    self_iid_to_size[iid]=size
-
-                    self_main_tree_insert(crc_item,'end',iid, values=(\
-                            path,file,size_str,\
-                            '',\
-                            str(ctime),str(dev),str(inode),crc,\
-                            '','',\
-                            strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//1000000000)),self_FILE),tags='',text='',image='eeeeeerr') #DE_NANO= 1_000_000_000
-
-        self.data_precalc()
-
-        if self.column_sort_last_params[self_main_tree]!=self.column_groups_sort_params_default:
-            #defaultowo po size juz jest, nie trzeba tracic czasu
-            self.column_sort(self_main_tree)
-        else:
-            self.column_sort_set_arrow(self_main_tree)
-
-        self.initial_focus()
-        #self.calc_mark_stats_groups()
-
-        self.menu_enable()
-        self_status('')
-
-    @block_actions_processing
-    @gui_block
-    @logwrapper
-    def main_tree_update_crc_and_path(self,configure_icon=False):
-        self.status('Updating items ...')
-        self.main_update()
-
-        show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)
-        show_full_paths=self.cfg_get_bool(CFG_KEY_FULL_PATHS)
-
-        self_idfunc=self.idfunc
-        librer_core_crc_cut_len=librer_core.crc_cut_len
-
-        self_main_tree_item=self.main_tree.item
-        self_icon_nr=self.icon_nr
-        librer_core_scanned_paths=librer_core.scanned_paths
-        self_active_crcs=self.active_crcs
-        for size,size_dict in librer_core.files_of_size_of_crc_items() :
-            for crc,crc_dict in size_dict.items():
-                if crc in self_active_crcs:
-                    self_main_tree_item(crc,text=crc if show_full_crc else crc[:librer_core_crc_cut_len])
-                    for path,file,ctime,dev,inode in crc_dict:
-                        if configure_icon:
-                            self_main_tree_item(self_idfunc(inode,dev),image='emptyyy',text='')
-                        else:
-                            self_main_tree_item(self_idfunc(inode,dev),text='')
-
-        self.status('')
 
     def main_tree_update_none(self):
         self.main_tree.selection_remove(self.main_tree.selection())
@@ -3293,6 +3026,24 @@ class Gui:
         file=self_main_tree_set(item,'file')
         return abspath(librer_core.get_full_path_scanned(path,file))
 
+    def file_check_state(self,item):
+        fullpath = self.item_full_path(item)
+        l_info('checking file: %s',fullpath)
+        try:
+            stat_res = stat(fullpath)
+            ctime_check=str(stat_res.st_ctime_ns)
+        except Exception as e:
+            self.status(str(e))
+            mesage = f'can\'t check file: {fullpath}\n\n{e}'
+            l_error(mesage)
+            return mesage
+
+        if ctime_check != (ctime:=self.main_tree_set(item,'ctime')) :
+            message = {f'ctime inconsistency {ctime_check} vs {ctime}'}
+            return message
+
+        return None
+
     @logwrapper
     def get_this_or_existing_parent(self,path):
         if path:
@@ -3300,6 +3051,32 @@ class Gui:
                 return path
 
             return self.get_this_or_existing_parent(Path(path).parent.absolute())
+
+    @logwrapper
+    def get_closest_in_crc(self,prev_list,item,new_list):
+        if item in new_list:
+            return item
+
+        if not new_list:
+            return None
+
+        if item in prev_list:
+            sel_index=prev_list.index(item)
+
+            new_list_len=len(new_list)
+            for i in range(new_list_len):
+                if (index_m_i:=sel_index-i) >=0:
+                    nearest = prev_list[index_m_i]
+                    if nearest in new_list:
+                        return nearest
+                elif (index_p_i:=sel_index+i) < new_list_len:
+                    nearest = prev_list[index_p_i]
+                    if nearest in new_list:
+                        return nearest
+                else:
+                    return None
+
+        return None
 
     @logwrapper
     def csv_save(self):

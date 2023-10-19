@@ -72,12 +72,10 @@ class LibrerCoreElement :
         try:
             with scandir(path) as res:
                 folder_counter = 0
-                for entry in res:
-                    #print(entry.name)
 
+                for entry in res:
                     try:
                         stat_res = stat(entry)
-                        #print(type(stat_res))
                     except Exception as e:
                         print('stat error:%s', e )
                     else:
@@ -86,11 +84,9 @@ class LibrerCoreElement :
                         is_symlink = entry.is_symlink()
                         size = stat_res.st_size
 
-                        #dictionary[entry.name]=(is_dir,is_file,is_symlink,size,dict())
-
                         if is_dir:
                             if is_symlink :
-                                new_level = (is_dir,is_file,is_symlink,size,stat_res.st_mtime_ns,None)
+                                new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None)
                                 print(f'skippping directory link: {path} / {entry.name}')
                             else:
                                 new_dict=dict()
@@ -98,10 +94,11 @@ class LibrerCoreElement :
                                 new_level = (is_dir,is_file,is_symlink,sub_level_size,stat_res.st_mtime_ns,new_dict)
                                 folder_size += sub_level_size
                         else:
-                            new_level = (is_dir,is_file,is_symlink,size,stat_res.st_mtime_ns,None)
                             if is_symlink :
+                                new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None)
                                 print(f'skippping file link: {path} / {entry.name}')
                             else:
+                                new_level = (is_dir,is_file,is_symlink,size,stat_res.st_mtime_ns,None)
                                 folder_size += size
 
                             folder_counter += 1
@@ -110,6 +107,7 @@ class LibrerCoreElement :
 
                 self.db.size += folder_size
                 self.db.files += folder_counter
+
         except Exception as e:
             print('scandir error:%s' % e )
 
