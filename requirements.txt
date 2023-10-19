@@ -1,0 +1,6 @@
+pyinstaller==6.1
+nuitka==1.8.4
+appdirs==1.4.4
+send2trash==1.8.2
+zstandard==0.21.0
+ordered-set==4.1.0
