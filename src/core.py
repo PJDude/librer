@@ -58,8 +58,9 @@ class LibrerCoreElement :
     file_name = ''
     #size = 0
 
-    def __init__(self,label,path):
+    def __init__(self,label,path,log):
         self.db = LibrerCoreData(label,path)
+        self.log = log
 
     def abort():
         print('abort')
@@ -131,7 +132,7 @@ class LibrerCoreElement :
         #return file_path
 
     def load(self,db_dir,file_name="data.gz"):
-        print('loading %s' % file_name)
+        self.log.info('loading %s' % file_name)
         try:
             full_file_path = sep.join([db_dir,file_name])
             with gzip.open(full_file_path, "rb") as gzip_file:
@@ -152,27 +153,30 @@ class LibrerCore:
     db_dir=''
     info_line = ''
 
-    def __init__(self,db_dir,logging):
+    def __init__(self,db_dir,log):
         self.records = set()
         self.db_dir = db_dir
-        self.read_list()
+        self.log=log
 
     def create(self,label='',path=''):
-        new_element = LibrerCoreElement(label,path)
+        new_element = LibrerCoreElement(label,path,self.log)
         self.records.add(new_element)
         return new_element
 
-    def read_list(self):
-        print('read_list:',self.db_dir)
+    def read_list(self,callback=None):
+
+        self.log.info('read_list: %s',self.db_dir)
         try:
             with scandir(self.db_dir) as res:
                 for entry in res:
-                    print('db:',entry.name)
+                    self.log.info('db:%s',entry.name)
                     new_element = self.create()
 
                     if new_element.load(self.db_dir,entry.name) :
-                        print('removing:',entry.name)
+                        self.log.warning('removing:%s',entry.name)
                         self.records.remove(new_element)
+                    else:
+                        callback(new_element)
 
                     #try:
                     #    stat_res = stat(entry)
@@ -181,7 +185,7 @@ class LibrerCore:
                     #    print('scandir(stat):%s error:%s',entry.name,e )
                     #else:
         except Exception as e:
-            print('list read error:%s' % e )
+            self.log.error('list read error:%s' % e )
         else:
             pass
 
