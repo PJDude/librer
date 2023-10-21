@@ -78,7 +78,7 @@ class LibrerCoreElement :
                     try:
                         stat_res = stat(entry)
                     except Exception as e:
-                        print('stat error:%s', e )
+                        self.log.error('stat error:%s', e )
                     else:
                         is_dir = entry.is_dir()
                         is_file = entry.is_file()
@@ -88,7 +88,7 @@ class LibrerCoreElement :
                         if is_dir:
                             if is_symlink :
                                 new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None)
-                                print(f'skippping directory link: {path} / {entry.name}')
+                                self.log.warning(f'skippping directory link: {path} / {entry.name}')
                             else:
                                 new_dict=dict()
                                 sub_level_size=self.do_scan(path_join(path,entry.name),new_dict)
@@ -97,7 +97,7 @@ class LibrerCoreElement :
                         else:
                             if is_symlink :
                                 new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None)
-                                print(f'skippping file link: {path} / {entry.name}')
+                                self.log.warning(f'skippping file link: {path} / {entry.name}')
                             else:
                                 new_level = (is_dir,is_file,is_symlink,size,stat_res.st_mtime_ns,None)
                                 folder_size += size
@@ -110,7 +110,7 @@ class LibrerCoreElement :
                 self.db.files += folder_counter
 
         except Exception as e:
-            print('scandir error:%s' % e )
+            self.log.error('scandir error:%s',e )
 
         return folder_size
 

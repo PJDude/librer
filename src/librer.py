@@ -187,7 +187,7 @@ class Config:
 
 class Gui:
     sel_path_full=''
-    sel_record=''
+    #sel_record=''
 
     actions_processing=False
 
@@ -346,17 +346,11 @@ class Gui:
         self_main.iconphoto(False, self_ico['librer'])
 
         self.RECORD='R'
-
-        #self.MARK='M'
-        self.RECORD='R'
         self.DIR='D'
         self.DIRLINK='L'
         self.LINK='l'
         self.FILE='F'
-        #self.FILELINK='l'
-        #self.SINGLE='5'
-        self.SINGLEHARDLINKED='H'
-        #self.CRC='C'
+        self.FILELINK='l'
 
         self_main_bind = self_main.bind
 
@@ -511,36 +505,28 @@ class Gui:
         self.org_label={}
         self_org_label = self.org_label
 
-        self_org_label['opened']='--opened'
-        self_org_label['record']='record'
-        self_org_label['path']='--path'
-        self_org_label['info']='--info'
-        self_org_label['file']='File'
+        self_org_label['#0']='Label'
         self_org_label['size_h']='Size'
         self_org_label['ctime_h']='Time'
 
-        self_main_tree["columns"]=('record','opened','path','file','size','size_h','ctime','ctime_h','kind','info','dev','inode','crc')
+        self_main_tree["columns"]=('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         self_main_tree["displaycolumns"]=('size_h','ctime_h')
+        self.real_display_columns=('#0','size_h','ctime_h')
 
         self_main_tree_column = self_main_tree.column
 
         self_main_tree_column('#0', width=120, minwidth=100, stretch='yes')
-        #self_main_tree_column('path', width=100, minwidth=10, stretch='yes' )
-        #self_main_tree_column('file', width=100, minwidth=10, stretch='yes' )
         self_main_tree_column('size_h', width=80, minwidth=80, stretch='no',anchor='e')
         self_main_tree_column('ctime_h', width=150, minwidth=100, stretch='no',anchor='e')
 
         self_main_tree_heading = self_main_tree.heading
 
         self_main_tree_heading('#0',text='Label',anchor='w')
-        self_main_tree_heading('path',anchor='w' )
-        self_main_tree_heading('file',anchor='w' )
         self_main_tree_heading('size_h',anchor='w')
         self_main_tree_heading('ctime_h',anchor='n')
-        self_main_tree_heading('size_h', text='Size \u25BC',anchor='n')
+        #self_main_tree_heading('size_h', text='Size \u25BC',anchor='n')
 
         self_main_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
-        self_main_tree.bind('<Control-ButtonPress-1>',  lambda event :self.tree_on_mouse_button_press(event,True) )
 
         vsb1 = Scrollbar(frame_groups, orient='vertical', command=self_main_tree.yview,takefocus=False)
 
@@ -553,7 +539,8 @@ class Gui:
 
         tree = self_main_tree
         tree_heading = tree.heading
-        for col in tree["displaycolumns"]:
+        #tree["displaycolumns"]
+        for col in self.real_display_columns:
             if col in self_org_label:
                 tree_heading(col,text=self_org_label[col])
 
@@ -636,15 +623,24 @@ class Gui:
 
         ##############
 
-        temp_frame = LabelFrame(self.scan_dialog.area_main,text='Path To scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame = LabelFrame(self.scan_dialog.area_main,text='Create new database record',borderwidth=2,bg=self.bg_color,takefocus=False)
         temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4,columnspan=4)
+
+
+        lab1=Label(temp_frame,text="Path To scan:",bg=self.bg_color,anchor='w')
+        lab1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+
+        lab2=Label(temp_frame,text="User label:",bg=self.bg_color,anchor='w')
+        lab2.grid(row=1, column=0, sticky='news',padx=4,pady=4)
 
         self.path_to_scan_entry_var=StringVar(value='')
         path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
-        path_to_scan_entry.pack(side='left',expand=1,fill='x',pady=4,padx=5)
+        path_to_scan_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+        #.pack(side='left',expand=1,fill='x',pady=4,padx=5)
 
         self.add_path_button = Button(temp_frame,width=18,image = self_ico['open'], command=self.path_to_scan_add_dialog,underline=0)
-        self.add_path_button.pack(side='left',pady=4,padx=4)
+        self.add_path_button.grid(row=0, column=2, sticky='news',padx=4,pady=4)
+        #.pack(side='left',pady=4,padx=4)
 
         self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path to scan.\nA maximum of 8 paths are allowed."))
         self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
@@ -656,15 +652,16 @@ class Gui:
         #buttons_fr = Frame(temp_frame,bg=self.bg_color,takefocus=False)
         #buttons_fr.pack(fill='both',expand=False,side='bottom')
 
-        #self.paths_frame.grid_columnconfigure(1, weight=1)
-        #self.paths_frame.grid_rowconfigure(99, weight=1)
+        temp_frame.grid_columnconfigure(1, weight=1)
+        #temp_frame.grid_rowconfigure(99, weight=1)
 
-        temp_frame2 = LabelFrame(self.scan_dialog.area_main,text='Label:',borderwidth=2,bg=self.bg_color,takefocus=False)
-        temp_frame2.grid(row=1,column=0,sticky='we',padx=4,pady=4,columnspan=4)
+        #temp_frame2 = LabelFrame(self.scan_dialog.area_main,text='Label:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        #temp_frame2.grid(row=1,column=0,sticky='we',padx=4,pady=4,columnspan=4)
 
         self.scan_label_entry_var=StringVar(value='')
-        scan_label_entry = Entry(temp_frame2,textvariable=self.scan_label_entry_var)
-        scan_label_entry.pack(side='left',expand=1,fill='x',pady=4,padx=5)
+        scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
+        scan_label_entry.grid(row=1, column=1, sticky='news',padx=4,pady=4,columnspan=2)
+        #.pack(side='left',expand=1,fill='x',pady=4,padx=5)
 
         ##############
         self.exclude_regexp_scan=BooleanVar()
@@ -883,33 +880,26 @@ class Gui:
         #######################################################################
         self.reset_sels()
 
-        self.REAL_SORT_COLUMN={}
-        self_REAL_SORT_COLUMN = self.REAL_SORT_COLUMN
-        self_REAL_SORT_COLUMN['path'] = 'path'
-        self_REAL_SORT_COLUMN['file'] = 'file'
+        self_REAL_SORT_COLUMN = self.REAL_SORT_COLUMN = self.REAL_SORT_COLUMN={}
+
+        self_REAL_SORT_COLUMN['#0'] = 'data'
         self_REAL_SORT_COLUMN['size_h'] = 'size'
         self_REAL_SORT_COLUMN['ctime_h'] = 'ctime'
 
-        #self_main_tree["columns"]=('record','opened','path','file','size','size_h','ctime','ctime_h','kind','info','dev','inode','crc')
-        self.REAL_SORT_COLUMN_INDEX={}
-        self_REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX
+        self_REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX={}
 
-        self_REAL_SORT_COLUMN_INDEX['path'] = 3
-        self_REAL_SORT_COLUMN_INDEX['file'] = 4
-        self_REAL_SORT_COLUMN_INDEX['size_h'] = 5
-        self_REAL_SORT_COLUMN_INDEX['ctime_h'] = 7
+        #self_main_tree["displaycolumns"]
+        for disply_column in self.real_display_columns:
+            self_REAL_SORT_COLUMN_INDEX[disply_column] = self_main_tree["columns"].index(self_REAL_SORT_COLUMN[disply_column])
 
-        self.REAL_SORT_COLUMN_IS_NUMERIC={}
-        self_REAL_SORT_COLUMN_IS_NUMERIC = self.REAL_SORT_COLUMN_IS_NUMERIC
+        self_REAL_SORT_COLUMN_IS_NUMERIC = self.REAL_SORT_COLUMN_IS_NUMERIC = self.REAL_SORT_COLUMN_IS_NUMERIC={}
 
-        self_REAL_SORT_COLUMN_IS_NUMERIC['path'] = False
-        self_REAL_SORT_COLUMN_IS_NUMERIC['file'] = False
+        self_REAL_SORT_COLUMN_IS_NUMERIC['#0'] = False
         self_REAL_SORT_COLUMN_IS_NUMERIC['size_h'] = True
         self_REAL_SORT_COLUMN_IS_NUMERIC['ctime_h'] = True
 
         self.column_sort_last_params={}
         #colname,sort_index,is_numeric,reverse,dir_code,non_dir_code
-
         self.column_sort_last_params[self_main_tree]=self.column_groups_sort_params_default=('size_h',self_REAL_SORT_COLUMN_INDEX['size_h'],self_REAL_SORT_COLUMN_IS_NUMERIC['size_h'],1,1,0)
 
         #######################################################################
@@ -1017,7 +1007,7 @@ class Gui:
         if col:
             colname=tree.column(col,'id')
             if tree.identify("region", event.x, event.y) == 'heading':
-                if colname in ('path','size_h','file','ctime_h'):
+                if colname in ('path','size_h','ctime_h'):
                     self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
                     self.tooltip_deiconify()
                 else:
@@ -1095,32 +1085,14 @@ class Gui:
 
         self.menu_state_stack_append('x')
         disable("File")
-        #disable("Navigation")
         disable("Help")
         #self.menubar.update()
 
     def reset_sels(self):
         self.sel_path = None
-        self.sel_file = None
-        self.sel_crc = None
         self.sel_item = None
 
-        self.sel_tree=self.main_tree
-
         self.sel_kind = None
-
-    def get_index_tuple_main_tree(self,item):
-        self_main_tree_set = lambda x : self.main_tree_set(item,x)
-        int_self_main_tree_set = lambda x : int(self_main_tree_set(x))
-
-        #path,file,ctime,dev,inode
-        return (\
-                self_main_tree_set('path'),\
-                self_main_tree_set('file'),\
-                int_self_main_tree_set('ctime'),\
-                int_self_main_tree_set('dev'),\
-                int_self_main_tree_set('inode')
-        )
 
     def delete_window_wrapper(self):
         if self.actions_processing:
@@ -1146,32 +1118,23 @@ class Gui:
     find_params_changed=True
     find_tree_index=-1
 
-    find_by_tree={}
+    find_by_tree='*'
 
     def finder_wrapper_show(self):
         print('finder_wrapper_show')
-        tree=self.sel_tree
+        tree=self.main_tree
 
         self.find_dialog_shown=True
 
-        #scope_info = 'Scope: All groups.' if self.sel_tree==self.main_tree else 'Scope: Selected directory.'
         scope_info = ''
 
-        if tree in self.find_by_tree:
-            initialvalue=self.find_by_tree[tree]
-        else:
-            initialvalue='*'
+        initialvalue=self.find_by_tree
 
         #self.find_dialog_on_main.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
         #self.find_by_tree[tree]=self.find_dialog_on_main.entry.get()
 
         self.find_dialog_on_groups.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
-        self.find_by_tree[tree]=self.find_dialog_on_groups.entry.get()
-
-        #if self.sel_tree==self.main_tree:
-        #else:
-            #self.find_dialog_on_folder.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
-            #self.find_by_tree[tree]=self.find_dialog_on_folder.entry.get()
+        self.find_by_tree=self.find_dialog_on_groups.entry.get()
 
         self.find_dialog_shown=False
         self.tree_semi_focus(tree)
@@ -1181,7 +1144,7 @@ class Gui:
         self.select_find_result(-1)
 
     def find_prev(self):
-        if not self.find_result or self.find_tree!=self.sel_tree:
+        if not self.find_result:
             self.find_params_changed=True
             self.finder_wrapper_show()
         else:
@@ -1192,14 +1155,14 @@ class Gui:
         self.select_find_result(1)
 
     def find_next(self):
-        if not self.find_result or self.find_tree!=self.sel_tree:
+        if not self.find_result:
             self.find_params_changed=True
             self.finder_wrapper_show()
         else:
             self.select_find_result(1)
 
     find_result_index=0
-    find_tree=''
+
     find_dialog_shown=False
     use_reg_expr_prev=''
     find_expression_prev=''
@@ -1217,9 +1180,7 @@ class Gui:
         print('find_items')
         self.status('finding ...')
 
-        if self.find_params_changed or self.find_tree != self.sel_tree:
-            self.find_tree=self.sel_tree
-
+        if self.find_params_changed:
             items=[]
             items_append = items.append
 
@@ -1237,7 +1198,7 @@ class Gui:
                                 items_append(item)
                 except Exception as e:
                     try:
-                        self.info_dialog_on_find[self.find_tree].show('Error',str(e))
+                        self.info_dialog_on_find[self.main_tree].show('Error',str(e))
                     except Exception as e2:
                         print(e2)
                     return
@@ -1247,8 +1208,8 @@ class Gui:
                 self.find_params_changed=False
             else:
                 self.find_result=()
-                scope_info = 'Scope: All groups.' if self.find_tree==self.main_tree else 'Scope: Selected directory.'
-                self.info_dialog_on_find[self.find_tree].show(scope_info,'No files found.')
+                scope_info = 'Scope: All groups.' if self.main_tree==self.main_tree else 'Scope: Selected directory.'
+                self.info_dialog_on_find[self.main_tree].show(scope_info,'No files found.')
 
     def select_find_result(self,mod):
         if self.find_result:
@@ -1256,19 +1217,19 @@ class Gui:
             self.find_result_index+=mod
             next_item=self.find_result[self.find_result_index%items_len]
 
-            self.find_tree.focus(next_item)
+            self.main_tree.focus(next_item)
 
             if self.find_dialog_shown:
                 #focus is still on find dialog
-                self.find_tree.selection_set(next_item)
+                self.main_tree.selection_set(next_item)
             else:
-                self.find_tree.selection_set(next_item)
-                self.tree_semi_focus(self.find_tree)
+                self.main_tree.selection_set(next_item)
+                self.tree_semi_focus(self.main_tree)
 
-            self.find_tree.see(next_item)
-            self.find_tree.update()
+            self.main_tree.see(next_item)
+            self.main_tree.update()
 
-            if self.find_tree==self.main_tree:
+            if self.main_tree==self.main_tree:
                 self.main_tree_sel_change(next_item)
 
             if mod>0:
@@ -1342,12 +1303,12 @@ class Gui:
                     self.goto_next_prev_record(self.KEY_DIRECTION[key])
                 elif key in ("Home","End"):
                     self.goto_first_last_record(self.KEY_DIRECTION[key])
-                elif key == "space":
-                    pass
-                elif key == "Tab":
+                #elif key == "space":
+                #    pass
+                #elif key == "Tab":
                     #old_node=tree.focus()
                     #self.tree_semi_focus(self.other_tree[tree])
-                    pass
+                #    pass
                 else:
                     event_str=str(event)
 
@@ -1405,7 +1366,7 @@ class Gui:
 
         self.main_tree_sel_change(item)
 
-    def tree_on_mouse_button_press(self,event,toggle=False):
+    def tree_on_mouse_button_press(self,event):
         self.menubar_unpost()
         self.hide_tooltip()
         self.popup_groups_unpost()
@@ -1419,8 +1380,13 @@ class Gui:
                 return None
 
             if region == 'heading':
-                if (colname:=tree.column(tree.identify_column(event.x),'id') ) in self.REAL_SORT_COLUMN:
+                col_nr = tree.identify_column(event.x)
+                colname = col_nr if col_nr=='#0' else tree.column(col_nr,'id')
+
+                if colname in self.REAL_SORT_COLUMN:
                     self.column_sort_click(tree,colname)
+                else :
+                    print('unknown col:',col_nr,colname)
             elif item:=tree.identify('item',event.x,event.y):
                 tree.selection_remove(tree.selection())
 
@@ -1429,9 +1395,6 @@ class Gui:
                 self.tree_semi_focus(tree)
 
                 self.main_tree_sel_change(item)
-
-                if toggle:
-                    pass
 
                 #prevents processing of expanding nodes
                 #return "break"
@@ -1455,8 +1418,6 @@ class Gui:
                 pass
 
         if item:
-            self.sel_tree=tree
-
             tree.focus_set()
             tree.configure(style='semi_focus.Treeview')
             #self.other_tree[tree].configure(style='no_focus.Treeview')
@@ -1481,17 +1442,17 @@ class Gui:
 
         self_main_tree_set_item=lambda x : self.main_tree_set(item,x)
 
-        self.sel_file = self_main_tree_set_item('file')
+        #self.sel_file = self_main_tree_set_item('file')
 
-        new_crc = self_main_tree_set_item('crc')
-        if self.sel_crc != new_crc:
-            self.sel_crc = new_crc
+        #new_crc = self_main_tree_set_item('crc')
+        #if self.sel_crc != new_crc:
+        #    self.sel_crc = new_crc
 
         path=self_main_tree_set_item('path')
-        record=self_main_tree_set_item('file')
+        #record=self_main_tree_set_item('file')
         #print('sel record:',record)
 
-        self.sel_record = record
+        #self.sel_record = record
         return
 
         if record!=self.sel_record or force:
@@ -1512,6 +1473,7 @@ class Gui:
             l_error(e)
 
     def context_menu_show(self,event):
+        print('context_menu_show')
 
         tree=event.widget
 
@@ -1591,23 +1553,32 @@ class Gui:
 
         dir_or_dirlink = (self.DIR,self.DIRLINK)
 
-        for item in (tree.get_children(parent_item) if parent_item else tree.get_children(parent_item)):
-            sortval_org=tree_set(item,real_column_to_sort)
-            sortval=(int(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
+        children = tree.get_children(parent_item)
 
-            kind = tree_set(item,'kind')
+        #dont sort single item and dummy item
+        if len(children)>1:
+            for item in tree.get_children(parent_item):
 
-            code= dir_code if kind in dir_or_dirlink else non_dir_code
-            tlist_append( ( (code,sortval),item) )
+                values = tree.item(item,'values')
 
-        tlist.sort(reverse=reverse,key=lambda x: x[0])
+                sortval_org = values[self.REAL_SORT_COLUMN_INDEX[colname]]
 
-        if not parent_item:
-            parent_item=''
+                sortval=(int(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
 
-        tree_move = tree.move
-        _ = {tree_move(item, parent_item, index) for index,(val_tuple,item) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
-        _ = {self.tree_sort_item(tree,item) for (val_tuple,item) in tlist }
+                kind = tree_set(item,'kind')
+
+                code= dir_code if kind in dir_or_dirlink else non_dir_code
+                tlist_append( ( (code,sortval),item) )
+
+            tlist.sort(reverse=reverse,key=lambda x: x[0])
+
+            if not parent_item:
+                parent_item=''
+
+
+            tree_move = tree.move
+            _ = {tree_move(item, parent_item, index) for index,(val_tuple,item) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
+            _ = {self.tree_sort_item(tree,item) for (val_tuple,item) in tlist }
 
     @restore_status_line
     @block_actions_processing
@@ -1618,14 +1589,7 @@ class Gui:
         colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params[tree]
 
         self.column_sort_set_arrow(tree)
-
-        self_tree_sort_item = self.tree_sort_item
-
-        if colname in ('path','file','ctime_h'):
-            for record_id in tree.get_children():
-                self_tree_sort_item(tree,record_id)
-        else:
-            self_tree_sort_item(tree,None)
+        self.tree_sort_item(tree,'')
 
         tree.update()
 
@@ -2049,7 +2013,6 @@ class Gui:
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
     def open_item(self,event):
-        #print('open_item',event)
         tree=self.main_tree
 
         item=tree.focus()
@@ -2059,7 +2022,7 @@ class Gui:
 
         if opened=='0' and children:
             colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params[tree]
-            sort_index_local=sort_index-1
+            sort_index_local=sort_index
 
             sort_val_func = int if is_numeric else lambda x : x
 
@@ -2104,7 +2067,8 @@ class Gui:
                     image=self_ico_empty
                     kind = self.FILE
 
-                values = ('','0',entry_name,'file',size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),kind,'info','dev','inode')
+                #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
+                values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),kind)
 
                 sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
                 new_items_values.add( ( sort_index,values,entry_name,image,True if sub_dictionary else False) )
@@ -2124,8 +2088,9 @@ class Gui:
         record_db = record.db
         size=record_db.size
 
-        #('record','opened','path','file','size','size_h','ctime','ctime_h','kind','info','dev','inode','crc')
-        record_item=self.main_tree.insert('','end',iid=None,values=(record.file_name,'0',record_db.path,'record_file',size,core.bytes_to_str(size),record_db.time,strftime('%Y/%m/%d %H:%M:%S',localtime(record_db.get_time())),self.RECORD ),open=False,text=record_db.label,tags=self.RECORD,image=self.ico['record'])
+        #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
+        values = (record_db.label,record.file_name,0,record_db.path,size,core.bytes_to_str(size),record_db.time,strftime('%Y/%m/%d %H:%M:%S',localtime(record_db.get_time())),self.RECORD)
+        record_item=self.main_tree.insert('','end',iid=None,values=values,open=False,text=record_db.label,tags=self.RECORD,image=self.ico['record'])
         dummy_sub_item=self.main_tree.insert(record_item,'end',text='dummy')
 
         self.item_to_record[record_item]=record
@@ -2172,7 +2137,7 @@ class Gui:
         self_main_tree_set = self.main_tree_set
 
         path=self_main_tree_set(item,'path')
-        file=self_main_tree_set(item,'file')
+        #file=self_main_tree_set(item,'file')
         return abspath(librer_core.get_full_path_scanned(path,file))
 
     @logwrapper
@@ -2185,6 +2150,8 @@ class Gui:
 
     @logwrapper
     def clip_copy_full_path_with_file(self):
+        print('clip_copy_full_path_with_file')
+        return
         if self.sel_path_full and self.sel_file:
             self.clip_copy(path_join(self.sel_path_full,self.sel_file))
         elif self.sel_crc:
@@ -2192,6 +2159,9 @@ class Gui:
 
     @logwrapper
     def clip_copy_full(self):
+        print('clip_copy_full')
+        return
+
         if self.sel_path_full:
             self.clip_copy(self.sel_path_full)
         elif self.sel_crc:
@@ -2199,6 +2169,9 @@ class Gui:
 
     @logwrapper
     def clip_copy_file(self):
+        print('clip_copy_file')
+        return
+
         if self.sel_file:
             self.clip_copy(self.sel_file)
         elif self.sel_crc:
