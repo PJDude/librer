@@ -579,11 +579,11 @@ class Gui:
         if cfg_geometry :
             self_main.geometry(cfg_geometry)
 
-        self.popup_groups = Menu(self_main_tree, tearoff=0,bg=self.bg_color)
-        self.popup_groups_unpost = self.popup_groups.unpost
-        self.popup_groups.bind("<FocusOut>",lambda event : self.popup_groups_unpost() )
+        self.popup = Menu(self_main_tree, tearoff=0,bg=self.bg_color)
+        self.popup_unpost = self.popup.unpost
+        self.popup.bind("<FocusOut>",lambda event : self.popup_unpost() )
 
-        self_main_bind("<FocusOut>",lambda event : self.unpost() )
+        self_main_bind("<FocusOut>",lambda event : self.menubar_unpost() )
 
         #######################################################################
         #scan dialog
@@ -591,7 +591,7 @@ class Gui:
         def pre_show(on_main_window_dialog=True):
             self.menubar_unpost()
             self.hide_tooltip()
-            self.popup_groups_unpost()
+            self.popup_unpost()
 
             if on_main_window_dialog:
                 self.actions_processing=False
@@ -766,11 +766,11 @@ class Gui:
 
         self.info_dialog_on_mark[self_main_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
-        self.find_dialog_on_groups = dialogs.FindEntryDialog(self_main_tree,self_ico['librer'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.find_dialog = dialogs.FindEntryDialog(self_main_tree,self_ico['librer'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
 
         self.info_dialog_on_find={}
 
-        self.info_dialog_on_find[self_main_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_find[self_main_tree] = dialogs.LabelDialog(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
        #######################################################################
         #About Dialog
@@ -851,12 +851,6 @@ class Gui:
 
         self.file_cascade= Menu(self.menubar,tearoff=0,bg=self.bg_color,postcommand=file_cascade_post)
         self.menubar.add_cascade(label = 'File',menu = self.file_cascade,accelerator="Alt+F")
-
-        def navi_cascade_post():
-            return
-            self.navi_cascade.delete(0,'end')
-            if self.actions_processing:
-                item_actions_state=('disabled','normal')[self.sel_item is not None]
 
         def help_cascade_post():
             self.help_cascade.delete(0,'end')
@@ -949,7 +943,7 @@ class Gui:
     def unpost(self):
         self.hide_tooltip()
         self.menubar_unpost()
-        self.popup_groups_unpost()
+        self.popup_unpost()
 
     tooltip_show_after_groups=''
     tooltip_show_after_folder=''
@@ -1121,7 +1115,7 @@ class Gui:
     find_by_tree='*'
 
     def finder_wrapper_show(self):
-        print('finder_wrapper_show')
+        #print('finder_wrapper_show')
         tree=self.main_tree
 
         self.find_dialog_shown=True
@@ -1130,18 +1124,15 @@ class Gui:
 
         initialvalue=self.find_by_tree
 
-        #self.find_dialog_on_main.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
-        #self.find_by_tree[tree]=self.find_dialog_on_main.entry.get()
-
-        self.find_dialog_on_groups.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
-        self.find_by_tree=self.find_dialog_on_groups.entry.get()
+        self.find_dialog.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
+        self.find_by_tree=self.find_dialog.entry.get()
 
         self.find_dialog_shown=False
         self.tree_semi_focus(tree)
 
     def find_prev_from_dialog(self,expression,use_reg_expr):
         self.find_items(expression,use_reg_expr)
-        self.select_find_result(-1)
+        #self.select_find_result(-1)
 
     def find_prev(self):
         if not self.find_result:
@@ -1177,39 +1168,30 @@ class Gui:
 
     @restore_status_line
     def find_items(self,expression,use_reg_expr):
-        print('find_items')
+        #print('find_items')
         self.status('finding ...')
 
         if self.find_params_changed:
-            items=[]
-            items_append = items.append
-
-            self_main_tree_get_children = self.main_tree_get_children
-            self_item_full_path = self.item_full_path
-
             if expression:
-                crc_range = self_main_tree_get_children()
+                func_to_call = ( lambda x : search(expression,x) ) if use_reg_expr else ( lambda x : fnmatch(x,expression) )
 
-                try:
-                    for crc_item in crc_range:
-                        for item in self_main_tree_get_children(crc_item):
-                            fullpath = self_item_full_path(item)
-                            if (use_reg_expr and search(expression,fullpath)) or (not use_reg_expr and fnmatch(fullpath,expression) ):
-                                items_append(item)
-                except Exception as e:
-                    try:
-                        self.info_dialog_on_find[self.main_tree].show('Error',str(e))
-                    except Exception as e2:
-                        print(e2)
-                    return
+                results = librer_core.find_items_in_all_records(func_to_call)
 
-            if items:
-                self.find_result=tuple(items)
-                self.find_params_changed=False
-            else:
-                self.find_result=()
-                scope_info = 'Scope: All groups.' if self.main_tree==self.main_tree else 'Scope: Selected directory.'
-                self.info_dialog_on_find[self.main_tree].show(scope_info,'No files found.')
+                if results:
+                    print('--')
+                    for record,results in results:
+                        print(record.db.label)
+                        for res in results:
+                            print('  ',res)
+
+
+                #if items:
+                #    self.find_result=tuple(items)
+                #    self.find_params_changed=False
+                #else:
+                #    self.find_result=()
+                #    scope_info = 'Scope: All groups.' if self.main_tree==self.main_tree else 'Scope: Selected directory.'
+                #    self.info_dialog_on_find[self.main_tree].show(scope_info,'No files found.')
 
     def select_find_result(self,mod):
         if self.find_result:
@@ -1292,7 +1274,7 @@ class Gui:
         if self.actions_processing:
             self.hide_tooltip()
             self.menubar_unpost()
-            self.popup_groups_unpost()
+            self.popup_unpost()
 
             try:
                 tree=event.widget
@@ -1369,7 +1351,7 @@ class Gui:
     def tree_on_mouse_button_press(self,event):
         self.menubar_unpost()
         self.hide_tooltip()
-        self.popup_groups_unpost()
+        self.popup_unpost()
 
         if self.actions_processing:
             tree=event.widget
@@ -1402,7 +1384,7 @@ class Gui:
         return None
 
     def tree_semi_focus(self,tree):
-        print('tree_semi_focus')
+        #print('tree_semi_focus')
         item=None
 
         if sel:=tree.selection():
@@ -1419,10 +1401,10 @@ class Gui:
 
         if item:
             tree.focus_set()
-            tree.configure(style='semi_focus.Treeview')
+            #tree.configure(style='semi_focus.Treeview')
             #self.other_tree[tree].configure(style='no_focus.Treeview')
 
-            tree.focus(item)
+            #tree.focus(item)
             tree.see(item)
             tree.selection_set(item)
 
@@ -1473,11 +1455,10 @@ class Gui:
             l_error(e)
 
     def context_menu_show(self,event):
-        print('context_menu_show')
-
-        tree=event.widget
+        tree=self.main_tree
 
         if tree.identify("region", event.x, event.y) == 'heading':
+            print('heading')
             return
 
         if not self.actions_processing:
@@ -1489,7 +1470,7 @@ class Gui:
 
         item_actions_state=('disabled','normal')[self.sel_item is not None]
 
-        pop=self.popup_groups
+        pop=self.popup
 
         pop.delete(0,'end')
 
@@ -1542,7 +1523,9 @@ class Gui:
         self.column_sort(tree)
 
     @logwrapper
-    def tree_sort_item(self,tree,parent_item):
+    def tree_sort_item(self,parent_item):
+        tree = self.main_tree
+
         colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params[tree]
 
         real_column_to_sort=self.REAL_SORT_COLUMN[colname]
@@ -1556,29 +1539,30 @@ class Gui:
         children = tree.get_children(parent_item)
 
         #dont sort single item and dummy item
-        if len(children)>1:
-            for item in tree.get_children(parent_item):
+        #if len(children)>1:
+        for item in children:
+            values = tree.item(item,'values')
 
-                values = tree.item(item,'values')
+            if not values: #dummy node
+                continue
 
-                sortval_org = values[self.REAL_SORT_COLUMN_INDEX[colname]]
+            sortval_org = values[self.REAL_SORT_COLUMN_INDEX[colname]]
 
-                sortval=(int(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
+            sortval=(int(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
 
-                kind = tree_set(item,'kind')
+            kind = tree_set(item,'kind')
 
-                code= dir_code if kind in dir_or_dirlink else non_dir_code
-                tlist_append( ( (code,sortval),item) )
+            code= dir_code if kind in dir_or_dirlink else non_dir_code
+            tlist_append( ( (code,sortval),item) )
 
-            tlist.sort(reverse=reverse,key=lambda x: x[0])
+        tlist.sort(reverse=reverse,key=lambda x: x[0])
 
-            if not parent_item:
-                parent_item=''
+        if not parent_item:
+            parent_item=''
 
-
-            tree_move = tree.move
-            _ = {tree_move(item, parent_item, index) for index,(val_tuple,item) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
-            _ = {self.tree_sort_item(tree,item) for (val_tuple,item) in tlist }
+        tree_move = tree.move
+        _ = {tree_move(item_temp, parent_item, index) for index,(val_tuple,item_temp) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
+        _ = {self.tree_sort_item(item_temp) for (val_tuple,item_temp) in tlist }
 
     @restore_status_line
     @block_actions_processing
@@ -1589,7 +1573,7 @@ class Gui:
         colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params[tree]
 
         self.column_sort_set_arrow(tree)
-        self.tree_sort_item(tree,'')
+        self.tree_sort_item(None)
 
         tree.update()
 
@@ -2133,12 +2117,12 @@ class Gui:
     folder_items_clear=folder_items.clear
     folder_items_add=folder_items.add
 
-    def item_full_path(self,item):
-        self_main_tree_set = self.main_tree_set
+    #def item_full_path(self,item):
+    #    self_main_tree_set = self.main_tree_set
 
-        path=self_main_tree_set(item,'path')
-        #file=self_main_tree_set(item,'file')
-        return abspath(librer_core.get_full_path_scanned(path,file))
+    #    path=self_main_tree_set(item,'path')
+    #    #file=self_main_tree_set(item,'file')
+    #    return abspath(librer_core.get_full_path_scanned(path,file))
 
     @logwrapper
     def csv_save(self):

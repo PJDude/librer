@@ -3,7 +3,6 @@ from os import stat
 from os import sep
 from os.path import join as path_join
 from time import time
-#from time import localtime
 
 import gzip
 import pickle
@@ -54,7 +53,7 @@ class LibrerCoreElement :
     db = None
     #info_size_sum = 0
     #info_counter = 0
-    info_line = ''
+    #info_line = ''
     file_name = ''
     #size = 0
 
@@ -90,7 +89,7 @@ class LibrerCoreElement :
                                 new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None)
                                 self.log.warning(f'skippping directory link: {path} / {entry.name}')
                             else:
-                                new_dict=dict()
+                                new_dict={}
                                 sub_level_size=self.do_scan(path_join(path,entry.name),new_dict)
                                 new_level = (is_dir,is_file,is_symlink,sub_level_size,stat_res.st_mtime_ns,new_dict)
                                 folder_size += sub_level_size
@@ -114,6 +113,26 @@ class LibrerCoreElement :
 
         return folder_size
 
+    def find_items_rec(self,func_to_call,local_dict,parent_path_components=[]):
+        #print('find_items_rec:',parent_path_components)
+
+        res = []
+        for name,(is_dir,is_file,is_symlink,size,mtime,sub_dictionary) in local_dict.items():
+            if func_to_call(name):
+                #print('found:',name,' ',parent_path_components)
+                res.append( (parent_path_components,name) )
+
+            if is_dir and sub_dictionary:
+                if sub_res := self.find_items_rec(func_to_call,sub_dictionary,parent_path_components + [name]) :
+                    res.append(sub_res)
+        return res
+
+    def find_items(self,func_to_call):
+        local_dict = self.db.data
+        parent_path_components = []
+
+        return self.find_items_rec(func_to_call,local_dict,parent_path_components)
+
     def get_file_name(self):
         return f'{self.db.time}.dat'
 
@@ -129,8 +148,6 @@ class LibrerCoreElement :
         with gzip.open(file_path, "wb") as gzip_file:
             pickle.dump(self.db, gzip_file)
 
-        #return file_path
-
     def load(self,db_dir,file_name="data.gz"):
         self.log.info('loading %s' % file_name)
         try:
@@ -145,13 +162,10 @@ class LibrerCoreElement :
         else:
             return False
 
-    #import json  # Do ładnego wyświetlenia struktury
-    #print(json.dumps(loaded_data, indent=2))
-
 class LibrerCore:
     records = set()
     db_dir=''
-    info_line = ''
+    #info_line = ''
 
     def __init__(self,db_dir,log):
         self.records = set()
@@ -178,36 +192,15 @@ class LibrerCore:
                     else:
                         callback(new_element)
 
-                    #try:
-                    #    stat_res = stat(entry)
-                    #    #print(type(stat_res))
-                    #except Exception as e:
-                    #    print('scandir(stat):%s error:%s',entry.name,e )
-                    #else:
         except Exception as e:
             self.log.error('list read error:%s' % e )
         else:
             pass
 
-    #def set_path_to_scan(self, path):
-    #    self.new_path = path
+    def find_items_in_all_records(self,func_to_call):
+        res = []
+        for record in self.records:
+            if sub_res:= record.find_items(func_to_call):
+                res.append( (record,sub_res) )
+        return res
 
-    #def scan(self):
-    #    print('pre-self.cores:',len(self.records))
-    #    self.info_size_sum = self.new_core.info_size_sum
-    #    self.info_counter = self.new_core.info_counter
-    #    self.info_line = self.new_core.info_line
-
-    #    self.new_element.scan(self.new_path)
-    #    new_core=None
-    #    print('post-self.cores:',len(self.cores))
-
-
-
-#    main_dict=dict()
-#    do_scan('.',main_dict)
-
-#kor = core()
-#kor.scan('.')
-#kor.save('test1.dat')
-#kor.load('test1.dat')
