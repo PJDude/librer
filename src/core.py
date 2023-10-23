@@ -51,22 +51,18 @@ class LibrerCoreData :
 
 class LibrerCoreElement :
     db = None
-    #info_size_sum = 0
-    #info_counter = 0
-    #info_line = ''
     file_name = ''
-    #size = 0
 
     def __init__(self,label,path,log):
         self.db = LibrerCoreData(label,path)
         self.log = log
+        self.find_results = []
 
     def abort():
         print('abort')
         pass
 
     def do_scan(self, path, dictionary) :
-        #print(path,type(dictionary))
 
         folder_size=0
         try:
@@ -114,24 +110,24 @@ class LibrerCoreElement :
         return folder_size
 
     def find_items_rec(self,func_to_call,local_dict,parent_path_components=[]):
-        #print('find_items_rec:',parent_path_components)
-
-        res = []
         for name,(is_dir,is_file,is_symlink,size,mtime,sub_dictionary) in local_dict.items():
             if func_to_call(name):
-                #print('found:',name,' ',parent_path_components)
-                res.append( (parent_path_components,name) )
+                single_res = parent_path_components.copy()
+                single_res.append(name)
 
-            if is_dir and sub_dictionary:
-                if sub_res := self.find_items_rec(func_to_call,sub_dictionary,parent_path_components + [name]) :
-                    res.append(sub_res)
-        return res
+                self.find_results.append(single_res)
+            elif is_dir and sub_dictionary:
+                self.find_items_rec(func_to_call,sub_dictionary,parent_path_components + [name])
 
     def find_items(self,func_to_call):
+        self.find_results = []
+
         local_dict = self.db.data
         parent_path_components = []
 
-        return self.find_items_rec(func_to_call,local_dict,parent_path_components)
+        self.find_items_rec(func_to_call,local_dict,parent_path_components)
+
+        return self.find_results
 
     def get_file_name(self):
         return f'{self.db.time}.dat'
@@ -200,7 +196,10 @@ class LibrerCore:
     def find_items_in_all_records(self,func_to_call):
         res = []
         for record in self.records:
-            if sub_res:= record.find_items(func_to_call):
-                res.append( (record,sub_res) )
-        return res
+            sub_res = record.find_items(func_to_call)
+            if sub_res:
+                for single_res in sub_res:
+                    res.append( (record,single_res) )
+
+        return tuple(res)
 

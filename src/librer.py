@@ -70,7 +70,7 @@ from tkinter import Tk
 from tkinter import Toplevel
 from tkinter import PhotoImage
 from tkinter import Menu
-from tkinter import PanedWindow
+#from tkinter import PanedWindow
 from tkinter import Label
 from tkinter import LabelFrame
 from tkinter import Frame
@@ -429,30 +429,37 @@ class Gui:
         self.menubar_norm = lambda x : self.menubar_entryconfig(x, state="normal")
         self.menubar_disable = lambda x : self.menubar_entryconfig(x, state="disabled")
 
-        self.paned = PanedWindow(self_main,orient='vertical',relief='sunken',showhandle=0,bd=0,bg=self.bg_color,sashwidth=2,sashrelief='flat')
-        self.paned.pack(fill='both',expand=1)
+        #self.paned = PanedWindow(self_main,orient='vertical',relief='sunken',showhandle=0,bd=0,bg=self.bg_color,sashwidth=2,sashrelief='flat')
+        #self.paned.pack(fill='both',expand=1)
 
-        frame_groups = Frame(self.paned,bg=self.bg_color)
-        self.paned.add(frame_groups)
-        frame_folder = Frame(self.paned,bg=self.bg_color)
+        #frame_groups = self_main
 
-        frame_groups.grid_columnconfigure(0, weight=1)
-        frame_groups.grid_rowconfigure(0, weight=1,minsize=200)
+        #frame_groups = Frame(self.paned,bg=self.bg_color)
+        #self.paned.add(frame_groups)
+        #frame_folder = Frame(self.paned,bg=self.bg_color)
 
-        (status_frame_groups := Frame(frame_groups,bg=self.bg_color)).pack(side='bottom', fill='both')
+        #frame_groups.grid_columnconfigure(0, weight=1)
+        #frame_groups.grid_rowconfigure(0, weight=1,minsize=200)
 
-        Label(status_frame_groups,width=10,text='Record: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
+        (status_frame := Frame(self_main,bg=self.bg_color)).pack(side='bottom', fill='both')
 
-        #self.status_record=Label(status_frame_groups,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
-        self.status_record=Label(status_frame_groups,text='--',width=30,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        #Label(status_frame,width=6,text='Info:',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
+
+        self.status_info = Label(status_frame,text='Initializing...',relief='sunken',borderwidth=1,bg=self.bg_color,anchor='w')
+        self.status_info.pack(fill='x',expand=1,side='left')
+        self.status_info_configure = self.status_info.configure
+
+        Label(status_frame,width=10,text='Record: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
+        #self.status_record=Label(status_frame,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
+        self.status_record=Label(status_frame,text='--',width=30,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_record.pack(fill='x',expand=0,side='left')
         self.status_record_configure = self.status_record.configure
 
-        Label(status_frame_groups,width=10,text='Scan Path: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
-        self.status_scan_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
+        Label(status_frame,width=10,text='Scan Path: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
+        self.status_scan_path = Label(status_frame,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
 
-        #self.status_record=Label(status_frame_groups,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
-        self.status_scan_path=Label(status_frame_groups,text='--',width=30,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        #self.status_record=Label(status_frame,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
+        self.status_scan_path=Label(status_frame,text='--',width=30,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_scan_path.pack(fill='x',expand=0,side='left')
         self.status_scan_path_configure = self.status_scan_path.configure
 
@@ -466,12 +473,12 @@ class Gui:
 
         #self.status_scan_path_configure=self.status_path.configure
 
-        (status_frame_folder := Frame(frame_folder,bg=self.bg_color)).pack(side='bottom',fill='both')
+        #(status_frame_folder := Frame(frame_folder,bg=self.bg_color)).pack(side='bottom',fill='both')
 
-        self.status_line_lab=Label(status_frame_folder,width=30,image=self_ico['expression'],compound= 'left',text='',borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_line_lab.pack(fill='x',expand=1,side='left')
-        self.status_line_lab_configure = self.status_line_lab.configure
-        self.status_line_lab_update = self.status_line_lab.update
+        #self.status_line_lab=Label(status_frame_folder,width=30,image=self_ico['expression'],compound= 'left',text='',borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        #self.status_line_lab.pack(fill='x',expand=1,side='left')
+        #self.status_line_lab_configure = self.status_line_lab.configure
+        #self.status_line_lab_update = self.status_line_lab.update
 
         #self.status_folder_quant=Label(status_frame_folder,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
         #self.status_folder_quant.pack(fill='x',expand=0,side='right')
@@ -484,23 +491,23 @@ class Gui:
 
         #Label(status_frame_folder,width=18,text='Marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
-        self.main_tree=Treeview(frame_groups,takefocus=True,show=('tree','headings') )
-        self_main_tree = self.main_tree
+        self.tree=Treeview(self_main,takefocus=True,show=('tree','headings') )
+        self_tree = self.tree
 
-        self_main_tree.bind('<KeyPress>', self.key_press )
-        self_main_tree.bind('<<TreeviewOpen>>', self.open_item )
-        self_main_tree.bind('<ButtonPress-3>', self.context_menu_show)
+        self_tree.bind('<KeyPress>', self.key_press )
+        self_tree.bind('<<TreeviewOpen>>', self.open_item )
+        self_tree.bind('<ButtonPress-3>', self.context_menu_show)
 
-        self_main_tree.bind("<<TreeviewSelect>>", self.main_tree_select)
+        self_tree.bind("<<TreeviewSelect>>", self.tree_select)
         self.selected_record_item=''
         self.selected_record_name=''
 
         #selectmode='none',
 
-        self.main_tree_set = self_main_tree.set
-        self.main_tree_see = self_main_tree.see
-        self.main_tree_get_children = self.main_tree.get_children
-        self.main_tree_focus = lambda item : self.main_tree.focus(item)
+        self.tree_set = self_tree.set
+        self.tree_see = self_tree.see
+        self.tree_get_children = self.tree.get_children
+        self.tree_focus = lambda item : self.tree.focus(item)
 
         self.org_label={}
         self_org_label = self.org_label
@@ -509,44 +516,44 @@ class Gui:
         self_org_label['size_h']='Size'
         self_org_label['ctime_h']='Time'
 
-        self_main_tree["columns"]=('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-        self_main_tree["displaycolumns"]=('size_h','ctime_h')
+        self_tree["columns"]=('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
+        self_tree["displaycolumns"]=('size_h','ctime_h')
         self.real_display_columns=('#0','size_h','ctime_h')
 
-        self_main_tree_column = self_main_tree.column
+        self_tree_column = self_tree.column
 
-        self_main_tree_column('#0', width=120, minwidth=100, stretch='yes')
-        self_main_tree_column('size_h', width=80, minwidth=80, stretch='no',anchor='e')
-        self_main_tree_column('ctime_h', width=150, minwidth=100, stretch='no',anchor='e')
+        self_tree_column('#0', width=120, minwidth=100, stretch='yes')
+        self_tree_column('size_h', width=80, minwidth=80, stretch='no',anchor='e')
+        self_tree_column('ctime_h', width=150, minwidth=100, stretch='no',anchor='e')
 
-        self_main_tree_heading = self_main_tree.heading
+        self_tree_heading = self_tree.heading
 
-        self_main_tree_heading('#0',text='Label',anchor='w')
-        self_main_tree_heading('size_h',anchor='w')
-        self_main_tree_heading('ctime_h',anchor='n')
-        #self_main_tree_heading('size_h', text='Size \u25BC',anchor='n')
+        self_tree_heading('#0',text='Label',anchor='w')
+        self_tree_heading('size_h',anchor='w')
+        self_tree_heading('ctime_h',anchor='n')
+        #self_tree_heading('size_h', text='Size \u25BC',anchor='n')
 
-        self_main_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
+        self_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
 
-        vsb1 = Scrollbar(frame_groups, orient='vertical', command=self_main_tree.yview,takefocus=False)
+        vsb1 = Scrollbar(self_main, orient='vertical', command=self_tree.yview,takefocus=False)
 
-        self_main_tree.configure(yscrollcommand=vsb1.set)
+        self_tree.configure(yscrollcommand=vsb1.set)
 
         vsb1.pack(side='right',fill='y',expand=0)
-        self_main_tree.pack(fill='both',expand=1, side='left')
+        self_tree.pack(fill='both',expand=1, side='left')
 
-        self_main_tree.bind('<Double-Button-1>', self.double_left_button)
+        self_tree.bind('<Double-Button-1>', self.double_left_button)
 
-        tree = self_main_tree
+        tree = self_tree
         tree_heading = tree.heading
         #tree["displaycolumns"]
         for col in self.real_display_columns:
             if col in self_org_label:
                 tree_heading(col,text=self_org_label[col])
 
-        self_main_tree_tag_configure = self_main_tree.tag_configure
+        self_tree_tag_configure = self_tree.tag_configure
 
-        self_main_tree_tag_configure(self.RECORD, foreground='green')
+        self_tree_tag_configure(self.RECORD, foreground='green')
 
         self.biggest_file_of_path={}
         self.biggest_file_of_path_id={}
@@ -572,14 +579,14 @@ class Gui:
 
         self_main.deiconify()
 
-        self.paned.update()
+        #self.paned.update()
         #self.paned.sash_place(0,0,self.cfg.get('sash_coord',400,section='geometry'))
 
         #prevent displacement
         if cfg_geometry :
             self_main.geometry(cfg_geometry)
 
-        self.popup = Menu(self_main_tree, tearoff=0,bg=self.bg_color)
+        self.popup = Menu(self_tree, tearoff=0,bg=self.bg_color)
         self.popup_unpost = self.popup.unpost
         self.popup.bind("<FocusOut>",lambda event : self.popup_unpost() )
 
@@ -760,17 +767,17 @@ class Gui:
         self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
         self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
-        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_main_tree,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_tree,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
 
         self.info_dialog_on_mark={}
 
-        self.info_dialog_on_mark[self_main_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_mark[self_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
-        self.find_dialog = dialogs.FindEntryDialog(self_main_tree,self_ico['librer'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.find_dialog = dialogs.FindEntryDialog(self_tree,self_ico['librer'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
 
         self.info_dialog_on_find={}
 
-        self.info_dialog_on_find[self_main_tree] = dialogs.LabelDialog(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_find[self_tree] = dialogs.LabelDialog(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
        #######################################################################
         #About Dialog
@@ -882,9 +889,9 @@ class Gui:
 
         self_REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX={}
 
-        #self_main_tree["displaycolumns"]
+        #self_tree["displaycolumns"]
         for disply_column in self.real_display_columns:
-            self_REAL_SORT_COLUMN_INDEX[disply_column] = self_main_tree["columns"].index(self_REAL_SORT_COLUMN[disply_column])
+            self_REAL_SORT_COLUMN_INDEX[disply_column] = self_tree["columns"].index(self_REAL_SORT_COLUMN[disply_column])
 
         self_REAL_SORT_COLUMN_IS_NUMERIC = self.REAL_SORT_COLUMN_IS_NUMERIC = self.REAL_SORT_COLUMN_IS_NUMERIC={}
 
@@ -894,13 +901,13 @@ class Gui:
 
         self.column_sort_last_params={}
         #colname,sort_index,is_numeric,reverse,dir_code,non_dir_code
-        self.column_sort_last_params[self_main_tree]=self.column_groups_sort_params_default=('size_h',self_REAL_SORT_COLUMN_INDEX['size_h'],self_REAL_SORT_COLUMN_IS_NUMERIC['size_h'],1,1,0)
+        self.column_sort_last_params[self_tree]=self.column_groups_sort_params_default=('size_h',self_REAL_SORT_COLUMN_INDEX['size_h'],self_REAL_SORT_COLUMN_IS_NUMERIC['size_h'],1,1,0)
 
         #######################################################################
 
-        self_main_tree.bind("<Motion>", self.motion_on_main_tree)
+        self_tree.bind("<Motion>", self.motion_on_tree)
 
-        self_main_tree.bind("<Leave>", lambda event : self.widget_leave())
+        self_tree.bind("<Leave>", lambda event : self.widget_leave())
 
         #######################################################################
 
@@ -935,7 +942,7 @@ class Gui:
 
         self.actions_processing=True
 
-        self.tree_semi_focus(self_main_tree)
+        self.tree_semi_focus(self_tree)
 
         self_main.mainloop()
         #######################################################################
@@ -958,9 +965,9 @@ class Gui:
             self.tooltip_message[str(event.widget)]=message
         self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
 
-    def motion_on_main_tree(self,event):
+    def motion_on_tree(self,event):
         if self.actions_processing:
-            self.tooltip_show_after_groups = event.widget.after(1, self.show_tooltips_main_tree(event))
+            self.tooltip_show_after_groups = event.widget.after(1, self.show_tooltips_tree(event))
 
     def configure_tooltip(self,widget):
         self.tooltip_lab_configure(text=self.tooltip_message[str(widget)])
@@ -977,7 +984,7 @@ class Gui:
     def get_item_record(self,item):
         current_record_name=None
 
-        tree = self.main_tree
+        tree = self.tree
 
         while not current_record_name:
             temp_record_name = tree.set(item,'record')
@@ -990,8 +997,8 @@ class Gui:
 
         return (item,current_record_name)
 
-    def show_tooltips_main_tree(self,event):
-        self.unschedule_tooltips_main_tree(event)
+    def show_tooltips_tree(self,event):
+        self.unschedule_tooltips_tree(event)
         self.menubar_unpost()
 
         self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
@@ -1034,7 +1041,7 @@ class Gui:
             event.widget.after_cancel(self.tooltip_show_after_widget)
             self.tooltip_show_after_widget = None
 
-    def unschedule_tooltips_main_tree(self,event):
+    def unschedule_tooltips_tree(self,event):
         if self.tooltip_show_after_groups:
             event.widget.after_cancel(self.tooltip_show_after_groups)
             self.tooltip_show_after_groups = None
@@ -1112,27 +1119,25 @@ class Gui:
     find_params_changed=True
     find_tree_index=-1
 
-    find_by_tree='*'
+    find_initialvalue='*'
 
     def finder_wrapper_show(self):
         #print('finder_wrapper_show')
-        tree=self.main_tree
+        tree=self.tree
 
         self.find_dialog_shown=True
 
         scope_info = ''
 
-        initialvalue=self.find_by_tree
-
-        self.find_dialog.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
-        self.find_by_tree=self.find_dialog.entry.get()
+        self.find_dialog.show('Find',scope_info,initial=self.find_initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
+        self.find_initialvalue=self.find_dialog.entry.get()
 
         self.find_dialog_shown=False
         self.tree_semi_focus(tree)
 
     def find_prev_from_dialog(self,expression,use_reg_expr):
         self.find_items(expression,use_reg_expr)
-        #self.select_find_result(-1)
+        self.select_find_result(-1)
 
     def find_prev(self):
         if not self.find_result:
@@ -1168,8 +1173,7 @@ class Gui:
 
     @restore_status_line
     def find_items(self,expression,use_reg_expr):
-        #print('find_items')
-        self.status('finding ...')
+        self.status('searching ...')
 
         if self.find_params_changed:
             if expression:
@@ -1177,47 +1181,67 @@ class Gui:
 
                 results = librer_core.find_items_in_all_records(func_to_call)
 
+                results_len = len(results)
+
+                self.status_info_configure(text = f'Search results:{results_len}')
+
                 if results:
-                    print('--')
-                    for record,results in results:
-                        print(record.db.label)
-                        for res in results:
-                            print('  ',res)
+                    self.find_result=results
+                    self.find_params_changed=False
+                else:
+                    self.find_result=()
+                    scope_info = ''
+                    self.info_dialog_on_find[self.tree].show(scope_info,'No files found.')
 
-
-                #if items:
-                #    self.find_result=tuple(items)
-                #    self.find_params_changed=False
-                #else:
-                #    self.find_result=()
-                #    scope_info = 'Scope: All groups.' if self.main_tree==self.main_tree else 'Scope: Selected directory.'
-                #    self.info_dialog_on_find[self.main_tree].show(scope_info,'No files found.')
+    def get_child_of_name(self,item,child_name):
+        self_tree = self.tree
+        for child in self_tree.get_children(item):
+            values = self_tree.item(child,'values')
+            data=values[0]
+            if data==child_name:
+                return child
+        return None
 
     def select_find_result(self,mod):
+        self_tree = self.tree
         if self.find_result:
             items_len=len(self.find_result)
             self.find_result_index+=mod
             next_item=self.find_result[self.find_result_index%items_len]
 
-            self.main_tree.focus(next_item)
+            if next_item:
+                record,record_result = next_item
 
-            if self.find_dialog_shown:
-                #focus is still on find dialog
-                self.main_tree.selection_set(next_item)
-            else:
-                self.main_tree.selection_set(next_item)
-                self.tree_semi_focus(self.main_tree)
+                record_item = self.record_to_item[record]
 
-            self.main_tree.see(next_item)
-            self.main_tree.update()
+                current_item = record_item
 
-            if self.main_tree==self.main_tree:
-                self.main_tree_sel_change(next_item)
+                self.open_item(None,current_item)
 
-            if mod>0:
-                self.status('Find next %s' % self.find_expression_prev)
-            else:
-                self.status('Find Previous %s' % self.find_expression_prev)
+                for item_name in record_result:
+                    child_item = self.get_child_of_name(current_item,item_name)
+                    if child_item:
+                        current_item = child_item
+                        self.open_item(None,current_item)
+                    else:
+                        self.info_dialog_on_main.show('cannot find item:',item_name)
+                        break
+
+                self_tree.selection_set(current_item)
+
+                if not self.find_dialog_shown:
+                    self_tree.focus(current_item)
+
+                self.tree_semi_focus(self.tree)
+                self.tree.see(current_item)
+                self.tree.update()
+
+                self.tree_sel_change(current_item)
+
+                if mod>0:
+                    self.status('Find next %s' % self.find_expression_prev)
+                else:
+                    self.status('Find Previous %s' % self.find_expression_prev)
 
     KEY_DIRECTION={}
     KEY_DIRECTION['Prior']=-1
@@ -1230,7 +1254,7 @@ class Gui:
     def goto_next_prev_record(self,direction):
         #status ='selecting next record' if direction==1 else 'selecting prev record'
 
-        tree=self.main_tree
+        tree=self.tree
         current_item=self.sel_item
         self_sel_item = self.sel_item
 
@@ -1239,7 +1263,7 @@ class Gui:
 
         item_to_sel = tree.next(record_item) if direction==1 else tree.prev(record_item)
 
-        #if children := self.main_tree_get_children():
+        #if children := self.tree_get_children():
             #if next_item:=children[index]:
             #    self.select_and_focus(next_item)
         #    pass
@@ -1251,19 +1275,19 @@ class Gui:
     @catched
     def goto_first_last_record(self,index):
         #print('goto_first_last_record',index)
-        if children := self.main_tree_get_children():
+        if children := self.tree_get_children():
             if next_item:=children[index]:
                 self.select_and_focus(next_item)
 
     current_record=None
-    def main_tree_select(self,event):
-        #print('main_tree_select',event)
+    def tree_select(self,event):
+        #print('tree_select',event)
 
-        item=self.main_tree.focus()
-        parent = self.main_tree.parent(item)
+        item=self.tree.focus()
+        parent = self.tree.parent(item)
 
         if item and not parent:
-            record_name = self.main_tree.item(item,'text')
+            record_name = self.tree.item(item,'text')
             self.status_record_configure(text=record_name)
             self.current_record = record = self.item_to_record[item]
             self.status_scan_path_configure(text=record.db.path)
@@ -1336,17 +1360,17 @@ class Gui:
     def select_and_focus(self,item):
         #print('select_and_focus',item)
         #if try_to_show_all:
-        #    self.main_tree_see(self.main_tree_get_children(item)[-1])
-        #    self.main_tree.update()
+        #    self.tree_see(self.tree_get_children(item)[-1])
+        #    self.tree.update()
 
-        self.main_tree_see(item)
-        self.main_tree_focus(item)
-        #self.main_tree.selection_set(item)
+        self.tree_see(item)
+        self.tree_focus(item)
+        #self.tree.selection_set(item)
 
-        #self.tree_semi_focus(self.main_tree)
-        self.main_tree.update()
+        #self.tree_semi_focus(self.tree)
+        self.tree.update()
 
-        self.main_tree_sel_change(item)
+        self.tree_sel_change(item)
 
     def tree_on_mouse_button_press(self,event):
         self.menubar_unpost()
@@ -1376,7 +1400,7 @@ class Gui:
                 tree.selection_set(item)
                 self.tree_semi_focus(tree)
 
-                self.main_tree_sel_change(item)
+                self.tree_sel_change(item)
 
                 #prevents processing of expanding nodes
                 #return "break"
@@ -1408,7 +1432,7 @@ class Gui:
             tree.see(item)
             tree.selection_set(item)
 
-            self.main_tree_sel_change(item,True)
+            self.tree_sel_change(item,True)
 
     def sel_path_set(self,path):
         if self.sel_path_full != path:
@@ -1416,22 +1440,22 @@ class Gui:
             self.status_scan_path_configure(text=self.sel_path_full)
 
     @catched
-    def main_tree_sel_change(self,item,force=False,change_status_line=True):
+    def tree_sel_change(self,item,force=False,change_status_line=True):
         self.sel_item = item
 
         if change_status_line :
             self.status()
 
-        self_main_tree_set_item=lambda x : self.main_tree_set(item,x)
+        self_tree_set_item=lambda x : self.tree_set(item,x)
 
-        #self.sel_file = self_main_tree_set_item('file')
+        #self.sel_file = self_tree_set_item('file')
 
-        #new_crc = self_main_tree_set_item('crc')
+        #new_crc = self_tree_set_item('crc')
         #if self.sel_crc != new_crc:
         #    self.sel_crc = new_crc
 
-        path=self_main_tree_set_item('path')
-        #record=self_main_tree_set_item('file')
+        path=self_tree_set_item('path')
+        #record=self_tree_set_item('file')
         #print('sel record:',record)
 
         #self.sel_record = record
@@ -1446,7 +1470,7 @@ class Gui:
 
             #self.set_full_path_to_file()
 
-        self.sel_kind = self_main_tree_set_item('kind')
+        self.sel_kind = self_tree_set_item('kind')
 
     def menubar_unpost(self):
         try:
@@ -1455,7 +1479,7 @@ class Gui:
             l_error(e)
 
     def context_menu_show(self,event):
-        tree=self.main_tree
+        tree=self.tree
 
         if tree.identify("region", event.x, event.y) == 'heading':
             print('heading')
@@ -1524,7 +1548,7 @@ class Gui:
 
     @logwrapper
     def tree_sort_item(self,parent_item):
-        tree = self.main_tree
+        tree = self.tree
 
         colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params[tree]
 
@@ -1603,7 +1627,7 @@ class Gui:
 
     def scan_dialog_hide_wrapper(self):
         self.scan_dialog.hide()
-        self.tree_semi_focus(self.main_tree)
+        self.tree_semi_focus(self.tree)
 
     prev_status_progress_text=''
     def status_progress(self,text='',image='',do_log=False):
@@ -1996,10 +2020,13 @@ class Gui:
     def settings_reset(self):
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
-    def open_item(self,event):
-        tree=self.main_tree
+    def open_item(self,event=None,item=None):
+        tree=self.tree
 
-        item=tree.focus()
+        #print('open_item',item)
+        if not item:
+            item=tree.focus()
+        #print('open_item finally:',item)
 
         children=tree.get_children(item)
         opened = tree.set(item,'opened')
@@ -2063,6 +2090,7 @@ class Gui:
                     dummy_sub_item=tree.insert(record_item,'end')
 
             tree.set(item,'opened','1')
+            tree.item(item, open=True)
 
     @block_actions_processing
     @gui_block
@@ -2074,10 +2102,11 @@ class Gui:
 
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         values = (record_db.label,record.file_name,0,record_db.path,size,core.bytes_to_str(size),record_db.time,strftime('%Y/%m/%d %H:%M:%S',localtime(record_db.get_time())),self.RECORD)
-        record_item=self.main_tree.insert('','end',iid=None,values=values,open=False,text=record_db.label,tags=self.RECORD,image=self.ico['record'])
-        dummy_sub_item=self.main_tree.insert(record_item,'end',text='dummy')
+        record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record_db.label,tags=self.RECORD,image=self.ico['record'])
+        dummy_sub_item=self.tree.insert(record_item,'end',text='dummy')
 
         self.item_to_record[record_item]=record
+        self.record_to_item[record]=record_item
 
         self.main_update()
 
@@ -2089,11 +2118,12 @@ class Gui:
 
         self.menu_disable()
 
-        self_main_tree = self.main_tree
+        self_tree = self.tree
 
-        self_main_tree.delete(*self_main_tree.get_children())
+        self_tree.delete(*self_tree.get_children())
 
         self.item_to_record={}
+        self.record_to_item={}
 
         for record in sorted(librer_core.records,key=lambda x : x.file_name):
             self.single_record_show(record)
@@ -2104,25 +2134,18 @@ class Gui:
 
         self_status('')
 
-    def main_tree_update_none(self):
-        self.main_tree.selection_remove(self.main_tree.selection())
+    def tree_update_none(self):
+        self.tree.selection_remove(self.tree.selection())
 
-    def main_tree_update(self,item):
-        self_main_tree = self.main_tree
+    def tree_update(self,item):
+        self_tree = self.tree
 
-        self_main_tree.see(item)
-        self_main_tree.update()
+        self_tree.see(item)
+        self_tree.update()
 
     folder_items=set()
     folder_items_clear=folder_items.clear
     folder_items_add=folder_items.add
-
-    #def item_full_path(self,item):
-    #    self_main_tree_set = self.main_tree_set
-
-    #    path=self_main_tree_set(item,'path')
-    #    #file=self_main_tree_set(item,'file')
-    #    return abspath(librer_core.get_full_path_scanned(path,file))
 
     @logwrapper
     def csv_save(self):
