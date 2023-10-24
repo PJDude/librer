@@ -7,6 +7,9 @@ from time import time
 import gzip
 import pickle
 
+import subprocess
+
+
 def bytes_to_str(num):
     if num < 1024:
         return "%s B" % num
@@ -41,9 +44,10 @@ class LibrerCoreData :
         self.path = path
         self.scanned = False
         self.data = {}
-        files = 0
-        folders = 0
-        size = 0
+        self.files = 0
+        self.files_cde = 0
+        self.folders = 0
+        self.size = 0
         self.label=label
 
     def get_time(self):
@@ -57,57 +61,115 @@ class LibrerCoreElement :
         self.db = LibrerCoreData(label,path)
         self.log = log
         self.find_results = []
+        self.info_line = ''
 
     def abort():
         print('abort')
         pass
 
     def do_scan(self, path, dictionary) :
-
         folder_size=0
         try:
             with scandir(path) as res:
                 folder_counter = 0
 
                 for entry in res:
+                    entry_name = entry.name
+
+                    is_dir,is_file,is_symlink = entry.is_dir(),entry.is_file(),entry.is_symlink()
+
                     try:
                         stat_res = stat(entry)
                     except Exception as e:
                         self.log.error('stat error:%s', e )
+                        #size -1 <=> error, dev,in ==0
+                        dictionary[entry_name] = (is_dir,is_file,is_symlink,-1,0,None,None,None)
                     else:
-                        is_dir = entry.is_dir()
-                        is_file = entry.is_file()
-                        is_symlink = entry.is_symlink()
-                        size = stat_res.st_size
+                        dev = stat_res.st_dev
+                        ino = stat_res.st_ino
 
                         if is_dir:
                             if is_symlink :
-                                new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None)
-                                self.log.warning(f'skippping directory link: {path} / {entry.name}')
+                                new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None,ino,dev)
+                                #self.log.warning(f'skippping directory link: {path} / {entry_name}')
                             else:
                                 new_dict={}
-                                sub_level_size=self.do_scan(path_join(path,entry.name),new_dict)
-                                new_level = (is_dir,is_file,is_symlink,sub_level_size,stat_res.st_mtime_ns,new_dict)
+                                sub_level_size=self.do_scan(path_join(path,entry_name),new_dict)
+                                new_level = (is_dir,is_file,is_symlink,sub_level_size,stat_res.st_mtime_ns,new_dict,ino,dev)
                                 folder_size += sub_level_size
                         else:
                             if is_symlink :
-                                new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None)
-                                self.log.warning(f'skippping file link: {path} / {entry.name}')
+                                new_level = (is_dir,is_file,is_symlink,0,stat_res.st_mtime_ns,None,ino,dev)
+                                #self.log.warning(f'skippping file link: {path} / {entry_name}')
                             else:
-                                new_level = (is_dir,is_file,is_symlink,size,stat_res.st_mtime_ns,None)
+                                size = stat_res.st_size
+                                new_level = (is_dir,is_file,is_symlink,size,stat_res.st_mtime_ns,None,ino,dev)
                                 folder_size += size
 
                             folder_counter += 1
 
-                        dictionary[entry.name]=new_level
+                        dictionary[entry_name]=new_level
 
                 self.db.size += folder_size
+                #print(f'self.db.size:{bytes_to_str(self.db.size)}')
                 self.db.files += folder_counter
 
         except Exception as e:
             self.log.error('scandir error:%s',e )
 
         return folder_size
+
+    def scan (self,db_dir):
+        self.db.size=self.do_scan(self.db.path,self.db.data)
+        self.db_dir = db_dir
+        self.save(db_dir)
+        self.prepare_custom_info_pool()
+
+    def do_prepare_custom_info_pool(self,dictionary,parent_path):
+        #print('do_prepare_custom_info_pool',parent_path,dictionary.items())
+        for entry_name,(is_dir,is_file,is_symlink,size,mtime,sub_dictionary,inode,dev) in dictionary.items():
+            subpath = parent_path.copy() + [entry_name]
+
+            if not is_symlink:
+                if is_dir:
+                    self.do_prepare_custom_info_pool(sub_dictionary,subpath)
+                else:
+                    self.custom_info_pool[(inode,dev)] = sep.join(subpath)
+
+    def prepare_custom_info_pool(self):
+        self.custom_info_pool = {}
+        self.do_prepare_custom_info_pool(self.db.data,[])
+
+    def processs_custom_info(self,script):
+        self.cimax = len(self.custom_info_pool)
+        print('processs_custom_info',script,self.cimax)
+
+        self.custom_info = {}
+        for key,val in self.custom_info_pool.items():
+            self.db.files_cde += 1
+            #print(key,val)
+            result = subprocess.run([script,val], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            result1 = result.stdout
+            result2 = result.stderr
+
+            if result1!='':
+                if result2!='':
+                    self.custom_info[key] = (result1,result2)
+                else:
+                    self.custom_info[key] = (result1)
+
+                #print(key,self.custom_info[key],'\n')
+
+
+        file_name=self.get_cd_file_name()
+        file_path=sep.join([self.db_dir,file_name])
+        print('saving %s' % file_path)
+
+        with gzip.open(file_path, "wb") as gzip_file:
+            pickle.dump(self.custom_info, gzip_file)
+
+        print(self.custom_info)
 
     def find_items_rec(self,func_to_call,local_dict,parent_path_components=[]):
         for name,(is_dir,is_file,is_symlink,size,mtime,sub_dictionary) in local_dict.items():
@@ -129,12 +191,12 @@ class LibrerCoreElement :
 
         return self.find_results
 
+    def get_cd_file_name(self):
+        return f'{self.db.time}.cd.dat'
+
     def get_file_name(self):
         return f'{self.db.time}.dat'
 
-    def scan (self,db_dir):
-        self.db.size=self.do_scan(self.db.path,self.db.data)
-        self.save(db_dir)
 
     def save(self,db_dir) :
         self.file_name=self.get_file_name()
@@ -161,12 +223,12 @@ class LibrerCoreElement :
 class LibrerCore:
     records = set()
     db_dir=''
-    #info_line = ''
 
     def __init__(self,db_dir,log):
         self.records = set()
         self.db_dir = db_dir
         self.log=log
+        self.info_line = ''
 
     def create(self,label='',path=''):
         new_element = LibrerCoreElement(label,path,self.log)

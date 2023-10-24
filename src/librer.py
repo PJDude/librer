@@ -64,7 +64,7 @@ from signal import signal
 from signal import SIGINT
 
 from configparser import ConfigParser
-from subprocess import Popen
+#from subprocess import Popen
 
 from tkinter import Tk
 from tkinter import Toplevel
@@ -87,6 +87,7 @@ from tkinter.ttk import Style
 
 from tkinter.filedialog import askdirectory
 from tkinter.filedialog import asksaveasfilename
+from tkinter.filedialog import askopenfilename
 
 from collections import defaultdict
 from threading import Thread
@@ -114,12 +115,14 @@ CFG_KEY_USE_REG_EXPR='use_reg_expr'
 CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
 CFG_KEY_EXCLUDE='exclude'
 CFG_KEY_WRAPPER_FILE = 'file_open_wrapper'
+CFG_KEY_WRAPPER_FILE_USE = 'file_open_wrapper_use'
 
 cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
     CFG_KEY_EXCLUDE:'',
-    CFG_KEY_WRAPPER_FILE:''
+    CFG_KEY_WRAPPER_FILE:'',
+    CFG_KEY_WRAPPER_FILE_USE:False
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -354,10 +357,12 @@ class Gui:
 
         self_main_bind = self_main.bind
 
-        self_main_bind('<KeyPress-F2>', lambda event : self.settings_dialog.show())
+        #self_main_bind('<KeyPress-F2>', lambda event : self.settings_dialog.show())
         self_main_bind('<KeyPress-F1>', lambda event : self.aboout_dialog.show())
         self_main_bind('<KeyPress-s>', lambda event : self.scan_dialog_show())
         self_main_bind('<KeyPress-S>', lambda event : self.scan_dialog_show())
+
+        self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
 
         #self_main_bind('<KeyPress>', self.main_key_press)
 
@@ -716,43 +721,25 @@ class Gui:
 
         self.scan_dialog.focus=self.scan_cancel_button
 
-        def pre_show_settings():
-            _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
-            return pre_show()
 
-        #######################################################################
-        #Settings Dialog
-        self.settings_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Settings',pre_show=pre_show_settings,post_close=post_close,min_width=400,min_height=100)
+        ############
+        temp_frame_cw = LabelFrame(self.scan_dialog.area_main,text='Custom Data Extraction Wrapper:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame_cw.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3)
 
-        self.file_open_wrapper = StringVar()
+        self.file_open_wrapper_use = BooleanVar(value=self.cfg.get(CFG_KEY_WRAPPER_FILE_USE))
+        use_ow_button = Checkbutton(temp_frame_cw,text='Use CDEW',variable=self.file_open_wrapper_use)
+        use_ow_button.grid(row=0,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
-        self.settings_str = [
-            (self.file_open_wrapper,CFG_KEY_WRAPPER_FILE)
-        ]
-
-        row = 0
-
-        label_frame=LabelFrame(self.settings_dialog.area_main, text="info wrapper",borderwidth=2,bg=self.bg_color)
-        label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
-
-        Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
-        (en_1:=Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
+        self.file_open_wrapper = StringVar(value=self.cfg.get(CFG_KEY_WRAPPER_FILE))
+        Label(temp_frame_cw,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
+        (en_1:=Entry(temp_frame_cw,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='ew',padx=3,pady=3)
         en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.'))
         en_1.bind("<Leave>", lambda event : self.widget_leave())
 
-        label_frame.grid_columnconfigure(1, weight=1)
+        self.add_path_button = Button(temp_frame_cw,width=18,image = self_ico['open'], command=self.custom_info_wrappper_dialog,underline=0)
+        self.add_path_button.grid(row=1, column=2, sticky='news',padx=4,pady=4)
 
-        bfr=Frame(self.settings_dialog.area_main,bg=self.bg_color)
-        self.settings_dialog.area_main.grid_rowconfigure(row, weight=1); row+=1
-
-        bfr.grid(row=row,column=0) ; row+=1
-
-        Button(bfr, text='Set defaults',width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
-        Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5)
-        self.cancel_button=Button(bfr, text='Cancel', width=14 ,command=self.settings_dialog.hide )
-        self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
-
-        self.settings_dialog.area_main.grid_columnconfigure(0, weight=1)
+        temp_frame_cw.grid_columnconfigure(1, weight=1)
 
         #######################################################################
         self.info_dialog_on_main = dialogs.LabelDialog(self_main,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
@@ -850,8 +837,10 @@ class Gui:
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
                 self_file_cascade_add_command(label = 'Scan ...',command = self.scan_dialog_show, accelerator="S",image = self_ico['scan'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Settings ...',command=self.settings_dialog.show, accelerator="F2",image = self_ico['settings'],compound='left')
-                self_file_cascade_add_separator()
+                #self_file_cascade_add_command(label = 'Delete data record ...',command = self.delete_data_record,accelerator="Delete",image = self_ico['delete'],compound='left')
+                #self_file_cascade_add_separator()
+                #self_file_cascade_add_command(label = 'Settings ...',command=self.settings_dialog.show, accelerator="F2",image = self_ico['settings'],compound='left')
+                #self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self_ico['empty'],compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
@@ -942,6 +931,7 @@ class Gui:
 
         self.actions_processing=True
 
+        self_tree.focus()
         self.tree_semi_focus(self_tree)
 
         self_main.mainloop()
@@ -1513,8 +1503,11 @@ class Gui:
         c_nav_add_command(label = 'Go to last crc group'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
 
         pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
-        pop_add_command(label = 'Settings ...',  command = self.settings_dialog.show,accelerator='F2',image = self.ico['settings'],compound='left')
+        #pop_add_command(label = 'Settings ...',  command = self.settings_dialog.show,accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
+        pop_add_command(label = 'Delete data record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left')
+        pop_add_separator()
+
         pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico['empty'],compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
         pop_add_separator()
@@ -1744,6 +1737,9 @@ class Gui:
 
         local_core_bytes_to_str = core_bytes_to_str
 
+        self.cfg.set(CFG_KEY_WRAPPER_FILE_USE,self.file_open_wrapper_use.get())
+        self.cfg.set(CFG_KEY_WRAPPER_FILE,self.file_open_wrapper.get())
+
         while scan_thread_is_alive():
             new_data[3]=local_core_bytes_to_str(new_core_element.db.size)
             new_data[4]='%s files' % new_core_element.db.files
@@ -1797,7 +1793,30 @@ class Gui:
         #    return False
         #############################
 
+
         self.records_show()
+
+        if self.cfg.get(CFG_KEY_WRAPPER_FILE_USE) and self.cfg.get(CFG_KEY_WRAPPER_FILE)!='':
+            self_progress_dialog_on_scan.widget.title('Custom Data Extraction')
+
+            scan2_thread=Thread(target=lambda : new_core_element.processs_custom_info(self.cfg.get(CFG_KEY_WRAPPER_FILE)),daemon=True)
+            scan2_thread.start()
+
+            scan2_thread_is_alive = scan2_thread.is_alive
+
+            while scan2_thread_is_alive():
+
+                self_progress_dialog_on_scan_lab[3].configure(text=f'{new_core_element.db.files_cde} / {new_core_element.db.files}')
+
+                if self.action_abort:
+                    librer_core.abort()
+                    break
+
+                self.main.after(100,lambda : wait_var.set(not wait_var.get()))
+                self.main.wait_variable(wait_var)
+
+            scan2_thread.join()
+
 
         self_progress_dialog_on_scan.hide(True)
 
@@ -1940,6 +1959,14 @@ class Gui:
 
         return True
 
+    def delete_data_record(self):
+        label = self.current_record.db.label
+        path = self.current_record.db.path
+        self.text_ask_dialog.show('Delete Selected Data Recoord ?','Data Record: ' + label + '\n\n' + path)
+        if self.text_ask_dialog.res_bool:
+            print('deletingggggg')
+
+
     def scan_dialog_show(self,do_scan=False):
         self.exclude_mask_update()
 
@@ -1975,6 +2002,12 @@ class Gui:
 
                 row+=1
 
+    def custom_info_wrappper_dialog(self):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Bat Files","*.bat"),("Executable Files","*.exe"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
+            self.last_dir=dirname(res)
+            self.file_open_wrapper.set(normpath(abspath(res)))
+
     def path_to_scan_add_dialog(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
@@ -2009,16 +2042,6 @@ class Gui:
             orglist.remove('')
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.exclude_mask_update()
-
-    def settings_ok(self):
-        if self.cfg.get(CFG_KEY_WRAPPER_FILE)!=self.file_open_wrapper.get():
-            self.cfg.set(CFG_KEY_WRAPPER_FILE,self.file_open_wrapper.get())
-
-        self.cfg.write()
-        self.settings_dialog.hide()
-
-    def settings_reset(self):
-        _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
     def open_item(self,event=None,item=None):
         tree=self.tree
@@ -2065,14 +2088,24 @@ class Gui:
 
             self_ico_folder = self.ico['folder']
             self_ico_folder_link = self.ico['folder_link']
+            self_ico_folder_error = self.ico['folder_error']
             self_ico_empty = self.ico['empty']
             self_FILE = self.FILE
             core_bytes_to_str = core.bytes_to_str
 
             new_items_values = set()
-            for entry_name,(is_dir,is_file,is_symlink,size,mtime,sub_dictionary) in local_dict.items():
+            for entry_name,data_tuple in local_dict.items():
+                if len(data_tuple)==8:
+                    (is_dir,is_file,is_symlink,size,mtime,sub_dictionary,inode,dev) = data_tuple
+                elif len(data_tuple)==6:
+                    (is_dir,is_file,is_symlink,size,mtime,sub_dictionary) = data_tuple
+                    inode,dev=0,0
+                else:
+                    l_error(f'data format incompatible:{data_tuple}')
+                    continue
+
                 if is_dir:
-                    image=self_ico_folder_link if is_symlink else self_ico_folder
+                    image=self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink else self_ico_folder
                     kind = self.DIR
                 else:
                     image=self_ico_empty
