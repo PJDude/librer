@@ -282,7 +282,7 @@ class TextDialogInfo(GenericDialog):
         super().show()
 
 class TextDialogQuestion(TextDialogInfo):
-    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=1000,min_height=600,image=''):
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=800,min_height=400,image=''):
         super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
 
         self.cancel_button.configure(text='Cancel')
