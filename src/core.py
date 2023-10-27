@@ -5,6 +5,7 @@ from os.path import join as path_join
 from os.path import abspath
 from os.path import normpath
 
+from fnmatch import fnmatch
 from time import time
 
 import gzip
@@ -31,6 +32,20 @@ def bytes_to_str(num):
             return "%s %s" % (s_main,unit)
 
     return "BIG"
+
+def str_to_bytes(string):
+    units = {'kb': 1024,'mb': 1024*1024,'gb': 1024*1024*1024,'tb': 1024*1024*1024*1024}
+
+    string = string.replace(' ','')
+    for suffix in units:
+        if string.lower().endswith(suffix):
+            return int(string[0:-len(suffix)]) * units[suffix]
+
+    try:
+        return int(string)
+    except:
+        return -1
+
 
 #######################################################################
 data_format_version='1.0001'
@@ -71,6 +86,7 @@ class LibrerCoreRecord :
         self.info_line = ''
         self.custom_data = {}
         self.files_cde = 0 #custom data extracted info
+        self.files_cde_not = 0
         self.abort_action = False
 
     def file_name(self,main=True):
@@ -124,9 +140,10 @@ class LibrerCoreRecord :
                                 size_entry = 0
                             else:
                                 dict_entry = None
-                                size_entry = stat_res.st_size
+                                size_entry = int(stat_res.st_size)
 
                                 local_folder_files_size_sum += size_entry
+                                self.db.sum_size += size_entry
 
                             local_folder_files_count += 1
 
@@ -142,7 +159,8 @@ class LibrerCoreRecord :
     def scan (self,db_dir):
         self.abort_action=False
         self.db_dir = db_dir
-        self.db.sum_size = self.do_scan(self.db.scan_path,self.db.data)
+        self.db.sum_size = 0
+        self.do_scan(self.db.scan_path,self.db.data)
         self.save(db_dir)
         self.prepare_custom_data_pool()
 
@@ -154,36 +172,80 @@ class LibrerCoreRecord :
                 if is_dir:
                     self.do_prepare_custom_data_pool(sub_dict,subpath)
                 else:
-                    self.custom_data[(inode,dev)] = sep.join(subpath)
+                    self.custom_data_pool[(inode,dev)] = (sep.join(subpath),size)
 
     def prepare_custom_data_pool(self):
-        self.custom_data = {}
+        self.custom_data_pool = {}
         self.do_prepare_custom_data_pool(self.db.data,[])
 
-    def extract_custom_data(self,script,scan_path):
+    def extract_custom_data(self,cde_list):
+        scan_path = self.db.scan_path
         #print('extract_custom_data',script)
 
         self.custom_data = {}
+        self.files_cde = 0 #custom data extracted info
+        self.files_cde_not = 0
+        self.files_cde_size = 0
 
-        for key,val in self.custom_data.items():
-            full_file_path = normpath(abspath(sep.join([scan_path,val])))
-            self.files_cde += 1
-            #print(key,full_file_path)
-            try:
-                result = subprocess.run([script,full_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            except Exception as e:
-                self.log.error('Custom Data Extraction subprocess error:%s',e )
+        self.db.cde_list = cde_list
+
+        for key,(subpath,size) in self.custom_data_pool.items():
+            full_file_path = normpath(abspath(sep.join([scan_path,subpath])))
+
+            matched = False
+            for expressions,use_smin,smin_int,use_smax,smax_int,executable in cde_list:
+                if matched:
+                    break
+
+                if use_smin:
+                    if size<smin_int:
+                        self.files_cde_not += 1
+                        #print('min skipped',size,smin_int,subpath)
+                        continue
+                if use_smax:
+                    if size>smax_int:
+                        self.files_cde_not += 1
+                        #print('max skipped',size,smax_int,subpath)
+                        continue
+
+                for expr in expressions.split(','):
+                    if matched:
+                        break
+
+                    if fnmatch(full_file_path,expr):
+                        try:
+                            result = subprocess.run([*(executable.split()),full_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                        except Exception as e:
+                            #print(e)
+                            self.log.error('Custom Data Extraction subprocess error:%s',e )
+                            self.custom_data[key] = e
+                        else:
+                            result1 = result.stdout.strip()
+                            result2 = result.stderr.strip()
+
+                            if result1!='':
+                                if result2!='':
+                                    self.custom_data[key] = result1 + '\n' + result2
+                                else:
+                                    self.custom_data[key] = result1
+
+                                #print(key,type(key))
+
+                            #apply only first expression
+                            matched = True
+                            #print('matched:',expr,smin_int,smax_int,executable,full_file_path)
+                #if not matched:
+                    #self.custom_data[key] = 'dont match criteria:' + expressions
+                    #print('NUTHIN:',expr,smin_int,smax_int,executable,full_file_path)
+
+            if matched:
+                self.files_cde += 1
             else:
-                result1 = result.stdout.strip()
-                result2 = result.stderr.strip()
+                self.files_cde_not += 1
 
-                if result1!='':
-                    if result2!='':
-                        self.custom_data[key] = result1 + '\n' + result2
-                    else:
-                        self.custom_data[key] = result1
+            self.files_cde_size += size
 
-                    #print(key,type(key))
+        del self.custom_data_pool
 
         file_path=sep.join([self.db_dir,self.file_name(False)])
         self.log.info('saving %s' % file_path)
@@ -214,8 +276,8 @@ class LibrerCoreRecord :
         return self.find_results
 
     def save(self,db_dir) :
-        self.file_name=self.file_name(True)
-        file_path=sep.join([db_dir,self.file_name])
+        file_name=self.file_name(True)
+        file_path=sep.join([db_dir,file_name])
         self.log.info('saving %s' % file_path)
 
         with gzip.open(file_path, "wb") as gzip_file:
@@ -228,7 +290,6 @@ class LibrerCoreRecord :
             with gzip.open(full_file_path, "rb") as gzip_file:
                 self.db = pickle.load(gzip_file)
 
-            self.file_name = file_name
         except Exception as e:
             print('loading error:%s' % e )
             return True
@@ -242,7 +303,7 @@ class LibrerCoreRecord :
             with gzip.open(full_file_path, "rb") as gzip_file:
                 self.custom_data = pickle.load(gzip_file)
         except Exception as e:
-            print('loading error:%s' % e )
+            self.log.warning('loading error:%s' % e )
             return True
         else:
             return False

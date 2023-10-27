@@ -108,21 +108,20 @@ l_warning = logging.warning
 l_error = logging.error
 
 core_bytes_to_str=core.bytes_to_str
+core_str_to_bytes=core.str_to_bytes
 
 ###########################################################################################################################################
 
 CFG_KEY_USE_REG_EXPR='use_reg_expr'
 CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
 CFG_KEY_EXCLUDE='exclude'
-CFG_KEY_WRAPPER_FILE = 'file_open_wrapper'
-CFG_KEY_WRAPPER_FILE_USE = 'file_open_wrapper_use'
+CFG_KEY_CDE_SETTINGS = 'cde_settings'
 
 cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
     CFG_KEY_EXCLUDE:'',
-    CFG_KEY_WRAPPER_FILE:'',
-    CFG_KEY_WRAPPER_FILE_USE:False
+    CFG_KEY_CDE_SETTINGS:''
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -349,6 +348,7 @@ class Gui:
         self.ico_folder_link = self_ico['folder_link']
         self.ico_folder_error = self_ico['folder_error']
         self.ico_empty = self_ico['empty']
+        self.ico_delete = self_ico['delete']
 
         self_main.iconphoto(False, self_ico['librer'])
 
@@ -599,14 +599,14 @@ class Gui:
                 self.menu_enable()
                 self.menubar_config(cursor="")
 
-        self.scan_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
+        self.scan_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Scan',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
 
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
 
         self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
         #self.scan_dialog.area_main.grid_rowconfigure(0, weight=1)
-        self.scan_dialog.area_main.grid_rowconfigure(2, weight=1)
+        self.scan_dialog.area_main.grid_rowconfigure(3, weight=1)
 
         self.scan_dialog.widget.bind('<Alt_L><a>',lambda event : self.path_to_scan_add_dialog())
         self.scan_dialog.widget.bind('<Alt_L><A>',lambda event : self.path_to_scan_add_dialog())
@@ -691,7 +691,7 @@ class Gui:
         ##############
 
         skip_button = Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
-        skip_button.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
+        skip_button.grid(row=4,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
         skip_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
         skip_button.bind("<Leave>", lambda event : self.widget_leave())
@@ -705,23 +705,59 @@ class Gui:
         self.scan_dialog.focus=self.scan_cancel_button
 
         ############
-        temp_frame_cw = LabelFrame(self.scan_dialog.area_main,text='Custom Data Extractor:',borderwidth=2,bg=self.bg_color,takefocus=False)
-        temp_frame_cw.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3)
+        temp_frame3 = LabelFrame(self.scan_dialog.area_main,text='Custom Data Extractors:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame3.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3)
 
-        self.file_open_wrapper_use = BooleanVar(value=self.cfg.get_bool(CFG_KEY_WRAPPER_FILE_USE))
-        use_ow_button = Checkbutton(temp_frame_cw,text='Use CDEW',variable=self.file_open_wrapper_use)
-        use_ow_button.grid(row=0,column=0,sticky='news',padx=8,pady=3,columnspan=3)
+        sf_par3 = dialogs.SFrame(temp_frame3,bg=self.bg_color)
+        sf_par3.pack(fill='both',expand=True,side='top')
+        self.cde_frame = cde_frame = sf_par3.frame()
 
-        self.file_open_wrapper = StringVar(value=self.cfg.get(CFG_KEY_WRAPPER_FILE))
-        Label(temp_frame_cw,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
-        (en_1:=Entry(temp_frame_cw,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='ew',padx=3,pady=3)
-        en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.'))
-        en_1.bind("<Leave>", lambda event : self.widget_leave())
+        Label(cde_frame,text='Use',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=0,sticky='news')
+        Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=1,sticky='news')
+        Label(cde_frame,text='Min Size',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=2,sticky='news')
+        Label(cde_frame,text='Max Size',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=3,sticky='news')
+        Label(cde_frame,text='Executable',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=4,sticky='news')
+        Label(cde_frame,text='',bg=self.bg_color,anchor='w').grid(row=0, column=5,sticky='news')
+        #Label(cde_frame,text='Delete',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=6,sticky='news')
 
-        self.add_path_button = Button(temp_frame_cw,width=18,image = self_ico['open'], command=self.custom_data_wrappper_dialog,underline=0)
-        self.add_path_button.grid(row=1, column=2, sticky='news',padx=4,pady=4)
+        self.CDE_ENTRIES_MAX = 16
+        self.CDE_use_var_list = []
+        self.CDE_mask_var_list=[]
+        self.CDE_size_min_var_list=[]
+        self.CDE_size_max_var_list=[]
+        self.CDE_executable_var_list=[]
 
-        temp_frame_cw.grid_columnconfigure(1, weight=1)
+        for e in range(self.CDE_ENTRIES_MAX):
+            self.CDE_use_var_list.append(BooleanVar())
+            self.CDE_mask_var_list.append(StringVar())
+            self.CDE_size_min_var_list.append(StringVar())
+            self.CDE_size_max_var_list.append(StringVar())
+            self.CDE_executable_var_list.append(StringVar())
+
+            row = e+1
+            use_button = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e])
+            use_button.grid(row=row,column=0,sticky='news')
+
+            mask_entry = Entry(cde_frame,textvariable=self.CDE_mask_var_list[e])
+            mask_entry.grid(row=row, column=1,sticky='news')
+
+            size_min_entry = Entry(cde_frame,textvariable=self.CDE_size_min_var_list[e],width=6)
+            size_min_entry.grid(row=row, column=2,sticky ='news')
+
+            size_max_entry = Entry(cde_frame,textvariable=self.CDE_size_max_var_list[e],width=6)
+            size_max_entry.grid(row=row, column=3,sticky ='news')
+
+            executable_entry = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e])
+            executable_entry.grid(row=row, column=4,sticky='news')
+
+            del_button = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
+            del_button.grid(row=row,column=5,sticky='news')
+
+        #self.add_path_button = Button(cde_frame,width=18,image = self_ico['open'], command=self.custom_data_wrapper_dialog,underline=0)
+        #self.add_path_button.grid(row=1, column=2, sticky='news',padx=4,pady=4)
+
+        cde_frame.grid_columnconfigure(1, weight=1)
+        cde_frame.grid_columnconfigure(4, weight=1)
 
         #######################################################################
         self.info_dialog_on_main = dialogs.LabelDialog(self_main,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
@@ -922,7 +958,6 @@ class Gui:
             self_tree.focus(children[0])
 
         self_main.mainloop()
-        #######################################################################
 
     def unpost(self):
         self.hide_tooltip()
@@ -964,13 +999,18 @@ class Gui:
 
         while not current_record_name:
             temp_record_name = tree.set(item,'record')
+
+            #values=tree.item(item)
+            #print(values)
+
             if temp_record_name:
                 current_record_name=temp_record_name
                 break
             else:
-                path = tree.set(item,'path')
+                #path = tree.set(item,'path')
                 item=tree.parent(item)
 
+        #print(current_record_name)
         return (item,current_record_name)
 
     def show_tooltips_tree(self,event):
@@ -1677,6 +1717,7 @@ class Gui:
 
         self.main_update()
 
+
         #############################
         self_progress_dialog_on_scan = self.progress_dialog_on_scan
         self_progress_dialog_on_scan_lab = self_progress_dialog_on_scan.lab
@@ -1749,8 +1790,39 @@ class Gui:
 
         local_core_bytes_to_str = core_bytes_to_str
 
-        self.cfg.set_bool(CFG_KEY_WRAPPER_FILE_USE,self.file_open_wrapper_use.get())
-        self.cfg.set(CFG_KEY_WRAPPER_FILE,self.file_open_wrapper.get())
+        any_cde_enabled=False
+        cde_sklejka_list=[]
+        cde_list=[]
+        for e in range(self.CDE_ENTRIES_MAX):
+
+            mask = self.CDE_mask_var_list[e].get()
+            smin = self.CDE_size_min_var_list[e].get()
+            smax = self.CDE_size_max_var_list[e].get()
+            exe = self.CDE_executable_var_list[e].get()
+
+            smin_int = core_str_to_bytes(smin)
+            smax_int = core_str_to_bytes(smax)
+
+            line_list = [
+            '1' if self.CDE_use_var_list[e].get() else '0',
+            mask,
+            smin,
+            smax,
+            exe ]
+
+            cde_sklejka_list.append(':'.join(line_list))
+
+            if self.CDE_use_var_list[e].get():
+                any_cde_enabled=True
+                cde_list.append( (
+                    mask,
+                    True if smin_int>=0 else False,
+                    smin_int,
+                    True if smax_int>=0 else False,
+                    smax_int,
+                    exe ) )
+
+        self.cfg.set(CFG_KEY_CDE_SETTINGS,'|'.join(cde_sklejka_list))
 
         while scan_thread_is_alive():
             new_data[3]=local_core_bytes_to_str(new_record.db.sum_size)
@@ -1808,18 +1880,17 @@ class Gui:
         #    return False
         #############################
 
-
-        if self.cfg.get_bool(CFG_KEY_WRAPPER_FILE_USE) and self.cfg.get(CFG_KEY_WRAPPER_FILE)!='':
+        if any_cde_enabled:
             self_progress_dialog_on_scan.widget.title('Custom Data Extraction')
 
-            scan2_thread=Thread(target=lambda : new_record.extract_custom_data(self.cfg.get(CFG_KEY_WRAPPER_FILE),path_to_scan_from_entry),daemon=True)
+            scan2_thread=Thread(target=lambda : new_record.extract_custom_data(cde_list),daemon=True)
             scan2_thread.start()
 
             scan2_thread_is_alive = scan2_thread.is_alive
 
             while scan2_thread_is_alive():
 
-                self_progress_dialog_on_scan_lab[3].configure(text=f'{new_record.files_cde} / {new_record.db.quant_files}')
+                self_progress_dialog_on_scan_lab[3].configure(text=f'{new_record.files_cde} / {new_record.files_cde_not} / {local_core_bytes_to_str(new_record.files_cde_size)} / {new_record.db.quant_files}')
 
                 if self.action_abort:
                     librer_core.abort()
@@ -1988,6 +2059,20 @@ class Gui:
     def scan_dialog_show(self,do_scan=False):
         self.exclude_mask_update()
 
+        e=0
+        for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('|'):
+            try:
+                v1,v2,v3,v4,v5 = e_section.split(':')
+                self.CDE_use_var_list[e].set(True if v1=='1' else False)
+                self.CDE_mask_var_list[e].set(v2),
+                self.CDE_size_min_var_list[e].set(v3),
+                self.CDE_size_max_var_list[e].set(v4),
+                self.CDE_executable_var_list[e].set(v5)
+                e+=1
+            except:
+                print(e_section)
+                break
+
         self.scan_dialog.do_command_after_show=self.scan if do_scan else None
 
         self.scan_dialog.show()
@@ -2020,7 +2105,7 @@ class Gui:
 
                 row+=1
 
-    def custom_data_wrappper_dialog(self):
+    def custom_data_wrapper_dialog(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Bat Files","*.bat"),("Executable Files","*.exe"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
             self.last_dir=dirname(res)
@@ -2031,6 +2116,17 @@ class Gui:
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir=res
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
+
+    def cde_entry_open(self,e) :
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Bat Files","*.bat"),("Executable Files","*.exe"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
+            self.last_dir=res
+
+            expr = normpath(abspath(res)) + (".*" if self.exclude_regexp_scan.get() else "*")
+            self.CDE_executable_var_list[e].set(expr)
+
+            #self.exclude_mask_string(expr)
+
 
     def exclude_mask_add_dir(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -2133,8 +2229,10 @@ class Gui:
         size=record_db.sum_size
         #print('R size:',size)
 
+        #print(record_db.label)
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-        values = (record_db.label,record.file_name,0,record_db.scan_path,size,core.bytes_to_str(size),record_db.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record_db.get_time())),self.RECORD)
+        values = (record_db.label,record_db.label,0,record_db.scan_path,size,core.bytes_to_str(size),record_db.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record_db.get_time())),self.RECORD)
+        #print('insert:',values)
         record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record_db.label,image=self.ico_record,tags=self.RECORD)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
