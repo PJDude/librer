@@ -4,6 +4,7 @@ from os import sep
 from os.path import join as path_join
 from os.path import abspath
 from os.path import normpath
+from os import remove as os_remove
 
 from fnmatch import fnmatch
 from time import time
@@ -95,7 +96,7 @@ class LibrerCoreRecord :
         else:
             return f'{self.db.rid}.cd.dat' #custom data
 
-    def abort():
+    def abort(self):
         self.abort_action = True
 
     def do_scan(self, path, dictionary) :
@@ -256,7 +257,8 @@ class LibrerCoreRecord :
         #print(self.custom_data)
 
     def find_items_rec(self,func_to_call,local_dict,parent_path_components=[]):
-        for name,(is_dir,is_file,is_symlink,size,mtime,sub_dict) in local_dict.items():
+        #print('  find_items_rec',func_to_call,parent_path_components)
+        for name,(is_dir,is_file,is_symlink,size,mtime,inode,dev,sub_dict) in local_dict.items():
             if func_to_call(name):
                 single_res = parent_path_components.copy()
                 single_res.append(name)
@@ -266,7 +268,8 @@ class LibrerCoreRecord :
                 self.find_items_rec(func_to_call,sub_dict,parent_path_components + [name])
 
     def find_items(self,func_to_call):
-        self.find_results = set()
+        #print('find_items',func_to_call)
+        self.find_results = []
 
         local_dict = self.db.data
         parent_path_components = []
@@ -325,11 +328,12 @@ class LibrerCore:
         self.records.add(new_record)
         return new_record
 
-    def abort(self):
-        print('LibrerCore abort')
-        pass
+    #def abort(self):
+    #    self.abort_action
+    #    print('LibrerCore abort')
+    #    pass
 
-    def read_list(self,callback=None):
+    def read_list(self,callback_pre,callback=None):
         self.log.info('read_list: %s',self.db_dir)
         try:
             with scandir(self.db_dir) as res:
@@ -338,6 +342,9 @@ class LibrerCore:
                     if ename.endswith('fs.dat'):
                         self.log.info('db:%s',ename)
                         new_record = self.create()
+
+                        #print('ename',ename)
+                        callback_pre(ename)
 
                         if new_record.load(self.db_dir,ename) :
                             self.log.warning('removing:%s',ename)
@@ -360,6 +367,7 @@ class LibrerCore:
     def find_items_in_all_records(self,func_to_call):
         res = []
         for record in self.records:
+            #print('find_items_in_all_records - record',record)
             sub_res = record.find_items(func_to_call)
             if sub_res:
                 for single_res in sub_res:
@@ -371,5 +379,12 @@ class LibrerCore:
         for record in self.records:
             if record.db.rid == rid:
                 print('found record to delete:',rid)
-                break
+
+                for file_path in [sep.join([self.db_dir,record.file_name(bool_param)]) for bool_param in (False,True)]:
+                    self.log.info('deleting file:%s',file_path)
+                    try:
+                        os_remove(file_path)
+                    except Exception as e:
+                        self.log.error(e)
+
 

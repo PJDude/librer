@@ -70,7 +70,6 @@ from tkinter import Tk
 from tkinter import Toplevel
 from tkinter import PhotoImage
 from tkinter import Menu
-#from tkinter import PanedWindow
 from tkinter import Label
 from tkinter import LabelFrame
 from tkinter import Frame
@@ -116,10 +115,12 @@ CFG_KEY_USE_REG_EXPR='use_reg_expr'
 CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
 CFG_KEY_EXCLUDE='exclude'
 CFG_KEY_CDE_SETTINGS = 'cde_settings'
+CFG_KEY_SINGLE_DEVICE = 'single_device'
 
 cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
+    CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_EXCLUDE:'',
     CFG_KEY_CDE_SETTINGS:''
 }
@@ -188,7 +189,7 @@ class Config:
 ###########################################################
 
 class Gui:
-    sel_path_full=''
+    #sel_path_full=''
     #sel_record=''
 
     actions_processing=False
@@ -335,13 +336,8 @@ class Gui:
 
         self_ico = self.ico = { img:PhotoImage(data = img_data) for img,img_data in librer_image.items() }
 
-        #self.icon_nr={ i:self_ico[str(i+1)] for i in range(8) }
-
         hg_indices=('01','02','03','04','05','06','07','08', '11','12','13','14','15','16','17','18', '21','22','23','24','25','26','27','28', '31','32','33','34','35','36','37','38',)
         self.hg_ico={ i:self_ico[str('hg'+j)] for i,j in enumerate(hg_indices) }
-
-        #self.icon_softlink_target=self_ico['softlink_target']
-        #self.icon_softlink_dir_target=self_ico['softlink_dir_target']
 
         self.ico_record = self_ico['record']
         self.ico_folder = self_ico['folder']
@@ -363,10 +359,9 @@ class Gui:
 
         self_main_bind = self_main.bind
 
-        #self_main_bind('<KeyPress-F2>', lambda event : self.settings_dialog.show())
         self_main_bind('<KeyPress-F1>', lambda event : self.aboout_dialog.show())
-        self_main_bind('<KeyPress-s>', lambda event : self.scan_dialog_show())
-        self_main_bind('<KeyPress-S>', lambda event : self.scan_dialog_show())
+        self_main_bind('<KeyPress-n>', lambda event : self.scan_dialog_show())
+        self_main_bind('<KeyPress-N>', lambda event : self.scan_dialog_show())
 
         self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
 
@@ -441,42 +436,33 @@ class Gui:
         self.menubar_norm = lambda x : self.menubar_entryconfig(x, state="normal")
         self.menubar_disable = lambda x : self.menubar_entryconfig(x, state="disabled")
 
-        #self.paned = PanedWindow(self_main,orient='vertical',relief='sunken',showhandle=0,bd=0,bg=self.bg_color,sashwidth=2,sashrelief='flat')
-        #self.paned.pack(fill='both',expand=1)
-
-        #frame_groups = self_main
-
-        #frame_groups = Frame(self.paned,bg=self.bg_color)
-        #self.paned.add(frame_groups)
-        #frame_folder = Frame(self.paned,bg=self.bg_color)
-
-        #frame_groups.grid_columnconfigure(0, weight=1)
-        #frame_groups.grid_rowconfigure(0, weight=1,minsize=200)
-
         (status_frame := Frame(self_main,bg=self.bg_color)).pack(side='bottom', fill='both')
 
-        #Label(status_frame,width=6,text='Info:',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
+        self.status_record=Label(status_frame,image=self.ico_record,text='--',width=100,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_record.pack(fill='x',expand=0,side='left')
+        self.status_record_configure = lambda x : self.status_record.configure(image = self.ico_record, text = x,compound='left')
+
+        self.status_record.bind("<Motion>", lambda event : self.motion_on_widget(event,'Selected record (user label)'))
+        self.status_record.bind("<Leave>", lambda event : self.widget_leave())
+
+        self.status_record_path=Label(status_frame,text='--',width=20,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_record_path.pack(fill='x',expand=0,side='left')
+        self.status_record_path_configure = lambda x : self.status_record_path.configure(text = x,compound='left')
+
+        self.status_record_path.bind("<Motion>", lambda event : self.motion_on_widget(event,'Scanpath of selected record'))
+        self.status_record_path.bind("<Leave>", lambda event : self.widget_leave())
+
+        self.status_record_subpath=Label(status_frame,text='--',width=60,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_record_subpath.pack(fill='x',expand=0,side='left')
+        self.status_record_subpath_configure = lambda x : self.status_record_subpath.configure(text = x,compound='left')
+
+        self.status_record_subpath.bind("<Motion>", lambda event : self.motion_on_widget(event,'subpath of selected item'))
+        self.status_record_subpath.bind("<Leave>", lambda event : self.widget_leave())
+
 
         self.status_info = Label(status_frame,text='Initializing...',relief='sunken',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_info.pack(fill='x',expand=1,side='left')
-        self.status_info_configure = self.status_info.configure
-
-        Label(status_frame,width=10,text='Record: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
-        #self.status_record=Label(status_frame,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
-        self.status_record=Label(status_frame,text='--',width=30,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_record.pack(fill='x',expand=0,side='left')
-        self.status_record_configure = self.status_record.configure
-
-        Label(status_frame,width=10,text='Scan Path: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
-        self.status_scan_path = Label(status_frame,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
-
-        #self.status_record=Label(status_frame,text='--',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
-        self.status_scan_path=Label(status_frame,text='--',width=30,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_scan_path.pack(fill='x',expand=0,side='left')
-        self.status_scan_path_configure = self.status_scan_path.configure
-
-        self.status_record.bind("<Motion>", lambda event : self.motion_on_widget(event,'Selected record name'))
-        self.status_record.bind("<Leave>", lambda event : self.widget_leave())
+        self.status= lambda x : self.status_info.configure(text = x)
 
         self.tree=Treeview(self_main,takefocus=True,show=('tree','headings') )
         self_tree = self.tree
@@ -567,9 +553,6 @@ class Gui:
 
         self_main.deiconify()
 
-        #self.paned.update()
-        #self.paned.sash_place(0,0,self.cfg.get('sash_coord',400,section='geometry'))
-
         #prevent displacement
         if cfg_geometry :
             self_main.geometry(cfg_geometry)
@@ -599,17 +582,16 @@ class Gui:
                 self.menu_enable()
                 self.menubar_config(cursor="")
 
-        self.scan_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Scan',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
+        self.scan_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Create new data record',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
 
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
 
         self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
-        #self.scan_dialog.area_main.grid_rowconfigure(0, weight=1)
         self.scan_dialog.area_main.grid_rowconfigure(3, weight=1)
 
-        self.scan_dialog.widget.bind('<Alt_L><a>',lambda event : self.path_to_scan_add_dialog())
-        self.scan_dialog.widget.bind('<Alt_L><A>',lambda event : self.path_to_scan_add_dialog())
+        self.scan_dialog.widget.bind('<Alt_L><p>',lambda event : self.set_path_to_scan())
+        self.scan_dialog.widget.bind('<Alt_L><P>',lambda event : self.set_path_to_scan())
         self.scan_dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
         self.scan_dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
 
@@ -618,45 +600,38 @@ class Gui:
 
         ##############
 
-        temp_frame = LabelFrame(self.scan_dialog.area_main,text='Create new database record',borderwidth=2,bg=self.bg_color,takefocus=False)
-        temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4,columnspan=4)
-
-
-        lab1=Label(temp_frame,text="Path To scan:",bg=self.bg_color,anchor='w')
-        lab1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+        temp_frame = Frame(self.scan_dialog.area_main,borderwidth=2,bg=self.bg_color)
+        temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
 
         lab2=Label(temp_frame,text="User label:",bg=self.bg_color,anchor='w')
-        lab2.grid(row=1, column=0, sticky='news',padx=4,pady=4)
-
-        self.path_to_scan_entry_var=StringVar(value='')
-        path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
-        path_to_scan_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
-        #.pack(side='left',expand=1,fill='x',pady=4,padx=5)
-
-        self.add_path_button = Button(temp_frame,width=18,image = self_ico['open'], command=self.path_to_scan_add_dialog,underline=0)
-        self.add_path_button.grid(row=0, column=2, sticky='news',padx=4,pady=4)
-        #.pack(side='left',pady=4,padx=4)
-
-        self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path to scan.\nA maximum of 8 paths are allowed."))
-        self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
-
-        #sf_par=dialogs.SFrame(temp_frame,bg=self.bg_color)
-        #sf_par.pack(fill='both',expand=True,side='top')
-        #self.paths_frame=sf_par.frame()
-
-        #buttons_fr = Frame(temp_frame,bg=self.bg_color,takefocus=False)
-        #buttons_fr.pack(fill='both',expand=False,side='bottom')
-
-        temp_frame.grid_columnconfigure(1, weight=1)
-        #temp_frame.grid_rowconfigure(99, weight=1)
-
-        #temp_frame2 = LabelFrame(self.scan_dialog.area_main,text='Label:',borderwidth=2,bg=self.bg_color,takefocus=False)
-        #temp_frame2.grid(row=1,column=0,sticky='we',padx=4,pady=4,columnspan=4)
+        lab2.grid(row=0, column=0, sticky='news',padx=4,pady=4)
 
         self.scan_label_entry_var=StringVar(value='')
         scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
-        scan_label_entry.grid(row=1, column=1, sticky='news',padx=4,pady=4,columnspan=2)
-        #.pack(side='left',expand=1,fill='x',pady=4,padx=5)
+        scan_label_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+
+        lab1=Label(temp_frame,text="Path To scan:",bg=self.bg_color,anchor='w')
+        lab1.grid(row=0, column=2, sticky='news',padx=4,pady=4)
+
+        self.path_to_scan_entry_var=StringVar(value='')
+        path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
+        path_to_scan_entry.grid(row=0, column=3, sticky='news',padx=4,pady=4)
+
+        self.add_path_button = Button(temp_frame,width=18,image = self_ico['open'], command=self.set_path_to_scan,underline=0)
+        self.add_path_button.grid(row=0, column=4, sticky='news',padx=4,pady=4)
+
+        self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Set path to scan."))
+        self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
+
+        temp_frame.grid_columnconfigure(3, weight=1)
+
+        self.single_device=BooleanVar()
+        single_device_button = Checkbutton(temp_frame,text=' Scan only on initial device',variable=self.single_device)
+        single_device_button.grid(row=1, column=0, sticky='news',padx=4,pady=4,columnspan=4)
+        self.single_device.set(self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE))
+
+        single_device_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Don't cross device boundaries (mount points, bindings etc."))
+        single_device_button.bind("<Leave>", lambda event : self.widget_leave())
 
         ##############
         self.exclude_regexp_scan=BooleanVar()
@@ -664,12 +639,12 @@ class Gui:
         temp_frame2 = LabelFrame(self.scan_dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
         temp_frame2.grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        sf_par2=dialogs.SFrame(temp_frame2,bg=self.bg_color)
-        sf_par2.pack(fill='both',expand=True,side='top')
-        self.exclude_frame=sf_par2.frame()
+        self.exclude_srocll_frame=dialogs.SFrame(temp_frame2,bg=self.bg_color)
+        self.exclude_srocll_frame.pack(fill='both',expand=True,side='top')
+        self.exclude_frame=self.exclude_srocll_frame.frame()
 
         buttons_fr2 = Frame(temp_frame2,bg=self.bg_color,takefocus=False)
-        buttons_fr2.pack(fill='both',expand=False,side='bottom')
+        buttons_fr2.pack(fill='x',expand=False,side='bottom')
 
         self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
         self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
@@ -853,7 +828,7 @@ class Gui:
                 self_file_cascade_add_separator = self.file_cascade.add_separator
 
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
-                self_file_cascade_add_command(label = 'Scan ...',command = self.scan_dialog_show, accelerator="S",image = self_ico['scan'],compound='left')
+                self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="N",image = self_ico['record'],compound='left')
                 self_file_cascade_add_separator()
                 #self_file_cascade_add_command(label = 'Delete data record ...',command = self.delete_data_record,accelerator="Delete",image = self_ico['delete'],compound='left')
                 #self_file_cascade_add_separator()
@@ -943,19 +918,19 @@ class Gui:
         self.main_update()
         self.records_show()
 
-        librer_core.read_list(self.single_record_show)
+        librer_core.read_list(self.pre_single_record_show,self.single_record_show)
 
         self.actions_processing=True
 
-        self.tree_semi_focus(self_tree)
+        self.tree_semi_focus()
 
         #self_tree.configure(style='semi_focus.Treeview')
-        self_tree.focus_set()
+        #self_tree.focus_set()
         #self_tree.update()
         #self.main_update()
 
-        if children := self_tree.get_children():
-            self_tree.focus(children[0])
+        #if children := self_tree.get_children():
+        #    self_tree.focus(children[0])
 
         self_main.mainloop()
 
@@ -996,22 +971,22 @@ class Gui:
         current_record_name=None
 
         tree = self.tree
+        subpath_list=[]
 
         while not current_record_name:
             temp_record_name = tree.set(item,'record')
-
-            #values=tree.item(item)
-            #print(values)
 
             if temp_record_name:
                 current_record_name=temp_record_name
                 break
             else:
-                #path = tree.set(item,'path')
+                values = tree.item(item,'values')
+                data=values[0]
+
+                subpath_list.append(data)
                 item=tree.parent(item)
 
-        #print(current_record_name)
-        return (item,current_record_name)
+        return (item,current_record_name,sep + sep.join(reversed(subpath_list)))
 
     def show_tooltips_tree(self,event):
         self.unschedule_tooltips_tree(event)
@@ -1032,11 +1007,13 @@ class Gui:
 
             elif item := tree.identify('item', event.x, event.y):
                 if col=="#0" :
-                    record_item,record_name = self.get_item_record(item)
+                    record_item,record_name,subpath = self.get_item_record(item)
                     record = self.item_to_record[record_item]
 
                     #values = tree.item(item,'values')
                     #print('values',values)
+
+                    node_cd = None
 
                     try:
                         inode,dev = self.node_to_inodedev[item]
@@ -1054,7 +1031,7 @@ class Gui:
                             node_cd = '\n'.join(node_cd_list)
 
                     except :
-                        node_cd = None
+                        pass
                     #print(inode,dev)
                     #print('node_cd',node_cd)
 
@@ -1090,10 +1067,13 @@ class Gui:
     status_curr_text='-'
 
     def status_main(self,text='',image='',do_log=True):
+        print('status_main',text)
+        #return
+
         if text != self.status_curr_text:
 
             self.status_curr_text=text
-            self.status_line_lab_configure(text=text,image=image,compound='left')
+            self.status(text=text,image=image,compound='left')
 
             if do_log and text:
                 l_info('STATUS:%s',text)
@@ -1142,8 +1122,6 @@ class Gui:
     def exit(self):
         try:
             self.cfg.set('main',str(self.main.geometry()),section='geometry')
-            #coords=self.paned.sash_coord(0)
-            #self.cfg.set('sash_coord',str(coords[1]),section='geometry')
             self.cfg.write()
         except Exception as e:
             l_error(e)
@@ -1171,7 +1149,7 @@ class Gui:
         self.find_initialvalue=self.find_dialog.entry.get()
 
         self.find_dialog_shown=False
-        self.tree_semi_focus(tree)
+        self.tree_semi_focus()
 
     def find_prev_from_dialog(self,expression,use_reg_expr):
         self.find_items(expression,use_reg_expr)
@@ -1211,7 +1189,8 @@ class Gui:
 
     @restore_status_line
     def find_items(self,expression,use_reg_expr):
-        self.status('searching ...')
+        #print('find_items',expression,use_reg_expr)
+        #self.status('searching ...')
 
         if self.find_params_changed:
             if expression:
@@ -1221,7 +1200,7 @@ class Gui:
 
                 results_len = len(results)
 
-                self.status_info_configure(text = f'Search results:{results_len}')
+                self.status(f'Search results:{results_len}')
 
                 if results:
                     self.find_result=results
@@ -1241,6 +1220,8 @@ class Gui:
         return None
 
     def select_find_result(self,mod):
+        #print('select_find_result')
+
         self_tree = self.tree
         if self.find_result:
             items_len=len(self.find_result)
@@ -1269,19 +1250,21 @@ class Gui:
 
                 self_tree.selection_set(current_item)
 
-                if not self.find_dialog_shown:
-                    self_tree.focus(current_item)
+                self_tree.focus(current_item)
+                #if not self.find_dialog_shown:
 
-                self.tree_semi_focus(self.tree)
                 self.tree.see(current_item)
-                self.tree.update()
+                self.tree_semi_focus()
 
                 self.tree_sel_change(current_item)
+
 
                 if mod>0:
                     self.status('Find next %s' % self.find_expression_prev)
                 else:
                     self.status('Find Previous %s' % self.find_expression_prev)
+
+                self.tree.update()
 
     KEY_DIRECTION={}
     KEY_DIRECTION['Prior']=-1
@@ -1299,7 +1282,7 @@ class Gui:
         self_sel_item = self.sel_item
 
         item=tree.focus()
-        record_item,record_name = self.get_item_record(item)
+        record_item,record_name,subpath = self.get_item_record(item)
 
         item_to_sel = tree.next(record_item) if direction==1 else tree.prev(record_item)
 
@@ -1328,9 +1311,14 @@ class Gui:
 
         if item and not parent:
             record_name = self.tree.item(item,'text')
-            self.status_record_configure(text=record_name)
+            self.status_record_configure(record_name)
             self.current_record = record = self.item_to_record[item]
-            self.status_scan_path_configure(text=record.db.scan_path)
+            self.status_record_path_configure(record.db.scan_path)
+            self.status_record_subpath_configure('')
+        else:
+            record_item,record_name,subpath = self.get_item_record(item)
+            self.status_record_subpath_configure(subpath)
+
 
     def key_press(self,event):
         #print('key_press',event.keysym)
@@ -1396,16 +1384,11 @@ class Gui:
 
 #################################################
     def select_and_focus(self,item):
-        #print('select_and_focus',item)
-        #if try_to_show_all:
-        #    self.tree_see(self.tree_get_children(item)[-1])
-        #    self.tree.update()
+        self.status_record_subpath_configure(item)
 
         self.tree_see(item)
         self.tree_focus(item)
-        #self.tree.selection_set(item)
 
-        #self.tree_semi_focus(self.tree)
         self.tree.update()
 
         self.tree_sel_change(item)
@@ -1436,7 +1419,7 @@ class Gui:
 
                 tree.focus(item)
                 tree.selection_set(item)
-                self.tree_semi_focus(tree)
+                self.tree_semi_focus()
 
                 self.tree_sel_change(item)
 
@@ -1445,8 +1428,9 @@ class Gui:
 
         return None
 
-    def tree_semi_focus(self,tree):
-        #print('tree_semi_focus')
+    def tree_semi_focus(self):
+        tree = self.tree
+
         item=None
 
         if sel:=tree.selection():
@@ -1471,17 +1455,12 @@ class Gui:
 
             self.tree_sel_change(item,True)
 
-    def sel_path_set(self,path):
-        if self.sel_path_full != path:
-            self.sel_path_full = path
-            self.status_scan_path_configure(text=self.sel_path_full)
-
     @catched
     def tree_sel_change(self,item,force=False,change_status_line=True):
         self.sel_item = item
 
         if change_status_line :
-            self.status()
+            self.status('')
 
         self_tree_set_item=lambda x : self.tree_set(item,x)
 
@@ -1492,20 +1471,6 @@ class Gui:
         #    self.sel_crc = new_crc
 
         path=self_tree_set_item('path')
-        #record=self_tree_set_item('file')
-        #print('sel record:',record)
-
-        #self.sel_record = record
-        return
-
-        if record!=self.sel_record or force:
-            if self.find_tree_index==1:
-                self.find_result=()
-
-            self.sel_path = None
-            self.sel_path_set(None)
-
-            #self.set_full_path_to_file()
 
         self.sel_kind = self_tree_set_item('kind')
 
@@ -1549,13 +1514,13 @@ class Gui:
         c_nav_add_command(label = 'Go to first crc group'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico['empty'],compound='left')
         c_nav_add_command(label = 'Go to last crc group'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
 
-        pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
+        pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='N',image = self.ico['record'],compound='left')
         #pop_add_command(label = 'Settings ...',  command = self.settings_dialog.show,accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
         pop_add_command(label = 'Delete data record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left')
         pop_add_separator()
 
-        pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico['empty'],compound='left')
+        pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.RECORD) else 'disabled', image = self.ico['empty'],compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
         pop_add_separator()
         pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico['empty'],compound='left')
@@ -1654,9 +1619,8 @@ class Gui:
             l_warning('scan_wrapper collision')
             return
 
-
         if self.scan_label_entry_var.get()=='':
-            self.info_dialog_on_scan.show('Error. Empty record label.','Set record label.')
+            self.info_dialog_on_scan.show('Error. Empty label.','Set user label.')
             return
 
         self.scanning_in_progress=True
@@ -1671,15 +1635,17 @@ class Gui:
         self.scanning_in_progress=False
 
     def scan_dialog_hide_wrapper(self):
+        print('scan_dialog_hide_wrapper')
         self.scan_dialog.hide()
-        self.tree_semi_focus(self.tree)
+        self.tree.focus_set()
+        self.tree_semi_focus()
 
-    prev_status_progress_text=''
-    def status_progress(self,text='',image='',do_log=False):
-        if text != self.prev_status_progress_text:
-            self.progress_dialog_on_scan.lab[1].configure(text=text)
-            self.progress_dialog_on_scan.area_main.update()
-            self.prev_status_progress_text=text
+    #prev_status_progress_text=''
+    #def status_progress(self,text='',image='',do_log=False):
+    #    if text != self.prev_status_progress_text:
+    #        self.progress_dialog_on_scan.lab[1].configure(text=text)
+    #        self.progress_dialog_on_scan.area_main.update()
+    #        self.prev_status_progress_text=text
 
     @restore_status_line
     @logwrapper
@@ -1691,7 +1657,7 @@ class Gui:
         #self.status_path_configure(text='')
         #self.records_show()
 
-        path_to_scan_from_entry = self.path_to_scan_entry_var.get()
+        path_to_scan_from_entry = abspath(self.path_to_scan_entry_var.get())
         #print('path_to_scan_from_entry:',path_to_scan_from_entry)
 
         exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
@@ -1716,7 +1682,6 @@ class Gui:
         #librer_core.scan_update_info_path_nr=self.scan_update_info_path_nr
 
         self.main_update()
-
 
         #############################
         self_progress_dialog_on_scan = self.progress_dialog_on_scan
@@ -1842,7 +1807,7 @@ class Gui:
 
                 if update_once:
                     update_once=False
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
+                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
                     self_progress_dialog_on_scan_lab[2].configure(image=self.ico['empty'])
@@ -1858,7 +1823,8 @@ class Gui:
             self_progress_dialog_on_scan_area_main_update()
 
             if self.action_abort:
-                librer_core.abort()
+                #librer_core.abort()
+                new_record.abort()
                 break
 
             self.main.after(100,lambda : wait_var.set(not wait_var.get()))
@@ -1871,6 +1837,8 @@ class Gui:
 
         if self.action_abort:
             self_progress_dialog_on_scan.hide(True)
+            del new_record
+
             return False
 
         #############################
@@ -1881,7 +1849,7 @@ class Gui:
         #############################
 
         if any_cde_enabled:
-            self_progress_dialog_on_scan.widget.title('Custom Data Extraction')
+            self_progress_dialog_on_scan.widget.title('Custom data extraction')
 
             scan2_thread=Thread(target=lambda : new_record.extract_custom_data(cde_list),daemon=True)
             scan2_thread.start()
@@ -1893,7 +1861,7 @@ class Gui:
                 self_progress_dialog_on_scan_lab[3].configure(text=f'{new_record.files_cde} / {new_record.files_cde_not} / {local_core_bytes_to_str(new_record.files_cde_size)} / {new_record.db.quant_files}')
 
                 if self.action_abort:
-                    librer_core.abort()
+                    new_record.abort()
                     break
 
                 self.main.after(100,lambda : wait_var.set(not wait_var.get()))
@@ -1903,158 +1871,169 @@ class Gui:
 
         self.single_record_show(new_record)
 
-        #self.records_show()
         self_progress_dialog_on_scan.hide(True)
 
         return True
 
-        self_status=self.status=self.status_progress
+        # #self_status=self.status=self.status_progress
 
-        self_status('Calculating CRC ...')
-        self_progress_dialog_on_scan.widget.title('CRC calculation')
+        # self.status('Calculating CRC ...')
+        # self_progress_dialog_on_scan.widget.title('CRC calculation')
 
-        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any records are found).'
-        self_progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text='Abort',compound='left')
+        # self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any records are found).'
+        # self_progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text='Abort',compound='left')
 
-        self_status('Starting CRC threads ...')
-        crc_thread=Thread(target=librer_core.crc_calc,daemon=True)
-        crc_thread.start()
+        # self.status('Starting CRC threads ...')
+        # crc_thread=Thread(target=librer_core.crc_calc,daemon=True)
+        # crc_thread.start()
 
-        update_once=True
-        self_progress_dialog_on_scan_lab[0].configure(image='',text='')
-        self_progress_dialog_on_scan_lab[1].configure(image='',text='')
-        self_progress_dialog_on_scan_lab[2].configure(image='',text='')
-        self_progress_dialog_on_scan_lab[3].configure(image='',text='')
-        self_progress_dialog_on_scan_lab[4].configure(image='',text='')
+        # update_once=True
+        # self_progress_dialog_on_scan_lab[0].configure(image='',text='')
+        # self_progress_dialog_on_scan_lab[1].configure(image='',text='')
+        # self_progress_dialog_on_scan_lab[2].configure(image='',text='')
+        # self_progress_dialog_on_scan_lab[3].configure(image='',text='')
+        # self_progress_dialog_on_scan_lab[4].configure(image='',text='')
 
-        prev_progress_size=0
-        prev_progress_quant=0
+        # prev_progress_size=0
+        # prev_progress_quant=0
 
-        crc_thread_is_alive = crc_thread.is_alive
-        self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
-        self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
+        # crc_thread_is_alive = crc_thread.is_alive
+        # self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
+        # self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
-        core_bytes_to_str_librer_core_sum_size = local_core_bytes_to_str(librer_core.sum_size)
+        # core_bytes_to_str_librer_core_sum_size = local_core_bytes_to_str(librer_core.sum_size)
 
-        self_main_after = self.main.after
-        wait_var_get = wait_var.get
-        wait_var_set = wait_var.set
-        self_main_wait_variable = self.main.wait_variable
+        # self_main_after = self.main.after
+        # wait_var_get = wait_var.get
+        # wait_var_set = wait_var.set
+        # self_main_wait_variable = self.main.wait_variable
 
-        while crc_thread_is_alive():
-            anything_changed=False
+        # while crc_thread_is_alive():
+            # anything_changed=False
 
-            size_progress_info=librer_core.info_size_done_perc
-            if size_progress_info!=prev_progress_size:
-                prev_progress_size=size_progress_info
+            # size_progress_info=librer_core.info_size_done_perc
+            # if size_progress_info!=prev_progress_size:
+                # prev_progress_size=size_progress_info
 
-                self_progress_dialog_on_scan_progr1var_set(size_progress_info)
-                self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_core_bytes_to_str(librer_core.info_size_done),core_bytes_to_str_librer_core_sum_size))
-                anything_changed=True
+                # self_progress_dialog_on_scan_progr1var_set(size_progress_info)
+                # self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_core_bytes_to_str(librer_core.info_size_done),core_bytes_to_str_librer_core_sum_size))
+                # anything_changed=True
 
-            quant_progress_info=librer_core.info_files_done_perc
-            if quant_progress_info!=prev_progress_quant:
-                prev_progress_quant=quant_progress_info
+            # quant_progress_info=librer_core.info_files_done_perc
+            # if quant_progress_info!=prev_progress_quant:
+                # prev_progress_quant=quant_progress_info
 
-                self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
-                self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (librer_core.info_files_done,librer_core.info_total))
-                anything_changed=True
+                # self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
+                # self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (librer_core.info_files_done,librer_core.info_total))
+                # anything_changed=True
 
-            if anything_changed:
-                if librer_core.info_found_groups:
-                    #new_data[1]='Results'
-                    new_data[2]='records: %s' % librer_core.info_found_groups
-                    new_data[3]='space: %s' % local_core_bytes_to_str(librer_core.info_found_dupe_space)
-                    new_data[4]='folders: %s' % librer_core.info_found_folders
+            # if anything_changed:
+                # if librer_core.info_found_groups:
+                    # #new_data[1]='Results'
+                    # new_data[2]='records: %s' % librer_core.info_found_groups
+                    # new_data[3]='space: %s' % local_core_bytes_to_str(librer_core.info_found_dupe_space)
+                    # new_data[4]='folders: %s' % librer_core.info_found_folders
 
-                    for i in (2,3,4):
-                        if new_data[i] != prev_data[i]:
-                            prev_data[i]=new_data[i]
-                            self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
+                    # for i in (2,3,4):
+                        # if new_data[i] != prev_data[i]:
+                            # prev_data[i]=new_data[i]
+                            # self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
 
-                self_progress_dialog_on_scan_area_main_update()
+                # self_progress_dialog_on_scan_area_main_update()
 
-            now=time()
-            if anything_changed:
-                time_without_busy_sign=now
-                #info_line = librer_core.info_line if len(librer_core.info_line)<48 else ('...%s' % librer_core.info_line[-48:])
-                #self_progress_dialog_on_scan_lab[1].configure(text=info_line)
+            # now=time()
+            # if anything_changed:
+                # time_without_busy_sign=now
+                # #info_line = librer_core.info_line if len(librer_core.info_line)<48 else ('...%s' % librer_core.info_line[-48:])
+                # #self_progress_dialog_on_scan_lab[1].configure(text=info_line)
 
-                if update_once:
-                    update_once=False
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any records are found).'
-                    self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+                # if update_once:
+                    # update_once=False
+                    # self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any records are found).'
+                    # self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
-                    self_progress_dialog_on_scan_lab[0].configure(image=self.ico['empty'])
-            else :
-                if now>time_without_busy_sign+1.0:
-                    self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
-                    hr_index=(hr_index+1) % len_self_hg_ico
+                    # self_progress_dialog_on_scan_lab[0].configure(image=self.ico['empty'])
+            # else :
+                # if now>time_without_busy_sign+1.0:
+                    # self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
+                    # hr_index=(hr_index+1) % len_self_hg_ico
 
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % librer_core.info_line
-                    self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
-                    update_once=True
+                    # self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % librer_core.info_line
+                    # self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+                    # update_once=True
 
-            if librer_core.can_abort:
-                if self.action_abort:
-                    self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
-                    self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
-                    self_progress_dialog_on_scan_lab[2].configure(text='')
-                    self_progress_dialog_on_scan_lab[3].configure(text='')
-                    self_progress_dialog_on_scan_lab[4].configure(text='')
-                    self_progress_dialog_on_scan_area_main_update()
-                    librer_core.abort()
-                    break
+            # if librer_core.can_abort:
+                # if self.action_abort:
+                    # self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
+                    # self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
+                    # self_progress_dialog_on_scan_lab[2].configure(text='')
+                    # self_progress_dialog_on_scan_lab[3].configure(text='')
+                    # self_progress_dialog_on_scan_lab[4].configure(text='')
+                    # self_progress_dialog_on_scan_area_main_update()
+                    # librer_core.abort()
+                    # break
 
-            self_status(librer_core.info)
+            # self.status(librer_core.info)
 
-            self_main_after(100,lambda : wait_var_set(not wait_var_get()))
-            self_main_wait_variable(wait_var)
+            # self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+            # self_main_wait_variable(wait_var)
 
-        self_progress_dialog_on_scan.widget.config(cursor="watch")
+        # self_progress_dialog_on_scan.widget.config(cursor="watch")
 
-        if not self.action_abort:
-            self_progress_dialog_on_scan_lab[0].configure(image='',text='Finished.')
-            self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
-            self_progress_dialog_on_scan_lab[2].configure(image='',text='')
-            self_progress_dialog_on_scan_lab[3].configure(image='',text='')
-            self_progress_dialog_on_scan_lab[4].configure(image='',text='')
-            self_progress_dialog_on_scan_area_main_update()
+        # if not self.action_abort:
+            # self_progress_dialog_on_scan_lab[0].configure(image='',text='Finished.')
+            # self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
+            # self_progress_dialog_on_scan_lab[2].configure(image='',text='')
+            # self_progress_dialog_on_scan_lab[3].configure(image='',text='')
+            # self_progress_dialog_on_scan_lab[4].configure(image='',text='')
+            # self_progress_dialog_on_scan_area_main_update()
 
-        #self_status('Finishing CRC Thread...')
-        #############################
+        # #self.status('Finishing CRC Thread...')
+        # #############################
 
-        #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
-        self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
-        self_progress_dialog_on_scan.abort_button.pack_forget()
-        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
-        self_progress_dialog_on_scan.widget.update()
-        self.main.focus_set()
+        # #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
+        # self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
+        # self_progress_dialog_on_scan.abort_button.pack_forget()
+        # self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
+        # self_progress_dialog_on_scan.widget.update()
+        # self.main.focus_set()
 
-        crc_thread.join()
-        #self_progress_dialog_on_scan.label.update()
+        # crc_thread.join()
+        # #self_progress_dialog_on_scan.label.update()
 
-        self.records_show()
+        # self.records_show()
 
-        self_progress_dialog_on_scan.widget.config(cursor="")
-        self_progress_dialog_on_scan.hide(True)
-        self.status=self.status_main_win if windows else self.status_main
+        # self_progress_dialog_on_scan.widget.config(cursor="")
+        # self_progress_dialog_on_scan.hide(True)
+        # #self.status=self.status_main_win if windows else self.status_main
 
-        if self.action_abort:
-            self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
+        # if self.action_abort:
+            # self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
 
-        return True
+        # return True
 
     def delete_data_record(self):
         label = self.current_record.db.label
         path = self.current_record.db.scan_path
         creation_time = self.current_record.db.creation_time
 
-        self.text_ask_dialog.show('Delete Selected Data Recoord ?','Data Record: ' + label + '\n\n' + path)
+        self.text_ask_dialog.show('Delete selected data record ?','Data record: ' + label + '\n\n' + path)
 
         if self.text_ask_dialog.res_bool:
-            librer_core.delete_record_by_id()
-            print('deletingggggg')
+            librer_core.delete_record_by_id(self.current_record.db.rid)
+            record_item = self.record_to_item[self.current_record]
+            self.tree.delete(record_item)
+
+            self.status_record_configure('')
+            self.status_record_path_configure('')
+            self.status_record_subpath_configure('')
+            if remaining_records := self.tree.get_children():
+                if new_sel_record := remaining_records[0]:
+                    self.tree.selection_set(new_sel_record)
+                    self.tree.focus(new_sel_record)
+
+                self.tree_semi_focus()
+            self.tree.focus_set()
 
     def scan_dialog_show(self,do_scan=False):
         self.exclude_mask_update()
@@ -2105,13 +2084,18 @@ class Gui:
 
                 row+=1
 
+        if row:
+            self.exclude_srocll_frame.pack(fill='both',expand=True,side='top')
+        else:
+            self.exclude_srocll_frame.pack_forget()
+
     def custom_data_wrapper_dialog(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Bat Files","*.bat"),("Executable Files","*.exe"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
             self.last_dir=dirname(res)
             self.file_open_wrapper.set(normpath(abspath(res)))
 
-    def path_to_scan_add_dialog(self):
+    def set_path_to_scan(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir=res
@@ -2220,12 +2204,17 @@ class Gui:
 
         #tree.item(item, open=True)
 
+    def pre_single_record_show(self,name):
+        self.status(f'loading {name} ...')
+
     @block_actions_processing
     @gui_block
     @logwrapper
     def single_record_show(self,record):
-
         record_db = record.db
+
+        #self.status(f'loading {record_db.label} ...')
+
         size=record_db.sum_size
         #print('R size:',size)
 
@@ -2239,9 +2228,11 @@ class Gui:
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
 
-
         self.item_to_record_dict[record_item] = record_db.data
 
+        self.tree.focus(record_item)
+        self.tree.selection_set(record_item)
+        self.tree.see(record_item)
         self.main_update()
 
     @block_actions_processing
@@ -2266,12 +2257,12 @@ class Gui:
 
         self.menu_enable()
 
-        self_status=self.status=self.status_progress
+        #self_status=self.status=self.status_progress
 
-        self_status('')
+        self.status('')
 
-        if children := self_tree.get_children():
-            self_tree.focus(children[0])
+        #if children := self_tree.get_children():
+        #    self_tree.focus(children[0])
 
     def tree_update_none(self):
         self.tree.selection_remove(self.tree.selection())
@@ -2298,20 +2289,20 @@ class Gui:
     def clip_copy_full_path_with_file(self):
         print('clip_copy_full_path_with_file')
         return
-        if self.sel_path_full and self.sel_file:
-            self.clip_copy(path_join(self.sel_path_full,self.sel_file))
-        elif self.sel_crc:
-            self.clip_copy(self.sel_crc)
+        #if self.sel_path_full and self.sel_file:
+        #    self.clip_copy(path_join(self.sel_path_full,self.sel_file))
+        #elif self.sel_crc:
+        #    self.clip_copy(self.sel_crc)
 
     @logwrapper
     def clip_copy_full(self):
         print('clip_copy_full')
         return
 
-        if self.sel_path_full:
-            self.clip_copy(self.sel_path_full)
-        elif self.sel_crc:
-            self.clip_copy(self.sel_crc)
+        #if self.sel_path_full:
+        #    self.clip_copy(self.sel_path_full)
+        #elif self.sel_crc:
+        #    self.clip_copy(self.sel_crc)
 
     @logwrapper
     def clip_copy_file(self):
@@ -2342,7 +2333,7 @@ class Gui:
     def tree_action(self,item):
         tree=self.tree
         try:
-            record_item,record_name = self.get_item_record(item)
+            record_item,record_name,subpath = self.get_item_record(item)
             record = self.item_to_record[record_item]
 
             kind = tree.set(item,'kind')
