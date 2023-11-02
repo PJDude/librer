@@ -127,6 +127,9 @@ cfg_defaults={
 
 HOMEPAGE='https://github.com/PJDude/librer'
 
+def fnumber(num):
+    return str(format(num,',d').replace(',',' '))
+
 class Config:
     def __init__(self,config_dir):
         #l_debug('Initializing config: %s', config_dir)
@@ -442,21 +445,21 @@ class Gui:
         self.status_record.pack(fill='x',expand=0,side='left')
         self.status_record_configure = lambda x : self.status_record.configure(image = self.ico_record, text = x,compound='left')
 
-        self.status_record.bind("<Motion>", lambda event : self.motion_on_widget(event,'Selected record (user label)'))
+        self.status_record.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Selected record (user label)'))
         self.status_record.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_record_path=Label(status_frame,text='--',width=20,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_record_path.pack(fill='x',expand=0,side='left')
         self.status_record_path_configure = lambda x : self.status_record_path.configure(text = x,compound='left')
 
-        self.status_record_path.bind("<Motion>", lambda event : self.motion_on_widget(event,'Scanpath of selected record'))
+        self.status_record_path.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Scanpath of selected record: '))
         self.status_record_path.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_record_subpath=Label(status_frame,text='--',width=60,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_record_subpath.pack(fill='x',expand=0,side='left')
         self.status_record_subpath_configure = lambda x : self.status_record_subpath.configure(text = x,compound='left')
 
-        self.status_record_subpath.bind("<Motion>", lambda event : self.motion_on_widget(event,'subpath of selected item'))
+        self.status_record_subpath.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'subpath of selected item: '))
         self.status_record_subpath.bind("<Leave>", lambda event : self.widget_leave())
 
 
@@ -753,7 +756,30 @@ class Gui:
 
         self.info_dialog_on_mark[self_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
-        self.find_dialog = dialogs.FindEntryDialog(self_tree,self_ico['librer'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+
+        #self.find_dialog = dialogs.FindEntryDialog(self_tree,self_ico['librer'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.find_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Find file',pre_show=pre_show,post_close=post_close)
+        #,min_width=800,min_height=520
+
+        find_size_frame = LabelFrame(self.find_dialog.area_main,text='Size range',bd=2,bg=self.bg_color,takefocus=False)
+        find_size_frame.grid(row=0,column=0,sticky='news')
+        size_use = Checkbutton(find_size_frame,text='c1')
+        size_use.pack(fill='x',expand=1,side='top')
+
+        find_filename_frame = LabelFrame(self.find_dialog.area_main,text='File name',bd=2,bg=self.bg_color,takefocus=False)
+        find_filename_frame.grid(row=1,column=0,sticky='news')
+        filename_use = Checkbutton(find_filename_frame,text='c1')
+        filename_use.pack(fill='x',expand=1,side='top')
+
+        find_cd_frame = LabelFrame(self.find_dialog.area_main,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)
+        find_cd_frame.grid(row=2,column=0,sticky='news')
+        cd_use = Checkbutton(find_cd_frame,text='c1')
+        cd_use.pack(fill='x',expand=1,side='top')
+
+        self.find_dialog.area_main.grid_rowconfigure(0, weight=1)
+        self.find_dialog.area_main.grid_rowconfigure(1, weight=1)
+        self.find_dialog.area_main.grid_rowconfigure(2, weight=1)
+        self.find_dialog.area_main.grid_columnconfigure(0, weight=1)
 
         self.info_dialog_on_find={}
 
@@ -829,6 +855,8 @@ class Gui:
 
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
                 self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="N",image = self_ico['record'],compound='left')
+                self_file_cascade_add_separator()
+                self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="F",image = self_ico['record'],compound='left')
                 self_file_cascade_add_separator()
                 #self_file_cascade_add_command(label = 'Delete data record ...',command = self.delete_data_record,accelerator="Delete",image = self_ico['delete'],compound='left')
                 #self_file_cascade_add_separator()
@@ -946,6 +974,10 @@ class Gui:
         self.menubar_unpost()
         self.hide_tooltip()
 
+    def motion_on_widget_cget(self,event,message=None):
+        new_message= message + '\n' + event.widget.cget('text')
+        self.motion_on_widget(event,new_message)
+
     def motion_on_widget(self,event,message=None):
         if message:
             self.tooltip_message[str(event.widget)]=message
@@ -1010,30 +1042,11 @@ class Gui:
                     record_item,record_name,subpath = self.get_item_record(item)
                     record = self.item_to_record[record_item]
 
-                    #values = tree.item(item,'values')
-                    #print('values',values)
-
                     node_cd = None
-
                     try:
-                        inode,dev = self.node_to_inodedev[item]
-                        #print(inode,dev)
-                        node_cd_org = record.custom_data[(inode,dev)] if inode and dev else None
-                        node_cd_list = []
-                        if node_cd_org:
-                            line_nr=0
-                            for line in node_cd_org.split('\n'):
-
-                                node_cd_list.append((line[0:127] + '...') if len(line)>127 else line)
-                                line_nr+=1
-                                if line_nr>10:
-                                    break
-                            node_cd = '\n'.join(node_cd_list)
-
-                    except :
+                        node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in self.item_to_data_list[item][6].split('\n')[0:10]] )
+                    except:
                         pass
-                    #print(inode,dev)
-                    #print('node_cd',node_cd)
 
                     record_path = record.db.scan_path
                     size = core_bytes_to_str(record.db.sum_size)
@@ -1145,8 +1158,9 @@ class Gui:
 
         scope_info = ''
 
-        self.find_dialog.show('Find',scope_info,initial=self.find_initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
-        self.find_initialvalue=self.find_dialog.entry.get()
+        self.find_dialog.show('Find')
+        #self.find_dialog.show('Find',scope_info,initial=self.find_initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
+        #self.find_initialvalue=self.find_dialog.entry.get()
 
         self.find_dialog_shown=False
         self.tree_semi_focus()
@@ -1635,7 +1649,6 @@ class Gui:
         self.scanning_in_progress=False
 
     def scan_dialog_hide_wrapper(self):
-        print('scan_dialog_hide_wrapper')
         self.scan_dialog.hide()
         self.tree.focus_set()
         self.tree_semi_focus()
@@ -1713,11 +1726,11 @@ class Gui:
         scan_thread=Thread(target=lambda : new_record.scan(librer_core.db_dir),daemon=True)
         scan_thread.start()
 
-        self_progress_dialog_on_scan.lab_l1.configure(text='Total space:')
-        self_progress_dialog_on_scan.lab_l2.configure(text='Files number:' )
+        self_progress_dialog_on_scan.lab_l1.configure(text='CDE Total space:')
+        self_progress_dialog_on_scan.lab_l2.configure(text='CDE Files number:' )
 
-        self_progress_dialog_on_scan_progr1var.set(0)
-        self_progress_dialog_on_scan_progr2var.set(0)
+        self_progress_dialog_on_scan_progr1var.set(10)
+        self_progress_dialog_on_scan_progr2var.set(20)
 
         self_progress_dialog_on_scan.show('Scanning')
         #,image=self.ico['empty'],image_text=' '
@@ -1791,7 +1804,7 @@ class Gui:
 
         while scan_thread_is_alive():
             new_data[3]=local_core_bytes_to_str(new_record.db.sum_size)
-            new_data[4]='%s files' % new_record.db.quant_files
+            new_data[4]='%s files' % fnumber(new_record.db.quant_files)
 
             anything_changed=False
             for i in (3,4):
@@ -1830,8 +1843,8 @@ class Gui:
             self.main.after(100,lambda : wait_var.set(not wait_var.get()))
             self.main.wait_variable(wait_var)
 
-        self_progress_dialog_on_scan_lab[3].configure(text='')
-        self_progress_dialog_on_scan_lab[2].configure(text='')
+        #self_progress_dialog_on_scan_lab[3].configure(text='')
+        #self_progress_dialog_on_scan_lab[2].configure(text='')
 
         scan_thread.join()
 
@@ -1848,17 +1861,34 @@ class Gui:
         #    return False
         #############################
 
+        #self_progress_dialog_on_scan_lab[3].configure(text=f'{new_record.db.quant_files}')
+
         if any_cde_enabled:
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomlplete.'
+
             self_progress_dialog_on_scan.widget.title('Custom data extraction')
 
-            scan2_thread=Thread(target=lambda : new_record.extract_custom_data(cde_list),daemon=True)
-            scan2_thread.start()
+            cd_thread=Thread(target=lambda : new_record.extract_custom_data(cde_list),daemon=True)
+            cd_thread.start()
 
-            scan2_thread_is_alive = scan2_thread.is_alive
+            cd_thread_is_alive = cd_thread.is_alive
 
-            while scan2_thread_is_alive():
+            self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
+            self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
-                self_progress_dialog_on_scan_lab[3].configure(text=f'{new_record.files_cde} / {new_record.files_cde_not} / {local_core_bytes_to_str(new_record.files_cde_size)} / {new_record.db.quant_files}')
+            while cd_thread_is_alive():
+                files_q = new_record.files_cde + new_record.files_cde_not
+                files_perc = files_q * 100.0 / new_record.db.quant_files if new_record.db.quant_files else 0
+
+                files_size = new_record.files_cde_size
+                files_size_perc = files_size * 100.0 / new_record.db.sum_size if new_record.db.sum_size else 0
+
+                self_progress_dialog_on_scan_progr1var_set(files_size_perc)
+                self_progress_dialog_on_scan_progr2var_set(files_perc)
+
+                self_progress_dialog_on_scan_lab_r1_config(text=local_core_bytes_to_str(new_record.files_cde_size))
+                self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q))
+
 
                 if self.action_abort:
                     new_record.abort()
@@ -1867,7 +1897,7 @@ class Gui:
                 self.main.after(100,lambda : wait_var.set(not wait_var.get()))
                 self.main.wait_variable(wait_var)
 
-            scan2_thread.join()
+            cd_thread.join()
 
         self.single_record_show(new_record)
 
@@ -2141,7 +2171,6 @@ class Gui:
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.exclude_mask_update()
 
-    node_to_inodedev={}
     def open_item(self,event=None,item=None):
         tree=self.tree
 
@@ -2167,8 +2196,10 @@ class Gui:
             new_items_values = {}
 
             for entry_name,data_tuple in self.item_to_record_dict[item].items():
-                if len(data_tuple)==8:
-                    (is_dir,is_file,is_symlink,size,mtime,inode,dev,sub_dictionary) = data_tuple
+                if len(data_tuple)==6:
+                    [is_dir,is_file,is_symlink,size,mtime,sub_dictionary] = data_tuple
+                elif len(data_tuple)==7:
+                    [is_dir,is_file,is_symlink,size,mtime,sub_dictionary,ud] = data_tuple
                 else:
                     l_error(f'data format incompatible:{data_tuple}')
                     print(f'data format incompatible:{data_tuple}')
@@ -2191,14 +2222,16 @@ class Gui:
                 values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),kind)
 
                 sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
-                new_items_values[ ( sort_index,values,entry_name,image,True if sub_dictionary else False,inode,dev) ] = (sub_dictionary,tags)
+                new_items_values[ ( sort_index,values,entry_name,image,True if sub_dictionary else False) ] = (sub_dictionary,tags,data_tuple)
 
-            for (sort_index,values,entry_name,image,sub_dictionary_bool,inode,dev),(sub_dictionary,tags) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
+            #print(f'self.item_to_data_list[{item}]:',self.item_to_data_list[item])
+
+            for (sort_index,values,entry_name,image,sub_dictionary_bool),(sub_dictionary,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
                 new_item=tree.insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
-                self.node_to_inodedev[new_item] = (inode,dev)
                 if sub_dictionary_bool:
                     self.item_to_record_dict[new_item] = sub_dictionary
                     tree.insert(new_item,'end') #dummy_sub_item
+                self.item_to_data_list[new_item] = data_tuple
 
             tree.set(item,'opened','1')
 
@@ -2251,6 +2284,7 @@ class Gui:
         self.record_to_item={}
 
         self.item_to_record_dict={}
+        self.item_to_data_list={}
 
         for record in sorted(librer_core.records,key=lambda x : x.db.creation_time):
             self.single_record_show(record)
@@ -2342,15 +2376,13 @@ class Gui:
 
                 if not opened:
                     self.open_item(None,item)
-
-                #return "break"
-
             else:
-                inode,dev = self.node_to_inodedev[item]
-                node_cd = record.custom_data[(inode,dev)] if inode and dev else None
-
-                if node_cd:
+                try:
+                    node_cd = self.item_to_data_list[item][6]
                     self.text_info_dialog.show('Custom Data',node_cd)
+                except:
+                    pass
+
         except Exception as e:
             print('tree_action',e)
 
