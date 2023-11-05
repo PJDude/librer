@@ -58,7 +58,6 @@ from os.path import exists as path_exists
 
 from platform import node
 from pathlib import Path
-from re import search
 
 from signal import signal
 from signal import SIGINT
@@ -117,12 +116,36 @@ CFG_KEY_EXCLUDE='exclude'
 CFG_KEY_CDE_SETTINGS = 'cde_settings'
 CFG_KEY_SINGLE_DEVICE = 'single_device'
 
+CFG_KEY_SINGLE_DEVICE = 'single_device'
+
+CFG_KEY_find_size_min = 'find_size_min'
+CFG_KEY_find_size_max = 'find_size_max'
+
+CFG_KEY_find_name = 'find_name'
+CFG_KEY_find_name_regexp = 'name_regexp'
+CFG_KEY_find_name_case_sens = 'name_case_sens'
+
+CFG_KEY_find_cd = 'find_cd'
+CFG_KEY_find_cd_regexp = 'cd_regexp'
+CFG_KEY_find_cd_case_sens = 'cd_case_sens'
+
 cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
     CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_EXCLUDE:'',
-    CFG_KEY_CDE_SETTINGS:''
+    CFG_KEY_CDE_SETTINGS:'',
+
+    CFG_KEY_find_size_min:'',
+    CFG_KEY_find_size_max:'',
+
+    CFG_KEY_find_name:'',
+    CFG_KEY_find_name_regexp:False,
+    CFG_KEY_find_name_case_sens:False if windows else True,
+
+    CFG_KEY_find_cd:'',
+    CFG_KEY_find_cd_regexp:False,
+    CFG_KEY_find_cd_case_sens:False
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -442,21 +465,21 @@ class Gui:
         (status_frame := Frame(self_main,bg=self.bg_color)).pack(side='bottom', fill='both')
 
         self.status_record=Label(status_frame,image=self.ico_record,text='--',width=100,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_record.pack(fill='x',expand=0,side='left')
+        self.status_record.pack(fill='x',expand=1,side='left')
         self.status_record_configure = lambda x : self.status_record.configure(image = self.ico_record, text = x,compound='left')
 
         self.status_record.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Selected record (user label)'))
         self.status_record.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_record_path=Label(status_frame,text='--',width=20,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_record_path.pack(fill='x',expand=0,side='left')
+        self.status_record_path.pack(fill='x',expand=1,side='left')
         self.status_record_path_configure = lambda x : self.status_record_path.configure(text = x,compound='left')
 
         self.status_record_path.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Scanpath of selected record: '))
         self.status_record_path.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_record_subpath=Label(status_frame,text='--',width=60,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_record_subpath.pack(fill='x',expand=0,side='left')
+        self.status_record_subpath.pack(fill='x',expand=1,side='left')
         self.status_record_subpath_configure = lambda x : self.status_record_subpath.configure(text = x,compound='left')
 
         self.status_record_subpath.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'subpath of selected item: '))
@@ -752,39 +775,107 @@ class Gui:
 
         self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_tree,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
 
-        self.info_dialog_on_mark={}
-
-        self.info_dialog_on_mark[self_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-
-
-        #self.find_dialog = dialogs.FindEntryDialog(self_tree,self_ico['librer'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
         self.find_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Find file',pre_show=pre_show,post_close=post_close)
         #,min_width=800,min_height=520
 
-        find_size_frame = LabelFrame(self.find_dialog.area_main,text='Size range',bd=2,bg=self.bg_color,takefocus=False)
-        find_size_frame.grid(row=0,column=0,sticky='news')
-        size_use = Checkbutton(find_size_frame,text='c1')
-        size_use.pack(fill='x',expand=1,side='top')
+        (find_size_frame := LabelFrame(self.find_dialog.area_main,text='File size range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
+        find_size_frame.grid_columnconfigure(0, weight=1)
+        find_size_frame.grid_columnconfigure(1, weight=1)
+        #find_size_frame.grid_rowconfigure(2, weight=1)
 
-        find_filename_frame = LabelFrame(self.find_dialog.area_main,text='File name',bd=2,bg=self.bg_color,takefocus=False)
-        find_filename_frame.grid(row=1,column=0,sticky='news')
-        filename_use = Checkbutton(find_filename_frame,text='c1')
-        filename_use.pack(fill='x',expand=1,side='top')
+
+        ##############
+        #self.find_size_use_var = BooleanVar()
+        self.find_size_min_var = StringVar()
+        self.find_size_max_var = StringVar()
+
+        self.find_name_var = StringVar()
+        self.find_name_regexp_var = BooleanVar()
+        self.find_name_case_sens_var = BooleanVar()
+
+        self.find_cd_var = StringVar()
+        self.find_cd_regexp_var = BooleanVar()
+        self.find_cd_case_sens_var = BooleanVar()
+        ##############
+
+        def ver_number(var):
+            temp=core_str_to_bytes(var)
+
+            if temp>0:
+                return str(temp)
+            else:
+                return ''
+
+        self.find_size_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_min)))
+        self.find_size_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_max)))
+
+        self.find_name_var.set(self.cfg.get(CFG_KEY_find_name))
+        self.find_name_regexp_var.set(self.cfg.get_bool(CFG_KEY_find_name_regexp))
+        self.find_name_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_name_case_sens))
+
+        self.find_cd_var.set(self.cfg.get(CFG_KEY_find_cd))
+        self.find_cd_regexp_var.set(self.cfg.get_bool(CFG_KEY_find_cd_regexp))
+        self.find_cd_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_cd_case_sens))
+
+        ##############
+
+        self.find_size_min_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_size_max_var.trace_add("write", lambda i,j,k : self.find_mod())
+
+        self.find_name_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_name_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_name_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
+
+        self.find_cd_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_cd_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_cd_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
+
+        Label(find_size_frame,text='min',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
+        Label(find_size_frame,text='max',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=1, sticky='we',padx=4,pady=4)
+
+        def validate_size_str(val):
+            return True if val == "" or val.isdigit() else False
+
+        #entry_validator = self.main.register(validate_size_str)
+
+        #,validate="key",validatecommand=(entry_validator,"%P")
+        Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=1, column=0, sticky='we',padx=4,pady=4)
+        Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=1, column=1, sticky='we',padx=4,pady=4)
+
+        find_filename_frame = LabelFrame(self.find_dialog.area_main,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)
+        find_filename_frame.grid(row=1,column=0,sticky='news',padx=4,pady=4)
+
+        (find_name_regexp_cb := Checkbutton(find_filename_frame,text='Treat as regular expression',variable=self.find_name_regexp_var,command=self.find_mod)).grid(row=1, column=0, sticky='news',padx=4,pady=4)
+        (find_name_case_sens_cb := Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
+
+        Entry(find_filename_frame,textvariable=self.find_name_var,validate="key").grid(row=0, column=0, sticky='we',padx=4,pady=4)
+        find_filename_frame.grid_columnconfigure(0, weight=1)
 
         find_cd_frame = LabelFrame(self.find_dialog.area_main,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)
-        find_cd_frame.grid(row=2,column=0,sticky='news')
-        cd_use = Checkbutton(find_cd_frame,text='c1')
-        cd_use.pack(fill='x',expand=1,side='top')
+        find_cd_frame.grid(row=2,column=0,sticky='news',padx=4,pady=4)
 
-        self.find_dialog.area_main.grid_rowconfigure(0, weight=1)
-        self.find_dialog.area_main.grid_rowconfigure(1, weight=1)
-        self.find_dialog.area_main.grid_rowconfigure(2, weight=1)
+        (find_cd_regexp_cb := Checkbutton(find_cd_frame,text='Treat as regular expression',variable=self.find_cd_regexp_var,command=self.find_mod)).grid(row=1, column=0, sticky='news',padx=4,pady=4)
+        (cd_case_sens_cb := Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
+
+        Entry(find_cd_frame,textvariable=self.find_cd_var,validate="key").grid(row=0, column=0, sticky='we',padx=4,pady=4)
+        find_cd_frame.grid_columnconfigure(0, weight=1)
+
+
+        self.button_prev = Button(self.find_dialog.area_buttons, text='prev (Shift+F3)', width=14, command=self.find_prev_from_dialog )
+        self.button_prev.pack(side='left', anchor='n',padx=5,pady=5)
+
+        self.button_next = Button(self.find_dialog.area_buttons, text='next (F3)', width=14, command=self.find_next_from_dialog )
+        self.button_next.pack(side='right', anchor='n',padx=5,pady=5)
+
+        self.button_show = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
+        self.button_show.pack(side='right', anchor='n',padx=5,pady=5)
+
+        self.find_dialog.area_main.grid_rowconfigure(3, weight=1)
         self.find_dialog.area_main.grid_columnconfigure(0, weight=1)
 
-        self.info_dialog_on_find={}
 
-        self.info_dialog_on_find[self_tree] = dialogs.LabelDialog(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-
+        self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
        #######################################################################
         #About Dialog
         self.aboout_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'',pre_show=pre_show,post_close=post_close)
@@ -943,14 +1034,45 @@ class Gui:
 
         self.exclude_regexp_scan.set(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP))
 
+        self.menu_disable()
+        self.menubar_config(cursor='watch')
+        self.main_config(cursor='watch')
+
         self.main_update()
         self.records_show()
 
-        librer_core.read_list(self.pre_single_record_show,self.single_record_show)
+        read_thread=Thread(target=lambda : librer_core.read_records(),daemon=True)
+        read_thread.start()
+
+        read_thread_is_alive = read_thread.is_alive
+
+        wait_var=BooleanVar()
+        wait_var.set(False)
+
+        self_hg_ico = self.hg_ico
+        len_self_hg_ico = len(self_hg_ico)
+        hr_index=0
+
+        while read_thread_is_alive() or librer_core.records_to_show:
+            self.status_main(text=librer_core.info_line,image=self_hg_ico[hr_index])
+            hr_index=(hr_index+1) % len_self_hg_ico
+
+            if librer_core.records_to_show:
+                self.single_record_show(librer_core.records_to_show.pop(0))
+            else:
+                self.main.after(25,lambda : wait_var.set(not wait_var.get()))
+                self.main.wait_variable(wait_var)
+
+        read_thread.join()
+
+        self.menu_enable()
+        self.menubar_config(cursor='')
+        self.main_config(cursor='')
 
         self.actions_processing=True
 
         self.tree_semi_focus()
+        self.status_info.configure(image='',text = 'Ready')
 
         #self_tree.configure(style='semi_focus.Treeview')
         #self_tree.focus_set()
@@ -1078,19 +1200,17 @@ class Gui:
         self.tooltip_withdraw()
 
     status_curr_text='-'
+    status_curr_image='-'
 
     def status_main(self,text='',image='',do_log=True):
-        print('status_main',text)
-        #return
-
-        if text != self.status_curr_text:
-
+        if text != self.status_curr_text or image!=self.status_curr_image:
             self.status_curr_text=text
-            self.status(text=text,image=image,compound='left')
+            self.status_curr_image=image
+            self.status_info.configure(text=text,image=image,compound='left')
+            self.status_info.update()
 
             if do_log and text:
                 l_info('STATUS:%s',text)
-            self.status_line_lab_update()
 
     def status_main_win(self,text='',image='',do_log=True):
         self.status_main(text.replace('\\\\',chr(92)).replace('\\\\',chr(92)),image,do_log)
@@ -1151,22 +1271,14 @@ class Gui:
     find_initialvalue='*'
 
     def finder_wrapper_show(self):
-        #print('finder_wrapper_show')
-        tree=self.tree
-
         self.find_dialog_shown=True
-
-        scope_info = ''
-
         self.find_dialog.show('Find')
-        #self.find_dialog.show('Find',scope_info,initial=self.find_initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
-        #self.find_initialvalue=self.find_dialog.entry.get()
-
         self.find_dialog_shown=False
+
         self.tree_semi_focus()
 
-    def find_prev_from_dialog(self,expression,use_reg_expr):
-        self.find_items(expression,use_reg_expr)
+    def find_prev_from_dialog(self):
+        self.find_items()
         self.select_find_result(-1)
 
     def find_prev(self):
@@ -1176,9 +1288,14 @@ class Gui:
         else:
             self.select_find_result(-1)
 
-    def find_next_from_dialog(self,expression,use_reg_expr):
-        self.find_items(expression,use_reg_expr)
+    def find_next_from_dialog(self):
+        self.find_items()
         self.select_find_result(1)
+
+    def find_show_results(self):
+        self.find_items()
+        if self.find_result:
+            self.text_dialog_on_find.show('test11',self.find_result)
 
     def find_next(self):
         if not self.find_result:
@@ -1190,39 +1307,100 @@ class Gui:
     find_result_index=0
 
     find_dialog_shown=False
-    use_reg_expr_prev=''
-    find_expression_prev=''
 
-    def find_mod(self,expression,use_reg_expr):
-        if self.use_reg_expr_prev!=use_reg_expr or self.find_expression_prev!=expression:
-            self.use_reg_expr_prev=use_reg_expr
-            self.find_expression_prev=expression
-            self.find_params_changed=True
-            self.cfg.set_bool(CFG_KEY_USE_REG_EXPR,use_reg_expr)
+    def find_mod(self):
+        try:
+            if self.cfg.get(CFG_KEY_find_size_min) != self.find_size_min_var.get():
+                self.find_params_changed=True
+
+            if self.cfg.get(CFG_KEY_find_size_max) != self.find_size_max_var.get():
+                self.find_params_changed=True
+
+            if self.cfg.get(CFG_KEY_find_name) != self.find_name_var.get():
+                self.find_params_changed=True
+
+            if self.cfg.get_bool(CFG_KEY_find_name_regexp) != bool(self.find_name_regexp_var.get()):
+                self.find_params_changed=True
+
+            if self.cfg.get_bool(CFG_KEY_find_name_case_sens) != bool(self.find_name_case_sens_var.get()):
+                self.find_params_changed=True
+
+            if self.cfg.get(CFG_KEY_find_cd) != self.find_cd_var.get():
+                self.find_params_changed=True
+
+            if self.cfg.get_bool(CFG_KEY_find_cd_regexp) != bool(self.find_cd_regexp_var.get()):
+                self.find_params_changed=True
+
+            if self.cfg.get_bool(CFG_KEY_find_cd_case_sens) != bool(self.find_cd_case_sens_var.get()):
+                self.find_params_changed=True
+
+            if self.find_params_changed:
+                self.find_result_index=0
+
+        except Exception as e:
             self.find_result_index=0
+            self.find_params_changed=True
+            print(e)
 
-    @restore_status_line
-    def find_items(self,expression,use_reg_expr):
-        #print('find_items',expression,use_reg_expr)
-        #self.status('searching ...')
+        return True #for entry validation
+
+    #@restore_status_line
+    def find_items(self):
 
         if self.find_params_changed:
-            if expression:
-                func_to_call = ( lambda x : search(expression,x) ) if use_reg_expr else ( lambda x : fnmatch(x,expression) )
+            find_size_min = self.find_size_min_var.get()
+            find_size_max = self.find_size_max_var.get()
 
-                results = librer_core.find_items_in_all_records(func_to_call)
+            find_name = self.find_name_var.get()
+            find_name_regexp = self.find_name_regexp_var.get()
+            find_name_case_sens = self.find_name_case_sens_var.get()
 
-                results_len = len(results)
+            find_cd = self.find_cd_var.get()
+            find_cd_regexp = self.find_cd_regexp_var.get()
+            find_cd_case_sens = self.find_cd_case_sens_var.get()
 
-                self.status(f'Search results:{results_len}')
+            if find_size_min:
+                min_num = core_str_to_bytes(find_size_min)
+                if min_num == -1:
+                    min_num = ''
+            else:
+                min_num = ''
 
-                if results:
-                    self.find_result=results
-                    self.find_params_changed=False
-                else:
-                    self.find_result=()
-                    scope_info = ''
-                    self.info_dialog_on_find[self.tree].show(scope_info,'No files found.')
+            if find_size_max:
+                max_num = core_str_to_bytes(find_size_max)
+                if max_num == -1:
+                    max_num = ''
+            else:
+                max_num = ''
+
+
+            self.cfg.set(CFG_KEY_find_size_min,find_size_min)
+            self.cfg.set(CFG_KEY_find_size_max,find_size_max)
+
+            self.cfg.set(CFG_KEY_find_name,find_name)
+            self.cfg.set_bool(CFG_KEY_find_name_regexp,find_name_regexp)
+            self.cfg.set_bool(CFG_KEY_find_name_case_sens,find_name_case_sens)
+
+            self.cfg.set(CFG_KEY_find_cd,find_cd)
+            self.cfg.set_bool(CFG_KEY_find_cd_regexp,find_cd_regexp)
+            self.cfg.set_bool(CFG_KEY_find_cd_case_sens,find_cd_case_sens)
+
+            results = librer_core.find_items_in_all_records(
+                min_num,max_num,
+                find_name,find_name_regexp,find_name_case_sens,
+                find_cd,find_cd_regexp,find_cd_case_sens)
+
+            results_len = len(results)
+
+            self.status(f'Search results:{results_len}')
+
+            if results:
+                self.find_result=results
+                self.find_params_changed=False
+            else:
+                self.find_result=()
+                scope_info = ''
+                self.info_dialog_on_find.show(scope_info,'No files found.')
 
     def get_child_of_name(self,item,child_name):
         self_tree = self.tree
@@ -1274,9 +1452,9 @@ class Gui:
 
 
                 if mod>0:
-                    self.status('Find next %s' % self.find_expression_prev)
+                    self.status('Find next')
                 else:
-                    self.status('Find Previous %s' % self.find_expression_prev)
+                    self.status('Find Previous')
 
                 self.tree.update()
 
@@ -1840,7 +2018,7 @@ class Gui:
                 new_record.abort()
                 break
 
-            self.main.after(100,lambda : wait_var.set(not wait_var.get()))
+            self.main.after(25,lambda : wait_var.set(not wait_var.get()))
             self.main.wait_variable(wait_var)
 
         #self_progress_dialog_on_scan_lab[3].configure(text='')
@@ -1889,12 +2067,11 @@ class Gui:
                 self_progress_dialog_on_scan_lab_r1_config(text=local_core_bytes_to_str(new_record.files_cde_size))
                 self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q))
 
-
                 if self.action_abort:
                     new_record.abort()
                     break
 
-                self.main.after(100,lambda : wait_var.set(not wait_var.get()))
+                self.main.after(25,lambda : wait_var.set(not wait_var.get()))
                 self.main.wait_variable(wait_var)
 
             cd_thread.join()
@@ -2236,9 +2413,6 @@ class Gui:
             tree.set(item,'opened','1')
 
         #tree.item(item, open=True)
-
-    def pre_single_record_show(self,name):
-        self.status(f'loading {name} ...')
 
     @block_actions_processing
     @gui_block

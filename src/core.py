@@ -7,6 +7,11 @@ from os.path import normpath
 from os import remove as os_remove
 
 from fnmatch import fnmatch
+from re import search
+
+import re
+import fnmatch
+
 from time import time
 
 import gzip
@@ -35,13 +40,12 @@ def bytes_to_str(num):
 
 def str_to_bytes(string):
     units = {'kb': 1024,'mb': 1024*1024,'gb': 1024*1024*1024,'tb': 1024*1024*1024*1024}
-
-    string = string.replace(' ','')
-    for suffix in units:
-        if string.lower().endswith(suffix):
-            return int(string[0:-len(suffix)]) * units[suffix]
-
     try:
+        string = string.replace(' ','')
+        for suffix in units:
+            if string.lower().endswith(suffix):
+                return int(string[0:-len(suffix)]) * units[suffix]
+
         return int(string)
     except:
         return -1
@@ -235,7 +239,7 @@ class LibrerCoreRecord :
                     if matched:
                         break
 
-                    if fnmatch(full_file_path,expr):
+                    if fnmatch.fnmatch(full_file_path,expr):
                         try:
                             result = subprocess.run([*(executable.split()),full_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                         except Exception as e:
@@ -274,25 +278,67 @@ class LibrerCoreRecord :
         for rule,stat in zip(self.db.cde_list,self.db.cd_stat):
             print(rule,stat)
 
-    def find_items_rec(self,func_to_call,local_dict,parent_path_components=[]):
+    def find_items_rec(self,
+            size_min,size_max,name_func_to_call,cd_func_to_call,
+            local_dict,parent_path_components=[]):
+
         #print('  find_items_rec',func_to_call,parent_path_components)
-        for name,(is_dir,is_file,is_symlink,size,mtime,sub_dict) in local_dict.items():
-            if func_to_call(name):
-                single_res = parent_path_components.copy()
-                single_res.append(name)
+        for name,val in local_dict.items():
+            len_val = len(val)
+            if len_val==6:
+                is_dir,is_file,is_symlink,size,mtime,sub_dict=val
+                cd=None
+            elif len_val==7:
+                is_dir,is_file,is_symlink,size,mtime,sub_dict,cd=val
+            else:
+                self.log.error('find_items_rec error:%s',val )
+                return
 
-                self.find_results.append(single_res)
-            elif is_dir and sub_dict:
-                self.find_items_rec(func_to_call,sub_dict,parent_path_components + [name])
+            if is_file:
+                if size_min:
+                    if size<size_min:
+                        continue
+                if size_max:
+                    if size>size_max:
+                        continue
 
-    def find_items(self,func_to_call):
-        #print('find_items',func_to_call)
+            if name_func_to_call:
+                if name_func_to_call(name):
+                    pass
+                else:
+                    if is_dir and sub_dict:
+                        self.find_items_rec(
+                            size_min,size_max,name_func_to_call,cd_func_to_call,
+                            sub_dict,parent_path_components + [name])
+                    continue
+
+            if cd_func_to_call:
+                if cd:
+                    try:
+                        if (cd_func_to_call(cd)):
+                            pass
+                        else:
+                            continue
+                    except Exception as e:
+                        print(e,'\n',cd)
+                        self.log.error('find_items_rec:%s on:\n%s',e,cd )
+                else:
+                    continue
+
+            single_res = parent_path_components.copy() + [name]
+            #single_res.append(name)
+            self.find_results.append(single_res)
+
+    def find_items(self,
+            size_min,size_max,
+            name_func_to_call,cd_func_to_call):
+
         self.find_results = []
 
         local_dict = self.db.data
         parent_path_components = []
 
-        self.find_items_rec(func_to_call,local_dict,parent_path_components)
+        self.find_items_rec(size_min,size_max,name_func_to_call,cd_func_to_call,local_dict,parent_path_components)
 
         return self.find_results
 
@@ -326,7 +372,8 @@ class LibrerCore:
         self.records = set()
         self.db_dir = db_dir
         self.log=log
-        self.info_line = ''
+        self.info_line = 'init'
+        self.records_to_show=[]
 
     def create(self,label='',path=''):
         new_record = LibrerCoreRecord(label,path,self.log)
@@ -334,8 +381,9 @@ class LibrerCore:
         self.records.add(new_record)
         return new_record
 
-    def read_list(self,callback_pre,callback=None):
-        self.log.info('read_list: %s',self.db_dir)
+    def read_records(self):
+        self.log.info('read_records: %s',self.db_dir)
+        self.records_to_show=[]
         try:
             with scandir(self.db_dir) as res:
                 for entry in sorted(res,key=lambda x : x.name):
@@ -344,23 +392,78 @@ class LibrerCore:
                         self.log.info('db:%s',ename)
                         new_record = self.create()
 
-                        callback_pre(ename)
+                        self.info_line = f'loading {ename} ...'
 
                         if new_record.load(self.db_dir,ename) :
                             self.log.warning('removing:%s',ename)
                             self.records.remove(new_record)
                         else:
-                            callback(new_record)
+                            self.records_to_show.append(new_record)
 
         except Exception as e:
             self.log.error('list read error:%s' % e )
         else:
             pass
 
-    def find_items_in_all_records(self,func_to_call):
+    def find_items_in_all_records(self,
+            size_min,size_max,
+            name_expr,name_regexp,name_case_sens,
+            cd_expr,cd_regexp,cd_case_sens):
+
+        #print('find_items_in_all_records:',size_min,size_max,name_expr,name_regexp,name_case_sens,cd_expr,cd_regexp,cd_case_sens)
+
+        if name_expr:
+            if name_case_sens:
+                if name_regexp:
+                    name_func_to_call = lambda x : search(name_expr,x)
+                else:
+                    name_func_to_call = lambda x : fnmatch.fnmatch(x,name_expr)
+            else:
+                if name_regexp:
+                    name_func_to_call = lambda x : search(name_expr,x,re.IGNORECASE)
+                else:
+                    name_func_to_call = lambda x : re.compile(fnmatch.translate(name_expr), re.IGNORECASE).match(x)
+        else:
+            name_func_to_call = None
+
+        if cd_expr:
+            if cd_case_sens:
+                if cd_regexp:
+                    print('a1',cd_expr)
+                    cd_func_to_call = lambda x : search(cd_expr,x)
+                else:
+                    print('a2',cd_expr)
+                    cd_func_to_call = lambda x : fnmatch.fnmatch(x,cd_expr)
+            else:
+                if cd_regexp:
+                    print('a3',cd_expr)
+                    cd_func_to_call = lambda x : search(cd_expr,x,re.IGNORECASE)
+                else:
+                    print('a4',cd_expr)
+                    cd_func_to_call = lambda x : re.compile(fnmatch.translate(cd_expr), re.IGNORECASE).match(x)
+        else:
+            cd_func_to_call = None
+
+
+        #re.IGNORECASE
+
+
+        #name_expr_used = name_expr if name_case_sens else name_expr.lower()
+
+        ##name_func_to_call = None if not name_expr else ( lambda x : search(name_expr_used,x) ) if name_regexp else ( lambda x : fnmatch(x,name_expr) )
+        #name_func_to_call_case = if name_case_sens else name_func_to_call
+
+        #cd_func_to_call = None if not cd_expr else ( lambda x : search(cd_expr,x) ) if cd_regexp else ( lambda x : fnmatch(x,cd_expr) )
+
+        print('name_func_to_call:',name_func_to_call)
+        print('cd_func_to_call:',cd_func_to_call)
+
         res = []
         for record in self.records:
-            sub_res = record.find_items(func_to_call)
+            sub_res = record.find_items(
+                size_min,size_max,
+                name_func_to_call,
+                cd_func_to_call)
             if sub_res:
                 for single_res in sub_res:
                     res.append( (record,single_res) )
