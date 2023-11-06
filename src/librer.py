@@ -76,6 +76,7 @@ from tkinter import StringVar
 from tkinter import BooleanVar
 
 from tkinter.ttk import Checkbutton
+from tkinter.ttk import Radiobutton
 from tkinter.ttk import Treeview
 from tkinter.ttk import Scrollbar
 from tkinter.ttk import Button
@@ -87,7 +88,6 @@ from tkinter.filedialog import askdirectory
 from tkinter.filedialog import asksaveasfilename
 from tkinter.filedialog import askopenfilename
 
-from collections import defaultdict
 from threading import Thread
 from traceback import format_stack
 
@@ -119,6 +119,8 @@ CFG_KEY_SINGLE_DEVICE = 'single_device'
 CFG_KEY_SINGLE_DEVICE = 'single_device'
 
 CFG_KEY_find_size_min = 'find_size_min'
+CFG_KEY_find_range_var = 'find_range_var'
+
 CFG_KEY_find_size_max = 'find_size_max'
 
 CFG_KEY_find_name = 'find_name'
@@ -135,6 +137,8 @@ cfg_defaults={
     CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_EXCLUDE:'',
     CFG_KEY_CDE_SETTINGS:'',
+
+    CFG_KEY_find_range_var:'s',
 
     CFG_KEY_find_size_min:'',
     CFG_KEY_find_size_max:'',
@@ -372,7 +376,7 @@ class Gui:
         self.ico_empty = self_ico['empty']
         self.ico_delete = self_ico['delete']
 
-        self_main.iconphoto(False, self_ico['librer'])
+        self_main.iconphoto(True, self_ico['librer'])
 
         self.RECORD='R'
         self.DIR='D'
@@ -778,14 +782,12 @@ class Gui:
         self.find_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Find file',pre_show=pre_show,post_close=post_close)
         #,min_width=800,min_height=520
 
-        (find_size_frame := LabelFrame(self.find_dialog.area_main,text='File size range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
-        find_size_frame.grid_columnconfigure(0, weight=1)
-        find_size_frame.grid_columnconfigure(1, weight=1)
-        #find_size_frame.grid_rowconfigure(2, weight=1)
 
 
         ##############
         #self.find_size_use_var = BooleanVar()
+        self.find_range_var = StringVar()
+
         self.find_size_min_var = StringVar()
         self.find_size_max_var = StringVar()
 
@@ -802,9 +804,11 @@ class Gui:
             temp=core_str_to_bytes(var)
 
             if temp>0:
-                return str(temp)
+                return var
             else:
                 return ''
+
+        self.find_range_var.set(self.cfg.get(CFG_KEY_find_range_var))
 
         self.find_size_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_min)))
         self.find_size_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_max)))
@@ -830,20 +834,14 @@ class Gui:
         self.find_cd_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
         self.find_cd_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
 
-        Label(find_size_frame,text='min',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
-        Label(find_size_frame,text='max',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=1, sticky='we',padx=4,pady=4)
 
-        def validate_size_str(val):
-            return True if val == "" or val.isdigit() else False
+        sfdma = self.find_dialog.area_main
 
-        #entry_validator = self.main.register(validate_size_str)
+        (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
+        (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record',variable=self.find_range_var,value='s',command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+        (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_var,value='a',command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
-        #,validate="key",validatecommand=(entry_validator,"%P")
-        Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=1, column=0, sticky='we',padx=4,pady=4)
-        Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=1, column=1, sticky='we',padx=4,pady=4)
-
-        find_filename_frame = LabelFrame(self.find_dialog.area_main,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)
-        find_filename_frame.grid(row=1,column=0,sticky='news',padx=4,pady=4)
+        (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
         (find_name_regexp_cb := Checkbutton(find_filename_frame,text='Treat as regular expression',variable=self.find_name_regexp_var,command=self.find_mod)).grid(row=1, column=0, sticky='news',padx=4,pady=4)
         (find_name_case_sens_cb := Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
@@ -851,8 +849,8 @@ class Gui:
         Entry(find_filename_frame,textvariable=self.find_name_var,validate="key").grid(row=0, column=0, sticky='we',padx=4,pady=4)
         find_filename_frame.grid_columnconfigure(0, weight=1)
 
-        find_cd_frame = LabelFrame(self.find_dialog.area_main,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)
-        find_cd_frame.grid(row=2,column=0,sticky='news',padx=4,pady=4)
+        (find_cd_frame := LabelFrame(sfdma,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
+
 
         (find_cd_regexp_cb := Checkbutton(find_cd_frame,text='Treat as regular expression',variable=self.find_cd_regexp_var,command=self.find_mod)).grid(row=1, column=0, sticky='news',padx=4,pady=4)
         (cd_case_sens_cb := Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
@@ -860,18 +858,29 @@ class Gui:
         Entry(find_cd_frame,textvariable=self.find_cd_var,validate="key").grid(row=0, column=0, sticky='we',padx=4,pady=4)
         find_cd_frame.grid_columnconfigure(0, weight=1)
 
+        (find_size_frame := LabelFrame(sfdma,text='File size range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
+        find_size_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
-        self.button_prev = Button(self.find_dialog.area_buttons, text='prev (Shift+F3)', width=14, command=self.find_prev_from_dialog )
-        self.button_prev.pack(side='left', anchor='n',padx=5,pady=5)
+        Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
+        Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
 
-        self.button_next = Button(self.find_dialog.area_buttons, text='next (F3)', width=14, command=self.find_next_from_dialog )
-        self.button_next.pack(side='right', anchor='n',padx=5,pady=5)
+        def validate_size_str(val):
+            return True if val == "" or val.isdigit() else False
 
-        self.button_show = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
-        self.button_show.pack(side='right', anchor='n',padx=5,pady=5)
+        #entry_validator = self.main.register(validate_size_str)
+        #,validate="key",validatecommand=(entry_validator,"%P")
+        Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
+        Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
 
-        self.find_dialog.area_main.grid_rowconfigure(3, weight=1)
-        self.find_dialog.area_main.grid_columnconfigure(0, weight=1)
+
+        Button(self.find_dialog.area_buttons, text='prev (Shift+F3)', width=14, command=self.find_prev_from_dialog ).pack(side='left', anchor='n',padx=5,pady=5)
+        Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results ).pack(side='left', anchor='n',padx=5,pady=5)
+        Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results ).pack(side='left', anchor='n',padx=5,pady=5)
+        Button(self.find_dialog.area_buttons, text='next (F3)', width=14, command=self.find_next_from_dialog ).pack(side='left', anchor='n',padx=5,pady=5)
+        Button(self.find_dialog.area_buttons, text='Close', width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
+
+        sfdma.grid_rowconfigure(4, weight=1)
+        sfdma.grid_columnconfigure(0, weight=1)
 
 
         self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
@@ -1277,6 +1286,9 @@ class Gui:
 
         self.tree_semi_focus()
 
+    def find_close(self):
+        self.find_dialog.hide()
+
     def find_prev_from_dialog(self):
         self.find_items()
         self.select_find_result(-1)
@@ -1292,10 +1304,20 @@ class Gui:
         self.find_items()
         self.select_find_result(1)
 
+    def find_save_results(self):
+        print('todo')
+
     def find_show_results(self):
         self.find_items()
         if self.find_result:
-            self.text_dialog_on_find.show('test11',self.find_result)
+            #self.find_result
+            rest_txt_list = []
+            for res_item in self.find_result:
+                record,record_result = res_item
+                rest_txt_list.append(f'record:{record.db.label}\n  {sep.join(record_result)}')
+
+            res_txt = '\n'.join(rest_txt_list)
+            self.text_dialog_on_find.show('test11',res_txt)
 
     def find_next(self):
         if not self.find_result:
@@ -1310,6 +1332,9 @@ class Gui:
 
     def find_mod(self):
         try:
+            if self.cfg.get(CFG_KEY_find_range_var) != self.find_range_var.get():
+                self.find_params_changed=True
+
             if self.cfg.get(CFG_KEY_find_size_min) != self.find_size_min_var.get():
                 self.find_params_changed=True
 
@@ -1348,6 +1373,8 @@ class Gui:
     def find_items(self):
 
         if self.find_params_changed:
+            find_range = self.find_range_var.get()
+
             find_size_min = self.find_size_min_var.get()
             find_size_max = self.find_size_max_var.get()
 
@@ -1362,17 +1389,27 @@ class Gui:
             if find_size_min:
                 min_num = core_str_to_bytes(find_size_min)
                 if min_num == -1:
-                    min_num = ''
+                    self.info_dialog_on_find.show('min size value error',f'fix "{find_size_min}"')
+                    return
             else:
                 min_num = ''
 
             if find_size_max:
                 max_num = core_str_to_bytes(find_size_max)
                 if max_num == -1:
-                    max_num = ''
+                    self.info_dialog_on_find.show('max size value error',f'fix "{find_size_max}"')
+                    return
             else:
                 max_num = ''
 
+            if check_res := librer_core.find_items_in_all_records_check(
+                min_num,max_num,
+                find_name,find_name_regexp,find_name_case_sens,
+                find_cd,find_cd_regexp,find_cd_case_sens):
+                self.info_dialog_on_find.show('regular expression error',check_res)
+                return
+
+            self.cfg.set(CFG_KEY_find_range_var,find_range)
 
             self.cfg.set(CFG_KEY_find_size_min,find_size_min)
             self.cfg.set(CFG_KEY_find_size_max,find_size_max)
@@ -1385,10 +1422,35 @@ class Gui:
             self.cfg.set_bool(CFG_KEY_find_cd_regexp,find_cd_regexp)
             self.cfg.set_bool(CFG_KEY_find_cd_case_sens,find_cd_case_sens)
 
-            results = librer_core.find_items_in_all_records(
-                min_num,max_num,
-                find_name,find_name_regexp,find_name_case_sens,
-                find_cd,find_cd_regexp,find_cd_case_sens)
+            range_par = self.current_record if find_range=='s' else None
+
+            search_thread=Thread(target=lambda : librer_core.find_items_in_all_records(range_par,min_num,max_num,find_name,find_name_regexp,find_name_case_sens,find_cd,find_cd_regexp,find_cd_case_sens),daemon=True)
+            search_thread.start()
+
+            search_thread_is_alive = search_thread.is_alive
+
+            wait_var=BooleanVar()
+            wait_var.set(False)
+
+            self_hg_ico = self.hg_ico
+            len_self_hg_ico = len(self_hg_ico)
+            hr_index=0
+
+            while search_thread_is_alive():
+                self.status_main(text=librer_core.info_line,image=self_hg_ico[hr_index])
+                hr_index=(hr_index+1) % len_self_hg_ico
+                #self.status_main.update()
+
+                #if librer_core.records_to_show:
+                #    self.single_record_show(librer_core.records_to_show.pop(0))
+                #else:
+
+                self.main.after(25,lambda : wait_var.set(not wait_var.get()))
+                self.main.wait_variable(wait_var)
+
+            search_thread.join
+
+            results = librer_core.find_res
 
             results_len = len(results)
 

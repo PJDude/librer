@@ -9,6 +9,8 @@ from os import remove as os_remove
 from fnmatch import fnmatch
 from re import search
 
+from collections import defaultdict
+
 import re
 import fnmatch
 
@@ -49,6 +51,15 @@ def str_to_bytes(string):
         return int(string)
     except:
         return -1
+
+def test_regexp(expr):
+    teststring='abc'
+    try:
+        search(expr,teststring)
+    except Exception as e:
+        return e
+    else:
+        return None
 
 #######################################################################
 data_format_version='1.0001'
@@ -302,32 +313,35 @@ class LibrerCoreRecord :
                     if size>size_max:
                         continue
 
-            if name_func_to_call:
-                if name_func_to_call(name):
-                    pass
-                else:
-                    if is_dir and sub_dict:
-                        self.find_items_rec(
-                            size_min,size_max,name_func_to_call,cd_func_to_call,
-                            sub_dict,parent_path_components + [name])
-                    continue
+            if is_dir :
+                #katalog moze spelniac kryteria naazwy pliku, nie ma rozmiaru i custom data
+                if name_func_to_call:
+                    if name_func_to_call(name):
+                        self.find_results.append(single_res)
 
-            if cd_func_to_call:
-                if cd:
-                    try:
-                        if (cd_func_to_call(cd)):
-                            pass
-                        else:
+                if sub_dict:
+                    self.find_items_rec(
+                        size_min,size_max,name_func_to_call,cd_func_to_call,
+                        sub_dict,parent_path_components + [name])
+
+            else:
+                if name_func_to_call:
+                    if not name_func_to_call(name):
+                        continue
+
+                if cd_func_to_call:
+                    if cd:
+                        try:
+                            if not cd_func_to_call(cd):
+                                continue
+                        except Exception as e:
+                            self.log.error('find_items_rec:%s on:\n%s',e,cd )
                             continue
-                    except Exception as e:
-                        print(e,'\n',cd)
-                        self.log.error('find_items_rec:%s on:\n%s',e,cd )
-                else:
-                    continue
+                    else:
+                        continue
 
-            single_res = parent_path_components.copy() + [name]
-            #single_res.append(name)
-            self.find_results.append(single_res)
+                single_res = parent_path_components.copy() + [name]
+                self.find_results.append(single_res)
 
     def find_items(self,
             size_min,size_max,
@@ -405,13 +419,28 @@ class LibrerCore:
         else:
             pass
 
+    def find_items_in_all_records_check(self,
+            size_min,size_max,
+            name_expr,name_regexp,name_case_sens,
+            cd_expr,cd_regexp,cd_case_sens):
+
+        if name_expr and name_regexp:
+            if res := test_regexp(name_expr):
+                return res
+
+        if cd_expr and cd_regexp:
+            if res := test_regexp(cd_expr):
+                return res
+
+        return None
+
     def find_items_in_all_records(self,
+            range_par,
             size_min,size_max,
             name_expr,name_regexp,name_case_sens,
             cd_expr,cd_regexp,cd_case_sens):
 
         #print('find_items_in_all_records:',size_min,size_max,name_expr,name_regexp,name_case_sens,cd_expr,cd_regexp,cd_case_sens)
-
         if name_expr:
             if name_case_sens:
                 if name_regexp:
@@ -423,23 +452,21 @@ class LibrerCore:
                     name_func_to_call = lambda x : search(name_expr,x,re.IGNORECASE)
                 else:
                     name_func_to_call = lambda x : re.compile(fnmatch.translate(name_expr), re.IGNORECASE).match(x)
+
+
         else:
             name_func_to_call = None
 
         if cd_expr:
             if cd_case_sens:
                 if cd_regexp:
-                    print('a1',cd_expr)
                     cd_func_to_call = lambda x : search(cd_expr,x)
                 else:
-                    print('a2',cd_expr)
                     cd_func_to_call = lambda x : fnmatch.fnmatch(x,cd_expr)
             else:
                 if cd_regexp:
-                    print('a3',cd_expr)
                     cd_func_to_call = lambda x : search(cd_expr,x,re.IGNORECASE)
                 else:
-                    print('a4',cd_expr)
                     cd_func_to_call = lambda x : re.compile(fnmatch.translate(cd_expr), re.IGNORECASE).match(x)
         else:
             cd_func_to_call = None
@@ -455,20 +482,23 @@ class LibrerCore:
 
         #cd_func_to_call = None if not cd_expr else ( lambda x : search(cd_expr,x) ) if cd_regexp else ( lambda x : fnmatch(x,cd_expr) )
 
-        print('name_func_to_call:',name_func_to_call)
-        print('cd_func_to_call:',cd_func_to_call)
+        #self.find_res = defaultdict(set)
+        self.find_res = []
+        sel_range = [range_par] if range_par else self.records
 
-        res = []
-        for record in self.records:
+        for record in sel_range:
             sub_res = record.find_items(
                 size_min,size_max,
                 name_func_to_call,
                 cd_func_to_call)
             if sub_res:
                 for single_res in sub_res:
-                    res.append( (record,single_res) )
+                    #self.find_res[record].add( single_res )
+                    self.find_res.append( (record,single_res) )
 
-        return tuple(res)
+        #self.find_res
+        #return tuple(res)
+        return None
 
     def delete_record_by_id(self,rid):
         for record in self.records:
