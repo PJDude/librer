@@ -17,6 +17,7 @@ import fnmatch
 from time import time
 
 import gzip
+import zlib
 import pickle
 
 import subprocess
@@ -90,6 +91,28 @@ class LibrerCoreData :
     def get_time(self):
         return self.creation_time/1000
 
+
+entry_LUT_code={
+    (True,True,True):7,
+    (True,True,False):6,
+    (True,False,True):5,
+    (True,False,False):4,
+    (False,True,True):3,
+    (False,True,False):2,
+    (False,False,True):1,
+    (False,False,False):0
+}
+
+entry_LUT_decode={
+    7:(True,True,True),
+    6:(True,True,False),
+    5:(True,False,True),
+    4:(True,False,False),
+    3:(False,True,True),
+    2:(False,True,False),
+    1:(False,False,True),
+    0:(False,False,False)
+}
 #######################################################################
 class LibrerCoreRecord :
     db = None
@@ -114,6 +137,9 @@ class LibrerCoreRecord :
         if self.abort_action:
             return True
 
+        entry_LUT_code_loc = entry_LUT_code
+        path_join_loc = path_join
+
         local_folder_files_size_sum=0
         try:
             with scandir(path) as res:
@@ -127,6 +153,7 @@ class LibrerCoreRecord :
                     entry_name = entry.name
 
                     is_dir,is_file,is_symlink = entry.is_dir(),entry.is_file(),entry.is_symlink()
+                    code = entry_LUT_code_loc[ (is_dir,is_file,is_symlink) ]
 
                     try:
                         stat_res = stat(entry)
@@ -135,7 +162,7 @@ class LibrerCoreRecord :
                     except Exception as e:
                         self.log.error('stat error:%s', e )
                         #size -1 <=> error, dev,in ==0
-                        dictionary[entry_name] = [is_dir,is_file,is_symlink,-1,0,None]
+                        dictionary[entry_name] = [code,-1,0,None]
                     else:
 
                         if is_dir:
@@ -144,7 +171,7 @@ class LibrerCoreRecord :
                                 size_entry = 0
                             else:
                                 dict_entry={}
-                                size_entry = self.do_scan(path_join(path,entry_name),dict_entry)
+                                size_entry = self.do_scan(path_join_loc(path,entry_name),dict_entry)
 
                                 local_folder_files_size_sum += size_entry
 
@@ -162,7 +189,7 @@ class LibrerCoreRecord :
 
                             local_folder_files_count += 1
 
-                        dictionary[entry_name]=[is_dir,is_file,is_symlink,size_entry,mtime_ns,dict_entry]
+                        dictionary[entry_name]=[code,size_entry,mtime_ns,dict_entry]
 
                 self.db.quant_files += local_folder_files_count
                 self.db.quant_folders += local_folder_folders_count
@@ -183,11 +210,12 @@ class LibrerCoreRecord :
         self.db.cde_list = []
         self.db.cd_stat=[]
 
-
     def do_prepare_custom_data_pool(self,dictionary,parent_path):
+        entry_LUT_decode_loc = entry_LUT_decode
         for entry_name,items_list in dictionary.items():
             try:
-                (is_dir,is_file,is_symlink,size,mtime,sub_dict) = items_list
+                (code,size,mtime,sub_dict) = items_list
+                is_dir,is_file,is_symlink = entry_LUT_decode_loc[code]
                 subpath = parent_path.copy() + [entry_name]
 
                 if not is_symlink:
@@ -221,8 +249,10 @@ class LibrerCoreRecord :
 
             #print(key,list_ref,subpath)
             full_file_path = normpath(abspath(sep.join([scan_path,subpath])))
+            #full_file_path_protected = f'"{full_file_path}"'
+            #print(full_file_path_protected)
 
-            size = list_ref[3]
+            size = list_ref[1]
             matched = False
 
             rule_nr=-1
@@ -250,16 +280,28 @@ class LibrerCoreRecord :
                     if matched:
                         break
 
+                    #print(full_file_path,expr)
                     if fnmatch.fnmatch(full_file_path,expr):
                         try:
-                            result = subprocess.run([*(executable.split()),full_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                            cde_run_list = executable.split() + [full_file_path]
+                            #print(cde_run_list)
+                            result = subprocess.run(cde_run_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
+                            #text=True,
+                            #, encoding="ISO-8859-1"
                         except Exception as e:
-                            #print(e)
-                            self.log.error('Custom Data Extraction subprocess error:%s',e )
+                            print(full_file_path,e)
+                            self.log.error('Custom Data Extraction subprocess error:%s\n%s',cde_run_list,e )
                             list_ref.append(e)
                         else:
-                            result1 = result.stdout.strip()
-                            result2 = result.stderr.strip()
+
+                            result1 = str(result.stdout).strip()
+                            result2 = str(result.stderr).strip()
+
+                            #print(result1)
+                            #print(result2)
+                            #result1_compressed = zlib.compress(bytes(result1,"utf-8"))
+                            #print(f'compare:{len(result1)} vs {len(result1_compressed)}')
+                            #result1 = result1_compressed
 
                             if result1!='':
                                 if result2!='':
@@ -293,17 +335,21 @@ class LibrerCoreRecord :
             size_min,size_max,name_func_to_call,cd_func_to_call,
             local_dict,parent_path_components=[]):
 
+        entry_LUT_decode_loc = entry_LUT_decode
+
         #print('  find_items_rec',func_to_call,parent_path_components)
         for name,val in local_dict.items():
             len_val = len(val)
-            if len_val==6:
-                is_dir,is_file,is_symlink,size,mtime,sub_dict=val
+            if len_val==4:
+                code,size,mtime,sub_dict=val
                 cd=None
-            elif len_val==7:
-                is_dir,is_file,is_symlink,size,mtime,sub_dict,cd=val
+            elif len_val==5:
+                code,size,mtime,sub_dict,cd=val
             else:
                 self.log.error('find_items_rec error:%s',val )
                 return
+
+            is_dir,is_file,is_symlink = entry_LUT_decode_loc[code]
 
             if is_file:
                 if size_min:
@@ -387,7 +433,14 @@ class LibrerCore:
         self.db_dir = db_dir
         self.log=log
         self.info_line = 'init'
+
+        #self.info_max_quant = 0
+        #self.info_max_size = 0
+        #self.info_curr_quant = 0
+        #self.info_curr_size = 0
+
         self.records_to_show=[]
+        self.abort_action=False
 
     def create(self,label='',path=''):
         new_record = LibrerCoreRecord(label,path,self.log)
@@ -395,29 +448,59 @@ class LibrerCore:
         self.records.add(new_record)
         return new_record
 
+    def read_records_pre(self):
+        try:
+            with scandir(self.db_dir) as res:
+                size_sum=0
+                self.record_files_list=[]
+                for entry in res:
+                    ename = entry.name
+                    if ename.endswith('.dat'):
+                        try:
+                            stat_res = stat(entry)
+                            size = int(stat_res.st_size)
+                        except Exception as e:
+                            print('record stat error:%s' % e )
+                            continue
+
+                        size_sum+=size
+                        self.record_files_list.append( (ename,size) )
+                quant_sum=len(self.record_files_list)
+            return (quant_sum,size_sum)
+        except Exception as e:
+            self.log.error('list read error:%s' % e )
+            return (0,0)
+
+    def abort(self):
+        self.abort_action = True
+
     def read_records(self):
         self.log.info('read_records: %s',self.db_dir)
         self.records_to_show=[]
-        try:
-            with scandir(self.db_dir) as res:
-                for entry in sorted(res,key=lambda x : x.name):
-                    ename = entry.name
-                    if ename.endswith('.dat'):
-                        self.log.info('db:%s',ename)
-                        new_record = self.create()
 
-                        self.info_line = f'loading {ename} ...'
+        #self.info_max_quant = 0
+        #self.info_max_size = 0
+        info_curr_quant = 0
+        info_curr_size = 0
 
-                        if new_record.load(self.db_dir,ename) :
-                            self.log.warning('removing:%s',ename)
-                            self.records.remove(new_record)
-                        else:
-                            self.records_to_show.append(new_record)
+        for ename,size in sorted(self.record_files_list):
+            if self.abort_action:
+                break
 
-        except Exception as e:
-            self.log.error('list read error:%s' % e )
-        else:
-            pass
+            self.log.info('db:%s',ename)
+            new_record = self.create()
+
+            self.info_line = f'loading {ename} ...'
+
+            info_curr_quant+=1
+            info_curr_size+=size
+
+            if new_record.load(self.db_dir,ename) :
+                self.log.warning('removing:%s',ename)
+                self.records.remove(new_record)
+            else:
+                self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
+
 
     def find_items_in_all_records_check(self,
             size_min,size_max,
@@ -511,5 +594,6 @@ class LibrerCore:
                     os_remove(file_path)
                 except Exception as e:
                     self.log.error(e)
+
 
 

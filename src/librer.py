@@ -320,6 +320,10 @@ class Gui:
     #######################################################################
     action_abort=False
 
+    def progress_dialog_load_abort(self):
+        self.status("Abort pressed ...")
+        self.action_abort=True
+
     def progress_dialog_abort(self):
         self.status("Abort pressed ...")
         l_info("Abort pressed ...")
@@ -376,7 +380,9 @@ class Gui:
         self.ico_empty = self_ico['empty']
         self.ico_delete = self_ico['delete']
 
-        self_main.iconphoto(True, self_ico['librer'])
+        self_ico_librer = self_ico['librer']
+
+        self_main.iconphoto(True, self_ico_librer)
 
         self.RECORD='R'
         self.DIR='D'
@@ -612,7 +618,7 @@ class Gui:
                 self.menu_enable()
                 self.menubar_config(cursor="")
 
-        self.scan_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Create new data record',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
+        self.scan_dialog=dialogs.GenericDialog(self_main,self_ico_librer,self.bg_color,'Create new data record',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
 
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
@@ -660,7 +666,7 @@ class Gui:
         single_device_button.grid(row=1, column=0, sticky='news',padx=4,pady=4,columnspan=4)
         self.single_device.set(self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE))
 
-        single_device_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Don't cross device boundaries (mount points, bindings etc."))
+        single_device_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Don't cross device boundaries (mount points, bindings etc.)"))
         single_device_button.bind("<Leave>", lambda event : self.widget_leave())
 
         ##############
@@ -765,21 +771,28 @@ class Gui:
         cde_frame.grid_columnconfigure(4, weight=1)
 
         #######################################################################
-        self.info_dialog_on_main = dialogs.LabelDialog(self_main,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_ask_dialog = dialogs.TextDialogQuestion(self_main,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
-        self.text_info_dialog = dialogs.TextDialogInfo(self_main,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_main = dialogs.LabelDialog(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_ask_dialog = dialogs.TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
+        self.text_info_dialog = dialogs.TextDialogInfo(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
 
-        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
         self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
         self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
-        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_tree,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.progress_dialog_on_load = dialogs.ProgressDialog(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
-        self.find_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'Find file',pre_show=pre_show,post_close=post_close)
+        self.progress_dialog_on_load.abort_button.bind("<Leave>", lambda event : self.widget_leave())
+        self.progress_dialog_on_load.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
+
+
+        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_tree,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
+
+        self.find_dialog=dialogs.GenericDialog(self_main,self_ico_librer,self.bg_color,'Find file',pre_show=pre_show,post_close=post_close)
         #,min_width=800,min_height=520
 
 
@@ -883,11 +896,11 @@ class Gui:
         sfdma.grid_columnconfigure(0, weight=1)
 
 
-        self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-        self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,self_ico['librer'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
        #######################################################################
         #About Dialog
-        self.aboout_dialog=dialogs.GenericDialog(self_main,self_ico['librer'],self.bg_color,'',pre_show=pre_show,post_close=post_close)
+        self.aboout_dialog=dialogs.GenericDialog(self_main,self_ico_librer,self.bg_color,'',pre_show=pre_show,post_close=post_close)
 
         frame1 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
@@ -956,7 +969,7 @@ class Gui:
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
                 self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="N",image = self_ico['record'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="F",image = self_ico['record'],compound='left')
+                self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="F",image = self_ico['find'],compound='left')
                 self_file_cascade_add_separator()
                 #self_file_cascade_add_command(label = 'Delete data record ...',command = self.delete_data_record,accelerator="Delete",image = self_ico['delete'],compound='left')
                 #self_file_cascade_add_separator()
@@ -1050,29 +1063,88 @@ class Gui:
         self.main_update()
         self.records_show()
 
-        read_thread=Thread(target=lambda : librer_core.read_records(),daemon=True)
-        read_thread.start()
 
-        read_thread_is_alive = read_thread.is_alive
+        #############################
+        self_progress_dialog_on_load = self.progress_dialog_on_load
+        self_progress_dialog_on_load_lab = self_progress_dialog_on_load.lab
+        self_progress_dialog_on_load_area_main_update = self_progress_dialog_on_load.area_main.update
 
-        wait_var=BooleanVar()
-        wait_var.set(False)
+        self_progress_dialog_on_load_progr1var = self_progress_dialog_on_load.progr1var
+        self_progress_dialog_on_load_progr2var = self_progress_dialog_on_load.progr2var
 
-        self_hg_ico = self.hg_ico
-        len_self_hg_ico = len(self_hg_ico)
-        hr_index=0
+        self_progress_dialog_on_load_lab_r1_config = self_progress_dialog_on_load.lab_r1.config
+        self_progress_dialog_on_load_lab_r2_config = self_progress_dialog_on_load.lab_r2.config
 
-        while read_thread_is_alive() or librer_core.records_to_show:
-            self.status_main(text=librer_core.info_line,image=self_hg_ico[hr_index])
-            hr_index=(hr_index+1) % len_self_hg_ico
+        str_self_progress_dialog_on_load_abort_button = str(self_progress_dialog_on_load.abort_button)
 
-            if librer_core.records_to_show:
-                self.single_record_show(librer_core.records_to_show.pop(0))
-            else:
-                self.main.after(25,lambda : wait_var.set(not wait_var.get()))
-                self.main.wait_variable(wait_var)
 
-        read_thread.join()
+        #############################
+
+        #self.scan_dialog.widget.update()
+        self.tooltip_message[str_self_progress_dialog_on_load_abort_button]='Abort loading.'
+        self_progress_dialog_on_load.abort_button.configure(image=self.ico['cancel'],text='Abort',compound='left')
+        self_progress_dialog_on_load.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
+
+        self.action_abort=False
+        self_progress_dialog_on_load.abort_button.configure(state='normal')
+
+        records_quant,records_size = librer_core.read_records_pre()
+
+        if records_quant:
+            read_thread=Thread(target=lambda : librer_core.read_records(),daemon=True)
+            read_thread.start()
+            read_thread_is_alive = read_thread.is_alive
+
+            self_progress_dialog_on_load.lab_l1.configure(text='Records space:')
+            self_progress_dialog_on_load.lab_l2.configure(text='Records number:' )
+
+            self_progress_dialog_on_load.show('Loading records')
+
+            hr_index=0
+
+            self_progress_dialog_on_load_progr1var.set(0)
+            self_progress_dialog_on_load_lab_r1_config(text='- - - -')
+            self_progress_dialog_on_load_progr2var.set(0)
+            self_progress_dialog_on_load_lab_r2_config(text='- - - -')
+
+            wait_var=BooleanVar()
+            wait_var.set(False)
+
+            self_hg_ico = self.hg_ico
+            len_self_hg_ico = len(self_hg_ico)
+            hr_index=0
+
+            while read_thread_is_alive() or librer_core.records_to_show :
+                self_progress_dialog_on_load_lab[0].configure(image=self_hg_ico[hr_index])
+
+                if librer_core.records_to_show:
+                    new_rec,quant,size = librer_core.records_to_show.pop(0)
+
+                    self_progress_dialog_on_load.lab_r1.configure(text=core_bytes_to_str(records_size))
+                    self_progress_dialog_on_load.lab_r2.configure(text=records_quant)
+
+                    self_progress_dialog_on_load_lab[2].configure(text=librer_core.info_line)
+                    self_progress_dialog_on_load_lab[1].configure(text=f'{quant} / {core_bytes_to_str(size)}')
+
+                    self.single_record_show(new_rec)
+
+                    self_progress_dialog_on_load_progr1var.set(100*size/records_size)
+                    self_progress_dialog_on_load_progr2var.set(100*quant/records_quant)
+
+                else:
+                    self.main.after(25,lambda : wait_var.set(not wait_var.get()))
+                    self.main.wait_variable(wait_var)
+
+                hr_index=(hr_index+1) % len_self_hg_ico
+
+                if self.action_abort:
+                    librer_core.abort()
+
+            self_progress_dialog_on_load.hide(True)
+            read_thread.join()
+
+            if self.action_abort:
+                self.info_dialog_on_main.show('Records loading aborted','Restart Librer to gain full access to the recordset.')
 
         self.menu_enable()
         self.menubar_config(cursor='')
@@ -1175,7 +1247,7 @@ class Gui:
 
                     node_cd = None
                     try:
-                        node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in self.item_to_data_list[item][6].split('\n')[0:10]] )
+                        node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in self.item_to_data_list[item][4].split('\n')[0:10]] )
                     except:
                         pass
 
@@ -1958,8 +2030,6 @@ class Gui:
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
 
-        #self.update_scan_path_nr=False
-
         #librer_core.log_skipped = self.log_skipped_var.get()
         self.log_skipped = self.log_skipped_var.get()
 
@@ -1969,8 +2039,8 @@ class Gui:
         self_progress_dialog_on_scan.lab_l1.configure(text='CDE Total space:')
         self_progress_dialog_on_scan.lab_l2.configure(text='CDE Files number:' )
 
-        self_progress_dialog_on_scan_progr1var.set(10)
-        self_progress_dialog_on_scan_progr2var.set(20)
+        #self_progress_dialog_on_scan_progr1var.set(10)
+        #self_progress_dialog_on_scan_progr2var.set(20)
 
         self_progress_dialog_on_scan.show('Scanning')
         #,image=self.ico['empty'],image_text=' '
@@ -2419,6 +2489,8 @@ class Gui:
         children=tree.get_children(item)
         opened = tree.set(item,'opened')
 
+        entry_LUT_decode_loc = core.entry_LUT_decode
+
         if opened=='0' and children:
             colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params[tree]
             sort_index_local=sort_index
@@ -2435,14 +2507,17 @@ class Gui:
             new_items_values = {}
 
             for entry_name,data_tuple in self.item_to_record_dict[item].items():
-                if len(data_tuple)==6:
-                    [is_dir,is_file,is_symlink,size,mtime,sub_dictionary] = data_tuple
-                elif len(data_tuple)==7:
-                    [is_dir,is_file,is_symlink,size,mtime,sub_dictionary,ud] = data_tuple
+                len_data_tuple = len(data_tuple)
+                if len_data_tuple==4:
+                    [ code,size,mtime,sub_dictionary ] = data_tuple
+                elif len_data_tuple==5:
+                    [ code,size,mtime,sub_dictionary,ud ] = data_tuple
                 else:
                     l_error(f'data format incompatible:{data_tuple}')
                     print(f'data format incompatible:{data_tuple}')
                     continue
+
+                is_dir,is_file,is_symlink = entry_LUT_decode_loc[code]
 
                 if is_dir:
                     image=self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink else self.ico_folder
@@ -2614,7 +2689,7 @@ class Gui:
                     self.open_item(None,item)
             else:
                 try:
-                    node_cd = self.item_to_data_list[item][6]
+                    node_cd = self.item_to_data_list[item][4]
                     self.text_info_dialog.show('Custom Data',node_cd)
                 except:
                     pass
