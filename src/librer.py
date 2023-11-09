@@ -121,6 +121,7 @@ CFG_KEY_SINGLE_DEVICE = 'single_device'
 CFG_KEY_find_size_min = 'find_size_min'
 CFG_KEY_find_range = 'find_range'
 CFG_KEY_find_cd_search_kind = 'find_cd_search_kind'
+CFG_KEY_find_filename_search_kind = 'find_filename_search_kind'
 
 CFG_KEY_find_size_max = 'find_size_max'
 
@@ -141,6 +142,7 @@ cfg_defaults={
 
     CFG_KEY_find_range:'s',
     CFG_KEY_find_cd_search_kind:'d',
+    CFG_KEY_find_filename_search_kind:'d',
 
     CFG_KEY_find_size_min:'',
     CFG_KEY_find_size_max:'',
@@ -340,6 +342,10 @@ class Gui:
         l_warning("Received SIGINT signal")
         self.action_abort=True
 
+    def get_hg_ico(self):
+        self.hg_index=(self.hg_index+1) % self.hg_ico_len
+        return self.hg_ico[self.hg_index]
+
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
         self.cwd=cwd
         self.last_dir=self.cwd
@@ -376,6 +382,7 @@ class Gui:
 
         self_ico = self.ico = { img:PhotoImage(data = img_data) for img,img_data in librer_image.items() }
 
+        self.hg_index = 0
         hg_indices=('01','02','03','04','05','06','07','08', '11','12','13','14','15','16','17','18', '21','22','23','24','25','26','27','28', '31','32','33','34','35','36','37','38',)
         self.hg_ico={ i:self_ico[str('hg'+j)] for i,j in enumerate(hg_indices) }
 
@@ -484,6 +491,7 @@ class Gui:
         self.menubar_entryconfig = self.menubar.entryconfig
         self.menubar_norm = lambda x : self.menubar_entryconfig(x, state="normal")
         self.menubar_disable = lambda x : self.menubar_entryconfig(x, state="disabled")
+        #self.menu_disable()
 
         (status_frame := Frame(self_main,bg=self.bg_color)).pack(side='bottom', fill='both')
 
@@ -818,6 +826,7 @@ class Gui:
         ##############
         #self.find_size_use_var = BooleanVar()
         self.find_cd_search_kind_var = StringVar()
+        self.find_filename_search_kind_var = StringVar()
 
         self.find_range_var = StringVar()
 
@@ -843,6 +852,7 @@ class Gui:
 
         self.find_range_var.set(self.cfg.get(CFG_KEY_find_range))
         self.find_cd_search_kind_var.set(self.cfg.get(CFG_KEY_find_cd_search_kind))
+        self.find_filename_search_kind_var.set(self.cfg.get(CFG_KEY_find_filename_search_kind))
 
         self.find_size_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_min)))
         self.find_size_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_max)))
@@ -876,10 +886,17 @@ class Gui:
 
         (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
-        (find_name_regexp_cb := Checkbutton(find_filename_frame,text='Treat as regular expression',variable=self.find_name_regexp_var,command=self.find_mod)).grid(row=1, column=0, sticky='news',padx=4,pady=4)
-        (find_name_case_sens_cb := Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
+        Radiobutton(find_filename_frame,text="Don't use this cryteria",variable=self.find_filename_search_kind_var,value='d',command=self.find_mod).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+        Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='e',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
+        Radiobutton(find_filename_frame,text="files with specific name",variable=self.find_filename_search_kind_var,value='s',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
 
-        Entry(find_filename_frame,textvariable=self.find_name_var,validate="key").grid(row=0, column=0, sticky='we',padx=4,pady=4)
+        self.find_filename_entry = Entry(find_filename_frame,textvariable=self.find_name_var,validate="key")
+        self.find_filename_entry.grid(row=3, column=0, sticky='we',padx=4,pady=4)
+        self.find_filename_regexp_cb = Checkbutton(find_filename_frame,text='Treat as regular expression',variable=self.find_name_regexp_var,command=self.find_mod)
+        self.find_filename_regexp_cb.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+        self.find_filename_case_sens_cb = Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod)
+        self.find_filename_case_sens_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+
         find_filename_frame.grid_columnconfigure(0, weight=1)
 
         (find_cd_frame := LabelFrame(sfdma,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
@@ -890,7 +907,6 @@ class Gui:
         Radiobutton(find_cd_frame,text="files with specific custom data",variable=self.find_cd_search_kind_var,value='s',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
 
         self.find_cd_entry = Entry(find_cd_frame,textvariable=self.find_cd_var,validate="key")
-        #,style="TEntry.TEntry"
         self.find_cd_entry.grid(row=4, column=0, sticky='we',padx=4,pady=4)
         self.find_cd_regexp_cb = Checkbutton(find_cd_frame,text='Treat as regular expression',variable=self.find_cd_regexp_var,command=self.find_mod)
         self.find_cd_regexp_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
@@ -999,12 +1015,8 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="F",image = self_ico['find'],compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
-                #self_file_cascade_add_command(label = 'Delete data record ...',command = self.delete_data_record,accelerator="Delete",image = self_ico['delete'],compound='left')
+                #self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self_ico['empty'],compound='left')
                 #self_file_cascade_add_separator()
-                #self_file_cascade_add_command(label = 'Settings ...',command=self.settings_dialog.show, accelerator="F2",image = self_ico['settings'],compound='left')
-                #self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self_ico['empty'],compound='left')
-                self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
 
         self.file_cascade= Menu(self.menubar,tearoff=0,bg=self.bg_color,postcommand=file_cascade_post)
@@ -1089,8 +1101,8 @@ class Gui:
         self.main_config(cursor='watch')
 
         self.main_update()
-        self.records_show()
 
+        self.records_show()
 
         #############################
         self_progress_dialog_on_load = self.progress_dialog_on_load
@@ -1128,8 +1140,6 @@ class Gui:
 
             self_progress_dialog_on_load.show('Loading records')
 
-            hr_index=0
-
             self_progress_dialog_on_load_progr1var.set(0)
             self_progress_dialog_on_load_lab_r1_config(text='- - - -')
             self_progress_dialog_on_load_progr2var.set(0)
@@ -1139,31 +1149,26 @@ class Gui:
             wait_var.set(False)
 
             self_hg_ico = self.hg_ico
-            len_self_hg_ico = len(self_hg_ico)
-            hr_index=0
+            self.hg_ico_len = len(self_hg_ico)
 
             while read_thread_is_alive() or librer_core.records_to_show :
-                self_progress_dialog_on_load_lab[0].configure(image=self_hg_ico[hr_index])
+                self_progress_dialog_on_load_lab[2].configure(image=self.get_hg_ico())
 
                 if librer_core.records_to_show:
                     new_rec,quant,size = librer_core.records_to_show.pop(0)
 
-                    self_progress_dialog_on_load.lab_r1.configure(text=core_bytes_to_str(records_size))
-                    self_progress_dialog_on_load.lab_r2.configure(text=records_quant)
+                    self_progress_dialog_on_load.lab_r1.configure(text= core_bytes_to_str(size) + '/' + core_bytes_to_str(records_size))
+                    self_progress_dialog_on_load.lab_r2.configure(text= fnumber(quant) + '/' + fnumber(records_quant))
 
-                    self_progress_dialog_on_load_lab[2].configure(text=librer_core.info_line)
-                    self_progress_dialog_on_load_lab[1].configure(text=f'{quant} / {core_bytes_to_str(size)}')
-
-                    self.single_record_show(new_rec)
+                    self_progress_dialog_on_load_lab[0].configure(text=librer_core.info_line)
 
                     self_progress_dialog_on_load_progr1var.set(100*size/records_size)
                     self_progress_dialog_on_load_progr2var.set(100*quant/records_quant)
 
+                    self.single_record_show(new_rec)
                 else:
                     self.main.after(25,lambda : wait_var.set(not wait_var.get()))
                     self.main.wait_variable(wait_var)
-
-                hr_index=(hr_index+1) % len_self_hg_ico
 
                 if self.action_abort:
                     librer_core.abort()
@@ -1441,6 +1446,8 @@ class Gui:
         try:
             if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
                 self.find_params_changed=True
+            elif self.cfg.get(CFG_KEY_find_filename_search_kind) != self.find_filename_search_kind_var.get():
+                self.find_params_changed=True
             elif self.cfg.get(CFG_KEY_find_range) != self.find_range_var.get():
                 self.find_params_changed=True
             elif self.cfg.get(CFG_KEY_find_size_min) != self.find_size_min_var.get():
@@ -1468,6 +1475,16 @@ class Gui:
                 self.find_cd_entry.configure(state='disabled')
                 self.find_cd_regexp_cb.configure(state='disabled')
                 self.cd_case_sens_cb.configure(state='disabled')
+
+            if self.find_filename_search_kind_var.get() == 's':
+                self.find_filename_entry.configure(state='normal')
+                self.find_filename_regexp_cb.configure(state='normal')
+                self.find_filename_case_sens_cb.configure(state='normal')
+            else:
+                self.find_filename_entry.configure(state='disabled')
+                self.find_filename_regexp_cb.configure(state='disabled')
+                self.find_filename_case_sens_cb.configure(state='disabled')
+
 
             if self.find_params_changed:
                 self.find_result_index=0
@@ -1497,6 +1514,8 @@ class Gui:
             find_cd_regexp = self.find_cd_regexp_var.get()
             find_cd_case_sens = self.find_cd_case_sens_var.get()
 
+            find_filename_search_kind = self.find_filename_search_kind_var.get()
+
             if find_size_min:
                 min_num = core_str_to_bytes(find_size_min)
                 if min_num == -1:
@@ -1515,13 +1534,14 @@ class Gui:
 
             if check_res := librer_core.find_items_in_all_records_check(
                 min_num,max_num,
-                find_name,find_name_regexp,find_name_case_sens,
+                find_filename_search_kind,find_name,find_name_regexp,find_name_case_sens,
                 find_cd_search_kind,find_cd,find_cd_regexp,find_cd_case_sens):
                 self.info_dialog_on_find.show('regular expression error',check_res)
                 return
 
             self.cfg.set(CFG_KEY_find_range,find_range)
             self.cfg.set(CFG_KEY_find_cd_search_kind,find_cd_search_kind)
+            self.cfg.set(CFG_KEY_find_filename_search_kind,find_filename_search_kind)
 
             self.cfg.set(CFG_KEY_find_size_min,find_size_min)
             self.cfg.set(CFG_KEY_find_size_max,find_size_max)
@@ -1536,7 +1556,7 @@ class Gui:
 
             range_par = self.current_record if find_range=='s' else None
 
-            search_thread=Thread(target=lambda : librer_core.find_items_in_all_records(range_par,min_num,max_num,find_name,find_name_regexp,find_name_case_sens,find_cd_search_kind,find_cd,find_cd_regexp,find_cd_case_sens),daemon=True)
+            search_thread=Thread(target=lambda : librer_core.find_items_in_all_records(range_par,min_num,max_num,find_filename_search_kind,find_name,find_name_regexp,find_name_case_sens,find_cd_search_kind,find_cd,find_cd_regexp,find_cd_case_sens),daemon=True)
             search_thread.start()
 
             search_thread_is_alive = search_thread.is_alive
@@ -1546,7 +1566,6 @@ class Gui:
 
             self_hg_ico = self.hg_ico
             len_self_hg_ico = len(self_hg_ico)
-            hr_index=0
 
             self_progress_dialog_on_find = self.progress_dialog_on_find
             str_self_progress_dialog_on_find_abort_button = str(self_progress_dialog_on_find.abort_button)
@@ -1560,8 +1579,7 @@ class Gui:
             self_progress_dialog_on_find.show()
 
             while search_thread_is_alive():
-                self.status_main(text=librer_core.info_line,image=self_hg_ico[hr_index],do_log=False)
-                hr_index=(hr_index+1) % len_self_hg_ico
+                self.status_main(text=librer_core.info_line,image=self.get_hg_ico(),do_log=False)
                 #self.status_main.update()
 
                 #if librer_core.records_to_show:
@@ -1890,24 +1908,23 @@ class Gui:
         c_nav_add_command = c_nav.add_command
         c_nav_add_separator = c_nav.add_separator
 
-        c_nav_add_command(label = 'Go to next record'       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico['empty'],compound='left')
-        c_nav_add_command(label = 'Go to previous record'   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico['empty'],compound='left')
+        c_nav_add_command(label = 'Go to next record'       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
+        c_nav_add_command(label = 'Go to previous record'   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
         c_nav_add_separator()
-        c_nav_add_command(label = 'Go to first record'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico['empty'],compound='left')
-        c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
+        c_nav_add_command(label = 'Go to first record'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
+        c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
         pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='N',image = self.ico['record'],compound='left')
-        #pop_add_command(label = 'Settings ...',  command = self.settings_dialog.show,accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
-        pop_add_command(label = 'Delete data record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left')
+        pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left')
         pop_add_separator()
 
-        pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.RECORD) else 'disabled', image = self.ico['empty'],compound='left')
+        pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.RECORD) else 'disabled', image = self.ico_empty,compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
         pop_add_separator()
-        pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico['empty'],compound='left')
-        pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico['empty'],compound='left')
-        pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico['empty'],compound='left')
+        pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
         pop_add_separator()
 
         pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
@@ -2031,7 +2048,7 @@ class Gui:
     @restore_status_line
     @logwrapper
     def scan(self):
-        self.status('Scanning...')
+        #self.status('Scanning...')
         self.cfg.write()
 
         #librer_core.reset()
@@ -2096,17 +2113,9 @@ class Gui:
         #self_progress_dialog_on_scan_progr1var.set(10)
         #self_progress_dialog_on_scan_progr2var.set(20)
 
-        self_progress_dialog_on_scan.show('Scanning')
-        #,image=self.ico['empty'],image_text=' '
+        self_progress_dialog_on_scan.show('Creating new data record (scanning)')
 
         update_once=True
-
-        prev_data={}
-        new_data={}
-        prev_path_nr=-1
-        for i in range(1,5):
-            prev_data[i]=''
-            new_data[i]=''
 
         time_without_busy_sign=0
 
@@ -2114,8 +2123,6 @@ class Gui:
         len_self_hg_ico = len(self_hg_ico)
 
         local_core_bytes_to_str = core_bytes_to_str
-
-        hr_index=0
 
         self_progress_dialog_on_scan_progr1var.set(0)
         self_progress_dialog_on_scan_lab_r1_config(text='- - - -')
@@ -2169,43 +2176,35 @@ class Gui:
         scan_thread.start()
         scan_thread_is_alive = scan_thread.is_alive
 
+        self_ico_empty = self.ico_empty
 
+        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
+        self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
+        self_main_after = self.main.after
+        self_main_wait_variable = self.main.wait_variable
+        wait_var_set = wait_var.set
+        wait_var_get = wait_var.get
+
+        self_progress_dialog_on_scan_update_lab_text = self_progress_dialog_on_scan.update_lab_text
+        self_progress_dialog_on_scan_update_lab_image = self_progress_dialog_on_scan.update_lab_image
         #############################
         while scan_thread_is_alive():
-            new_data[3]=local_core_bytes_to_str(new_record.db.sum_size)
-            new_data[4]='%s files' % fnumber(new_record.db.quant_files)
-
-            anything_changed=False
-
-            if new_record.info_line!=None:
-                self_progress_dialog_on_scan_lab[1].configure(text=new_record.info_line)
-                #print('got something')
-            else:
-                for i in (3,4):
-                    if new_data[i] != prev_data[i]:
-                        prev_data[i]=new_data[i]
-                        self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
-                        anything_changed=True
+            change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
+            change3 = self_progress_dialog_on_scan_update_lab_text(3,local_core_bytes_to_str(new_record.db.sum_size) )
+            change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(new_record.db.quant_files) )
 
             now=time()
 
-            if anything_changed:
+            if change0 or change3 or change4:
                 time_without_busy_sign=now
 
                 if update_once:
                     update_once=False
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
-                    self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
-
-                    self_progress_dialog_on_scan_lab[2].configure(image=self.ico['empty'])
+                    self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
             else :
                 if now>time_without_busy_sign+1.0:
-                    self_progress_dialog_on_scan_lab[2].configure(image=self_hg_ico[hr_index],text = '', compound='left')
-                    hr_index=(hr_index+1) % len_self_hg_ico
-
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='currently scanning:\n%s...' % new_record.info_line
-                    self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+                    self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
                     update_once=True
 
             self_progress_dialog_on_scan_area_main_update()
@@ -2214,11 +2213,12 @@ class Gui:
                 new_record.abort()
                 break
 
-            self.main.after(25,lambda : wait_var.set(not wait_var.get()))
-            self.main.wait_variable(wait_var)
+            self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+            self_main_wait_variable(wait_var)
 
-        #self_progress_dialog_on_scan_lab[3].configure(text='')
-        #self_progress_dialog_on_scan_lab[2].configure(text='')
+        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+        self_progress_dialog_on_scan_update_lab_text(3,'')
+        self_progress_dialog_on_scan_update_lab_text(4,'')
 
         scan_thread.join()
 
@@ -2228,19 +2228,10 @@ class Gui:
 
             return False
 
-        #############################
-        #if librer_core.sum_size==0:
-        #    self_progress_dialog_on_scan.hide(True)
-        #    self.info_dialog_on_scan.show('Cannot Proceed.','No Duplicates.')
-        #    return False
-        #############################
-
-        #self_progress_dialog_on_scan_lab[3].configure(text=f'{new_record.db.quant_files}')
-
         if any_cde_enabled:
-            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomlplete.'
+            self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
 
-            self_progress_dialog_on_scan.widget.title('Custom data extraction')
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomlplete.'
 
             cd_thread=Thread(target=lambda : new_record.extract_custom_data(),daemon=True)
             cd_thread.start()
@@ -2250,170 +2241,54 @@ class Gui:
             self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
             self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
+            new_record_db = new_record.db
             while cd_thread_is_alive():
-                files_q = new_record.files_cde + new_record.files_cde_not
-                files_perc = files_q * 100.0 / new_record.db.quant_files if new_record.db.quant_files else 0
+                change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
+                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data size: ' + local_core_bytes_to_str(new_record_db.files_cde_size_extracted) )
+                change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record_db.files_cde_errors_quant) )
 
-                files_size = new_record.files_cde_size
-                files_size_perc = files_size * 100.0 / new_record.db.sum_size if new_record.db.sum_size else 0
+                files_q = new_record_db.files_cde_quant
+                files_perc = files_q * 100.0 / new_record_db.files_cde_quant_sum if new_record_db.files_cde_quant_sum else 0
+
+                files_size = new_record_db.files_cde_size
+                files_size_perc = files_size * 100.0 / new_record_db.files_cde_size_sum if new_record_db.files_cde_size_sum else 0
 
                 self_progress_dialog_on_scan_progr1var_set(files_size_perc)
                 self_progress_dialog_on_scan_progr2var_set(files_perc)
 
-                self_progress_dialog_on_scan_lab_r1_config(text=local_core_bytes_to_str(new_record.files_cde_size))
-                self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q))
+                self_progress_dialog_on_scan_lab_r1_config(text=local_core_bytes_to_str(new_record_db.files_cde_size) + '/' + local_core_bytes_to_str(new_record_db.files_cde_size_sum))
+                self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(new_record_db.files_cde_quant_sum))
 
                 if self.action_abort:
                     new_record.abort()
                     break
+
+                now=time()
+
+                if change0 or change3 or change4:
+                    time_without_busy_sign=now
+
+                    if update_once:
+                        update_once=False
+                        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+                else :
+                    if now>time_without_busy_sign+1.0:
+                        self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
+                        update_once=True
 
                 self.main.after(25,lambda : wait_var.set(not wait_var.get()))
                 self.main.wait_variable(wait_var)
 
             cd_thread.join()
 
+        self_progress_dialog_on_scan_update_lab_text(3,'' )
+        self_progress_dialog_on_scan_update_lab_text(4,'' )
+
         self.single_record_show(new_record)
 
         self_progress_dialog_on_scan.hide(True)
 
         return True
-
-        # #self_status=self.status=self.status_progress
-
-        # self.status('Calculating CRC ...')
-        # self_progress_dialog_on_scan.widget.title('CRC calculation')
-
-        # self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any records are found).'
-        # self_progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text='Abort',compound='left')
-
-        # self.status('Starting CRC threads ...')
-        # crc_thread=Thread(target=librer_core.crc_calc,daemon=True)
-        # crc_thread.start()
-
-        # update_once=True
-        # self_progress_dialog_on_scan_lab[0].configure(image='',text='')
-        # self_progress_dialog_on_scan_lab[1].configure(image='',text='')
-        # self_progress_dialog_on_scan_lab[2].configure(image='',text='')
-        # self_progress_dialog_on_scan_lab[3].configure(image='',text='')
-        # self_progress_dialog_on_scan_lab[4].configure(image='',text='')
-
-        # prev_progress_size=0
-        # prev_progress_quant=0
-
-        # crc_thread_is_alive = crc_thread.is_alive
-        # self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
-        # self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
-
-        # core_bytes_to_str_librer_core_sum_size = local_core_bytes_to_str(librer_core.sum_size)
-
-        # self_main_after = self.main.after
-        # wait_var_get = wait_var.get
-        # wait_var_set = wait_var.set
-        # self_main_wait_variable = self.main.wait_variable
-
-        # while crc_thread_is_alive():
-            # anything_changed=False
-
-            # size_progress_info=librer_core.info_size_done_perc
-            # if size_progress_info!=prev_progress_size:
-                # prev_progress_size=size_progress_info
-
-                # self_progress_dialog_on_scan_progr1var_set(size_progress_info)
-                # self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_core_bytes_to_str(librer_core.info_size_done),core_bytes_to_str_librer_core_sum_size))
-                # anything_changed=True
-
-            # quant_progress_info=librer_core.info_files_done_perc
-            # if quant_progress_info!=prev_progress_quant:
-                # prev_progress_quant=quant_progress_info
-
-                # self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
-                # self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (librer_core.info_files_done,librer_core.info_total))
-                # anything_changed=True
-
-            # if anything_changed:
-                # if librer_core.info_found_groups:
-                    # #new_data[1]='Results'
-                    # new_data[2]='records: %s' % librer_core.info_found_groups
-                    # new_data[3]='space: %s' % local_core_bytes_to_str(librer_core.info_found_dupe_space)
-                    # new_data[4]='folders: %s' % librer_core.info_found_folders
-
-                    # for i in (2,3,4):
-                        # if new_data[i] != prev_data[i]:
-                            # prev_data[i]=new_data[i]
-                            # self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
-
-                # self_progress_dialog_on_scan_area_main_update()
-
-            # now=time()
-            # if anything_changed:
-                # time_without_busy_sign=now
-                # #info_line = librer_core.info_line if len(librer_core.info_line)<48 else ('...%s' % librer_core.info_line[-48:])
-                # #self_progress_dialog_on_scan_lab[1].configure(text=info_line)
-
-                # if update_once:
-                    # update_once=False
-                    # self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any records are found).'
-                    # self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
-
-                    # self_progress_dialog_on_scan_lab[0].configure(image=self.ico['empty'])
-            # else :
-                # if now>time_without_busy_sign+1.0:
-                    # self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
-                    # hr_index=(hr_index+1) % len_self_hg_ico
-
-                    # self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % librer_core.info_line
-                    # self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
-                    # update_once=True
-
-            # if librer_core.can_abort:
-                # if self.action_abort:
-                    # self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
-                    # self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
-                    # self_progress_dialog_on_scan_lab[2].configure(text='')
-                    # self_progress_dialog_on_scan_lab[3].configure(text='')
-                    # self_progress_dialog_on_scan_lab[4].configure(text='')
-                    # self_progress_dialog_on_scan_area_main_update()
-                    # librer_core.abort()
-                    # break
-
-            # self.status(librer_core.info)
-
-            # self_main_after(100,lambda : wait_var_set(not wait_var_get()))
-            # self_main_wait_variable(wait_var)
-
-        # self_progress_dialog_on_scan.widget.config(cursor="watch")
-
-        # if not self.action_abort:
-            # self_progress_dialog_on_scan_lab[0].configure(image='',text='Finished.')
-            # self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
-            # self_progress_dialog_on_scan_lab[2].configure(image='',text='')
-            # self_progress_dialog_on_scan_lab[3].configure(image='',text='')
-            # self_progress_dialog_on_scan_lab[4].configure(image='',text='')
-            # self_progress_dialog_on_scan_area_main_update()
-
-        # #self.status('Finishing CRC Thread...')
-        # #############################
-
-        # #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
-        # self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
-        # self_progress_dialog_on_scan.abort_button.pack_forget()
-        # self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
-        # self_progress_dialog_on_scan.widget.update()
-        # self.main.focus_set()
-
-        # crc_thread.join()
-        # #self_progress_dialog_on_scan.label.update()
-
-        # self.records_show()
-
-        # self_progress_dialog_on_scan.widget.config(cursor="")
-        # self_progress_dialog_on_scan.hide(True)
-        # #self.status=self.status_main_win if windows else self.status_main
-
-        # if self.action_abort:
-            # self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
-
-        # return True
 
     def delete_data_record(self):
         if self.current_record:
@@ -2694,13 +2569,13 @@ class Gui:
     folder_items_clear=folder_items.clear
     folder_items_add=folder_items.add
 
-    @logwrapper
-    def csv_save(self):
-        if csv_file := asksaveasfilename(initialfile = 'librer_scan.csv',defaultextension=".csv",filetypes=[("All Files","*.*"),("CSV Files","*.csv")]):
+    #@logwrapper
+    #def csv_save(self):
+    #    if csv_file := asksaveasfilename(initialfile = 'librer_scan.csv',defaultextension=".csv",filetypes=[("All Files","*.*"),("CSV Files","*.csv")]):
 
-            self.status('saving CSV file "%s" ...' % str(csv_file))
-            librer_core.write_csv(str(csv_file))
-            self.status('CSV file saved: "%s"' % str(csv_file))
+    #        self.status('saving CSV file "%s" ...' % str(csv_file))
+    #        librer_core.write_csv(str(csv_file))
+    #        self.status('CSV file saved: "%s"' % str(csv_file))
 
     @logwrapper
     def clip_copy_full_path_with_file(self):

@@ -197,9 +197,13 @@ class ProgressDialog(GenericDialog):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
         self.lab={}
+        self.prev_text={}
+        self.prev_image={}
         for i in range(5):
             self.lab[i] = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
             self.lab[i].grid(row=i+1,column=0,padx=5)
+            self.prev_text[i]=''
+            self.prev_image[i]=None
 
         self.abort_button=ttk.Button(self.area_buttons, text='Abort', width=10,command=lambda : self.hide() )
 
@@ -210,11 +214,11 @@ class ProgressDialog(GenericDialog):
         self.progr1=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr1var)
         self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
 
-        self.lab_l1=tk.Label(frame_0,width=18,bg=self.bg_color)
+        self.lab_l1=tk.Label(frame_0,width=22,bg=self.bg_color)
         self.lab_l1.grid(row=0,column=0,padx=1,pady=4)
         self.lab_l1.config(text='l1')
 
-        self.lab_r1=tk.Label(frame_0,width=18,bg=self.bg_color)
+        self.lab_r1=tk.Label(frame_0,width=22,bg=self.bg_color)
         self.lab_r1.grid(row=0,column=2,padx=1,pady=4)
         self.lab_r1.config(text='r1')
 
@@ -222,11 +226,11 @@ class ProgressDialog(GenericDialog):
         self.progr2=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr2var)
         self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
 
-        self.lab_l2=tk.Label(frame_0,width=18,bg=self.bg_color)
+        self.lab_l2=tk.Label(frame_0,width=22,bg=self.bg_color)
         self.lab_l2.grid(row=1,column=0,padx=1,pady=4)
         self.lab_l2.config(text='l2')
 
-        self.lab_r2=tk.Label(frame_0,width=18,bg=self.bg_color)
+        self.lab_r2=tk.Label(frame_0,width=22,bg=self.bg_color)
         self.lab_r2.grid(row=1,column=2,padx=1,pady=4)
         self.lab_r2.config(text='r2')
 
@@ -239,6 +243,22 @@ class ProgressDialog(GenericDialog):
         self.lab_r2_str_prev=''
         self.time_without_busy_sign=0
         self.ps_index=0
+
+    def update_lab_image(self,i,image):
+        if image != self.prev_image[i]:
+            self.prev_image[i]=image
+            self.prev_text[i]='xx'
+            self.lab[i].configure(text='',image=image)
+            return True
+        return False
+
+    def update_lab_text(self,i,text):
+        if text != self.prev_text[i]:
+            self.prev_text[i]=text
+            self.prev_image[i]=None
+            self.lab[i].configure(image='',text=text)
+            return True
+        return False
 
     def show(self,title='',wait=False):
         self.widget.title(title)

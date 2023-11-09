@@ -9,6 +9,7 @@ from os import remove as os_remove
 from fnmatch import fnmatch
 from fnmatch import translate
 from re import search
+from sys import getsizeof
 
 from collections import defaultdict
 
@@ -75,9 +76,7 @@ class LibrerCoreData :
     data = None
     quant_files = 0
     quant_folders = 0
-    sum_size = 0
     data_format_version=''
-    files_cde_size = 1
 
     def __init__(self,label,path):
         self.label=label
@@ -89,6 +88,14 @@ class LibrerCoreData :
         self.quant_folders = 0
         self.sum_size = 0
         self.data_format_version=data_format_version
+
+        self.files_cde_size = 0
+        self.files_cde_size_sum = 0
+        self.files_cde_quant = 0
+        self.files_cde_quant_sum = 0
+
+        self.files_cde_size_extracted = 0
+        self.files_cde_errors_quant = 0
 
     def get_time(self):
         return self.creation_time/1000
@@ -125,8 +132,6 @@ class LibrerCoreRecord :
         self.find_results = []
         self.info_line = ''
 
-        self.files_cde = 0 #custom data extracted info
-        self.files_cde_not = 0
         self.abort_action = False
 
     def file_name(self):
@@ -135,14 +140,16 @@ class LibrerCoreRecord :
     def abort(self):
         self.abort_action = True
 
-    def do_scan(self, path, dictionary) :
+    def scan_rec(self, path, dictionary) :
         if self.abort_action:
             return True
 
         entry_LUT_code_loc = entry_LUT_code
         path_join_loc = path_join
 
-        local_folder_files_size_sum=0
+        local_folder_size_with_subtree=0
+        local_folder_size = 0
+
         try:
             with scandir(path) as res:
                 local_folder_files_count = 0
@@ -173,9 +180,9 @@ class LibrerCoreRecord :
                                 size_entry = 0
                             else:
                                 dict_entry={}
-                                size_entry = self.do_scan(path_join_loc(path,entry_name),dict_entry)
+                                size_entry = self.scan_rec(path_join_loc(path,entry_name),dict_entry)
 
-                                local_folder_files_size_sum += size_entry
+                                local_folder_size_with_subtree += size_entry
 
                             local_folder_folders_count += 1
                         else:
@@ -186,27 +193,28 @@ class LibrerCoreRecord :
                                 dict_entry = None
                                 size_entry = int(stat_res.st_size)
 
-                                local_folder_files_size_sum += size_entry
-                                self.db.sum_size += size_entry
+                                local_folder_size += size_entry
 
                             local_folder_files_count += 1
 
                         dictionary[entry_name]=[code,size_entry,mtime_ns,dict_entry]
 
-                self.db.quant_files += local_folder_files_count
-                self.db.quant_folders += local_folder_folders_count
+                self_db = self.db
+                self_db.sum_size += local_folder_size
+                self_db.quant_files += local_folder_files_count
+                self_db.quant_folders += local_folder_folders_count
 
         except Exception as e:
             self.log.error('scandir error:%s',e )
 
-        return local_folder_files_size_sum
+        return local_folder_size_with_subtree+local_folder_size
 
     def scan (self,db_dir,cde_list):
         self.info_line = 'Scanning filesystem'
         self.abort_action=False
         self.db_dir = db_dir
         self.db.sum_size = 0
-        self.do_scan(self.db.scan_path,self.db.data)
+        self.scan_rec(self.db.scan_path,self.db.data)
         self.save()
 
         self.db.cde_list = cde_list
@@ -215,9 +223,9 @@ class LibrerCoreRecord :
         self.custom_data_pool = {}
         self.custom_data_pool_index = 0
 
-        self.info_line = f'cd pool creation ...'
+        self.info_line = f'estimating files pool for custom data extraction'
         self.prepare_custom_data_pool_rec(self.db.data,[])
-        self.info_line = None
+        self.info_line = ''
 
     def prepare_custom_data_pool_rec(self,dictionary,parent_path):
         entry_LUT_decode_loc = entry_LUT_decode
@@ -263,12 +271,10 @@ class LibrerCoreRecord :
 
                             if use_smin:
                                 if size<smin_int:
-                                    self.files_cde_not += 1
                                     #print('min skipped',size,smin_int,subpath)
                                     continue
                             if use_smax:
                                 if size>smax_int:
-                                    self.files_cde_not += 1
                                     #print('max skipped',size,smax_int,subpath)
                                     continue
 
@@ -281,10 +287,9 @@ class LibrerCoreRecord :
                                     self_custom_data_pool[self.custom_data_pool_index]=[items_list,subpath,rule_nr]
                                     self.custom_data_pool_index += 1
                                     self.db.cd_stat[rule_nr]+=1
+                                    self.db.files_cde_size_sum += size
                                     matched = True
 
-                        ############################
-                        #self.custom_data_pool_index += 1
             except Exception as e:
                 self.log.error('prepare_custom_data_pool_rec error::%s',e )
                 print(e,items_list)
@@ -293,12 +298,15 @@ class LibrerCoreRecord :
         scan_path = self.db.scan_path
 
         self.info_line = f'custom data extraction ...'
+        self_db = self.db
 
-        self.files_cde = 0 #custom data extracted info
-        self.files_cde_not = 0
-        self.files_cde_size = 0
+        self_db.files_cde_quant = 0
+        self_db.files_cde_size = 0
+        self_db.files_cde_size_extracted = 0
+        self_db.files_cde_errors_quant = 0
+        self_db.files_cde_quant_sum = len(self.custom_data_pool)
 
-        self_db_cde_list = self.db.cde_list
+        self_db_cde_list = self_db.cde_list
         for [list_ref,subpath,rule_nr] in self.custom_data_pool.values():
             if self.abort_action:
                 break
@@ -311,7 +319,6 @@ class LibrerCoreRecord :
             #print(full_file_path_protected)
 
             size = list_ref[1]
-            #matched = False
 
             cde_run_list = executable + [full_file_path]
 
@@ -323,7 +330,12 @@ class LibrerCoreRecord :
             except Exception as e:
                 self.log.error('Custom Data Extraction subprocess error:%s\n%s',cde_run_list,e )
                 cd_code=1
+                e_str = str(e)
+                e_size = getsizeof(e_str)
                 list_ref.append( (cd_code,'',str(e)) )
+                self_db.files_cde_errors_quant +=1
+
+                self_db.files_cde_size += e_size
             else:
 
                 result1 = str(result.stdout).strip()
@@ -344,24 +356,22 @@ class LibrerCoreRecord :
                 cd_code=0
                 list_ref.append( (cd_code,result1,result2) )
 
-            #if matched:
-            #    self.files_cde += 1
-            #else:
-            #    self.files_cde_not += 1
+                self_db.files_cde_quant += 1
+                self_db.files_cde_size += size
+                self_db.files_cde_size_extracted += getsizeof(result1) + getsizeof(result2)
 
-            self.files_cde_size += size
 
         del self.custom_data_pool
 
         self.save()
 
-        #file_path=sep.join([self.db_dir,self.file_name()])
+        #file_path=sep.join([self_db_dir,self.file_name()])
         #self.log.info('saving %s' % file_path)
 
         #with gzip.open(file_path, "wb") as gzip_file:
-        #    pickle.dump(self.db, gzip_file)
+        #    pickle.dump(self_db, gzip_file)
 
-        for rule,stat in zip(self.db.cde_list,self.db.cd_stat):
+        for rule,stat in zip(self_db.cde_list,self_db.cd_stat):
             print('cd_stat',rule,stat)
 
     def find_items_rec(self,
@@ -542,7 +552,7 @@ class LibrerCore:
             self.log.info('db:%s',ename)
             new_record = self.create()
 
-            self.info_line = f'loading {ename} ...'
+            self.info_line = f'loading {ename}'
 
             info_curr_quant+=1
             info_curr_size+=size
