@@ -15,13 +15,14 @@ from collections import defaultdict
 
 import re
 from re import IGNORECASE
-#import fnmatch
 
 from time import time
 
 import gzip
 import zlib
 import pickle
+
+import difflib
 
 import subprocess
 
@@ -45,7 +46,7 @@ def bytes_to_str(num):
     return "BIG"
 
 def str_to_bytes(string):
-    units = {'kb': 1024,'mb': 1024*1024,'gb': 1024*1024*1024,'tb': 1024*1024*1024*1024}
+    units = {'b':1, 'kb': 1024,'mb': 1024*1024,'gb': 1024*1024*1024,'tb': 1024*1024*1024*1024}
     try:
         string = string.replace(' ','')
         for suffix in units:
@@ -100,7 +101,6 @@ class LibrerCoreData :
     def get_time(self):
         return self.creation_time/1000
 
-
 entry_LUT_code={
     (True,True,True):7,
     (True,True,False):6,
@@ -124,15 +124,15 @@ entry_LUT_decode={
 }
 #######################################################################
 class LibrerCoreRecord :
-    db = None
-
     def __init__(self,label,path,log):
         self.db = LibrerCoreData(label,path)
         self.log = log
-        self.find_results = []
+        self.find_results = set()
+        self.find_results_list = []
         self.info_line = ''
 
         self.abort_action = False
+        self.files_search_progress = 0
 
     def file_name(self):
         return f'{self.db.rid}.dat'
@@ -374,99 +374,153 @@ class LibrerCoreRecord :
         for rule,stat in zip(self_db.cde_list,self_db.cd_stat):
             print('cd_stat',rule,stat)
 
-    def find_items_rec(self,
-            size_min,size_max,name_func_to_call,cd_search_kind_code,cd_func_to_call,
-            local_dict,parent_path_components=[]):
-
-        entry_LUT_decode_loc = entry_LUT_decode
-
-        #print('  find_items_rec',func_to_call,parent_path_components)
-        for name,val in sorted(local_dict.items()):
-            len_val = len(val)
-            if len_val==4:
-                code,size,mtime,sub_dict=val
-                cd=None
-            elif len_val==5:
-                code,size,mtime,sub_dict,cd=val
-            else:
-                self.log.error('find_items_rec error:%s',val )
-                return
-
-            is_dir,is_file,is_symlink = entry_LUT_decode_loc[code]
-
-            if is_file:
-                if size_min:
-                    if size<size_min:
-                        continue
-                if size_max:
-                    if size>size_max:
-                        continue
-
-            single_res = parent_path_components.copy() + [name]
-            if is_dir :
-                if cd_search_kind_code==0:
-                    #katalog moze spelniac kryteria naazwy pliku, nie ma rozmiaru i custom data
-                    if name_func_to_call:
-                        if name_func_to_call(name):
-                            self.find_results.append(single_res)
-
-                if sub_dict:
-                    self.find_items_rec(
-                        size_min,size_max,name_func_to_call,cd_search_kind_code,cd_func_to_call,
-                        sub_dict,parent_path_components + [name])
-
-            else:
-                if name_func_to_call:
-                    if not name_func_to_call(name):
-                        continue
-
-                if cd_search_kind_code==3:
-                    if cd_func_to_call:
-                        if cd:
-                            if len(cd)==3:
-                                cd_code = cd[0]
-                                if cd_code==0:
-                                    try:
-                                        if not cd_func_to_call(cd[1]):
-                                            continue
-                                    except Exception as e:
-                                        self.log.error('find_items_rec:%s on:\n%s',str(e),str(cd) )
-                                        continue
-                                else:
-                                    continue
-                            else:
-                                print('find problem 1:',cd)
-                                continue
-                        else:
-                            continue
-
-                elif cd_search_kind_code==1:
-                    if cd:
-                        continue
-                elif cd_search_kind_code==2:
-                    if cd:
-                        cd_code = cd[0]
-                        if cd_code==0:
-                            continue
-                    else:
-                        continue
-
-                self.find_results.append(single_res)
-
-    #dont,without,error,specific
-    cd_search_kind_code_tab={'d':0,'w':1,'e':2,'s':3}
+    search_kind_code_tab={'dont':0,'without':1,'error':2,'regexp':3,'glob':4,'fuzzy':5}
     def find_items(self,
             size_min,size_max,
-            name_func_to_call,cd_search_kind,cd_func_to_call):
+            filename_search_kind,name_func_to_call,cd_search_kind,cd_func_to_call):
 
-        self.find_results = []
+        dont_kind_code = self.search_kind_code_tab['dont']
+        regexp_kind_code = self.search_kind_code_tab['regexp']
+        glob_kind_code = self.search_kind_code_tab['glob']
+        without_kind_code = self.search_kind_code_tab['without']
+        error_kind_code = self.search_kind_code_tab['error']
+        fuzzy_kind_code = self.search_kind_code_tab['fuzzy']
+
+        find_results = self.find_results = set()
+        find_results_add = find_results.add
 
         local_dict = self.db.data
         parent_path_components = []
+        self.files_search_progress = 0
 
-        self.find_items_rec(size_min,size_max,name_func_to_call,self.cd_search_kind_code_tab[cd_search_kind],cd_func_to_call,local_dict,parent_path_components)
+        filename_search_kind_code = self.search_kind_code_tab[filename_search_kind]
+        cd_search_kind_code = self.search_kind_code_tab[cd_search_kind]
 
-        return self.find_results
+        entry_LUT_decode_loc = entry_LUT_decode
+
+        if size_min or size_max:
+            use_size= True
+        else:
+            use_size= False
+
+        search_list = [ (local_dict,parent_path_components)]
+        search_list_pop = search_list.pop
+        search_list_append = search_list.append
+
+        best_fuzzy_match=0
+        while search_list:
+            local_dict,parent_path_components = search_list_pop()
+
+            for name,val in sorted(local_dict.items()):
+                if self.abort_action:
+                    break
+
+                try:
+                    code,size,mtime,sub_dict,cd=val
+                except:
+                    code,size,mtime,sub_dict=val
+                    cd=None
+
+                is_dir,is_file,is_symlink = entry_LUT_decode_loc[code]
+                self.files_search_progress +=1
+
+                if is_file:
+                    if use_size:
+                        if size_min:
+                            if size<size_min:
+                                continue
+                        if size_max:
+                            if size>size_max:
+                                continue
+
+                if is_dir :
+                    if cd_search_kind_code==dont_kind_code:
+                        #katalog moze spelniac kryteria naazwy pliku, nie ma rozmiaru i custom data
+                        if name_func_to_call:
+                            if name_func_to_call(name):
+                                single_res = parent_path_components + [name]
+                                find_results_add( tuple(single_res) )
+
+                    if sub_dict:
+                        search_list_append( (sub_dict,parent_path_components + [name]) )
+
+                else:
+                    if name_func_to_call:
+                        func_res_code = name_func_to_call(name)
+                        if filename_search_kind_code==fuzzy_kind_code:
+                            if func_res_code>best_fuzzy_match:
+                                best_fuzzy_match = func_res_code
+                                find_results={ tuple(parent_path_components + [name]) }
+                                print(func_res_code)
+
+                            continue
+                            #if func_res_code<0.6:
+                            #    continue
+                        elif filename_search_kind_code in (regexp_kind_code,glob_kind_code):
+                            if not func_res_code:
+                                continue
+                        else:
+                            pass
+                    if cd_search_kind_code==dont_kind_code:
+                        pass
+                    if cd_search_kind_code in (regexp_kind_code,glob_kind_code):
+                        if cd_func_to_call:
+                            if cd:
+                                if len(cd)==3:
+                                    cd_code = cd[0]
+                                    if cd_code==0:
+                                        try:
+                                            if not cd_func_to_call(cd[1]):
+                                                continue
+                                        except Exception as e:
+                                            self.log.error('find_items_rec:%s on:\n%s',str(e),str(cd) )
+                                            continue
+                                    else:
+                                        continue
+                                else:
+                                    print('find problem 1:',cd)
+                                    continue
+                            else:
+                                continue
+                    elif cd_search_kind_code==without_kind_code:
+                        if cd:
+                            continue
+                    elif cd_search_kind_code==error_kind_code:
+                        if cd:
+                            cd_code = cd[0]
+                            if cd_code==0:
+                                continue
+                        else:
+                            continue
+                    elif cd_search_kind_code==fuzzy_kind_code:
+                        if cd_func_to_call:
+                            if cd:
+                                if len(cd)==3:
+                                    cd_code = cd[0]
+                                    if cd_code==0:
+                                        try:
+                                            fuzzy_result = cd_func_to_call(cd[1])
+                                            print(fuzzy_result)
+                                        except Exception as e:
+                                            self.log.error('find_items_rec:%s on:\n%s',str(e),str(cd) )
+                                            continue
+                                        else:
+                                            if fuzzy_result<0.6:
+                                                continue
+                                    else:
+                                        continue
+                                else:
+                                    print('find problem 1:',cd)
+                                    continue
+                            else:
+                                continue
+                    else:
+                        print('to check')
+
+                    #single_res = parent_path_components + [name]
+                    find_results_add( tuple(parent_path_components + [name]) )
+
+        self.find_results_list = list(find_results)
 
     def save(self) :
         file_name=self.file_name()
@@ -505,11 +559,21 @@ class LibrerCore:
 
         self.records_to_show=[]
         self.abort_action=False
+        self.search_record_nr=0
+        self.search_record_ref=None
+
+        self.find_res_quant = 0
+        self.records_perc_info = 0
+
+        self.records_sorted = []
+    def update_sorted(self):
+        self.records_sorted = sorted(self.records,key = lambda x : x.db.creation_time)
 
     def create(self,label='',path=''):
         new_record = LibrerCoreRecord(label,path,self.log)
 
         self.records.add(new_record)
+        self.update_sorted()
         return new_record
 
     def read_records_pre(self):
@@ -562,19 +626,27 @@ class LibrerCore:
                 self.records.remove(new_record)
             else:
                 self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
-
+        self.update_sorted()
 
     def find_items_in_all_records_check(self,
+            range_par,
             size_min,size_max,
-            name_expr,name_regexp,name_case_sens,
-            cd_search_kind,cd_expr,cd_regexp,cd_case_sens):
+            find_filename_search_kind,name_expr,name_case_sens,
+            find_cd_search_kind,cd_expr,cd_case_sens):
 
-        if name_expr and name_regexp:
+        sel_range = [range_par] if range_par else self.records
+        self.files_search_quant = sum([record.db.quant_files for record in sel_range])
+
+        if self.files_search_quant==0:
+            return 1
+
+        #name_regexp
+        #cd_regexp
+        if name_expr and find_filename_search_kind == 'regexp':
             if res := test_regexp(name_expr):
                 return res
 
-        if cd_search_kind=='s':
-            if cd_expr and cd_regexp:
+            if cd_expr and find_cd_search_kind == 'regexp':
                 if res := test_regexp(cd_expr):
                     return res
 
@@ -583,73 +655,81 @@ class LibrerCore:
     def find_items_in_all_records(self,
             range_par,
             size_min,size_max,
-            name_expr,name_regexp,name_case_sens,
-            cd_search_kind,cd_expr,cd_regexp,cd_case_sens):
+            find_filename_search_kind,name_expr,name_case_sens,
+            find_cd_search_kind,cd_expr,cd_case_sens):
 
-        #print('find_items_in_all_records:',size_min,size_max,name_expr,name_regexp,name_case_sens,cd_expr,cd_regexp,cd_case_sens)
+        print('find_items_in_all_records',range_par,
+                size_min,size_max,
+                find_filename_search_kind,name_expr,name_case_sens,
+                find_cd_search_kind,cd_expr,cd_case_sens)
 
         if name_expr:
-            if name_case_sens:
-                if name_regexp:
-                    name_func_to_call = lambda x : search(name_expr,x)
-                else:
-                    name_func_to_call = lambda x : fnmatch(x,name_expr)
-            else:
-                if name_regexp:
-                    name_func_to_call = lambda x : search(name_expr,x,IGNORECASE)
+            if find_filename_search_kind == 'regexp':
+                name_func_to_call = lambda x : search(name_expr,x)
+            elif find_filename_search_kind == 'glob':
+                if name_case_sens:
+                    #name_func_to_call = lambda x : fnmatch(x,name_expr)
+                    name_func_to_call = lambda x : re.compile(translate(name_expr)).match(x)
                 else:
                     name_func_to_call = lambda x : re.compile(translate(name_expr), IGNORECASE).match(x)
-
-
+            elif find_filename_search_kind == 'fuzzy':
+                name_func_to_call = lambda x : difflib.SequenceMatcher(None, name_expr, x).ratio()
+            else:
+                name_func_to_call = None
         else:
             name_func_to_call = None
 
-        if cd_search_kind=='s':
-            if cd_expr:
+        if cd_expr:
+            if find_cd_search_kind == 'regexp':
+                cd_func_to_call = lambda x : search(cd_expr,x)
+            elif find_cd_search_kind == 'glob':
                 if cd_case_sens:
-                    if cd_regexp:
-                        cd_func_to_call = lambda x : search(cd_expr,x)
-                    else:
-                        cd_func_to_call = lambda x : fnmatch(x,cd_expr)
+                    #cd_func_to_call = lambda x : fnmatch(x,cd_expr)
+                    cd_func_to_call = lambda x : re.compile(translate(cd_expr)).match(x)
                 else:
-                    if cd_regexp:
-                        cd_func_to_call = lambda x : search(cd_expr,x,IGNORECASE)
-                    else:
-                        cd_func_to_call = lambda x : re.compile(translate(cd_expr), IGNORECASE).match(x)
+                    cd_func_to_call = lambda x : re.compile(translate(cd_expr), IGNORECASE).match(x)
+            elif find_cd_search_kind == 'fuzzy':
+                cd_func_to_call = lambda x : difflib.SequenceMatcher(None, name_expr, x).ratio()
             else:
                 cd_func_to_call = None
         else:
             cd_func_to_call = None
 
-        #name_expr_used = name_expr if name_case_sens else name_expr.lower()
+        #print('fuzz:',difflib.SequenceMatcher(None, 'hello world', 'hello').ratio())
 
-        ##name_func_to_call = None if not name_expr else ( lambda x : search(name_expr_used,x) ) if name_regexp else ( lambda x : fnmatch(x,name_expr) )
-        #name_func_to_call_case = if name_case_sens else name_func_to_call
-
-        #cd_func_to_call = None if not cd_expr else ( lambda x : search(cd_expr,x) ) if cd_regexp else ( lambda x : fnmatch(x,cd_expr) )
-
-        #self.find_res = defaultdict(set)
-        self.find_res = []
+        self.find_res_quant = 0
         sel_range = [range_par] if range_par else self.records
 
+        self.files_search_progress = 0
+
+        self.search_record_nr=0
+        self.search_record_ref=None
+
+        records_len = len(self.records)
+        ############################################################
         for record in sel_range:
-            self.info_line = f'searching in {record.db.label}'
-            sub_res = record.find_items(
-                size_min,size_max,
-                name_func_to_call,
-                cd_search_kind,
-                cd_func_to_call)
-            if sub_res:
-                for single_res in sub_res:
-                    #self.find_res[record].add( single_res )
-                    self.find_res.append( (record,single_res) )
+            self.search_record_ref = record
 
-        self.find_res
-        #.sort()
+            self.search_record_nr+=1
+            self.records_perc_info = self.search_record_nr * 100.0 / records_len
 
-        #self.find_res
-        #return tuple(res)
-        return None
+            self.info_line = f'searching in record: {record.db.label}'
+
+            if self.abort_action:
+                break
+
+            try:
+                record.find_items(
+                    size_min,size_max,
+                    find_filename_search_kind,name_func_to_call,
+                    find_cd_search_kind,cd_func_to_call)
+            except Exception as e:
+                print(e)
+
+            self.files_search_progress += record.db.quant_files
+            self.find_res_quant = len(record.find_results)
+        ############################################################
+
 
     def delete_record_by_id(self,rid):
         for record in self.records:
@@ -663,5 +743,5 @@ class LibrerCore:
                 except Exception as e:
                     self.log.error(e)
 
-
+        self.update_sorted()
 
