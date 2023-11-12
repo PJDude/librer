@@ -1,6 +1,8 @@
 ### librer
 A file cataloging program with extensive customization options to suit user preferences.
 
+**The software and this document are under development and in a pre-release state.**
+
 ## Features:
 The primary purpose of this software is to enable users to catalog their files, particularly on removable media like memory cards and portable drives. It allows users to add metadata, referred to here as **custom data**, and facilitates future searching through the created records. **Custom data** consists of textual information acquired through the execution of user-chosen commands or scripts. **Custom data** may include any text data customized to meet the user's requirements, restricted only by the available memory and the software accessible for data retrieval. The retrieved data is stored in a newly created database record and can be utilized for search or verification purposes.
 
