@@ -128,19 +128,14 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-test/
-
-dude.build/
-dude.dist/
-dude.onefile-build/
-.idea/
-
-dude
-dude.exe
-dudegui.exe
-
-version.txt
+ersion.txt
 
 images.py
 
-dude.data
+
+/src/db/
+/src/logs/
+/src/cfg.ini
+/src/version.txt
+/src/librer_images.py
+
