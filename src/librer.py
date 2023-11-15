@@ -98,6 +98,8 @@ import core
 import console
 import dialogs
 
+import gzip
+
 from librer_images import librer_image
 
 #l_debug = logging.debug
@@ -125,12 +127,19 @@ CFG_KEY_find_filename_search_kind = 'find_filename_search_kind'
 
 CFG_KEY_find_size_max = 'find_size_max'
 
-CFG_KEY_find_name = 'find_name'
+CFG_KEY_find_name_regexp = 'find_name_regexp'
+CFG_KEY_find_name_glob = 'find_name_glob'
+CFG_KEY_find_name_fuzz = 'find_name_fuzz'
 #CFG_KEY_find_name_regexp = 'name_regexp'
 CFG_KEY_find_name_case_sens = 'name_case_sens'
 
-CFG_KEY_find_cd = 'find_cd'
+CFG_KEY_find_cd_regexp = 'find_cd_regexp'
+CFG_KEY_find_cd_glob = 'find_cd_glob'
+CFG_KEY_find_cd_fuzz = 'find_cd_fuzz'
 CFG_KEY_find_cd_case_sens = 'cd_case_sens'
+
+CFG_KEY_filename_fuzzy_threshold = 'filename_fuzzy_threshold'
+CFG_KEY_cd_fuzzy_threshold = 'cd_fuzzy_threshold'
 
 cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
@@ -146,11 +155,18 @@ cfg_defaults={
     CFG_KEY_find_size_min:'',
     CFG_KEY_find_size_max:'',
 
-    CFG_KEY_find_name:'',
+    CFG_KEY_find_name_regexp:'',
+    CFG_KEY_find_name_glob:'',
+    CFG_KEY_find_name_fuzz:'',
     CFG_KEY_find_name_case_sens:False if windows else True,
 
-    CFG_KEY_find_cd:'',
-    CFG_KEY_find_cd_case_sens:False
+    CFG_KEY_find_cd_regexp:'',
+    CFG_KEY_find_cd_glob:'',
+    CFG_KEY_find_cd_fuzz:'',
+    CFG_KEY_find_cd_case_sens:False,
+
+    CFG_KEY_filename_fuzzy_threshold:'0.95',
+    CFG_KEY_cd_fuzzy_threshold:'0.95'
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -343,7 +359,7 @@ class Gui:
         self.hg_index=(self.hg_index+1) % self.hg_ico_len
         return self.hg_ico[self.hg_index]
 
-    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
+    def __init__(self,cwd):
         self.cwd=cwd
         self.last_dir=self.cwd
 
@@ -451,7 +467,7 @@ class Gui:
         style_map = style.map
 
         style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
-        style_map("TButton",  fg=[('disabled',"gray"),('',"black")] )
+        style_map("TButton",  foreground=[('disabled',"gray"),('',"black")] )
 
         style_map("TEntry", foreground=[("disabled",self.bg_color),('','black')],relief=[("disabled",'flat'),('','sunken')],borderwidth=[("disabled",0),('',2)])
         style_map("TCheckbutton", foreground=[("disabled",'darkgray'),('','black')],relief=[("disabled",'flat'),('','sunken')])
@@ -826,11 +842,22 @@ class Gui:
         self.find_size_min_var = StringVar()
         self.find_size_max_var = StringVar()
 
-        self.find_name_var = StringVar()
+        self.find_name_regexp_var = StringVar()
+        self.find_name_glob_var = StringVar()
+        self.find_name_fuzz_var = StringVar()
+
+        #self.find_name_var = StringVar()
         self.find_name_case_sens_var = BooleanVar()
 
-        self.find_cd_var = StringVar()
+        self.find_cd_regexp_var = StringVar()
+        self.find_cd_glob_var = StringVar()
+        self.find_cd_fuzz_var = StringVar()
+
+        #self.find_cd_var = StringVar()
         self.find_cd_case_sens_var = BooleanVar()
+
+        self.find_filename_fuzzy_threshold = StringVar()
+        self.find_cd_fuzzy_threshold = StringVar()
         ##############
 
         def ver_number(var):
@@ -848,22 +875,36 @@ class Gui:
         self.find_size_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_min)))
         self.find_size_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_max)))
 
-        self.find_name_var.set(self.cfg.get(CFG_KEY_find_name))
+        self.find_name_regexp_var.set(self.cfg.get(CFG_KEY_find_name_regexp))
+        self.find_name_glob_var.set(self.cfg.get(CFG_KEY_find_name_glob))
+        self.find_name_fuzz_var.set(self.cfg.get(CFG_KEY_find_name_fuzz))
         self.find_name_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_name_case_sens))
 
-        self.find_cd_var.set(self.cfg.get(CFG_KEY_find_cd))
+        self.find_cd_regexp_var.set(self.cfg.get(CFG_KEY_find_cd_regexp))
+        self.find_cd_glob_var.set(self.cfg.get(CFG_KEY_find_cd_glob))
+        self.find_cd_fuzz_var.set(self.cfg.get(CFG_KEY_find_cd_fuzz))
         self.find_cd_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_cd_case_sens))
+
+        self.find_filename_fuzzy_threshold.set(self.cfg.get(CFG_KEY_filename_fuzzy_threshold))
+        self.find_cd_fuzzy_threshold.set(self.cfg.get(CFG_KEY_cd_fuzzy_threshold))
 
         ##############
 
         self.find_size_min_var.trace_add("write", lambda i,j,k : self.find_mod())
         self.find_size_max_var.trace_add("write", lambda i,j,k : self.find_mod())
 
-        self.find_name_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_name_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_name_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_name_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
         self.find_name_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
 
-        self.find_cd_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_cd_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_cd_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_cd_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
         self.find_cd_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
+
+        self.find_filename_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
+        self.find_cd_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
 
         sfdma = self.find_dialog.area_main
 
@@ -873,40 +914,63 @@ class Gui:
 
         (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
-        Radiobutton(find_filename_frame,text="Don't use this cryteria",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+        Radiobutton(find_filename_frame,text="Don't use this cryteria",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
         Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
         Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
         Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_filename_frame,text="by best fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
+        Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
 
-        self.find_filename_entry = Entry(find_filename_frame,textvariable=self.find_name_var,validate="key")
-        self.find_filename_entry.bind("<KeyPress>", self.find_name_var_mod)
+        self.find_filename_regexp_entry = Entry(find_filename_frame,textvariable=self.find_name_regexp_var,validate="key")
+        self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
+        self.find_filename_fuzz_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzz_var,validate="key")
 
-        self.find_filename_entry.grid(row=5, column=0, sticky='we',padx=4,pady=4,columnspan=2)
+        self.find_filename_regexp_entry.bind("<KeyPress>", self.find_name_var_mod)
+        self.find_filename_glob_entry.bind("<KeyPress>", self.find_name_var_mod)
+        self.find_filename_fuzz_entry.bind("<KeyPress>", self.find_name_var_mod)
 
-        #self.find_filename_regexp_cb.grid(row=4, column=0, sticky='news',padx=4,pady=4)
-        self.find_filename_case_sens_cb = Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod,width=40)
-        self.find_filename_case_sens_cb.grid(row=3, column=1, sticky='wens',padx=4,pady=4)
+        self.find_filename_regexp_entry.grid(row=2, column=1, sticky='we',padx=4,pady=4)
+        self.find_filename_glob_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
+        self.find_filename_fuzz_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
 
-        find_filename_frame.grid_columnconfigure( 0, weight=1)
+        self.find_filename_case_sens_cb = Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod)
+        self.find_filename_case_sens_cb.grid(row=3, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
+
+        self.find_filename_fuzzy_threshold_lab = Label(find_filename_frame,text='Threshold:',bg=self.bg_color,anchor='e')
+        self.find_filename_fuzzy_threshold_entry = Entry(find_filename_frame,textvariable=self.find_filename_fuzzy_threshold)
+        self.find_filename_fuzzy_threshold_lab.grid(row=4, column=2, sticky='wens',padx=4,pady=4)
+        self.find_filename_fuzzy_threshold_entry.grid(row=4, column=3, sticky='wens',padx=4,pady=4)
+
         find_filename_frame.grid_columnconfigure( 1, weight=1)
 
         (find_cd_frame := LabelFrame(sfdma,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
 
-        Radiobutton(find_cd_frame,text="Don't use this cryteria",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+        Radiobutton(find_cd_frame,text="Don't use this cryteria",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
         Radiobutton(find_cd_frame,text="files without custom data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_cd_frame,text="files with error on custom data extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
+        Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
         Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
         Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_cd_frame,text="by best fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=5, column=0, sticky='news',padx=4,pady=4)
+        Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=5, column=0, sticky='news',padx=4,pady=4)
 
-        self.find_cd_entry = Entry(find_cd_frame,textvariable=self.find_cd_var,validate="key")
-        self.find_cd_entry.grid(row=6, column=0, sticky='we',padx=4,pady=4,columnspan=2)
+        self.find_cd_regexp_entry = Entry(find_cd_frame,textvariable=self.find_cd_regexp_var,validate="key")
+        self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
+        self.find_cd_fuzz_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzz_var,validate="key")
 
-        self.cd_case_sens_cb = Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod,width=40)
-        self.cd_case_sens_cb.grid(row=4, column=1, sticky='wens',padx=4,pady=4)
+        self.find_cd_regexp_entry.bind("<KeyPress>", self.find_name_var_mod)
+        self.find_cd_glob_entry.bind("<KeyPress>", self.find_name_var_mod)
+        self.find_cd_fuzz_entry.bind("<KeyPress>", self.find_name_var_mod)
 
-        find_cd_frame.grid_columnconfigure(0, weight=1)
+        self.find_cd_regexp_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
+        self.find_cd_glob_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
+        self.find_cd_fuzz_entry.grid(row=5, column=1, sticky='we',padx=4,pady=4)
+
+        self.cd_case_sens_cb = Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod)
+        self.cd_case_sens_cb.grid(row=4, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
+
+        self.find_cd_fuzzy_threshold_lab = Label(find_cd_frame,text='Threshold:',bg=self.bg_color,anchor='e')
+        self.find_cd_fuzzy_threshold_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzzy_threshold)
+        self.find_cd_fuzzy_threshold_lab.grid(row=5, column=2, sticky='wens',padx=4,pady=4)
+        self.find_cd_fuzzy_threshold_entry.grid(row=5, column=3, sticky='wens',padx=4,pady=4)
+
         find_cd_frame.grid_columnconfigure(1, weight=1)
 
         (find_size_frame := LabelFrame(sfdma,text='File size range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
@@ -923,16 +987,19 @@ class Gui:
         Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
         Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
 
-
-        Button(self.find_dialog.area_buttons, text='prev (Shift+F3)', width=14, command=self.find_prev_from_dialog ).pack(side='left', anchor='n',padx=5,pady=5)
-        Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results ).pack(side='left', anchor='n',padx=5,pady=5)
-        Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results ).pack(side='left', anchor='n',padx=5,pady=5)
-        Button(self.find_dialog.area_buttons, text='next (F3)', width=14, command=self.find_next_from_dialog ).pack(side='left', anchor='n',padx=5,pady=5)
+        Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_do_search ).pack(side='left', anchor='n',padx=5,pady=5)
+        self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
+        self.search_show_butt.pack(side='left', anchor='n',padx=5,pady=5)
+        self.search_save_butt = Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results )
+        self.search_save_butt.pack(side='left', anchor='n',padx=5,pady=5)
+        self.search_prev_butt = Button(self.find_dialog.area_buttons, text='prev (Shift+F3)', width=14, command=self.find_prev_from_dialog )
+        self.search_prev_butt.pack(side='left', anchor='n',padx=5,pady=5)
+        self.search_next_butt = Button(self.find_dialog.area_buttons, text='next (F3)', width=14, command=self.find_next_from_dialog )
+        self.search_next_butt.pack(side='left', anchor='n',padx=5,pady=5)
         Button(self.find_dialog.area_buttons, text='Close', width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
 
         sfdma.grid_rowconfigure(4, weight=1)
         sfdma.grid_columnconfigure(0, weight=1)
-
 
         self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
         self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
@@ -1068,26 +1135,6 @@ class Gui:
 
         #######################################################################
 
-        if paths_to_add:
-            if len(paths_to_add)>self.MAX_PATHS:
-                l_warning('only %s search paths allowed. Following are ignored:\n%s',self.MAX_PATHS, '\n'.join(paths_to_add[8:]))
-            for path in paths_to_add[:self.MAX_PATHS]:
-                if windows and path[-1]==':':
-                    path += '\\'
-                self.path_to_scan_set(abspath(path))
-
-        run_scan_condition = bool(paths_to_add and not norun)
-
-        if exclude:
-            self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude))
-            self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,False)
-        elif exclude_regexp:
-            self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_regexp))
-            self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,True)
-        else:
-            if run_scan_condition:
-                self.cfg.set(CFG_KEY_EXCLUDE,'')
-
         self.exclude_regexp_scan.set(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP))
 
         self.menu_disable()
@@ -1124,6 +1171,9 @@ class Gui:
 
         records_quant,records_size = librer_core.read_records_pre()
 
+        self_hg_ico = self.hg_ico
+        self.hg_ico_len = len(self_hg_ico)
+
         if records_quant:
             read_thread=Thread(target=lambda : librer_core.read_records(),daemon=True)
             read_thread.start()
@@ -1141,9 +1191,6 @@ class Gui:
 
             wait_var=BooleanVar()
             wait_var.set(False)
-
-            self_hg_ico = self.hg_ico
-            self.hg_ico_len = len(self_hg_ico)
 
             while read_thread_is_alive() or librer_core.records_to_show :
                 self_progress_dialog_on_load_lab[2].configure(image=self.get_hg_ico())
@@ -1275,11 +1322,27 @@ class Gui:
 
                     node_cd = None
                     try:
-                        cd_code,cd_stdout,cd_stderr = self.item_to_data_list[item][4]
-                        #print(cd_code,cd_stdout,cd_stderr)
+                        tuple_len = len(self.item_to_data[item])
+                        if tuple_len==5:
+                            (entry_name,code,size,mtime,fifth_field) = self.item_to_data[item]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,ignore = core.entry_LUT_decode[code]
 
-                        node_cd = str(cd_code) + '\n' + '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_stdout.split('\n')[0:10]] ) + '\n' + cd_stderr
-                    except:
+                            if has_cd:
+                                cd_tuple = fifth_field
+                                if cd_tuple and len(cd_tuple)==4:
+
+                                    stdout_compressed_is,stderr_compressed_is,cd_stdout_dat,cd_stderr_dat = cd_tuple
+                                    cd_stdout = gzip.decompress(cd_stdout_dat).decode('utf-8') if stdout_compressed_is else cd_stdout_dat
+                                    cd_stderr = gzip.decompress(cd_stderr_dat).decode('utf-8') if stderr_compressed_is else cd_stderr_dat
+
+                                    cd_stderr = cd_stderr if cd_stderr else ''
+                                    cd_stdout = cd_stdout if cd_stdout else ''
+
+                                    node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_stdout.split('\n')[0:10]] ) + '\n'
+
+
+                    except Exception as exc:
+                        print(exc)
                         pass
 
                     record_path = record.db.scan_path
@@ -1372,7 +1435,7 @@ class Gui:
             l_error(e)
 
         self.status('exiting ...')
-        self.main.withdraw()
+        #self.main.withdraw()
         sys.exit(0)
         #self.main.destroy()
 
@@ -1384,6 +1447,13 @@ class Gui:
         if self.current_record:
             self.find_dialog_shown=True
             self.find_mod()
+            self.searching_aborted = False
+
+            #self.search_show_butt.configure(state='disabled')
+            #self.search_save_butt.configure(state='disabled')
+            #self.search_next_butt.configure(state='disabled')
+            #self.search_prev_butt.configure(state='disabled')
+
             self.find_dialog.show('Find')
             self.find_dialog_shown=False
 
@@ -1410,7 +1480,7 @@ class Gui:
     def find_save_results(self):
         self.find_items()
 
-        if report_file := asksaveasfilename(initialfile = 'librer_search_report.txt',defaultextension=".txt",filetypes=[("All Files","*.*"),("Text Files","*.txt")]):
+        if report_file := asksaveasfilename(parent = self.find_dialog.widget, initialfile = 'librer_search_report.txt',defaultextension=".txt",filetypes=[("All Files","*.*"),("Text Files","*.txt")]):
             self.status('saving file "%s" ...' % str(report_file))
 
             with open(report_file,'w') as report_file:
@@ -1426,6 +1496,10 @@ class Gui:
                         report_file_write('\n')
 
             self.status('file saved: "%s"' % str(report_file))
+
+    def find_do_search(self):
+        #self.find_params_changed=True
+        self.find_items()
 
     def find_show_results(self):
         self.find_items()
@@ -1470,32 +1544,95 @@ class Gui:
                 self.find_params_changed=True
             elif self.cfg.get(CFG_KEY_find_size_max) != self.find_size_max_var.get():
                 self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_name) != self.find_name_var.get():
+
+            elif self.cfg.get(CFG_KEY_find_name_regexp) != self.find_name_regexp_var.get():
                 self.find_params_changed=True
+            elif self.cfg.get(CFG_KEY_find_name_glob) != self.find_name_glob_var.get():
+                self.find_params_changed=True
+            elif self.cfg.get(CFG_KEY_find_name_fuzz) != self.find_name_fuzz_var.get():
+                self.find_params_changed=True
+
+
             elif self.cfg.get_bool(CFG_KEY_find_name_case_sens) != bool(self.find_name_case_sens_var.get()):
                 self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_cd) != self.find_cd_var.get():
+
+            elif self.cfg.get(CFG_KEY_find_cd_regexp) != self.find_cd_regexp_var.get():
                 self.find_params_changed=True
+            elif self.cfg.get(CFG_KEY_find_cd_glob) != self.find_cd_glob_var.get():
+                self.find_params_changed=True
+            elif self.cfg.get(CFG_KEY_find_cd_fuzz) != self.find_cd_fuzz_var.get():
+                self.find_params_changed=True
+
             elif self.cfg.get_bool(CFG_KEY_find_cd_case_sens) != bool(self.find_cd_case_sens_var.get()):
                 self.find_params_changed=True
 
-            if self.find_filename_search_kind_var.get() in ('regexp','glob','fuzzy'):
-                self.find_filename_entry.configure(state='normal')
-                self.find_filename_case_sens_cb.configure(state='normal')
-            else:
-                self.find_filename_entry.configure(state='disabled')
-                self.find_filename_case_sens_cb.configure(state='disabled')
+            elif self.cfg.get_bool(CFG_KEY_filename_fuzzy_threshold) != bool(self.find_filename_fuzzy_threshold.get()):
+                self.find_params_changed=True
+            elif self.cfg.get_bool(CFG_KEY_cd_fuzzy_threshold) != bool(self.find_cd_fuzzy_threshold.get()):
+                self.find_params_changed=True
 
-            if self.find_cd_search_kind_var.get() in ('regexp','glob','fuzzy'):
-                self.find_cd_entry.configure(state='normal')
-                self.cd_case_sens_cb.configure(state='normal')
+            if self.find_filename_search_kind_var.get() == 'regexp':
+                self.find_filename_regexp_entry.configure(state='normal')
             else:
-                self.find_cd_entry.configure(state='disabled')
+                self.find_filename_regexp_entry.configure(state='disabled')
+
+            if self.find_cd_search_kind_var.get() == 'regexp':
+                self.find_cd_regexp_entry.configure(state='normal')
+            else:
+                self.find_cd_regexp_entry.configure(state='disabled')
+
+
+            if self.find_filename_search_kind_var.get() == 'fuzzy':
+                self.find_filename_fuzzy_threshold_lab.configure(state='normal')
+                self.find_filename_fuzzy_threshold_entry.configure(state='normal')
+                self.find_filename_fuzz_entry.configure(state='normal')
+            else:
+                self.find_filename_fuzzy_threshold_lab.configure(state='disabled')
+                self.find_filename_fuzzy_threshold_entry.configure(state='disabled')
+                self.find_filename_fuzz_entry.configure(state='disabled')
+
+            if self.find_cd_search_kind_var.get() == 'fuzzy':
+                self.find_cd_fuzzy_threshold_lab.configure(state='normal')
+                self.find_cd_fuzzy_threshold_entry.configure(state='normal')
+                self.find_cd_fuzz_entry.configure(state='normal')
+            else:
+                self.find_cd_fuzzy_threshold_lab.configure(state='disabled')
+                self.find_cd_fuzzy_threshold_entry.configure(state='disabled')
+                self.find_cd_fuzz_entry.configure(state='disabled')
+
+            if self.find_filename_search_kind_var.get() == 'glob':
+                self.find_filename_case_sens_cb.configure(state='normal')
+                self.find_filename_glob_entry.configure(state='normal')
+            else:
+                self.find_filename_case_sens_cb.configure(state='disabled')
+                self.find_filename_glob_entry.configure(state='disabled')
+
+            if self.find_cd_search_kind_var.get() == 'glob':
+                self.cd_case_sens_cb.configure(state='normal')
+                self.find_cd_glob_entry.configure(state='normal')
+            else:
                 self.cd_case_sens_cb.configure(state='disabled')
+                self.find_cd_glob_entry.configure(state='disabled')
+
+            #if self.find_filename_search_kind_var.get() in ('regexp','glob','fuzzy'):
+            #    self.find_filename_entry.configure(state='normal')
+            #else:
+            #    self.find_filename_entry.configure(state='disabled')
+
+            #if self.find_cd_search_kind_var.get() in ('regexp','glob','fuzzy'):
+            #    self.find_cd_entry.configure(state='normal')
+            #else:
+            #    self.find_cd_entry.configure(state='disabled')
 
             if self.find_params_changed:
                 self.find_result_record_index=0
                 self.find_result_index=0
+
+                self.search_show_butt.configure(state='disabled')
+                self.search_save_butt.configure(state='disabled')
+                self.search_next_butt.configure(state='disabled')
+                self.search_prev_butt.configure(state='disabled')
+
 
         except Exception as e:
             self.find_result_record_index=0
@@ -1508,20 +1645,32 @@ class Gui:
     #@restore_status_line
     def find_items(self):
         if self.find_params_changed:
+            self.searching_aborted = False
+
             self.action_abort = False
             find_range = self.find_range_var.get()
 
             find_size_min = self.find_size_min_var.get()
             find_size_max = self.find_size_max_var.get()
 
-            find_name = self.find_name_var.get()
+            find_name_regexp = self.find_name_regexp_var.get()
+            find_name_glob = self.find_name_glob_var.get()
+            find_name_fuzz = self.find_name_fuzz_var.get()
             find_name_case_sens = self.find_name_case_sens_var.get()
 
             find_cd_search_kind = self.find_cd_search_kind_var.get()
-            find_cd = self.find_cd_var.get()
+            find_cd_regexp = self.find_cd_regexp_var.get()
+            find_cd_glob = self.find_cd_glob_var.get()
+            find_cd_fuzz = self.find_cd_fuzz_var.get()
             find_cd_case_sens = self.find_cd_case_sens_var.get()
 
             find_filename_search_kind = self.find_filename_search_kind_var.get()
+
+            find_name = find_name_regexp if find_filename_search_kind=='regexp' else find_name_glob if find_filename_search_kind=='glob' else find_name_fuzz if find_filename_search_kind=='fuzzy' else ''
+            find_cd = find_cd_regexp if find_cd_search_kind=='regexp' else find_cd_glob if find_cd_search_kind=='glob' else find_cd_fuzz if find_cd_search_kind=='fuzzy' else ''
+
+            filename_fuzzy_threshold = self.find_filename_fuzzy_threshold.get()
+            cd_fuzzy_threshold = self.find_cd_fuzzy_threshold.get()
 
             if find_size_min:
                 min_num = core_str_to_bytes(find_size_min)
@@ -1539,13 +1688,19 @@ class Gui:
             else:
                 max_num = ''
 
+            if find_size_min and find_size_max:
+                if max_num<min_num:
+                    self.info_dialog_on_find.show('error','max size < min size')
+                    return
+
             range_par = self.current_record if find_range=='single' else None
 
             if check_res := librer_core.find_items_in_all_records_check(
                 range_par,
                 min_num,max_num,
                 find_filename_search_kind,find_name,find_name_case_sens,
-                find_cd_search_kind,find_cd,find_cd_case_sens):
+                find_cd_search_kind,find_cd,find_cd_case_sens,
+                filename_fuzzy_threshold,cd_fuzzy_threshold):
                 self.info_dialog_on_find.show('regular expression error',check_res)
                 return
 
@@ -1556,16 +1711,24 @@ class Gui:
             self.cfg.set(CFG_KEY_find_size_min,find_size_min)
             self.cfg.set(CFG_KEY_find_size_max,find_size_max)
 
-            self.cfg.set(CFG_KEY_find_name,find_name)
+            self.cfg.set(CFG_KEY_find_name_regexp,find_name_regexp)
+            self.cfg.set(CFG_KEY_find_name_glob,find_name_glob)
+            self.cfg.set(CFG_KEY_find_name_fuzz,find_name_fuzz)
             self.cfg.set_bool(CFG_KEY_find_name_case_sens,find_name_case_sens)
 
-            self.cfg.set(CFG_KEY_find_cd,find_cd)
+            self.cfg.set(CFG_KEY_find_cd_regexp,find_cd_regexp)
+            self.cfg.set(CFG_KEY_find_cd_glob,find_cd_glob)
+            self.cfg.set(CFG_KEY_find_cd_fuzz,find_cd_fuzz)
             self.cfg.set_bool(CFG_KEY_find_cd_case_sens,find_cd_case_sens)
+
+            self.cfg.set(CFG_KEY_filename_fuzzy_threshold,filename_fuzzy_threshold)
+            self.cfg.set(CFG_KEY_cd_fuzzy_threshold,cd_fuzzy_threshold)
 
             search_thread=Thread(target=lambda : librer_core.find_items_in_all_records(range_par,
                 min_num,max_num,
                 find_filename_search_kind,find_name,find_name_case_sens,
-                find_cd_search_kind,find_cd,find_cd_case_sens),daemon=True)
+                find_cd_search_kind,find_cd,find_cd_case_sens,
+                filename_fuzzy_threshold,cd_fuzzy_threshold),daemon=True)
             search_thread.start()
 
             search_thread_is_alive = search_thread.is_alive
@@ -1581,10 +1744,9 @@ class Gui:
 
             #############################
 
-            #self.scan_dialog.widget.update()
             self.tooltip_message[str_self_progress_dialog_on_find_abort_button]='Abort searching.'
 
-            self_progress_dialog_on_find.show()
+            self_progress_dialog_on_find.show('Search progress')
 
             self_progress_dialog_on_find.lab_l1.configure(text='Records:')
             self_progress_dialog_on_find.lab_l2.configure(text='Files:' )
@@ -1676,8 +1838,19 @@ class Gui:
 
             self.info_dialog_on_find.show('Search sesults',f'found: {fnumber(find_results_quant_sum)} items.' + abort_info)
 
-            if not self.action_abort:
+            if self.action_abort:
+                self.searching_aborted = True
+            else:
                 self.find_params_changed=False
+                self.searching_aborted = False
+
+            if not self.searching_aborted and self.any_find_result:
+                self.search_show_butt.configure(state='normal')
+                self.search_save_butt.configure(state='normal')
+
+            if self.any_find_result:
+                self.search_next_butt.configure(state='normal')
+                self.search_prev_butt.configure(state='normal')
 
     def get_child_of_name(self,item,child_name):
         self_tree = self.tree
@@ -1743,9 +1916,12 @@ class Gui:
                 if child_item:
                     current_item = child_item
                     self.open_item(None,current_item)
+                    self.tree.see(current_item)
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
+
+            self.tree.update()
 
             self_tree.selection_set(current_item)
 
@@ -2272,8 +2448,10 @@ class Gui:
 
         self.cfg.set(CFG_KEY_CDE_SETTINGS,'|'.join(cde_sklejka_list))
 
+        check_dev = self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE)
+
         #############################
-        scan_thread=Thread(target=lambda : new_record.scan(librer_core.db_dir,cde_list),daemon=True)
+        scan_thread=Thread(target=lambda : new_record.scan(librer_core.db_dir,cde_list,check_dev),daemon=True)
         scan_thread.start()
         scan_thread_is_alive = scan_thread.is_alive
 
@@ -2303,9 +2481,11 @@ class Gui:
                 if update_once:
                     update_once=False
                     self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+                    self_progress_dialog_on_scan_update_lab_text(1,'')
             else :
                 if now>time_without_busy_sign+1.0:
                     self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
+                    self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
                     update_once=True
 
             self_progress_dialog_on_scan_area_main_update()
@@ -2317,11 +2497,14 @@ class Gui:
             self_main_after(25,lambda : wait_var_set(not wait_var_get()))
             self_main_wait_variable(wait_var)
 
+        self_progress_dialog_on_scan_update_lab_text(1,'')
         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
         self_progress_dialog_on_scan_update_lab_text(3,'')
         self_progress_dialog_on_scan_update_lab_text(4,'')
 
         scan_thread.join()
+
+        self.cfg.set_bool(CFG_KEY_SINGLE_DEVICE,check_dev)
 
         if self.action_abort:
             self_progress_dialog_on_scan.hide(True)
@@ -2345,7 +2528,7 @@ class Gui:
             new_record_db = new_record.db
             while cd_thread_is_alive():
                 change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data size: ' + local_core_bytes_to_str(new_record_db.files_cde_size_extracted) )
+                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_core_bytes_to_str(new_record_db.files_cde_size_extracted) )
                 change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record_db.files_cde_errors_quant) )
 
                 files_q = new_record_db.files_cde_quant
@@ -2372,9 +2555,12 @@ class Gui:
                     if update_once:
                         update_once=False
                         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+                        self_progress_dialog_on_scan_update_lab_text(1,'')
                 else :
                     if now>time_without_busy_sign+1.0:
                         self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
+                        self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
+
                         update_once=True
 
                 self.main.after(25,lambda : wait_var.set(not wait_var.get()))
@@ -2382,8 +2568,10 @@ class Gui:
 
             cd_thread.join()
 
-        self_progress_dialog_on_scan_update_lab_text(3,'' )
-        self_progress_dialog_on_scan_update_lab_text(4,'' )
+        self_progress_dialog_on_scan_update_lab_text(1,'')
+        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+        self_progress_dialog_on_scan_update_lab_text(3,'')
+        self_progress_dialog_on_scan_update_lab_text(4,'')
 
         self.single_record_show(new_record)
 
@@ -2546,56 +2734,92 @@ class Gui:
 
             new_items_values = {}
 
-            for entry_name,data_tuple in self.item_to_record_dict[item].items():
-                len_data_tuple = len(data_tuple)
-                if len_data_tuple==4:
-                    [ code,size,mtime,sub_dictionary ] = data_tuple
-                    cd=None
-                elif len_data_tuple==5:
-                    [ code,size,mtime,sub_dictionary,cd ] = data_tuple
-                else:
-                    l_error(f'data format incompatible:{data_tuple}')
-                    print(f'data format incompatible:{data_tuple}')
-                    continue
+            ###############################################
+            top_data_tuple = self.item_to_data[item]
 
-                is_dir,is_file,is_symlink = entry_LUT_decode_loc[code]
+            len_top_data_tuple = len(top_data_tuple)
+            if len_top_data_tuple==4:
+                (top_entry_name,top_code,top_size,top_mtime) = top_data_tuple
+                top_fifth_field=None
+            elif len_top_data_tuple==5:
+                (top_entry_name,top_code,top_size,top_mtime,top_fifth_field) = top_data_tuple
+            else:
+                l_error(f'data top format incompatible:{top_data_tuple}')
+                print(f'data top format incompatible:{top_data_tuple}')
+                return
 
-                if is_dir:
-                    image=self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink else self.ico_folder
-                    kind = self_DIR
-                else:
-                    if cd and len(cd)==3:
-                        cd_code = cd[0]
-                        if cd_code==0:
-                            image=self.ico_cd_ok
-                        else:
-                            image=self.ico_cd_error
+            #sub_dictionary,cd
+
+            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_ignore = entry_LUT_decode_loc[top_code]
+
+            #print('top_has_files:',item,top_entry_name,top_has_files,top_fifth_field)
+            if top_has_files:
+                #for entry_name,data_tuple in self.item_to_record_dict[item].items():
+                for data_tuple in top_fifth_field:
+
+                    #print('data_tuple:',data_tuple)
+
+                    len_data_tuple = len(data_tuple)
+                    if len_data_tuple==4:
+                        (entry_name,code,size,mtime) = data_tuple
+                    elif len_data_tuple==5:
+                        (entry_name,code,size,mtime,fifth_field) = data_tuple
                     else:
-                        image=self.ico_empty
+                        l_error(f'data format incompatible:{data_tuple}')
+                        print(f'data format incompatible:{data_tuple}')
+                        continue
 
-                    kind = self_FILE
+                    #sub_dictionary,cd
 
-                if is_symlink:
-                    tags=self_SYMLINK
-                else:
-                    tags=''
+                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,ignore = entry_LUT_decode_loc[code]
 
-                #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-                values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),kind)
+                    sub_data_tuple = None
 
-                sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
-                new_items_values[ ( sort_index,values,entry_name,image,True if sub_dictionary else False) ] = (sub_dictionary,tags,data_tuple)
+                    if has_cd:
+                        cd = fifth_field
+                        sub_dictionary = False
+                    elif has_files:
+                        sub_dictionary = True
+                        sub_data_tuple = fifth_field
+                    else:
+                        sub_dictionary = False
 
-            #print(f'self.item_to_data_list[{item}]:',self.item_to_data_list[item])
+                    if is_dir:
+                        image=self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink or is_bind else self.ico_folder
+                        kind = self_DIR
+                    else:
+                        if has_cd and cd and len(cd)==4:
+                            stdout_compressed,stderr_compressed,stdout,stderr = cd
 
-            for (sort_index,values,entry_name,image,sub_dictionary_bool),(sub_dictionary,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
-                new_item=tree.insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
-                if sub_dictionary_bool:
-                    self.item_to_record_dict[new_item] = sub_dictionary
-                    tree.insert(new_item,'end') #dummy_sub_item
-                self.item_to_data_list[new_item] = data_tuple
+                            image=self.ico_cd_ok if cd_ok else self.ico_cd_error
+                        else:
+                            image=self.ico_empty
 
-            tree.set(item,'opened','1')
+                        kind = self_FILE
+
+                    if is_symlink or is_bind:
+                        tags=self_SYMLINK
+                    else:
+                        tags=''
+
+                    #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
+                    values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),kind)
+
+                    sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
+                    new_items_values[ ( sort_index,values,entry_name,image,True if sub_dictionary else False) ] = (sub_dictionary,tags,data_tuple)
+
+                #print(f'self.item_to_data_list[{item}]:',self.item_to_data_list[item])
+
+                for (sort_index,values,entry_name,image,sub_dictionary_bool),(sub_dictionary,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
+                    new_item=tree.insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
+                    if sub_dictionary_bool:
+                        #self.item_to_record_dict[new_item] = sub_dictionary
+                        tree.insert(new_item,'end') #dummy_sub_item
+                    #self.item_to_data_list[new_item] = data_tuple
+                    self.item_to_data[new_item] = data_tuple
+
+
+                tree.set(item,'opened','1')
 
         #tree.item(item, open=True)
 
@@ -2620,7 +2844,8 @@ class Gui:
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
 
-        self.item_to_record_dict[record_item] = record_db.data
+        #$self.item_to_record_dict[record_item] = record_db.data
+        self.item_to_data[record_item] = record_db.data
 
         self.tree.focus(record_item)
         self.tree.selection_set(record_item)
@@ -2642,8 +2867,10 @@ class Gui:
         self.item_to_record={}
         self.record_to_item={}
 
-        self.item_to_record_dict={}
-        self.item_to_data_list={}
+        #self.item_to_record_dict={}
+        #self.item_to_data_list={}
+
+        self.item_to_data={}
 
         for record in sorted(librer_core.records,key=lambda x : x.db.creation_time):
             self.single_record_show(record)
@@ -2745,13 +2972,23 @@ class Gui:
                 try:
                     #print(self.item_to_data_list[item])
                     #code,size,mtime,sub_dictionary
-                    if len(self.item_to_data_list[item])>4:
-                        cd = self.item_to_data_list[item][4]
-                        if cd:
-                            cd_code,cd_stdout,cd_stderr = cd
-                            self.text_info_dialog.show('Custom Data',cd_stdout + '\n' + cd_stderr)
-                    else:
-                        self.info_dialog_on_main.show('Information','No Custom data.')
+                    tuple_len = len(self.item_to_data[item])
+                    if tuple_len==5:
+                        (entry_name,code,size,mtime,fifth_field) = self.item_to_data[item]
+
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,ignore = core.entry_LUT_decode[code]
+
+                        if has_cd :
+                            cd_tuple = fifth_field
+                            if cd_tuple:
+                                stdout_compressed_is,stderr_compressed_is,cd_stdout_dat,cd_stderr_dat = cd_tuple
+                                cd_stdout = gzip.decompress(cd_stdout_dat).decode('utf-8') if stdout_compressed_is else cd_stdout_dat
+                                cd_stderr = gzip.decompress(cd_stderr_dat).decode('utf-8') if stderr_compressed_is else cd_stderr_dat
+
+                                self.text_info_dialog.show('Custom Data',cd_stdout + '\n' + (cd_stderr if cd_stderr else ''))
+                                return
+
+                    self.info_dialog_on_main.show('Information','No Custom data.')
                 except Exception as e:
                     self.info_dialog_on_main.show(e)
                     pass
@@ -2900,7 +3137,7 @@ if __name__ == "__main__":
             print('Done')
 
         else:
-            Gui(getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun)
+            Gui(getcwd())
 
     except Exception as e_main:
         print(e_main)
