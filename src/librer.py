@@ -179,7 +179,7 @@ class Config:
         #l_debug('Initializing config: %s', config_dir)
         self.config = ConfigParser()
         self.config.add_section('main')
-        self.config.add_section('geometry')
+        #self.config.add_section('geometry')
 
         self.path = config_dir
         self.file = self.path + '/cfg.ini'
@@ -361,10 +361,11 @@ class Gui:
 
     def __init__(self,cwd):
         self.cwd=cwd
-        self.last_dir=self.cwd
 
         self.cfg = Config(CONFIG_DIR)
         self.cfg.read()
+
+        self.last_dir = self.cfg.get('last_dir',self.cwd)
 
         self.cfg_get_bool=self.cfg.get_bool
 
@@ -373,6 +374,7 @@ class Gui:
 
         signal(SIGINT, lambda a, k : self.handle_sigint())
 
+        self.locked_by_child=None
         ####################################################################
         self.main = Tk()
         self_main = self.main
@@ -402,6 +404,10 @@ class Gui:
         self.ico_record = self_ico['record']
         self.ico_cd_ok = self_ico['cd_ok']
         self.ico_cd_error = self_ico['cd_error']
+
+        self.ico_cd_ok_compr = self_ico['cd_ok_compr']
+        self.ico_cd_error_compr = self_ico['cd_error_compr']
+
         self.ico_folder = self_ico['folder']
         self.ico_folder_link = self_ico['folder_link']
         self.ico_folder_error = self_ico['folder_error']
@@ -606,7 +612,7 @@ class Gui:
 
         try:
             self.main_update()
-            cfg_geometry=self.cfg.get('main','',section='geometry')
+            cfg_geometry=self.cfg.get('geometry','')
 
             if cfg_geometry:
                 self_main.geometry(cfg_geometry)
@@ -632,20 +638,26 @@ class Gui:
         self.popup.bind("<FocusOut>",lambda event : self.popup_unpost() )
         self_main_bind("<FocusOut>",lambda event : self.menubar_unpost() )
 
+        self_main_bind("<FocusIn>",lambda event : self.focusin() )
+
         #######################################################################
         #scan dialog
 
-        def pre_show(on_main_window_dialog=True):
+        def pre_show(on_main_window_dialog=True,new_widget=None):
             self.menubar_unpost()
             self.hide_tooltip()
             self.popup_unpost()
 
+            self.locked_by_child=new_widget
             if on_main_window_dialog:
                 self.actions_processing=False
                 self.menu_disable()
                 self.menubar_config(cursor="watch")
 
         def post_close(on_main_window_dialog=True):
+            self.locked_by_child=None
+            self.main.focus_set()
+
             if on_main_window_dialog:
                 self.actions_processing=True
                 self.menu_enable()
@@ -682,7 +694,7 @@ class Gui:
         lab1=Label(temp_frame,text="Path To scan:",bg=self.bg_color,anchor='w')
         lab1.grid(row=0, column=2, sticky='news',padx=4,pady=4)
 
-        self.path_to_scan_entry_var=StringVar(value='')
+        self.path_to_scan_entry_var=StringVar(value=self.last_dir)
         path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
         path_to_scan_entry.grid(row=0, column=3, sticky='news',padx=4,pady=4)
 
@@ -762,6 +774,7 @@ class Gui:
         Label(cde_frame,text='Max Size',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=3,sticky='news')
         Label(cde_frame,text='Executable',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=4,sticky='news')
         Label(cde_frame,text='',bg=self.bg_color,anchor='w').grid(row=0, column=5,sticky='news')
+        Label(cde_frame,text='Timeout',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=6,sticky='news')
         #Label(cde_frame,text='Delete',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=6,sticky='news')
 
         self.CDE_ENTRIES_MAX = 16
@@ -770,6 +783,7 @@ class Gui:
         self.CDE_size_min_var_list=[]
         self.CDE_size_max_var_list=[]
         self.CDE_executable_var_list=[]
+        self.CDE_timeout_var_list=[]
 
         for e in range(self.CDE_ENTRIES_MAX):
             self.CDE_use_var_list.append(BooleanVar())
@@ -777,6 +791,7 @@ class Gui:
             self.CDE_size_min_var_list.append(StringVar())
             self.CDE_size_max_var_list.append(StringVar())
             self.CDE_executable_var_list.append(StringVar())
+            self.CDE_timeout_var_list.append(StringVar())
 
             row = e+1
             use_button = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e])
@@ -796,6 +811,9 @@ class Gui:
 
             del_button = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
             del_button.grid(row=row,column=5,sticky='news')
+
+            timeout_entry = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e])
+            timeout_entry.grid(row=row, column=6,sticky='news')
 
         #self.add_path_button = Button(cde_frame,width=18,image = self_ico['open'], command=self.custom_data_wrapper_dialog,underline=0)
         #self.add_path_button.grid(row=1, column=2, sticky='news',padx=4,pady=4)
@@ -1001,7 +1019,7 @@ class Gui:
         sfdma.grid_rowconfigure(4, weight=1)
         sfdma.grid_columnconfigure(0, weight=1)
 
-        self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=lambda new_widget : pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(on_main_window_dialog=False))
         self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
        #######################################################################
         #About Dialog
@@ -1239,6 +1257,10 @@ class Gui:
 
         self_main.mainloop()
 
+    def focusin(self):
+        if self.locked_by_child:
+            self.locked_by_child.focus_set()
+
     def unpost(self):
         self.hide_tooltip()
         self.menubar_unpost()
@@ -1319,27 +1341,18 @@ class Gui:
                     record_item,record_name,subpath = self.get_item_record(item)
                     record = self.item_to_record[record_item]
 
-
                     node_cd = None
                     try:
                         tuple_len = len(self.item_to_data[item])
                         if tuple_len==5:
                             (entry_name,code,size,mtime,fifth_field) = self.item_to_data[item]
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,ignore = core.entry_LUT_decode[code]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed = core.entry_LUT_decode[code]
 
                             if has_cd:
-                                cd_tuple = fifth_field
-                                if cd_tuple and len(cd_tuple)==4:
+                                if cd_data := fifth_field:
+                                    cd_txt = record.get_cd_text(cd_data,is_compressed)
 
-                                    stdout_compressed_is,stderr_compressed_is,cd_stdout_dat,cd_stderr_dat = cd_tuple
-                                    cd_stdout = gzip.decompress(cd_stdout_dat).decode('utf-8') if stdout_compressed_is else cd_stdout_dat
-                                    cd_stderr = gzip.decompress(cd_stderr_dat).decode('utf-8') if stderr_compressed_is else cd_stderr_dat
-
-                                    cd_stderr = cd_stderr if cd_stderr else ''
-                                    cd_stdout = cd_stdout if cd_stdout else ''
-
-                                    node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_stdout.split('\n')[0:10]] ) + '\n'
-
+                                    node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_txt.split('\n')[0:10]] ) + '\n'
 
                     except Exception as exc:
                         print(exc)
@@ -1429,7 +1442,8 @@ class Gui:
 
     def exit(self):
         try:
-            self.cfg.set('main',str(self.main.geometry()),section='geometry')
+            self.cfg.set('last_dir',self.last_dir)
+            self.cfg.set('geometry',str(self.main.geometry()))
             self.cfg.write()
         except Exception as e:
             l_error(e)
@@ -2349,13 +2363,6 @@ class Gui:
 
         new_record = librer_core.create(self.scan_label_entry_var.get(),path_to_scan_from_entry)
 
-        #new_record.db.scan_path = path_to_scan_from_entry
-        #if res:=librer_core.set_path_to_scan(path_to_scan_from_entry):
-        #    self.info_dialog_on_scan.show('Error. Fix paths selection.',res)
-        #    return False
-
-        #librer_core.scan_update_info_path_nr=self.scan_update_info_path_nr
-
         self.main_update()
 
         #############################
@@ -2417,22 +2424,30 @@ class Gui:
         any_cde_enabled=False
         cde_sklejka_list=[]
         cde_list=[]
+
         for e in range(self.CDE_ENTRIES_MAX):
 
             mask = self.CDE_mask_var_list[e].get()
             smin = self.CDE_size_min_var_list[e].get()
             smax = self.CDE_size_max_var_list[e].get()
             exe = self.CDE_executable_var_list[e].get()
+            timeout = self.CDE_timeout_var_list[e].get()
 
             smin_int = core_str_to_bytes(smin)
             smax_int = core_str_to_bytes(smax)
+
+            try:
+                timeout_int = int(timeout)
+            except:
+                timeout_int = 0
 
             line_list = [
             '1' if self.CDE_use_var_list[e].get() else '0',
             mask,
             smin,
             smax,
-            exe ]
+            exe,
+            timeout ]
 
             cde_sklejka_list.append(':'.join(line_list))
 
@@ -2444,7 +2459,8 @@ class Gui:
                     smin_int,
                     True if smax_int>=0 else False,
                     smax_int,
-                    exe.split() ) )
+                    exe.split(),
+                    timeout_int ) )
 
         self.cfg.set(CFG_KEY_CDE_SETTINGS,'|'.join(cde_sklejka_list))
 
@@ -2467,6 +2483,7 @@ class Gui:
 
         self_progress_dialog_on_scan_update_lab_text = self_progress_dialog_on_scan.update_lab_text
         self_progress_dialog_on_scan_update_lab_image = self_progress_dialog_on_scan.update_lab_image
+
         #############################
         while scan_thread_is_alive():
             change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
@@ -2559,7 +2576,12 @@ class Gui:
                 else :
                     if now>time_without_busy_sign+1.0:
                         self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
-                        self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
+
+                        info_line_current_len = len(new_record.info_line_current)
+                        if info_line_current_len>50:
+                            self_progress_dialog_on_scan_update_lab_text(1,f'...{new_record.info_line_current[-50:]}')
+                        else:
+                            self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
 
                         update_once=True
 
@@ -2609,12 +2631,13 @@ class Gui:
         e=0
         for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('|'):
             try:
-                v1,v2,v3,v4,v5 = e_section.split(':')
+                v1,v2,v3,v4,v5,v6 = e_section.split(':')
                 self.CDE_use_var_list[e].set(True if v1=='1' else False)
-                self.CDE_mask_var_list[e].set(v2),
-                self.CDE_size_min_var_list[e].set(v3),
-                self.CDE_size_max_var_list[e].set(v4),
+                self.CDE_mask_var_list[e].set(v2)
+                self.CDE_size_min_var_list[e].set(v3)
+                self.CDE_size_max_var_list[e].set(v4)
                 self.CDE_executable_var_list[e].set(v5)
+                self.CDE_timeout_var_list[e].set(v6)
                 e+=1
             except:
                 print(e_section)
@@ -2750,7 +2773,7 @@ class Gui:
 
             #sub_dictionary,cd
 
-            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_ignore = entry_LUT_decode_loc[top_code]
+            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_cd_is_compressed = entry_LUT_decode_loc[top_code]
 
             #print('top_has_files:',item,top_entry_name,top_has_files,top_fifth_field)
             if top_has_files:
@@ -2771,12 +2794,12 @@ class Gui:
 
                     #sub_dictionary,cd
 
-                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,ignore = entry_LUT_decode_loc[code]
+                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed = entry_LUT_decode_loc[code]
 
                     sub_data_tuple = None
 
                     if has_cd:
-                        cd = fifth_field
+                        cd_data = fifth_field
                         sub_dictionary = False
                     elif has_files:
                         sub_dictionary = True
@@ -2788,12 +2811,7 @@ class Gui:
                         image=self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink or is_bind else self.ico_folder
                         kind = self_DIR
                     else:
-                        if has_cd and cd and len(cd)==4:
-                            stdout_compressed,stderr_compressed,stdout,stderr = cd
-
-                            image=self.ico_cd_ok if cd_ok else self.ico_cd_error
-                        else:
-                            image=self.ico_empty
+                        image= ((self.ico_cd_ok_compr if cd_ok else self.ico_cd_error_compr) if is_compressed else (self.ico_cd_ok if cd_ok else self.ico_cd_error)) if has_cd else self.ico_empty
 
                         kind = self_FILE
 
@@ -2976,16 +2994,13 @@ class Gui:
                     if tuple_len==5:
                         (entry_name,code,size,mtime,fifth_field) = self.item_to_data[item]
 
-                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,ignore = core.entry_LUT_decode[code]
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed = core.entry_LUT_decode[code]
 
                         if has_cd :
-                            cd_tuple = fifth_field
-                            if cd_tuple:
-                                stdout_compressed_is,stderr_compressed_is,cd_stdout_dat,cd_stderr_dat = cd_tuple
-                                cd_stdout = gzip.decompress(cd_stdout_dat).decode('utf-8') if stdout_compressed_is else cd_stdout_dat
-                                cd_stderr = gzip.decompress(cd_stderr_dat).decode('utf-8') if stderr_compressed_is else cd_stderr_dat
+                            if cd_data := fifth_field:
+                                cd_txt = record.get_cd_text(cd_data,is_compressed)
 
-                                self.text_info_dialog.show('Custom Data',cd_stdout + '\n' + (cd_stderr if cd_stderr else ''))
+                                self.text_info_dialog.show('Custom Data',cd_txt)
                                 return
 
                     self.info_dialog_on_main.show('Information','No Custom data.')

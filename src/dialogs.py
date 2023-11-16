@@ -38,9 +38,9 @@ def set_geometry_by_parent(widget,parent):
 
     widget.geometry(f'+{x_offset}+{y_offset}')
 
-class GenericDialog:
-    locked_by_child={}
+locked_by_child={}
 
+class GenericDialog:
     def __init__(self,parent,icon,bg_color,title,pre_show=None,post_close=None,min_width=600,min_height=400):
         self.bg_color=bg_color
 
@@ -50,7 +50,8 @@ class GenericDialog:
         self.widget.update()
         self.widget.protocol("WM_DELETE_WINDOW", lambda : self.hide())
 
-        self.locked_by_child[self.widget]=False
+        global locked_by_child
+        locked_by_child[self.widget]=None
 
         self.set_mins(min_width,min_height)
 
@@ -62,6 +63,7 @@ class GenericDialog:
         self.widget.bind('<Escape>', lambda event : self.hide() )
 
         self.widget.bind('<KeyPress-Return>', self.return_bind)
+        self.widget.bind("<FocusIn>",lambda event : self.focusin() )
 
         self.parent=parent
 
@@ -96,12 +98,19 @@ class GenericDialog:
     def unlock(self):
         self.wait_var.set(True)
 
+    def focusin(self):
+        global locked_by_child
+        if child_widget := locked_by_child[self.widget]:
+            child_widget.focus_set()
+
     def show(self,wait=True):
         if self.pre_show:
-            self.pre_show()
+            self.pre_show(new_widget=self.widget)
 
         self.widget.wm_transient(self.parent)
-        self.locked_by_child[self.parent]=True
+
+        global locked_by_child
+        locked_by_child[self.parent]=self.widget
 
         self.focus_restore=True
         self.pre_focus=self.parent.focus_get()
@@ -115,7 +124,7 @@ class GenericDialog:
         try:
             self.widget.deiconify()
             self.widget.update()
-            self.widget.grab_set()
+            #self.widget.grab_set()
         except Exception as e:
             print(e)
 
@@ -144,13 +153,14 @@ class GenericDialog:
             self.widget.wait_variable(self.wait_var)
 
     def hide(self,force_hide=False):
-        if self.locked_by_child[self.widget]:
+        global locked_by_child
+        if locked_by_child[self.widget]:
             return
 
         if not force_hide and self.command_on_close:
             self.command_on_close()
         else:
-            self.widget.grab_release()
+            #self.widget.grab_release()
 
             self.widget.withdraw()
 
@@ -170,7 +180,7 @@ class GenericDialog:
                 else:
                     self.parent.focus_set()
 
-            self.locked_by_child[self.parent]=False
+            locked_by_child[self.parent]=None
 
             self.wait_var.set(True)
 

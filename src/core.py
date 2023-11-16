@@ -1,6 +1,8 @@
 from os import scandir
 from os import stat
 from os import sep
+from os import getpgid
+from os import killpg
 from os.path import join as path_join
 from os.path import abspath
 from os.path import normpath
@@ -16,6 +18,8 @@ from collections import defaultdict
 import re
 from re import IGNORECASE
 
+from signal import SIGTERM
+
 from time import time
 
 import gzip
@@ -25,7 +29,7 @@ import pickle
 
 import difflib
 
-import subprocess
+from subprocess import STDOUT, check_output, Popen, TimeoutExpired, PIPE
 
 import pathlib
 
@@ -157,7 +161,6 @@ class LibrerCoreRecord :
         if self.abort_action:
             return True
 
-        entry_LUT_encode_loc = entry_LUT_encode
         path_join_loc = path_join
 
         local_folder_size_with_subtree=0
@@ -187,8 +190,8 @@ class LibrerCoreRecord :
                     except Exception as e:
                         self.log.error('stat error:%s', e )
                         #size -1 <=> error, dev,in ==0
-                        code = entry_LUT_encode_loc[ (is_dir,is_file,is_symlink,False ,False,False,False,False) ]
-                        dictionary[entry_name] = [code,-1,0,None]
+                        is_bind = False
+                        dictionary[entry_name] = [is_dir,is_file,is_symlink,is_bind,-1,0,None]
                     else:
                         is_bind=False
                         if check_dev:
@@ -225,8 +228,7 @@ class LibrerCoreRecord :
 
                             local_folder_files_count += 1
 
-                        code = entry_LUT_encode_loc[ (is_dir,is_file,is_symlink,is_bind ,False,False,False,False) ]
-                        dictionary[entry_name]=[code,size_entry,mtime_ns,dict_entry]
+                        dictionary[entry_name]=[is_dir,is_file,is_symlink,is_bind,size_entry,mtime_ns,dict_entry]
 
                 self_db = self.db
                 self_db.sum_size += local_folder_size
@@ -269,7 +271,6 @@ class LibrerCoreRecord :
         #    print(ext,stat)
 
     def tupelize_rec(self,dictionary):
-        entry_LUT_decode_loc = entry_LUT_decode
         entry_LUT_encode_loc = entry_LUT_encode
 
         self_tupelize_rec = self.tupelize_rec
@@ -281,37 +282,33 @@ class LibrerCoreRecord :
             try:
                 len_items_list = len(items_list)
 
-                code = items_list[0]
-                is_dir,is_file,is_symlink,is_bind,ignore1,ignore2,ignore3,ignore4 = entry_LUT_decode_loc[code]
+                (is_dir,is_file,is_symlink,is_bind,size,mtime,sub_dict) = items_list[0:7]
 
-                if len_items_list==4:
-                    (size,mtime,sub_dict) = items_list[1:]
+                if len_items_list==7:
                     has_cd = False
                     has_files = True if bool(sub_dict) else  False
 
                     cd_ok=False
-                    res1_compressed_is = False
-                    res2_compressed_is = False
+                    is_compressed = False
+                    output = None
 
-                    res1 = None
-                    res2 = None
+                elif len_items_list==8:
+                    cd = items_list[7]
+                    cd_ok,is_compressed,output = cd
 
-                elif len_items_list==5:
-                    (size,mtime,sub_dict,cd) = items_list[1:]
                     has_cd = True
 
-                    cd_ok,res1_compressed_is,res2_compressed_is,res1,res2 = cd
                     has_files = False
                 else:
                     print('lewizna:',items_list)
                     continue
 
-                code_new = entry_LUT_encode_loc[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,False) ]
+                code_new = entry_LUT_encode_loc[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed) ]
 
                 sub_list_elem.extend( [code_new,size,mtime] )
 
                 if has_cd: #only files
-                    sub_list_elem.append( (res1_compressed_is,res2_compressed_is,res1,res2) )
+                    sub_list_elem.append( output )
                 elif is_dir:
                     if not is_symlink and not is_bind:
                         sub_tuple = self_tupelize_rec(sub_dict)
@@ -326,42 +323,34 @@ class LibrerCoreRecord :
         return tuple( sorted(sub_list,key=lambda x : x[0]) )
 
     def prepare_custom_data_pool_rec(self,dictionary,parent_path):
-        entry_LUT_decode_loc = entry_LUT_decode
         scan_path = self.db.scan_path
         self_prepare_custom_data_pool_rec = self.prepare_custom_data_pool_rec
 
         self_db_cde_list = self.db.cde_list
         self_custom_data_pool = self.custom_data_pool
+
         for entry_name,items_list in dictionary.items():
+            if self.abort_action:
+                break
             try:
-                (code,size,mtime,sub_dict) = items_list
-                is_dir,is_file,is_symlink,is_bind,ignore1,ignore2,ignore3,ignore4 = entry_LUT_decode_loc[code]
+                is_dir,is_file,is_symlink,is_bind,size,mtime,sub_dict = items_list
                 subpath_list = parent_path.copy() + [entry_name]
 
                 if not is_symlink and not is_bind:
                     if is_dir:
                         self_prepare_custom_data_pool_rec(sub_dict,subpath_list)
                     else:
-                        #self.custom_data_pool[self.custom_data_pool_index]=[items_list,sep.join(subpath_list)]
                         subpath=sep.join(subpath_list)
                         ############################
-                        #for key,[items_list,subpath] in self.custom_data_pool.items():
-                        if self.abort_action:
-                            break
 
-                        #print(key,items_list,subpath)
                         full_file_path = normpath(abspath(sep.join([scan_path,subpath])))
-                        #full_file_path_protected = f'"{full_file_path}"'
-                        #print(full_file_path_protected)
 
-                        size = items_list[1]
                         matched = False
 
                         rule_nr=-1
-                        for expressions,use_smin,smin_int,use_smax,smax_int,executable in self_db_cde_list:
+                        for expressions,use_smin,smin_int,use_smax,smax_int,executable,time_int in self_db_cde_list:
                             if self.abort_action:
                                 break
-
                             if matched:
                                 break
 
@@ -369,20 +358,19 @@ class LibrerCoreRecord :
 
                             if use_smin:
                                 if size<smin_int:
-                                    #print('min skipped',size,smin_int,subpath)
                                     continue
                             if use_smax:
                                 if size>smax_int:
-                                    #print('max skipped',size,smax_int,subpath)
                                     continue
 
                             for expr in expressions:
+                                if self.abort_action:
+                                    break
                                 if matched:
                                     break
 
-                                #print(full_file_path,expr)
                                 if fnmatch(full_file_path,expr):
-                                    self_custom_data_pool[self.custom_data_pool_index]=[items_list,subpath,rule_nr]
+                                    self_custom_data_pool[self.custom_data_pool_index]=(items_list,subpath,rule_nr)
                                     self.custom_data_pool_index += 1
                                     self.db.cd_stat[rule_nr]+=1
                                     self.db.files_cde_size_sum += size
@@ -390,7 +378,11 @@ class LibrerCoreRecord :
 
             except Exception as e:
                 self.log.error('prepare_custom_data_pool_rec error::%s',e )
-                print(e,items_list)
+                print(e,entry_name,is_dir,is_file,is_symlink,is_bind,size,mtime)
+
+    def get_cd_text(self,cd_data,is_compressed):
+        #'utf-8'
+        return gzip.decompress(cd_data).decode("ISO-8859-1") if is_compressed else cd_data
 
     def extract_custom_data(self):
         scan_path = self.db.scan_path
@@ -409,66 +401,80 @@ class LibrerCoreRecord :
             if self.abort_action:
                 break
 
-            expressions,use_smin,smin_int,use_smax,smax_int,executable = self_db_cde_list[rule_nr]
+            expressions,use_smin,smin_int,use_smax,smax_int,executable,time_int = self_db_cde_list[rule_nr]
 
-            #print(key,list_ref,subpath)
             full_file_path = normpath(abspath(sep.join([scan_path,subpath])))
-            #full_file_path_protected = f'"{full_file_path}"'
-            #print(full_file_path_protected)
 
-            size = list_ref[1]
+            size = list_ref[4]
 
             cde_run_list = executable + [full_file_path]
 
-            self.info_line_current = subpath
+            self.info_line_current = f'{subpath} ({bytes_to_str(size)})'
             try:
-                #print(cde_run_list)
-                result = subprocess.run(cde_run_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True,encoding="ISO-8859-1")
+                shell = False
+                timeout = time_int
+                #output = ''
+                #output = check_output(cde_run_list, stderr=STDOUT, timeout=timeout,shell=shell,encoding="ISO-8859-1")
                 #text=True,
-                #, encoding="ISO-8859-1"
+
+                p = Popen(cde_run_list, start_new_session=True, stdout=PIPE, stderr=PIPE)
+
+                if timeout:
+                    p.wait(timeout=timeout)
+
+            except TimeoutExpired as et:
+                print('timeout on ',cde_run_list)
+                killpg(getpgid(p.pid), SIGTERM)
+                self.log.error('Custom Data Extraction subprocess timeout:%s\n%s',cde_run_list,et )
+
+                cd_ok = False
+                is_compressed = False
+
+                e_str = str(et)
+                e_size = getsizeof(e_str)
+                list_ref.append( (cd_ok,is_compressed,e_str) )
+                self_db.files_cde_errors_quant +=1
+                self_db.files_cde_size += e_size
+
             except Exception as e:
+                print('error on ',cde_run_list)
                 self.log.error('Custom Data Extraction subprocess error:%s\n%s',cde_run_list,e )
 
-                #cd_ok,res1_compressed,res2_compressed,False
                 cd_ok = False
-                res1_compressed = False
-                res2_compressed = False
-                #cd_code=entry_LUT_encode[False,False,False,False ,False,False,False,False]
+                is_compressed = False
+
                 e_str = str(e)
                 e_size = getsizeof(e_str)
-                list_ref.append( (cd_ok,res1_compressed,res2_compressed,None,str(e)) )
+                list_ref.append( (cd_ok,is_compressed,e_str) )
+                print(e_str)
+
                 self_db.files_cde_errors_quant +=1
 
                 self_db.files_cde_size += e_size
             else:
-                result1 = str(result.stdout).strip()
-                result2 = str(result.stderr).strip()
+                output, error = p.communicate()
+                #print(output,type(output))
 
-                result1_len = len(result1)
-                result2_len = len(result2)
+                cd_ok = True
 
+                output_len = len(output)
 
-                if result1_len==0:
-                    result1 = None
-                    result1_compressed_is = False
+                if output_len==0:
+                    result = None
+                    is_compressed = False
+                elif output_len>128:
+                    #result = gzip.compress(bytes(output,"ISO-8859-1")) #"utf-8"
+                    result = gzip.compress(output) #"utf-8"
+                    is_compressed = True
                 else:
-                    result1_compressed = gzip.compress(bytes(result1,"utf-8")) if result1_len>128 else None
-                    result1_compressed_is = bool(result1_compressed)
+                    result = output
+                    is_compressed = False
 
-                if result2_len==0:
-                    result2 = None
-                    result2_compressed_is = False
-                else:
-                    result2_compressed = gzip.compress(bytes(result2,"utf-8")) if result2_len>128 else None
-                    result2_compressed_is = bool(result2_compressed)
-
-                #cd_ok,res1_compressed,res2_compressed,False
-                #cd_code=entry_LUT_encode[True,result1_compressed_is,result2_compressed_is,False ,False,False,False,False]
-                list_ref.append( (True,result1_compressed_is,result2_compressed_is,result1_compressed if result1_compressed_is else result1,result2_compressed if result2_compressed_is else result2) )
+                list_ref.append( (cd_ok,is_compressed,result) )
 
                 self_db.files_cde_quant += 1
                 self_db.files_cde_size += size
-                self_db.files_cde_size_extracted += getsizeof(result1) + getsizeof(result2)
+                self_db.files_cde_size_extracted += getsizeof(output)
             self.info_line_current = ''
 
         del self.custom_data_pool
@@ -485,8 +491,8 @@ class LibrerCoreRecord :
         #with gzip.open(file_path, "wb") as gzip_file:
         #    pickle.dump(self_db, gzip_file)
 
-        for rule,stat in zip(self_db.cde_list,self_db.cd_stat):
-            print('cd_stat',rule,stat)
+        #for rule,stat in zip(self_db.cde_list,self_db.cd_stat):
+        #    print('cd_stat',rule,stat)
 
     search_kind_code_tab={'dont':0,'without':1,'error':2,'regexp':3,'glob':4,'fuzzy':5}
 
@@ -553,7 +559,7 @@ class LibrerCoreRecord :
                     print('format error:',data_entry_len,data_entry[0])
                     continue
 
-                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,ignore = entry_LUT_decode_loc[code]
+                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed = entry_LUT_decode_loc[code]
 
                 sub_data = fifth_field if is_dir and has_files else None
 
@@ -563,7 +569,7 @@ class LibrerCoreRecord :
 
                 if is_dir :
                     if cd_search_kind_code==dont_kind_code and not use_size:
-                        #katalog moze spelniac kryteria naazwy pliku, nie ma rozmiaru i custom data
+                        #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
                         if name_func_to_call:
                             if name_func_to_call(name):
                                 single_res = parent_path_components + [name]
@@ -595,46 +601,32 @@ class LibrerCoreRecord :
 
                     if cd_search_kind_code_is_rgf:
                         if has_cd and cd_ok:
-                            #cd = fifth_field
-                            cd = fifth_field
+                            cd_data = fifth_field
                         else:
                             continue
 
                         if cd_func_to_call:
-                            res1_compressed_is,res2_compressed_is,cd_stdout_dat,cd_stderr_dat = cd
-
-                            #cd_code,cd_stdout_dat,cd_stderr_dat = cd
-
-                            #cd_ok,res1_compressed,res2_compressed,ignore,ignore1,ignore2,ignore3,ignore4 = entry_LUT_decode_loc[cd_code]
-
                             try:
-                                cd_stdout = gzip.decompress(cd_stdout_dat).decode('utf-8') if res1_compressed_is else cd_stdout_dat
-                                #cd_stderr = gzip.decompress(cd_stderr_dat).decode('utf-8') if res2_compressed_is else cd_stderr_dat
+                                cd_txt = self.get_cd_text(cd_data,is_compressed)
 
-                                if not cd_func_to_call(cd_stdout):
+                                if not cd_func_to_call(cd_txt):
                                     continue
                             except Exception as e:
-                                self.log.error('find_items_rec:%s on:\n%s',str(e),str(cd) )
+                                self.log.error('find_items_rec:%s on:\n%s',str(e),str(cd_txt) )
                                 continue
 
                         else:
                             continue
                     elif cd_search_kind_code==without_kind_code:
-                        if cd:
+                        if has_cd:
                             continue
                     elif cd_search_kind_code==error_kind_code:
-                        if cd:
-                            if len(cd)==3:
-                                cd_code,cd_stdout_dat,cd_stderr_dat = cd
-
-                                cd_ok,res1_compressed,res2_compressed,ignore,ignore1,ignore2,ignore3,ignore4 = entry_LUT_decode_loc[cd_code]
-
-                                if cd_ok:
-                                    continue
+                        if has_cd:
+                            if cd_ok:
+                                continue
                         else:
                             continue
 
-                    #single_res = parent_path_components + [name]
                     find_results_add( tuple(parent_path_components + [name]) )
 
         self.find_results_list = list(find_results)
@@ -800,11 +792,6 @@ class LibrerCore:
             find_cd_search_kind,cd_expr,cd_case_sens,
             filename_fuzzy_threshold,cd_fuzzy_threshold):
 
-        #print('find_items_in_all_records',range_par,
-        #        size_min,size_max,
-        #        find_filename_search_kind,name_expr,name_case_sens,
-        #        find_cd_search_kind,cd_expr,cd_case_sens)
-
         if name_expr:
             filename_fuzzy_threshold_float=float(filename_fuzzy_threshold) if find_filename_search_kind == 'fuzzy' else 0
 
@@ -852,6 +839,9 @@ class LibrerCore:
         self.search_record_ref=None
 
         records_len = len(self.records)
+
+        ############################################################
+        self.abort_action = False
         ############################################################
         for record in sel_range:
             self.search_record_ref = record
@@ -865,6 +855,7 @@ class LibrerCore:
                 break
 
             try:
+                record.abort_action = False
                 record.find_items(
                     size_min,size_max,
                     find_filename_search_kind,name_func_to_call,
