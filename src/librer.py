@@ -334,6 +334,14 @@ class Gui:
             return res
         return restore_status_line_wrapp
 
+    def widget_tooltip_cget(self,widget,tooltip):
+        widget.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,tooltip))
+        widget.bind("<Leave>", lambda event : self.widget_leave())
+
+    def widget_tooltip(self,widget,tooltip):
+        widget.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip))
+        widget.bind("<Leave>", lambda event : self.widget_leave())
+
     #######################################################################
     action_abort=False
 
@@ -518,22 +526,25 @@ class Gui:
         self.status_record.pack(fill='x',expand=1,side='left')
         self.status_record_configure = lambda x : self.status_record.configure(image = self.ico_record, text = x,compound='left')
 
-        self.status_record.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Selected record (user label)'))
-        self.status_record.bind("<Leave>", lambda event : self.widget_leave())
+        self.widget_tooltip_cget(self.status_record,'Selected record (user label):')
+        #self.status_record.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Selected record (user label)'))
+        #self.status_record.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_record_path=Label(status_frame,text='--',width=20,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_record_path.pack(fill='x',expand=1,side='left')
         self.status_record_path_configure = lambda x : self.status_record_path.configure(text = x,compound='left')
 
-        self.status_record_path.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Scanpath of selected record: '))
-        self.status_record_path.bind("<Leave>", lambda event : self.widget_leave())
+        self.widget_tooltip_cget(self.status_record_path,'Scanpath of selected record')
+        #self.status_record_path.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Scanpath of selected record: '))
+        #self.status_record_path.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_record_subpath=Label(status_frame,text='--',width=60,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_record_subpath.pack(fill='x',expand=1,side='left')
         self.status_record_subpath_configure = lambda x : self.status_record_subpath.configure(text = x,compound='left')
 
-        self.status_record_subpath.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'subpath of selected item: '))
-        self.status_record_subpath.bind("<Leave>", lambda event : self.widget_leave())
+        self.widget_tooltip_cget(self.status_record_subpath,'subpath of selected item')
+        #self.status_record_subpath.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'subpath of selected item: '))
+        #self.status_record_subpath.bind("<Leave>", lambda event : self.widget_leave())
 
 
         self.status_info = Label(status_frame,text='Initializing...',relief='sunken',borderwidth=1,bg=self.bg_color,anchor='w')
@@ -701,8 +712,9 @@ class Gui:
         self.add_path_button = Button(temp_frame,width=18,image = self_ico['open'], command=self.set_path_to_scan,underline=0)
         self.add_path_button.grid(row=0, column=4, sticky='news',padx=4,pady=4)
 
-        self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Set path to scan."))
-        self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
+        self.widget_tooltip(self.add_path_button,"Set path to scan.")
+        #self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Set path to scan."))
+        #self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
 
         temp_frame.grid_columnconfigure(3, weight=1)
 
@@ -711,8 +723,9 @@ class Gui:
         single_device_button.grid(row=1, column=0, sticky='news',padx=4,pady=4,columnspan=4)
         self.single_device.set(self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE))
 
-        single_device_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Don't cross device boundaries (mount points, bindings etc.)"))
-        single_device_button.bind("<Leave>", lambda event : self.widget_leave())
+        self.widget_tooltip(single_device_button,"Don't cross device boundaries (mount points, bindings etc.)")
+        #single_device_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Don't cross device boundaries (mount points, bindings etc.)"))
+        #single_device_button.bind("<Leave>", lambda event : self.widget_leave())
 
         ##############
         self.exclude_regexp_scan=BooleanVar()
@@ -729,14 +742,18 @@ class Gui:
 
         self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
         self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
-        self.add_exclude_button_dir.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path as exclude expression ..."))
-        self.add_exclude_button_dir.bind("<Leave>", lambda event : self.widget_leave())
+
+        self.widget_tooltip(self.add_exclude_button_dir,"Add path as exclude expression ...")
+        #self.add_exclude_button_dir.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path as exclude expression ..."))
+        #self.add_exclude_button_dir.bind("<Leave>", lambda event : self.widget_leave())
 
         self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
 
         tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
-        self.add_exclude_button.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip_string))
-        self.add_exclude_button.bind("<Leave>", lambda event : self.widget_leave())
+
+        self.widget_tooltip(self.add_exclude_button,tooltip_string)
+        #self.add_exclude_button.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip_string))
+        #self.add_exclude_button.bind("<Leave>", lambda event : self.widget_leave())
 
         self.add_exclude_button.pack(side='left',pady=4,padx=4)
 
@@ -749,8 +766,9 @@ class Gui:
         skip_button = Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
         skip_button.grid(row=4,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
-        skip_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
-        skip_button.bind("<Leave>", lambda event : self.widget_leave())
+        self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
+        #skip_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
+        #skip_button.bind("<Leave>", lambda event : self.widget_leave())
 
         self.scan_button = Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
@@ -768,14 +786,32 @@ class Gui:
         sf_par3.pack(fill='both',expand=True,side='top')
         self.cde_frame = cde_frame = sf_par3.frame()
 
-        Label(cde_frame,text='Use',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=0,sticky='news')
-        Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=1,sticky='news')
-        Label(cde_frame,text='Min Size',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=2,sticky='news')
-        Label(cde_frame,text='Max Size',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=3,sticky='news')
-        Label(cde_frame,text='Executable',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=4,sticky='news')
-        Label(cde_frame,text='',bg=self.bg_color,anchor='w').grid(row=0, column=5,sticky='news')
-        Label(cde_frame,text='Timeout',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=6,sticky='news')
-        #Label(cde_frame,text='Delete',bg=self.bg_color,anchor='w',relief='groove',bd=2).grid(row=0, column=6,sticky='news')
+        (lab_use := Label(cde_frame,text='Use',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=0,sticky='news')
+        (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=1,sticky='news')
+        (lab_min := Label(cde_frame,text='Min Size',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=2,sticky='news')
+        (lab_max := Label(cde_frame,text='Max Size',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=3,sticky='news')
+        (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
+        (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='w')).grid(row=0, column=5,sticky='news')
+        (lab_timeout := Label(cde_frame,text='Timeout',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
+        (lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
+
+        use_tooltip = "Mark to use CD Extractor"
+        mask_tooltip = "glob expresions separated by comma ','\ne.g. '*.7z, *.zip, *.gz'"
+        min_tooltip = "Minimum size of file to aplly CD expresion or crc\nmay be empty e.g. 0"
+        max_tooltip = "Maximum size of file  aplly CD expresion or crc\nmay be empty e.g. '100MB'"
+        exec_tooltip = "executable or batch script that will be run\nwith file for extraction\nmay have parameters\nWill be executed with scanned file full path\ne.g. '7z l', 'cat', '~/my_extraction.sh', 'c:\\my_extraction.bat'"
+        open_tooltip = "Open dialog for executable"
+        timeout_tooltip = "Time limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated"
+        crc_tooltip = "Calculate CRC (SHA1) for ALL\nfiles matching glob and size cryteria\nIt may take a long time."
+
+        self.widget_tooltip(lab_use,use_tooltip)
+        self.widget_tooltip(lab_mask,mask_tooltip)
+        self.widget_tooltip(lab_min,min_tooltip)
+        self.widget_tooltip(lab_max,max_tooltip)
+        self.widget_tooltip(lab_exec,exec_tooltip)
+        self.widget_tooltip(lab_open,open_tooltip)
+        self.widget_tooltip(lab_timeout,timeout_tooltip)
+        self.widget_tooltip(lab_crc,crc_tooltip)
 
         self.CDE_ENTRIES_MAX = 16
         self.CDE_use_var_list = []
@@ -784,6 +820,7 @@ class Gui:
         self.CDE_size_max_var_list=[]
         self.CDE_executable_var_list=[]
         self.CDE_timeout_var_list=[]
+        self.CDE_crc_var_list=[]
 
         for e in range(self.CDE_ENTRIES_MAX):
             self.CDE_use_var_list.append(BooleanVar())
@@ -792,10 +829,11 @@ class Gui:
             self.CDE_size_max_var_list.append(StringVar())
             self.CDE_executable_var_list.append(StringVar())
             self.CDE_timeout_var_list.append(StringVar())
+            self.CDE_crc_var_list.append(BooleanVar())
 
             row = e+1
-            use_button = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e])
-            use_button.grid(row=row,column=0,sticky='news')
+            use_checkbutton = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e])
+            use_checkbutton.grid(row=row,column=0,sticky='news')
 
             mask_entry = Entry(cde_frame,textvariable=self.CDE_mask_var_list[e])
             mask_entry.grid(row=row, column=1,sticky='news')
@@ -809,11 +847,23 @@ class Gui:
             executable_entry = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e])
             executable_entry.grid(row=row, column=4,sticky='news')
 
-            del_button = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
-            del_button.grid(row=row,column=5,sticky='news')
+            open_button = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
+            open_button.grid(row=row,column=5,sticky='news')
 
             timeout_entry = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e])
             timeout_entry.grid(row=row, column=6,sticky='news')
+
+            crc_entry = Checkbutton(cde_frame,variable=self.CDE_crc_var_list[e])
+            crc_entry.grid(row=row, column=7,sticky='news')
+
+            self.widget_tooltip(use_checkbutton,use_tooltip)
+            self.widget_tooltip(mask_entry,mask_tooltip)
+            self.widget_tooltip(size_min_entry,min_tooltip)
+            self.widget_tooltip(size_max_entry,max_tooltip)
+            self.widget_tooltip(executable_entry,exec_tooltip)
+            self.widget_tooltip(open_button,open_tooltip)
+            self.widget_tooltip(timeout_entry,timeout_tooltip)
+            self.widget_tooltip(crc_entry,crc_tooltip)
 
         #self.add_path_button = Button(cde_frame,width=18,image = self_ico['open'], command=self.custom_data_wrapper_dialog,underline=0)
         #self.add_path_button.grid(row=1, column=2, sticky='news',padx=4,pady=4)
@@ -831,22 +881,25 @@ class Gui:
         self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
-        self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
-        self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
+        self.widget_tooltip(self.progress_dialog_on_scan.abort_button,'')
+        #self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
+        #self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
         self.progress_dialog_on_load = dialogs.ProgressDialog(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
-        self.progress_dialog_on_load.abort_button.bind("<Leave>", lambda event : self.widget_leave())
-        self.progress_dialog_on_load.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
+        self.widget_tooltip(self.progress_dialog_on_load.abort_button,'')
+        #self.progress_dialog_on_load.abort_button.bind("<Leave>", lambda event : self.widget_leave())
+        #self.progress_dialog_on_load.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
         self.find_dialog=dialogs.GenericDialog(self_main,self_ico_librer,self.bg_color,'Search database',pre_show=pre_show,post_close=post_close)
 
         self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
 
-        self.progress_dialog_on_find.abort_button.bind("<Leave>", lambda event : self.widget_leave())
-        self.progress_dialog_on_find.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
+        self.widget_tooltip(self.progress_dialog_on_find.abort_button,'')
+        #self.progress_dialog_on_find.abort_button.bind("<Leave>", lambda event : self.widget_leave())
+        #self.progress_dialog_on_find.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
         self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_tree,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
 
@@ -1148,7 +1201,6 @@ class Gui:
         #######################################################################
 
         self_tree.bind("<Motion>", self.motion_on_tree)
-
         self_tree.bind("<Leave>", lambda event : self.widget_leave())
 
         #######################################################################
@@ -2432,6 +2484,7 @@ class Gui:
             smax = self.CDE_size_max_var_list[e].get()
             exe = self.CDE_executable_var_list[e].get()
             timeout = self.CDE_timeout_var_list[e].get()
+            crc = self.CDE_crc_var_list[e].get()
 
             smin_int = core_str_to_bytes(smin)
             smax_int = core_str_to_bytes(smax)
@@ -2439,7 +2492,7 @@ class Gui:
             try:
                 timeout_int = int(timeout)
             except:
-                timeout_int = 0
+                timeout_int = None
 
             line_list = [
             '1' if self.CDE_use_var_list[e].get() else '0',
@@ -2447,20 +2500,22 @@ class Gui:
             smin,
             smax,
             exe,
-            timeout ]
+            timeout,
+            '1' if self.CDE_crc_var_list[e].get() else '0' ]
 
             cde_sklejka_list.append(':'.join(line_list))
 
             if self.CDE_use_var_list[e].get():
                 any_cde_enabled=True
                 cde_list.append( (
-                    mask.split(','),
+                    [elem.strip() for elem in mask.split(',')],
                     True if smin_int>=0 else False,
                     smin_int,
                     True if smax_int>=0 else False,
                     smax_int,
                     exe.split(),
-                    timeout_int ) )
+                    timeout_int,
+                    crc ) )
 
         self.cfg.set(CFG_KEY_CDE_SETTINGS,'|'.join(cde_sklejka_list))
 
@@ -2631,13 +2686,14 @@ class Gui:
         e=0
         for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('|'):
             try:
-                v1,v2,v3,v4,v5,v6 = e_section.split(':')
+                v1,v2,v3,v4,v5,v6,v7 = e_section.split(':')
                 self.CDE_use_var_list[e].set(True if v1=='1' else False)
                 self.CDE_mask_var_list[e].set(v2)
                 self.CDE_size_min_var_list[e].set(v3)
                 self.CDE_size_max_var_list[e].set(v4)
                 self.CDE_executable_var_list[e].set(v5)
                 self.CDE_timeout_var_list[e].set(v6)
+                self.CDE_crc_var_list[e].set(True if v7=='1' else False)
                 e+=1
             except:
                 print(e_section)
@@ -2670,8 +2726,9 @@ class Gui:
                 remove_expression_button=Button(frame,image=self.ico['delete'],command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
                 remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
 
-                remove_expression_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove expression from list.'))
-                remove_expression_button.bind("<Leave>", lambda event : self.widget_leave())
+                self.widget_tooltip(remove_expression_button,'Remove expression from list.')
+                #remove_expression_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove expression from list.'))
+                #remove_expression_button.bind("<Leave>", lambda event : self.widget_leave())
 
                 row+=1
 
