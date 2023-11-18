@@ -29,7 +29,6 @@
 from os import scandir
 from os import stat
 from os import sep
-from os import getpgid
 
 from os.path import join as path_join
 from os.path import abspath
@@ -537,93 +536,6 @@ class LibrerCoreRecord :
             self_db.files_cde_quant += 1
             self_db.files_cde_size += size
             self_db.files_cde_size_extracted += getsizeof(output)
-
-            #try:
-                #shell = False
-                #output = check_output(cde_run_list, stderr=STDOUT, timeout=timeout,shell=shell,start_new_session=True)
-                #encoding="ISO-8859-1"
-                #text=True,
-
-                #process = Popen(cde_run_list, start_new_session=True, stdout=PIPE, stderr=STDOUT)
-
-                #if timeout:
-                #    process.wait(timeout=timeout)
-                #else:
-                #    process.wait()
-
-            #except TimeoutExpired as et:
-                #print('timeout on ',cde_run_list)
-
-                #try:
-                #    process.terminate()
-                #except Exception as term_e:
-                #    self.log.error('Custom Data Extraction subprocess timeout termination:%s\n%s',cde_run_list,term_e )
-                #    e_str = str(et) + '\n' + str(term_e)
-                #else:
-
-                #e_str = str(et)
-
-                #killpg(getpgid(process.pid), SIGTERM)
-                #self.log.error('Custom Data Extraction subprocess timeout:%s\n%s',cde_run_list,et )
-
-                #cd_ok = False
-                #is_compressed = False
-
-                #e_size = getsizeof(e_str)
-                #new_list_ref_elem = [cd_ok,is_compressed,e_str]
-                #list_ref.append( (cd_ok,is_compressed,e_str) )
-                #self_db.files_cde_errors_quant +=1
-                #self_db.files_cde_size += e_size
-
-            #except Exception as e:
-                #print('error on ',cde_run_list)
-            #    self.log.error('Custom Data Extraction subprocess error:%s\n%s',cde_run_list,e )
-
-            #    cd_ok = False
-            #    is_compressed = False
-
-            #    e_str = str(e)
-            #    e_size = getsizeof(e_str)
-
-            #    new_list_ref_elem = [cd_ok,is_compressed,e_str]
-                #list_ref.append( (cd_ok,is_compressed,e_str) )
-                #print(e_str)
-
-            #    self_db.files_cde_errors_quant +=1
-
-            #    self_db.files_cde_size += e_size
-            #else:
-                #returncode = process.returncode
-                #print('returncode:',returncode)
-
-                #output, error = process.communicate()
-                #print(output,type(output))
-
-                #cd_ok = True
-
-                #output_len = len(output)
-
-                #if output_len==0:
-                #    result = None
-                #    is_compressed = False
-                #elif output_len>128:
-                    #result = gzip.compress(bytes(output,"ISO-8859-1")) #"utf-8"
-                #    result = gzip.compress(output) #"utf-8"
-                #    is_compressed = True
-                #else:
-                #    result = output.decode("ISO-8859-1")
-                #    is_compressed = False
-
-                #new_list_ref_elem = [cd_ok,is_compressed,result]
-
-                #if crc:
-                #    new_list_ref_elem.append(crc_val)
-
-                #list_ref.append( tuple(new_list_ref_elem) )
-
-                #self_db.files_cde_quant += 1
-                #self_db.files_cde_size += size
-                #self_db.files_cde_size_extracted += getsizeof(output)
 
             self.info_line_current = ''
 

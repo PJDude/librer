@@ -33,7 +33,7 @@ from threading import Thread
 from time import time
 from time import sleep
 
-from signal import SIGSTOP,SIGINT,SIGTERM
+from signal import SIGTERM
 class Executor :
     def __init__(self):
         self.command_list_to_execute = None

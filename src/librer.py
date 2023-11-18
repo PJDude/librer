@@ -478,6 +478,8 @@ class Gui:
         style_configure("TCheckbutton", background = self.bg_color)
         style_configure("TCombobox", borderwidth=2,highlightthickness=1,bordercolor='darkgray')
 
+        style.configure('TRadiobutton', background=self.bg_color)
+
         style_map = style.map
 
         style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
