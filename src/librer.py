@@ -63,7 +63,6 @@ from signal import signal
 from signal import SIGINT
 
 from configparser import ConfigParser
-#from subprocess import Popen
 
 from tkinter import Tk
 from tkinter import Toplevel
@@ -97,8 +96,6 @@ import logging
 import core
 import console
 import dialogs
-
-import gzip
 
 from librer_images import librer_image
 
@@ -373,7 +370,7 @@ class Gui:
         self.cfg = Config(CONFIG_DIR)
         self.cfg.read()
 
-        self.last_dir = self.cfg.get('last_dir',self.cwd)
+        self.last_dir = self.cfg.get('last_dir',self.cwd).replace('/',sep)
 
         self.cfg_get_bool=self.cfg.get_bool
 
@@ -423,8 +420,9 @@ class Gui:
         self.ico_delete = self_ico['delete']
 
         self_ico_librer = self_ico['librer']
+        self.ico_test = self_ico['test']
 
-        self_main.iconphoto(True, self_ico_librer)
+        self_main.iconphoto(True, self_ico_librer,self.ico_record)
 
         self.RECORD='R'
         self.DIR='D'
@@ -442,8 +440,6 @@ class Gui:
         self_main_bind('<KeyPress-N>', lambda event : self.scan_dialog_show())
 
         self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
-
-        #self_main_bind('<KeyPress>', self.main_key_press)
 
         #self.defaultFont = font.nametofont("TkDefaultFont")
         #self.defaultFont.configure(family="Monospace regular",size=8,weight=font.BOLD)
@@ -475,7 +471,7 @@ class Gui:
         style_configure("TButton", anchor = "center")
         style_configure("TButton", background = self.bg_color)
 
-        style_configure("TCheckbutton", background = self.bg_color)
+        style_configure("TCheckbutton", background = self.bg_color,anchor='center',padding=(10, 0, 10, 0))
         style_configure("TCombobox", borderwidth=2,highlightthickness=1,bordercolor='darkgray')
 
         style.configure('TRadiobutton', background=self.bg_color)
@@ -529,25 +525,18 @@ class Gui:
         self.status_record_configure = lambda x : self.status_record.configure(image = self.ico_record, text = x,compound='left')
 
         self.widget_tooltip_cget(self.status_record,'Selected record (user label):')
-        #self.status_record.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Selected record (user label)'))
-        #self.status_record.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_record_path=Label(status_frame,text='--',width=20,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_record_path.pack(fill='x',expand=1,side='left')
         self.status_record_path_configure = lambda x : self.status_record_path.configure(text = x,compound='left')
 
         self.widget_tooltip_cget(self.status_record_path,'Scanpath of selected record')
-        #self.status_record_path.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'Scanpath of selected record: '))
-        #self.status_record_path.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_record_subpath=Label(status_frame,text='--',width=60,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_record_subpath.pack(fill='x',expand=1,side='left')
         self.status_record_subpath_configure = lambda x : self.status_record_subpath.configure(text = x,compound='left')
 
         self.widget_tooltip_cget(self.status_record_subpath,'subpath of selected item')
-        #self.status_record_subpath.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,'subpath of selected item: '))
-        #self.status_record_subpath.bind("<Leave>", lambda event : self.widget_leave())
-
 
         self.status_info = Label(status_frame,text='Initializing...',relief='sunken',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_info.pack(fill='x',expand=1,side='left')
@@ -563,8 +552,6 @@ class Gui:
         self_tree.bind("<<TreeviewSelect>>", self.tree_select)
         self.selected_record_item=''
         self.selected_record_name=''
-
-        #selectmode='none',
 
         self.tree_set = self_tree.set
         self.tree_see = self_tree.see
@@ -608,7 +595,7 @@ class Gui:
 
         tree = self_tree
         tree_heading = tree.heading
-        #tree["displaycolumns"]
+
         for col in self.real_display_columns:
             if col in self_org_label:
                 tree_heading(col,text=self_org_label[col])
@@ -697,12 +684,16 @@ class Gui:
         temp_frame = Frame(self.scan_dialog.area_main,borderwidth=2,bg=self.bg_color)
         temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
 
-        lab2=Label(temp_frame,text="User label:",bg=self.bg_color,anchor='w')
-        lab2.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+        ul_lab=Label(temp_frame,text="User label:",bg=self.bg_color,anchor='w')
+        ul_lab.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+
+        self.widget_tooltip(ul_lab,"Label of record to be created\nCannot be changed later.")
 
         self.scan_label_entry_var=StringVar(value='')
         scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
         scan_label_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+
+        self.widget_tooltip(scan_label_entry,"Label of record to be created\nCannot be changed later.")
 
         lab1=Label(temp_frame,text="Path To scan:",bg=self.bg_color,anchor='w')
         lab1.grid(row=0, column=2, sticky='news',padx=4,pady=4)
@@ -715,8 +706,6 @@ class Gui:
         self.add_path_button.grid(row=0, column=4, sticky='news',padx=4,pady=4)
 
         self.widget_tooltip(self.add_path_button,"Set path to scan.")
-        #self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Set path to scan."))
-        #self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
 
         temp_frame.grid_columnconfigure(3, weight=1)
 
@@ -726,8 +715,6 @@ class Gui:
         self.single_device.set(self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE))
 
         self.widget_tooltip(single_device_button,"Don't cross device boundaries (mount points, bindings etc.)")
-        #single_device_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Don't cross device boundaries (mount points, bindings etc.)"))
-        #single_device_button.bind("<Leave>", lambda event : self.widget_leave())
 
         ##############
         self.exclude_regexp_scan=BooleanVar()
@@ -746,16 +733,12 @@ class Gui:
         self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
 
         self.widget_tooltip(self.add_exclude_button_dir,"Add path as exclude expression ...")
-        #self.add_exclude_button_dir.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path as exclude expression ..."))
-        #self.add_exclude_button_dir.bind("<Leave>", lambda event : self.widget_leave())
 
         self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
 
         tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
 
         self.widget_tooltip(self.add_exclude_button,tooltip_string)
-        #self.add_exclude_button.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip_string))
-        #self.add_exclude_button.bind("<Leave>", lambda event : self.widget_leave())
 
         self.add_exclude_button.pack(side='left',pady=4,padx=4)
 
@@ -769,8 +752,6 @@ class Gui:
         skip_button.grid(row=4,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
         self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
-        #skip_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
-        #skip_button.bind("<Leave>", lambda event : self.widget_leave())
 
         self.scan_button = Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
@@ -795,15 +776,17 @@ class Gui:
         (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
         (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='w')).grid(row=0, column=5,sticky='news')
         (lab_timeout := Label(cde_frame,text='Timeout',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
-        (lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
+        (lab_test := Label(cde_frame,text='Test',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
+        (lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
 
         use_tooltip = "Mark to use CD Extractor"
         mask_tooltip = "glob expresions separated by comma ','\ne.g. '*.7z, *.zip, *.gz'"
         min_tooltip = "Minimum size of file to aplly CD expresion or crc\nmay be empty e.g. 0"
         max_tooltip = "Maximum size of file  aplly CD expresion or crc\nmay be empty e.g. '100MB'"
         exec_tooltip = "executable or batch script that will be run\nwith file for extraction\nmay have parameters\nWill be executed with scanned file full path\ne.g. '7z l', 'cat', '~/my_extraction.sh', 'c:\\my_extraction.bat'"
-        open_tooltip = "Open dialog for executable"
+        open_tooltip = "set executable file af Custom Data Extractor..."
         timeout_tooltip = "Time limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated"
+        test_tooltip = "Test Custom Data Extractor\non single selected file ..."
         crc_tooltip = "Calculate CRC (SHA1) for ALL\nfiles matching glob and size cryteria\nIt may take a long time."
 
         self.widget_tooltip(lab_use,use_tooltip)
@@ -813,6 +796,7 @@ class Gui:
         self.widget_tooltip(lab_exec,exec_tooltip)
         self.widget_tooltip(lab_open,open_tooltip)
         self.widget_tooltip(lab_timeout,timeout_tooltip)
+        self.widget_tooltip(lab_test,test_tooltip)
         self.widget_tooltip(lab_crc,crc_tooltip)
 
         self.CDE_ENTRIES_MAX = 16
@@ -855,8 +839,11 @@ class Gui:
             timeout_entry = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e])
             timeout_entry.grid(row=row, column=6,sticky='news')
 
+            test_button = Button(cde_frame,image=self.ico_test,command = lambda x=e : self.cde_test(x) )
+            test_button.grid(row=row,column=7,sticky='news')
+
             crc_entry = Checkbutton(cde_frame,variable=self.CDE_crc_var_list[e])
-            crc_entry.grid(row=row, column=7,sticky='news')
+            crc_entry.grid(row=row, column=8,sticky='news')
 
             self.widget_tooltip(use_checkbutton,use_tooltip)
             self.widget_tooltip(mask_entry,mask_tooltip)
@@ -865,10 +852,8 @@ class Gui:
             self.widget_tooltip(executable_entry,exec_tooltip)
             self.widget_tooltip(open_button,open_tooltip)
             self.widget_tooltip(timeout_entry,timeout_tooltip)
+            self.widget_tooltip(test_button,test_tooltip)
             self.widget_tooltip(crc_entry,crc_tooltip)
-
-        #self.add_path_button = Button(cde_frame,width=18,image = self_ico['open'], command=self.custom_data_wrapper_dialog,underline=0)
-        #self.add_path_button.grid(row=1, column=2, sticky='news',padx=4,pady=4)
 
         cde_frame.grid_columnconfigure(1, weight=1)
         cde_frame.grid_columnconfigure(4, weight=1)
@@ -878,21 +863,19 @@ class Gui:
         self.text_ask_dialog = dialogs.TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
         self.text_info_dialog = dialogs.TextDialogInfo(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
         self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
 
         self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
         self.widget_tooltip(self.progress_dialog_on_scan.abort_button,'')
-        #self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
-        #self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
         self.progress_dialog_on_load = dialogs.ProgressDialog(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
         self.widget_tooltip(self.progress_dialog_on_load.abort_button,'')
-        #self.progress_dialog_on_load.abort_button.bind("<Leave>", lambda event : self.widget_leave())
-        #self.progress_dialog_on_load.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
         self.find_dialog=dialogs.GenericDialog(self_main,self_ico_librer,self.bg_color,'Search database',pre_show=pre_show,post_close=post_close)
 
@@ -900,8 +883,6 @@ class Gui:
         self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
 
         self.widget_tooltip(self.progress_dialog_on_find.abort_button,'')
-        #self.progress_dialog_on_find.abort_button.bind("<Leave>", lambda event : self.widget_leave())
-        #self.progress_dialog_on_find.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
         self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_tree,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
 
@@ -1241,19 +1222,20 @@ class Gui:
         self.action_abort=False
         self_progress_dialog_on_load.abort_button.configure(state='normal')
 
+        self.status_info.configure(image='',text = 'Checking records to load ...')
         records_quant,records_size = librer_core.read_records_pre()
 
         self_hg_ico = self.hg_ico
         self.hg_ico_len = len(self_hg_ico)
 
         if records_quant:
+            self.status_info.configure(image='',text = 'Loading records ...')
             read_thread=Thread(target=lambda : librer_core.read_records(),daemon=True)
             read_thread.start()
             read_thread_is_alive = read_thread.is_alive
 
             self_progress_dialog_on_load.lab_l1.configure(text='Records space:')
             self_progress_dialog_on_load.lab_l2.configure(text='Records number:' )
-
             self_progress_dialog_on_load.show('Loading records')
 
             self_progress_dialog_on_load_progr1var.set(0)
@@ -1300,14 +1282,6 @@ class Gui:
 
         self.tree_semi_focus()
         self.status_info.configure(image='',text = 'Ready')
-
-        #self_tree.configure(style='semi_focus.Treeview')
-        #self_tree.focus_set()
-        #self_tree.update()
-        #self.main_update()
-
-        #if children := self_tree.get_children():
-        #    self_tree.focus(children[0])
 
         self_main.mainloop()
 
@@ -1517,11 +1491,6 @@ class Gui:
             self.find_mod()
             self.searching_aborted = False
 
-            #self.search_show_butt.configure(state='disabled')
-            #self.search_save_butt.configure(state='disabled')
-            #self.search_next_butt.configure(state='disabled')
-            #self.search_prev_butt.configure(state='disabled')
-
             self.find_dialog.show('Find')
             self.find_dialog_shown=False
 
@@ -1566,7 +1535,6 @@ class Gui:
             self.status('file saved: "%s"' % str(report_file))
 
     def find_do_search(self):
-        #self.find_params_changed=True
         self.find_items()
 
     def find_show_results(self):
@@ -2505,7 +2473,7 @@ class Gui:
             timeout,
             '1' if self.CDE_crc_var_list[e].get() else '0' ]
 
-            cde_sklejka_list.append(':'.join(line_list))
+            cde_sklejka_list.append('<>'.join(line_list))
 
             if self.CDE_use_var_list[e].get():
                 any_cde_enabled=True
@@ -2560,6 +2528,12 @@ class Gui:
                 if now>time_without_busy_sign+1.0:
                     self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
                     self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
+
+                    if len(new_record.info_line_current)>50:
+                        self_progress_dialog_on_scan_update_lab_text(1,f'...{new_record.info_line_current[-50:]}')
+                    else:
+                        self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
+
                     update_once=True
 
             self_progress_dialog_on_scan_area_main_update()
@@ -2634,8 +2608,7 @@ class Gui:
                     if now>time_without_busy_sign+1.0:
                         self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
 
-                        info_line_current_len = len(new_record.info_line_current)
-                        if info_line_current_len>50:
+                        if len(new_record.info_line_current)>50:
                             self_progress_dialog_on_scan_update_lab_text(1,f'...{new_record.info_line_current[-50:]}')
                         else:
                             self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
@@ -2688,7 +2661,7 @@ class Gui:
         e=0
         for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('|'):
             try:
-                v1,v2,v3,v4,v5,v6,v7 = e_section.split(':')
+                v1,v2,v3,v4,v5,v6,v7 = e_section.split('<>')
                 self.CDE_use_var_list[e].set(True if v1=='1' else False)
                 self.CDE_mask_var_list[e].set(v2)
                 self.CDE_size_min_var_list[e].set(v3)
@@ -2729,8 +2702,6 @@ class Gui:
                 remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
 
                 self.widget_tooltip(remove_expression_button,'Remove expression from list.')
-                #remove_expression_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove expression from list.'))
-                #remove_expression_button.bind("<Leave>", lambda event : self.widget_leave())
 
                 row+=1
 
@@ -2739,27 +2710,46 @@ class Gui:
         else:
             self.exclude_srocll_frame.pack_forget()
 
-    def custom_data_wrapper_dialog(self):
-        initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Bat Files","*.bat"),("Executable Files","*.exe"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
-            self.last_dir=dirname(res)
-            self.file_open_wrapper.set(normpath(abspath(res)))
-
     def set_path_to_scan(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir=res
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
 
+    def cde_test(self,e):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=( ("All Files","*.*"),("All Files","*.*") ) ):
+            self.last_dir=dirname(res)
+
+            expr = normpath(abspath(res))
+
+            executable = self.CDE_executable_var_list[e].get().split()
+            timeout = self.CDE_timeout_var_list[e].get()
+
+            try:
+                timeout_int = int(timeout)
+            except:
+                timeout_int = None
+
+            file_to_test = res
+
+            info = ' '.join(self.CDE_executable_var_list[e].get().split() + [file_to_test]) + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '')
+
+            self.text_ask_dialog_on_scan.show('Test selected Custom Data Extractor on selected file ?',info)
+
+            if self.text_ask_dialog_on_scan.res_bool:
+                cd_ok,output = librer_core.test_cde(executable,timeout_int,file_to_test)
+
+                self.text_dialog_on_scan.show('CDE Test',output)
+
+
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Bat Files","*.bat"),("Executable Files","*.exe"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
-            self.last_dir=res
+            self.last_dir=dirname(res)
 
-            expr = normpath(abspath(res)) + (".*" if self.exclude_regexp_scan.get() else "*")
+            expr = normpath(abspath(res))
             self.CDE_executable_var_list[e].set(expr)
-
-            #self.exclude_mask_string(expr)
 
     def exclude_mask_add_dir(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -2836,7 +2826,6 @@ class Gui:
 
             #print('top_has_files:',item,top_entry_name,top_has_files,top_fifth_field)
             if top_has_files:
-                #for entry_name,data_tuple in self.item_to_record_dict[item].items():
                 for data_tuple in top_fifth_field:
 
                     #print('data_tuple:',data_tuple)
@@ -2885,14 +2874,10 @@ class Gui:
                     sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
                     new_items_values[ ( sort_index,values,entry_name,image,True if sub_dictionary else False) ] = (sub_dictionary,tags,data_tuple)
 
-                #print(f'self.item_to_data_list[{item}]:',self.item_to_data_list[item])
-
                 for (sort_index,values,entry_name,image,sub_dictionary_bool),(sub_dictionary,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
                     new_item=tree.insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
                     if sub_dictionary_bool:
-                        #self.item_to_record_dict[new_item] = sub_dictionary
                         tree.insert(new_item,'end') #dummy_sub_item
-                    #self.item_to_data_list[new_item] = data_tuple
                     self.item_to_data[new_item] = data_tuple
 
 
@@ -2921,7 +2906,6 @@ class Gui:
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
 
-        #$self.item_to_record_dict[record_item] = record_db.data
         self.item_to_data[record_item] = record_db.data
 
         self.tree.focus(record_item)
@@ -2943,9 +2927,6 @@ class Gui:
 
         self.item_to_record={}
         self.record_to_item={}
-
-        #self.item_to_record_dict={}
-        #self.item_to_data_list={}
 
         self.item_to_data={}
 
@@ -3047,7 +3028,6 @@ class Gui:
                 #    self.open_item(None,item)
             else:
                 try:
-                    #print(self.item_to_data_list[item])
                     #code,size,mtime,sub_dictionary
                     tuple_len = len(self.item_to_data[item])
                     if tuple_len==5:

@@ -44,26 +44,26 @@ from hashlib import sha1
 
 from collections import defaultdict
 
-import re
+from re import compile as re_compile
 from re import IGNORECASE
 
 from signal import SIGTERM
 
 from time import time
 
-import gzip
-import lzma
-import zlib
-import pickle
+from gzip import open as gzip_open
+from gzip import decompress as gzip_decompress
+from gzip import compress as gzip_compress
 
-import difflib
+from pickle import dump as pickle_dump
+from pickle import load as pickle_load
+
+from difflib import SequenceMatcher
+from subprocess import STDOUT, TimeoutExpired, PIPE, check_output
 
 from executor import Executor
 
-from subprocess import STDOUT, TimeoutExpired, PIPE, check_output
-#, Popen
-
-import pathlib
+from pathlib import Path as pathlib_Path
 
 def bytes_to_str(num):
     if num < 1024:
@@ -191,9 +191,9 @@ class LibrerCoreRecord :
     def abort(self):
         self.abort_action = True
 
-    CRC_BUFFER_SIZE=4*1024*1024
     def calc_crc(self,fullpath,size):
-        buf = bytearray(self.CRC_BUFFER_SIZE)
+        CRC_BUFFER_SIZE=4*1024*1024
+        buf = bytearray(CRC_BUFFER_SIZE)
         view = memoryview(buf)
 
         self.crc_progress_info=0
@@ -256,7 +256,7 @@ class LibrerCoreRecord :
 
                     is_dir,is_file,is_symlink = entry.is_dir(),entry.is_file(),entry.is_symlink()
 
-                    self.ext_statistics[pathlib.Path(entry).suffix]+=1
+                    self.ext_statistics[pathlib_Path(entry).suffix]+=1
 
                     self.info_line_current = entry_name
                     try:
@@ -467,8 +467,8 @@ class LibrerCoreRecord :
 
     def get_cd_text(self,cd_data,is_compressed):
         #'utf-8'
-        #return gzip.decompress(cd_data).decode("ISO-8859-1") if is_compressed else cd_data
-        return gzip.decompress(cd_data).decode("ISO-8859-1") if is_compressed else cd_data
+        #return gzip_decompress(cd_data).decode("ISO-8859-1") if is_compressed else cd_data
+        return gzip_decompress(cd_data).decode("ISO-8859-1") if is_compressed else cd_data
 
     def extract_custom_data(self):
         scan_path = self.db.scan_path
@@ -501,7 +501,7 @@ class LibrerCoreRecord :
             if crc:
                 self.info_line_current = f'{subpath} CRC calculation ({bytes_to_str(size)})'
                 crc_val = self.calc_crc(full_file_path,size)
-                print(crc_val)
+                #print(crc_val)
 
             self.info_line_current = f'{subpath} ({bytes_to_str(size)})'
 
@@ -514,8 +514,8 @@ class LibrerCoreRecord :
                     result = None
                     is_compressed = False
                 elif output_len>128:
-                    result = gzip.compress(bytes(output,"ISO-8859-1")) #"utf-8"
-                    #result = gzip.compress(output) #"utf-8"
+                    result = gzip_compress(bytes(output,"ISO-8859-1")) #"utf-8"
+                    #result = gzip_compress(output) #"utf-8"
                     is_compressed = True
                 else:
                     result = output
@@ -548,15 +548,6 @@ class LibrerCoreRecord :
         self.scan_data={}
 
         self.save()
-
-        #file_path=sep.join([self_db_dir,self.file_name()])
-        #self.log.info('saving %s' % file_path)
-
-        #with gzip.open(file_path, "wb") as gzip_file:
-        #    pickle.dump(self_db, gzip_file)
-
-        #for rule,stat in zip(self_db.cde_list,self_db.cd_stat):
-        #    print('cd_stat',rule,stat)
 
     search_kind_code_tab={'dont':0,'without':1,'error':2,'regexp':3,'glob':4,'fuzzy':5}
 
@@ -676,7 +667,7 @@ class LibrerCoreRecord :
                                 if not cd_func_to_call(cd_txt):
                                     continue
                             except Exception as e:
-                                self.log.error('find_items_rec:%s on:\n%s',str(e),str(cd_txt) )
+                                self.log.error('find_items_rec:%s',str(e) )
                                 continue
 
                         else:
@@ -701,8 +692,8 @@ class LibrerCoreRecord :
         file_path=sep.join([self.db_dir,file_name])
         self.log.info('saving %s' % file_path)
 
-        with gzip.open(file_path, "wb") as gzip_file:
-            pickle.dump(self.db, gzip_file)
+        with gzip_open(file_path, "wb") as gzip_file:
+            pickle_dump(self.db, gzip_file)
 
         self.info_line = ''
 
@@ -710,12 +701,8 @@ class LibrerCoreRecord :
         self.log.info('loading %s' % file_name)
         try:
             full_file_path = sep.join([db_dir,file_name])
-            if True:
-                with gzip.open(full_file_path, "rb") as gzip_file:
-                    self.db = pickle.load(gzip_file)
-            else:
-                with lzma.open(full_file_path, "rb") as gzip_file:
-                    self.db = pickle.load(gzip_file)
+            with gzip_open(full_file_path, "rb") as gzip_file:
+                self.db = pickle_load(gzip_file)
 
             global data_format_version
             if self.db.data_format_version != data_format_version:
@@ -732,6 +719,14 @@ class LibrerCoreRecord :
 class LibrerCore:
     records = set()
     db_dir=''
+
+    def test_cde(self,executable,timeout,file_to_test):
+        exe = Executor()
+        cde_run_list = executable + [file_to_test]
+
+        cd_ok,output = exe.run(cde_run_list,timeout)
+
+        return cd_ok,output
 
     def __init__(self,db_dir,log):
         self.records = set()
@@ -869,11 +864,11 @@ class LibrerCore:
             elif find_filename_search_kind == 'glob':
                 if name_case_sens:
                     #name_func_to_call = lambda x : fnmatch(x,name_expr)
-                    name_func_to_call = lambda x : re.compile(translate(name_expr)).match(x)
+                    name_func_to_call = lambda x : re_compile(translate(name_expr)).match(x)
                 else:
-                    name_func_to_call = lambda x : re.compile(translate(name_expr), IGNORECASE).match(x)
+                    name_func_to_call = lambda x : re_compile(translate(name_expr), IGNORECASE).match(x)
             elif find_filename_search_kind == 'fuzzy':
-                name_func_to_call = lambda x : True if difflib.SequenceMatcher(None, name_expr, x).ratio()>filename_fuzzy_threshold_float else False
+                name_func_to_call = lambda x : True if SequenceMatcher(None, name_expr, x).ratio()>filename_fuzzy_threshold_float else False
             else:
                 name_func_to_call = None
         else:
@@ -887,17 +882,15 @@ class LibrerCore:
             elif find_cd_search_kind == 'glob':
                 if cd_case_sens:
                     #cd_func_to_call = lambda x : fnmatch(x,cd_expr)
-                    cd_func_to_call = lambda x : re.compile(translate(cd_expr)).match(x)
+                    cd_func_to_call = lambda x : re_compile(translate(cd_expr)).match(x)
                 else:
-                    cd_func_to_call = lambda x : re.compile(translate(cd_expr), IGNORECASE).match(x)
+                    cd_func_to_call = lambda x : re_compile(translate(cd_expr), IGNORECASE).match(x)
             elif find_cd_search_kind == 'fuzzy':
-                cd_func_to_call = lambda x : True if difflib.SequenceMatcher(None, name_expr, x).ratio()>cd_fuzzy_threshold_float else False
+                cd_func_to_call = lambda x : True if SequenceMatcher(None, name_expr, x).ratio()>cd_fuzzy_threshold_float else False
             else:
                 cd_func_to_call = None
         else:
             cd_func_to_call = None
-
-        #print('fuzz:',difflib.SequenceMatcher(None, 'hello world', 'hello').ratio())
 
         self.find_res_quant = 0
         sel_range = [range_par] if range_par else self.records

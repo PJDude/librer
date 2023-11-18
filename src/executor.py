@@ -26,14 +26,14 @@
 #
 ####################################################################################
 
-import psutil
-
-from subprocess import Popen, STDOUT, TimeoutExpired, PIPE, check_output, CalledProcessError
+from subprocess import Popen, STDOUT, PIPE
 from threading import Thread
 from time import time
 from time import sleep
-
+from psutil import Process
 from signal import SIGTERM
+
+
 class Executor :
     def __init__(self):
         self.command_list_to_execute = None
@@ -60,7 +60,7 @@ class Executor :
         while self.running:
             if timeout:
                 if time()-start>timeout:
-                    self.kill()
+                    self.kill(self.pid)
                     if not self.killed:
                         error_message += '\nKilled after timeout.'
                         self.killed = True
@@ -69,9 +69,9 @@ class Executor :
 
         return self.res_ok and not self.killed,(self.output if self.output else '') + error_message
 
-    def kill(self):
-        pid = self.pid
-        proc = psutil.Process(pid)
+    def kill(self,pid):
+
+        proc = Process(pid)
 
         #proc.send_signal(SIGSTOP)
         #proc.send_signal(SIGINT)
@@ -81,7 +81,7 @@ class Executor :
 
         try:
             proc.send_signal(SIGTERM)
-            print('SIGTERM send to',pid)
+            #print('SIGTERM send to',pid)
 
         except Exception as e:
             print(e)
@@ -91,20 +91,24 @@ class Executor :
             if self.command_list_to_execute:
                 self.output = ''
                 output_list = []
+                output_list_append =  output_list.append
 
                 try:
-                    self.process = Popen(self.command_list_to_execute, start_new_session=True, stdout=PIPE, stderr=STDOUT)
-                    self.pid = self.process.pid
+                    proc = Popen(self.command_list_to_execute, stdout=PIPE, stderr=STDOUT)
+                    self.pid = proc.pid
 
+                    proc_stdout_readline = proc.stdout.readline
+                    proc_poll = proc.poll
                     while True:
-                        output=self.process.stdout.readline().decode("ISO-8859-1")
-                        output_list.append(output)
-                        if not output and self.process.poll() is not None:
+                        output=proc_stdout_readline().decode("ISO-8859-1")
+                        output_list_append(output)
+                        if not output and proc_poll() is not None:
                             break
 
                 except Exception as e:
                     self.res_ok = False
-                    output_list.append(str(e))
+                    output_list_append(str(e))
+                    print(e)
 
                 self.output = ''.join(output_list)
                 self.command_list_to_execute=None
