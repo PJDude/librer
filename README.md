@@ -33,13 +33,19 @@ Custom data extractor is a command that can be invoked with a single parameter -
 ## Examples of Custom data extractor
 
 
-> "7z l" - Listing the contents of the archive. Applicable to files like *.7z, *.zip, etc.
+> "7z l" - Listing the contents of the archive. Applicable to files like *.7z, *.zip, etc. (linux)
 
-> "cat" - Listing the contents of the entire file. May be applied to *.cue files or media playlists *.m3u or any text files
+> "C:\Program Files\7-Zip\7z.exe l"  - Listing the contents of the archive (windows)
+
+> "cat" - Listing the contents of the entire file. May be applied to *.cue files or media playlists *.m3u or any text files (Linux)
+
+> "cmd /c more"  - Listing the contents of the entire file. May be applied to *.cue files or media playlists *.m3u or any text files (windows)
 
 > "md5sum" - use it if you want to store the checksum of a file
 
 > "anything.sh"  - maybe not exactly "anything", but use your own script to apply more complex criteria to individual files and process the data to be stored.
+
+
 
 ## Usage tips:
 
