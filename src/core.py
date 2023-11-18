@@ -115,7 +115,6 @@ def byte_to_bools(byte, num_bools=8):
 
     return tuple(bool_list)
 
-
 def test_regexp(expr):
     teststring='abc'
     try:
@@ -492,7 +491,7 @@ class LibrerCoreRecord :
 
             expressions,use_smin,smin_int,use_smax,smax_int,executable,timeout,crc = self_db_cde_list[rule_nr]
 
-            full_file_path = normpath(abspath(sep.join([scan_path,subpath])))
+            full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
 
             size = list_ref[4]
 
@@ -725,6 +724,7 @@ class LibrerCore:
         cde_run_list = executable + [file_to_test]
 
         cd_ok,output = exe.run(cde_run_list,timeout)
+        exe.end()
 
         return cd_ok,output
 

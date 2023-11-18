@@ -2731,7 +2731,8 @@ class Gui:
             except:
                 timeout_int = None
 
-            file_to_test = res
+            file_to_test = res.replace('/',sep)
+            #print('file_to_test:',file_to_test)
 
             info = ' '.join(self.CDE_executable_var_list[e].get().split() + [file_to_test]) + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '')
 
