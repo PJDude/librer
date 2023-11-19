@@ -28,9 +28,20 @@
 
 from os import name as os_name
 
-import tkinter as tk
-from tkinter import ttk
+from tkinter import Frame
+from tkinter import Label
+from tkinter import BooleanVar
+from tkinter import DoubleVar
+from tkinter import StringVar
 from tkinter import scrolledtext
+from tkinter import Toplevel
+from tkinter import Canvas
+
+from tkinter.ttk import Button
+from tkinter.ttk import Scrollbar
+from tkinter.ttk import Progressbar
+from tkinter.ttk import Checkbutton
+from tkinter.ttk import Entry
 
 def set_geometry_by_parent(widget,parent):
     x_offset = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -45,7 +56,7 @@ class GenericDialog:
         self.bg_color=bg_color
 
         self.icon = icon
-        self.widget = tk.Toplevel(parent,bg=self.bg_color,bd=0, relief='flat')
+        self.widget = Toplevel(parent,bg=self.bg_color,bd=0, relief='flat')
         self.widget.withdraw()
         self.widget.update()
         self.widget.protocol("WM_DELETE_WINDOW", lambda : self.hide())
@@ -57,7 +68,7 @@ class GenericDialog:
 
         self.focus=None
 
-        self.widget.iconphoto(False, self.icon)
+        self.widget.iconphoto(False, *icon)
 
         self.widget.title(title)
         self.widget.bind('<Escape>', lambda event : self.hide() )
@@ -70,16 +81,16 @@ class GenericDialog:
         self.pre_show=pre_show
         self.post_close=post_close
 
-        self.area_main = tk.Frame(self.widget,bg=self.bg_color)
+        self.area_main = Frame(self.widget,bg=self.bg_color)
         self.area_main.pack(side='top',expand=1,fill='both')
 
         #only grid here
         self.area_main.grid_columnconfigure(0, weight=1)
 
-        self.area_buttons = tk.Frame(self.widget,bg=self.bg_color)
+        self.area_buttons = Frame(self.widget,bg=self.bg_color)
         self.area_buttons.pack(side='bottom',expand=0,fill='x')
 
-        self.wait_var=tk.BooleanVar()
+        self.wait_var=BooleanVar()
         self.wait_var.set(False)
 
         self.do_command_after_show=None
@@ -145,7 +156,7 @@ class GenericDialog:
 
         #windows re-show workaround
         try:
-            self.widget.iconphoto(False, self.icon)
+            self.widget.iconphoto(False, *self.icon)
         except Exception as e:
             print(e)
 
@@ -188,10 +199,10 @@ class LabelDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=120):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
-        self.label = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
+        self.label = Label(self.area_main, text='',justify='center',bg=self.bg_color)
         self.label.grid(row=0,column=0,padx=5,pady=5)
 
-        self.cancel_button=ttk.Button(self.area_buttons, text='OK', width=14, command=super().hide )
+        self.cancel_button=Button(self.area_buttons, text='OK', width=14, command=super().hide )
         self.cancel_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
         self.focus=self.cancel_button
@@ -202,6 +213,28 @@ class LabelDialog(GenericDialog):
 
         super().show()
 
+class LabelDialogQuestion(LabelDialog):
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=200,image=''):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
+
+        self.cancel_button.configure(text='Cancel')
+        self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
+
+        self.ok_button=Button(self.area_buttons, text='OK', width=13, command=self.ok,image=image, compound='right' )
+        self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
+
+        self.focus=self.cancel_button
+
+    def ok (self):
+        self.res_bool=True
+        self.wait_var.set(True)
+        super().hide()
+
+    def show(self,title='',message=''):
+        self.res_bool=False
+        super().show(title,message)
+
+
 class ProgressDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=550,min_height=120):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
@@ -210,37 +243,37 @@ class ProgressDialog(GenericDialog):
         self.prev_text={}
         self.prev_image={}
         for i in range(5):
-            self.lab[i] = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
+            self.lab[i] = Label(self.area_main, text='',justify='center',bg=self.bg_color)
             self.lab[i].grid(row=i+1,column=0,padx=5)
             self.prev_text[i]=''
             self.prev_image[i]=None
 
-        self.abort_button=ttk.Button(self.area_buttons, text='Abort', width=10,command=lambda : self.hide() )
+        self.abort_button=Button(self.area_buttons, text='Abort', width=10,command=lambda : self.hide() )
 
         self.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
-        (frame_0:=tk.Frame(self.area_main,bg=self.bg_color)).grid(row=0, column=0, sticky='news')
-        self.progr1var = tk.DoubleVar()
-        self.progr1=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr1var)
+        (frame_0:=Frame(self.area_main,bg=self.bg_color)).grid(row=0, column=0, sticky='news')
+        self.progr1var = DoubleVar()
+        self.progr1=Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr1var)
         self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
 
-        self.lab_l1=tk.Label(frame_0,width=22,bg=self.bg_color)
+        self.lab_l1=Label(frame_0,width=22,bg=self.bg_color)
         self.lab_l1.grid(row=0,column=0,padx=1,pady=4)
         self.lab_l1.config(text='l1')
 
-        self.lab_r1=tk.Label(frame_0,width=22,bg=self.bg_color)
+        self.lab_r1=Label(frame_0,width=22,bg=self.bg_color)
         self.lab_r1.grid(row=0,column=2,padx=1,pady=4)
         self.lab_r1.config(text='r1')
 
-        self.progr2var = tk.DoubleVar()
-        self.progr2=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr2var)
+        self.progr2var = DoubleVar()
+        self.progr2=Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr2var)
         self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
 
-        self.lab_l2=tk.Label(frame_0,width=22,bg=self.bg_color)
+        self.lab_l2=Label(frame_0,width=22,bg=self.bg_color)
         self.lab_l2.grid(row=1,column=0,padx=1,pady=4)
         self.lab_l2.config(text='l2')
 
-        self.lab_r2=tk.Label(frame_0,width=22,bg=self.bg_color)
+        self.lab_r2=Label(frame_0,width=22,bg=self.bg_color)
         self.lab_r2.grid(row=1,column=2,padx=1,pady=4)
         self.lab_r2.config(text='r2')
 
@@ -290,7 +323,7 @@ class TextDialogInfo(GenericDialog):
 
         self.area_main.grid_rowconfigure(0, weight=1)
 
-        self.cancel_button=ttk.Button(self.area_buttons, text='Close', width=14, command=super().hide )
+        self.cancel_button=Button(self.area_buttons, text='Close', width=14, command=super().hide )
         self.cancel_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
         self.focus=self.cancel_button
@@ -318,7 +351,7 @@ class TextDialogQuestion(TextDialogInfo):
         self.cancel_button.configure(text='Cancel')
         self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
 
-        self.ok_button=ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok,image=image, compound='right' )
+        self.ok_button=Button(self.area_buttons, text='OK', width=14, command=self.ok,image=image, compound='right' )
         self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
 
         self.focus=self.cancel_button
@@ -337,12 +370,12 @@ class EntryDialogQuestion(LabelDialog):
 
         self.cancel_button.configure(text='Cancel')
 
-        self.entry_val=tk.StringVar()
+        self.entry_val=StringVar()
 
-        self.entry = ttk.Entry(self.area_main, textvariable=self.entry_val,justify='left')
+        self.entry = Entry(self.area_main, textvariable=self.entry_val,justify='left')
         self.entry.grid(row=2,column=0,padx=5,pady=5,sticky="wens")
 
-        self.button_ok = ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok )
+        self.button_ok = Button(self.area_buttons, text='OK', width=14, command=self.ok )
         self.button_ok.pack(side='left', anchor='n',padx=5,pady=5)
 
         self.cancel_button.pack(side='right')
@@ -371,9 +404,9 @@ class CheckboxEntryDialogQuestion(EntryDialogQuestion):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):
         super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
 
-        self.check_val=tk.BooleanVar()
+        self.check_val=BooleanVar()
 
-        self.check = ttk.Checkbutton(self.area_main, variable=self.check_val)
+        self.check = Checkbutton(self.area_main, variable=self.check_val)
         self.check.grid(row=1,column=0,padx=5,pady=5,sticky="wens")
         self.result2=None
 
@@ -392,10 +425,10 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
     def __init__(self,parent,icon,bg_color,mod_cmd,prev_cmd,next_cmd,pre_show=None,post_close=None,min_width=400,min_height=120):
         super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
 
-        self.button_prev = ttk.Button(self.area_buttons, text='prev (Shift+F3)', width=14, command=self.prev )
+        self.button_prev = Button(self.area_buttons, text='prev (Shift+F3)', width=14, command=self.prev )
         self.button_prev.pack(side='left', anchor='n',padx=5,pady=5)
 
-        self.button_next = ttk.Button(self.area_buttons, text='next (F3)', width=14, command=self.next )
+        self.button_next = Button(self.area_buttons, text='next (F3)', width=14, command=self.next )
         self.button_next.pack(side='right', anchor='n',padx=5,pady=5)
 
         self.mod_cmd=mod_cmd
@@ -445,15 +478,15 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
         except Exception as e:
             print(e)
 
-class SFrame(tk.Frame):
+class SFrame(Frame):
     def __init__(self, parent,bg,width=200,height=100):
         super().__init__(parent,bg=bg)
 
         self.windows = bool(os_name=='nt')
 
-        self.canvas = tk.Canvas(self, bd=0, bg=bg,highlightcolor=bg,width=width,height=height,relief='flat')
-        self.f = tk.Frame(self.canvas, bg=bg,takefocus=False)
-        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas = Canvas(self, bd=0, bg=bg,highlightcolor=bg,width=width,height=height,relief='flat')
+        self.f = Frame(self.canvas, bg=bg,takefocus=False)
+        self.vsb = Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.vsb.set)
         self.canvas.configure(highlightthickness=0,takefocus=False)
 

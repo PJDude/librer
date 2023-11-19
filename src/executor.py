@@ -33,7 +33,6 @@ from time import sleep
 from psutil import Process
 from signal import SIGTERM
 
-
 class Executor :
     def __init__(self):
         self.command_list_to_execute = None

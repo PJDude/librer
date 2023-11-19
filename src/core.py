@@ -33,6 +33,11 @@ from os import sep
 from os.path import join as path_join
 from os.path import abspath
 from os.path import normpath
+
+from platform import system as platform_system
+from platform import release as platform_release
+from platform import node as platform_node
+
 from os import remove as os_remove
 
 from fnmatch import fnmatch
@@ -133,23 +138,14 @@ for i in range(256):
     #print(i, temp_tuple)
 
 #######################################################################
-data_format_version='1.0002'
+data_format_version='1.0003'
 
 class LibrerCoreData :
-    label = ""
-    creation_time = None
-    rid = None #data record id
-    scan_path = None
-    data = None
-    quant_files = 0
-    quant_folders = 0
-    data_format_version=''
-
-    def __init__(self,label,path):
+    def __init__(self,label='',path=''):
         self.label=label
         self.scan_path = path
         self.creation_time = int(1000*time())
-        self.rid = self.creation_time
+        self.rid = self.creation_time #data record id
 
         self.data = ()
         self.quant_files = 0
@@ -164,6 +160,8 @@ class LibrerCoreData :
 
         self.files_cde_size_extracted = 0
         self.files_cde_errors_quant = 0
+
+        self.creation_os,self.creation_host = f'{platform_system()} {platform_release()}',platform_node()
 
     def get_time(self):
         return self.creation_time/1000
@@ -183,12 +181,16 @@ class LibrerCoreRecord :
         self.files_search_progress = 0
 
         self.crc_progress_info=0
+        self.FILE_NAME = ''
 
-    def file_name(self):
+    def new_file_name(self):
         return f'{self.db.rid}.dat'
 
     def abort(self):
         self.abort_action = True
+
+    def get_info(self):
+        return f'name: {self.db.label}\nscan path: {self.db.scan_path}\nsize: {bytes_to_str(self.db.sum_size)}\nhost: {self.db.creation_host}\nOS: {self.db.creation_os}\ncreation time: {self.db.creation_time}\nfile: {self.FILE_NAME}'
 
     def calc_crc(self,fullpath,size):
         CRC_BUFFER_SIZE=4*1024*1024
@@ -690,7 +692,7 @@ class LibrerCoreRecord :
         self.find_results_list = list(find_results)
 
     def save(self) :
-        file_name=self.file_name()
+        file_name=self.new_file_name()
         self.info_line = f'saving {file_name}'
         file_path=sep.join([self.db_dir,file_name])
         self.log.info('saving %s' % file_path)
@@ -702,6 +704,8 @@ class LibrerCoreRecord :
 
     def load(self,db_dir,file_name):
         self.log.info('loading %s' % file_name)
+        self.FILE_NAME = file_name
+
         try:
             full_file_path = sep.join([db_dir,file_name])
             with gzip_open(full_file_path, "rb") as gzip_file:
@@ -937,9 +941,7 @@ class LibrerCore:
     def delete_record_by_id(self,rid):
         for record in self.records:
             if record.db.rid == rid:
-                print('found record to delete:',rid)
-
-                file_path = sep.join([self.db_dir,record.file_name()])
+                file_path = sep.join([self.db_dir,record.FILE_NAME])
                 self.log.info('deleting file:%s',file_path)
                 try:
                     os_remove(file_path)
