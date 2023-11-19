@@ -548,7 +548,7 @@ class LibrerCoreRecord :
 
         self.save()
 
-    search_kind_code_tab={'dont':0,'without':1,'error':2,'regexp':3,'glob':4,'fuzzy':5}
+    search_kind_code_tab={'dont':0,'without':1,'any':2,'error':3,'regexp':4,'glob':5,'fuzzy':6}
 
     def set_data(self):
         size,mtime = 0,0
@@ -571,6 +571,7 @@ class LibrerCoreRecord :
         regexp_kind_code = self.search_kind_code_tab['regexp']
         glob_kind_code = self.search_kind_code_tab['glob']
         without_kind_code = self.search_kind_code_tab['without']
+        any_kind_code = self.search_kind_code_tab['any']
         error_kind_code = self.search_kind_code_tab['error']
         fuzzy_kind_code = self.search_kind_code_tab['fuzzy']
 
@@ -653,7 +654,10 @@ class LibrerCoreRecord :
                     #if cd_search_kind_code==dont_kind_code:
                     #    pass
 
-                    if cd_search_kind_code_is_rgf:
+                    if cd_search_kind_code==any_kind_code:
+                        if not has_cd or not cd_ok:
+                            continue
+                    elif cd_search_kind_code_is_rgf:
                         if has_cd and cd_ok:
                             cd_data = fifth_field
                         else:

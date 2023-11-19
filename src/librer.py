@@ -364,6 +364,526 @@ class Gui:
         self.hg_index=(self.hg_index+1) % self.hg_ico_len
         return self.hg_ico[self.hg_index]
 
+    def pre_show(self,on_main_window_dialog=True,new_widget=None):
+        self.menubar_unpost()
+        self.hide_tooltip()
+        self.popup_unpost()
+
+        self.locked_by_child=new_widget
+        if on_main_window_dialog:
+            self.actions_processing=False
+            self.menu_disable()
+            self.menubar_config(cursor="watch")
+
+    def post_close(self,on_main_window_dialog=True):
+        self.locked_by_child=None
+        self.main.focus_set()
+
+        if on_main_window_dialog:
+            self.actions_processing=True
+            self.menu_enable()
+            self.menubar_config(cursor="")
+
+    scan_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_scan_dialog(self):
+        if not self.scan_dialog_created:
+            self.status("Opening dialog ...")
+
+            self_ico_librer = self.ico_librer
+
+            self.scan_dialog=dialogs.GenericDialog(self.main,self.ico_librer,self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
+
+            self_ico = self.ico
+
+            self.log_skipped_var=BooleanVar()
+            self.log_skipped_var.set(False)
+
+            self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
+            self.scan_dialog.area_main.grid_rowconfigure(3, weight=1)
+
+            self.scan_dialog.widget.bind('<Alt_L><p>',lambda event : self.set_path_to_scan())
+            self.scan_dialog.widget.bind('<Alt_L><P>',lambda event : self.set_path_to_scan())
+            self.scan_dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
+            self.scan_dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
+
+            self.scan_dialog.widget.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
+            self.scan_dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
+
+            ##############
+
+            temp_frame = Frame(self.scan_dialog.area_main,borderwidth=2,bg=self.bg_color)
+            temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
+
+            ul_lab=Label(temp_frame,text="User label:",bg=self.bg_color,anchor='w')
+            ul_lab.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+
+            self.widget_tooltip(ul_lab,"Label of record to be created\nCannot be changed later.")
+
+            self.scan_label_entry_var=StringVar(value='')
+            scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
+            scan_label_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+
+            self.widget_tooltip(scan_label_entry,"Label of record to be created\nCannot be changed later.")
+
+            lab1=Label(temp_frame,text="Path To scan:",bg=self.bg_color,anchor='w')
+            lab1.grid(row=0, column=2, sticky='news',padx=4,pady=4)
+
+            self.path_to_scan_entry_var=StringVar(value=self.last_dir)
+            path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
+            path_to_scan_entry.grid(row=0, column=3, sticky='news',padx=4,pady=4)
+
+            self.add_path_button = Button(temp_frame,width=18,image = self_ico['open'], command=self.set_path_to_scan,underline=0)
+            self.add_path_button.grid(row=0, column=4, sticky='news',padx=4,pady=4)
+
+            self.widget_tooltip(self.add_path_button,"Set path to scan.")
+
+            temp_frame.grid_columnconfigure(3, weight=1)
+
+            self.single_device=BooleanVar()
+            single_device_button = Checkbutton(temp_frame,text=' Scan only on initial device',variable=self.single_device)
+            single_device_button.grid(row=1, column=0, sticky='news',padx=4,pady=4,columnspan=4)
+            self.single_device.set(self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE))
+
+            self.widget_tooltip(single_device_button,"Don't cross device boundaries (mount points, bindings etc.)")
+
+            ##############
+            self.exclude_regexp_scan=BooleanVar()
+
+            temp_frame2 = LabelFrame(self.scan_dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+            temp_frame2.grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=4)
+
+            self.exclude_scroll_frame=dialogs.SFrame(temp_frame2,bg=self.bg_color)
+            self.exclude_scroll_frame.pack(fill='both',expand=True,side='top')
+            self.exclude_frame=self.exclude_scroll_frame.frame()
+
+            buttons_fr2 = Frame(temp_frame2,bg=self.bg_color,takefocus=False)
+            buttons_fr2.pack(fill='x',expand=False,side='bottom')
+
+            self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
+            self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
+
+            self.widget_tooltip(self.add_exclude_button_dir,"Add path as exclude expression ...")
+
+            self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
+
+            tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
+
+            self.widget_tooltip(self.add_exclude_button,tooltip_string)
+
+            self.add_exclude_button.pack(side='left',pady=4,padx=4)
+
+            Checkbutton(buttons_fr2,text='treat as a regular expression',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
+
+            self.exclude_frame.grid_columnconfigure(1, weight=1)
+            self.exclude_frame.grid_rowconfigure(99, weight=1)
+            ##############
+
+            skip_button = Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
+            skip_button.grid(row=4,column=0,sticky='news',padx=8,pady=3,columnspan=3)
+
+            self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
+
+            self.scan_button = Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
+            self.scan_button.pack(side='right',padx=4,pady=4)
+
+            self.scan_cancel_button = Button(self.scan_dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
+            self.scan_cancel_button.pack(side='left',padx=4,pady=4)
+
+            self.scan_dialog.focus=self.scan_cancel_button
+
+            ############
+            temp_frame3 = LabelFrame(self.scan_dialog.area_main,text='Custom Data Extractors:',borderwidth=2,bg=self.bg_color,takefocus=False)
+            temp_frame3.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3)
+
+            sf_par3 = dialogs.SFrame(temp_frame3,bg=self.bg_color)
+            sf_par3.pack(fill='both',expand=True,side='top')
+            self.cde_frame = cde_frame = sf_par3.frame()
+
+            (lab_use := Label(cde_frame,text='Use',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=0,sticky='news')
+            (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=1,sticky='news')
+            (lab_min := Label(cde_frame,text='Min Size',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=2,sticky='news')
+            (lab_max := Label(cde_frame,text='Max Size',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=3,sticky='news')
+            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
+            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='w')).grid(row=0, column=5,sticky='news')
+            (lab_timeout := Label(cde_frame,text='Timeout',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
+            (lab_test := Label(cde_frame,text='Test',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
+            (lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
+
+            use_tooltip = "Mark to use CD Extractor"
+            mask_tooltip = "glob expresions separated by comma ','\ne.g. '*.7z, *.zip, *.gz'"
+            min_tooltip = "Minimum size of file to aplly CD expresion or crc\nmay be empty e.g. 0"
+            max_tooltip = "Maximum size of file  aplly CD expresion or crc\nmay be empty e.g. '100MB'"
+            exec_tooltip = "executable or batch script that will be run\nwith file for extraction\nmay have parameters\nWill be executed with scanned file full path\ne.g. '7z l', 'cat', '~/my_extraction.sh', 'c:\\my_extraction.bat'"
+            open_tooltip = "set executable file af Custom Data Extractor..."
+            timeout_tooltip = "Time limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated"
+            test_tooltip = "Test Custom Data Extractor\non single selected file ..."
+            crc_tooltip = "Calculate CRC (SHA1) for ALL\nfiles matching glob and size cryteria\nIt may take a long time."
+
+            self.widget_tooltip(lab_use,use_tooltip)
+            self.widget_tooltip(lab_mask,mask_tooltip)
+            self.widget_tooltip(lab_min,min_tooltip)
+            self.widget_tooltip(lab_max,max_tooltip)
+            self.widget_tooltip(lab_exec,exec_tooltip)
+            self.widget_tooltip(lab_open,open_tooltip)
+            self.widget_tooltip(lab_timeout,timeout_tooltip)
+            self.widget_tooltip(lab_test,test_tooltip)
+            self.widget_tooltip(lab_crc,crc_tooltip)
+
+            self.CDE_ENTRIES_MAX = 16
+            self.CDE_use_var_list = []
+            self.CDE_mask_var_list=[]
+            self.CDE_size_min_var_list=[]
+            self.CDE_size_max_var_list=[]
+            self.CDE_executable_var_list=[]
+            self.CDE_timeout_var_list=[]
+            self.CDE_crc_var_list=[]
+
+            for e in range(self.CDE_ENTRIES_MAX):
+                self.CDE_use_var_list.append(BooleanVar())
+                self.CDE_mask_var_list.append(StringVar())
+                self.CDE_size_min_var_list.append(StringVar())
+                self.CDE_size_max_var_list.append(StringVar())
+                self.CDE_executable_var_list.append(StringVar())
+                self.CDE_timeout_var_list.append(StringVar())
+                self.CDE_crc_var_list.append(BooleanVar())
+
+                row = e+1
+                use_checkbutton = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e])
+                use_checkbutton.grid(row=row,column=0,sticky='news')
+
+                mask_entry = Entry(cde_frame,textvariable=self.CDE_mask_var_list[e])
+                mask_entry.grid(row=row, column=1,sticky='news')
+
+                size_min_entry = Entry(cde_frame,textvariable=self.CDE_size_min_var_list[e],width=6)
+                size_min_entry.grid(row=row, column=2,sticky ='news')
+
+                size_max_entry = Entry(cde_frame,textvariable=self.CDE_size_max_var_list[e],width=6)
+                size_max_entry.grid(row=row, column=3,sticky ='news')
+
+                executable_entry = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e])
+                executable_entry.grid(row=row, column=4,sticky='news')
+
+                open_button = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
+                open_button.grid(row=row,column=5,sticky='news')
+
+                timeout_entry = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e])
+                timeout_entry.grid(row=row, column=6,sticky='news')
+
+                test_button = Button(cde_frame,image=self.ico_test,command = lambda x=e : self.cde_test(x) )
+                test_button.grid(row=row,column=7,sticky='news')
+
+                crc_entry = Checkbutton(cde_frame,variable=self.CDE_crc_var_list[e])
+                crc_entry.grid(row=row, column=8,sticky='news')
+
+                self.widget_tooltip(use_checkbutton,use_tooltip)
+                self.widget_tooltip(mask_entry,mask_tooltip)
+                self.widget_tooltip(size_min_entry,min_tooltip)
+                self.widget_tooltip(size_max_entry,max_tooltip)
+                self.widget_tooltip(executable_entry,exec_tooltip)
+                self.widget_tooltip(open_button,open_tooltip)
+                self.widget_tooltip(timeout_entry,timeout_tooltip)
+                self.widget_tooltip(test_button,test_tooltip)
+                self.widget_tooltip(crc_entry,crc_tooltip)
+
+            cde_frame.grid_columnconfigure(1, weight=1)
+            cde_frame.grid_columnconfigure(4, weight=1)
+
+            self.scan_dialog_created = True
+
+            ###########################################
+
+            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self_ico['warning'])
+            self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
+
+            self.widget_tooltip(self.progress_dialog_on_scan.abort_button,'')
+
+            self.exclude_regexp_scan.set(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP))
+
+        return self.scan_dialog
+
+    find_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_find_dialog(self):
+        if not self.find_dialog_created:
+            self.status("Opening dialog ...")
+
+            self_ico_librer = self.ico_librer
+
+            ###################################
+            self.find_dialog=dialogs.GenericDialog(self.main,self_ico_librer,self.bg_color,'Search database',pre_show=self.pre_show,post_close=self.post_close)
+
+            self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
+
+            self.widget_tooltip(self.progress_dialog_on_find.abort_button,'')
+
+            ##############
+            #self.find_size_use_var = BooleanVar()
+            self.find_filename_search_kind_var = StringVar()
+            self.find_cd_search_kind_var = StringVar()
+
+            self.find_range_var = StringVar()
+
+            self.find_size_min_var = StringVar()
+            self.find_size_max_var = StringVar()
+
+            self.find_name_regexp_var = StringVar()
+            self.find_name_glob_var = StringVar()
+            self.find_name_fuzz_var = StringVar()
+
+            #self.find_name_var = StringVar()
+            self.find_name_case_sens_var = BooleanVar()
+
+            self.find_cd_regexp_var = StringVar()
+            self.find_cd_glob_var = StringVar()
+            self.find_cd_fuzz_var = StringVar()
+
+            #self.find_cd_var = StringVar()
+            self.find_cd_case_sens_var = BooleanVar()
+
+            self.find_filename_fuzzy_threshold = StringVar()
+            self.find_cd_fuzzy_threshold = StringVar()
+            ##############
+
+            def ver_number(var):
+                temp=core_str_to_bytes(var)
+
+                if temp>0:
+                    return var
+                else:
+                    return ''
+
+            self.find_range_var.set(self.cfg.get(CFG_KEY_find_range))
+            self.find_cd_search_kind_var.set(self.cfg.get(CFG_KEY_find_cd_search_kind))
+            self.find_filename_search_kind_var.set(self.cfg.get(CFG_KEY_find_filename_search_kind))
+
+            self.find_size_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_min)))
+            self.find_size_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_max)))
+
+            self.find_name_regexp_var.set(self.cfg.get(CFG_KEY_find_name_regexp))
+            self.find_name_glob_var.set(self.cfg.get(CFG_KEY_find_name_glob))
+            self.find_name_fuzz_var.set(self.cfg.get(CFG_KEY_find_name_fuzz))
+            self.find_name_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_name_case_sens))
+
+            self.find_cd_regexp_var.set(self.cfg.get(CFG_KEY_find_cd_regexp))
+            self.find_cd_glob_var.set(self.cfg.get(CFG_KEY_find_cd_glob))
+            self.find_cd_fuzz_var.set(self.cfg.get(CFG_KEY_find_cd_fuzz))
+            self.find_cd_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_cd_case_sens))
+
+            self.find_filename_fuzzy_threshold.set(self.cfg.get(CFG_KEY_filename_fuzzy_threshold))
+            self.find_cd_fuzzy_threshold.set(self.cfg.get(CFG_KEY_cd_fuzzy_threshold))
+
+            ##############
+
+            self.find_size_min_var.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_size_max_var.trace_add("write", lambda i,j,k : self.find_mod())
+
+            self.find_name_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_name_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_name_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_name_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
+
+            self.find_cd_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_cd_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_cd_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_cd_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
+
+            self.find_filename_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_cd_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
+
+            sfdma = self.find_dialog.area_main
+
+            (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
+            (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record',variable=self.find_range_var,value='single',command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_var,value='all',command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
+
+            (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
+
+            Radiobutton(find_filename_frame,text="Don't use this cryteria",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
+
+            self.find_filename_regexp_entry = Entry(find_filename_frame,textvariable=self.find_name_regexp_var,validate="key")
+            self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
+            self.find_filename_fuzz_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzz_var,validate="key")
+
+            self.find_filename_regexp_entry.bind("<KeyPress>", self.find_name_var_mod)
+            self.find_filename_glob_entry.bind("<KeyPress>", self.find_name_var_mod)
+            self.find_filename_fuzz_entry.bind("<KeyPress>", self.find_name_var_mod)
+
+            self.find_filename_regexp_entry.grid(row=2, column=1, sticky='we',padx=4,pady=4)
+            self.find_filename_glob_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
+            self.find_filename_fuzz_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
+
+            self.find_filename_case_sens_cb = Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod)
+            self.find_filename_case_sens_cb.grid(row=3, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
+
+            self.find_filename_fuzzy_threshold_lab = Label(find_filename_frame,text='Threshold:',bg=self.bg_color,anchor='e')
+            self.find_filename_fuzzy_threshold_entry = Entry(find_filename_frame,textvariable=self.find_filename_fuzzy_threshold)
+            self.find_filename_fuzzy_threshold_lab.grid(row=4, column=2, sticky='wens',padx=4,pady=4)
+            self.find_filename_fuzzy_threshold_entry.grid(row=4, column=3, sticky='wens',padx=4,pady=4)
+
+            find_filename_frame.grid_columnconfigure( 1, weight=1)
+
+            (find_cd_frame := LabelFrame(sfdma,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
+
+            Radiobutton(find_cd_frame,text="Don't use this cryteria",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="files without custom data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="files with any correct custom data ",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod).grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=6, column=0, sticky='news',padx=4,pady=4)
+
+            self.find_cd_regexp_entry = Entry(find_cd_frame,textvariable=self.find_cd_regexp_var,validate="key")
+            self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
+            self.find_cd_fuzz_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzz_var,validate="key")
+
+            self.find_cd_regexp_entry.bind("<KeyPress>", self.find_name_var_mod)
+            self.find_cd_glob_entry.bind("<KeyPress>", self.find_name_var_mod)
+            self.find_cd_fuzz_entry.bind("<KeyPress>", self.find_name_var_mod)
+
+            self.find_cd_regexp_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
+            self.find_cd_glob_entry.grid(row=5, column=1, sticky='we',padx=4,pady=4)
+            self.find_cd_fuzz_entry.grid(row=6, column=1, sticky='we',padx=4,pady=4)
+
+            self.cd_case_sens_cb = Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod)
+            self.cd_case_sens_cb.grid(row=5, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
+
+            self.find_cd_fuzzy_threshold_lab = Label(find_cd_frame,text='Threshold:',bg=self.bg_color,anchor='e')
+            self.find_cd_fuzzy_threshold_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzzy_threshold)
+            self.find_cd_fuzzy_threshold_lab.grid(row=6, column=2, sticky='wens',padx=4,pady=4)
+            self.find_cd_fuzzy_threshold_entry.grid(row=6, column=3, sticky='wens',padx=4,pady=4)
+
+            find_cd_frame.grid_columnconfigure(1, weight=1)
+
+            (find_size_frame := LabelFrame(sfdma,text='File size range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
+            find_size_frame.grid_columnconfigure((0,1,2,3), weight=1)
+
+            Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
+            Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
+
+            def validate_size_str(val):
+                return True if val == "" or val.isdigit() else False
+
+            #entry_validator = self.main.register(validate_size_str)
+            #,validate="key",validatecommand=(entry_validator,"%P")
+            Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
+            Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
+
+            Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_do_search ).pack(side='left', anchor='n',padx=5,pady=5)
+            self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
+            self.search_show_butt.pack(side='left', anchor='n',padx=5,pady=5)
+            self.search_save_butt = Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results )
+            self.search_save_butt.pack(side='left', anchor='n',padx=5,pady=5)
+            self.search_prev_butt = Button(self.find_dialog.area_buttons, text='prev (Shift+F3)', width=14, command=self.find_prev_from_dialog )
+            self.search_prev_butt.pack(side='left', anchor='n',padx=5,pady=5)
+            self.search_next_butt = Button(self.find_dialog.area_buttons, text='next (F3)', width=14, command=self.find_next_from_dialog )
+            self.search_next_butt.pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.find_dialog.area_buttons, text='Close', width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
+
+            sfdma.grid_rowconfigure(4, weight=1)
+            sfdma.grid_columnconfigure(0, weight=1)
+
+            self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.find_dialog_created = True
+
+        return self.find_dialog
+
+    about_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_about_dialog(self):
+        if not self.about_dialog_created:
+            self.status("Opening dialog ...")
+
+            self.aboout_dialog=dialogs.GenericDialog(self.main,self.ico_librer,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
+
+            frame1 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+            frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
+            self.aboout_dialog.area_main.grid_rowconfigure(1, weight=1)
+
+            text= f'\n\nLibrer {VER_TIMESTAMP}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n'
+
+            Label(frame1,text=text,bg=self.bg_color,justify='center').pack(expand=1,fill='both')
+
+            frame2 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+            frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
+            lab2_text=  \
+                        'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
+                        'DATABASE DIRECTORY :  ' + DB_DIR + '\n' + \
+                        'LOGS DIRECTORY     :  ' + LOG_DIR + '\n\n' + \
+                        'Current log file   :  ' + log
+
+            lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='left')
+            lab_courier.pack(expand=1,fill='both')
+
+            try:
+                lab_courier.configure(font=('Courier', 10))
+            except:
+                try:
+                    lab_courier.configure(font=('TkFixedFont', 10))
+                except:
+                    pass
+
+            self.about_dialog_created = True
+
+        return self.aboout_dialog
+
+    license_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_license_dialog(self):
+        if not self.license_dialog_created:
+            self.status("Opening dialog ...")
+
+            try:
+                self.license=Path(path_join(LIBRER_DIR,'LICENSE')).read_text(encoding='ASCII')
+            except Exception as exception_1:
+                l_error(exception_1)
+                try:
+                    self.license=Path(path_join(dirname(LIBRER_DIR),'LICENSE')).read_text(encoding='ASCII')
+                except Exception as exception_2:
+                    l_error(exception_2)
+                    self.exit()
+
+            self.license_dialog=dialogs.GenericDialog(self.main,self.ico['license'],self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
+
+            frame1 = LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+            frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
+            self.license_dialog.area_main.grid_rowconfigure(0, weight=1)
+
+            lab_courier=Label(frame1,text=self.license,bg=self.bg_color,justify='center')
+            lab_courier.pack(expand=1,fill='both')
+
+            self.license_dialog_created = True
+
+            try:
+                lab_courier.configure(font=('Courier', 10))
+            except:
+                try:
+                    lab_courier.configure(font=('TkFixedFont', 10))
+                except:
+                    pass
+
+        return self.license_dialog
+
     def __init__(self,cwd):
         self.cwd=cwd
 
@@ -381,8 +901,7 @@ class Gui:
 
         self.locked_by_child=None
         ####################################################################
-        self.main = Tk()
-        self_main = self.main
+        self_main = self.main = Tk()
 
         self.main_config = self.main.config
 
@@ -419,7 +938,7 @@ class Gui:
         self.ico_empty = self_ico['empty']
         self.ico_delete = self_ico['delete']
 
-        self_ico_librer = self_ico['librer']
+        self_ico_librer = self.ico_librer = self_ico['librer']
         self.ico_test = self_ico['test']
 
         self_main.iconphoto(True, self_ico_librer,self.ico_record)
@@ -432,14 +951,6 @@ class Gui:
         self.FILELINK='l'
 
         self.SYMLINK='S'
-
-        self_main_bind = self_main.bind
-
-        self_main_bind('<KeyPress-F1>', lambda event : self.aboout_dialog.show())
-        self_main_bind('<KeyPress-n>', lambda event : self.scan_dialog_show())
-        self_main_bind('<KeyPress-N>', lambda event : self.scan_dialog_show())
-
-        self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
 
         #self.defaultFont = font.nametofont("TkDefaultFont")
         #self.defaultFont.configure(family="Monospace regular",size=8,weight=font.BOLD)
@@ -516,7 +1027,6 @@ class Gui:
         self.menubar_entryconfig = self.menubar.entryconfig
         self.menubar_norm = lambda x : self.menubar_entryconfig(x, state="normal")
         self.menubar_disable = lambda x : self.menubar_entryconfig(x, state="disabled")
-        #self.menu_disable()
 
         (status_frame := Frame(self_main,bg=self.bg_color)).pack(side='bottom', fill='both')
 
@@ -545,14 +1055,6 @@ class Gui:
         self.tree=Treeview(self_main,takefocus=True,show=('tree','headings') )
         self_tree = self.tree
 
-        self_tree.bind('<KeyPress>', self.key_press )
-        self_tree.bind('<<TreeviewOpen>>', self.open_item )
-        self_tree.bind('<ButtonPress-3>', self.context_menu_show)
-
-        self_tree.bind("<<TreeviewSelect>>", self.tree_select)
-        self.selected_record_item=''
-        self.selected_record_name=''
-
         self.tree_set = self_tree.set
         self.tree_see = self_tree.see
         self.tree_get_children = self.tree.get_children
@@ -580,9 +1082,6 @@ class Gui:
         self_tree_heading('#0',text='Label',anchor='w')
         self_tree_heading('size_h',anchor='w')
         self_tree_heading('ctime_h',anchor='n')
-        #self_tree_heading('size_h', text='Size \u25BC',anchor='n')
-
-        self_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
 
         vsb1 = Scrollbar(self_main, orient='vertical', command=self_tree.yview,takefocus=False)
 
@@ -590,8 +1089,6 @@ class Gui:
 
         vsb1.pack(side='right',fill='y',expand=0)
         self_tree.pack(fill='both',expand=1, side='left')
-
-        self_tree.bind('<Double-Button-1>', self.double_left_button)
 
         tree = self_tree
         tree_heading = tree.heading
@@ -610,512 +1107,22 @@ class Gui:
 
         self.iid_to_size={}
 
-        try:
-            self.main_update()
-            cfg_geometry=self.cfg.get('geometry','')
-
-            if cfg_geometry:
-                self_main.geometry(cfg_geometry)
-            else:
-                x_offset = int(0.5*(self_main.winfo_screenwidth()-self_main.winfo_width()))
-                y_offset = int(0.5*(self_main.winfo_screenheight()-self_main.winfo_height()))
-
-                self_main.geometry(f'+{x_offset}+{y_offset}')
-
-        except Exception as e:
-            self.status(str(e))
-            l_error(e)
-            cfg_geometry = None
-
-        self_main.deiconify()
-
-        #prevent displacement
-        if cfg_geometry :
-            self_main.geometry(cfg_geometry)
-
         self.popup = Menu(self_tree, tearoff=0,bg=self.bg_color)
         self.popup_unpost = self.popup.unpost
         self.popup.bind("<FocusOut>",lambda event : self.popup_unpost() )
-        self_main_bind("<FocusOut>",lambda event : self.menubar_unpost() )
-
-        self_main_bind("<FocusIn>",lambda event : self.focusin() )
 
         #######################################################################
-        #scan dialog
 
-        def pre_show(on_main_window_dialog=True,new_widget=None):
-            self.menubar_unpost()
-            self.hide_tooltip()
-            self.popup_unpost()
+        self.info_dialog_on_main = dialogs.LabelDialog(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+        self.text_ask_dialog = dialogs.TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self_ico['warning'])
+        self.text_info_dialog = dialogs.TextDialogInfo(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
-            self.locked_by_child=new_widget
-            if on_main_window_dialog:
-                self.actions_processing=False
-                self.menu_disable()
-                self.menubar_config(cursor="watch")
-
-        def post_close(on_main_window_dialog=True):
-            self.locked_by_child=None
-            self.main.focus_set()
-
-            if on_main_window_dialog:
-                self.actions_processing=True
-                self.menu_enable()
-                self.menubar_config(cursor="")
-
-        self.scan_dialog=dialogs.GenericDialog(self_main,self_ico_librer,self.bg_color,'Create new data record',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
-
-        self.log_skipped_var=BooleanVar()
-        self.log_skipped_var.set(False)
-
-        self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
-        self.scan_dialog.area_main.grid_rowconfigure(3, weight=1)
-
-        self.scan_dialog.widget.bind('<Alt_L><p>',lambda event : self.set_path_to_scan())
-        self.scan_dialog.widget.bind('<Alt_L><P>',lambda event : self.set_path_to_scan())
-        self.scan_dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
-        self.scan_dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
-
-        self.scan_dialog.widget.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
-        self.scan_dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
-
-        ##############
-
-        temp_frame = Frame(self.scan_dialog.area_main,borderwidth=2,bg=self.bg_color)
-        temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
-
-        ul_lab=Label(temp_frame,text="User label:",bg=self.bg_color,anchor='w')
-        ul_lab.grid(row=0, column=0, sticky='news',padx=4,pady=4)
-
-        self.widget_tooltip(ul_lab,"Label of record to be created\nCannot be changed later.")
-
-        self.scan_label_entry_var=StringVar(value='')
-        scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
-        scan_label_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
-
-        self.widget_tooltip(scan_label_entry,"Label of record to be created\nCannot be changed later.")
-
-        lab1=Label(temp_frame,text="Path To scan:",bg=self.bg_color,anchor='w')
-        lab1.grid(row=0, column=2, sticky='news',padx=4,pady=4)
-
-        self.path_to_scan_entry_var=StringVar(value=self.last_dir)
-        path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
-        path_to_scan_entry.grid(row=0, column=3, sticky='news',padx=4,pady=4)
-
-        self.add_path_button = Button(temp_frame,width=18,image = self_ico['open'], command=self.set_path_to_scan,underline=0)
-        self.add_path_button.grid(row=0, column=4, sticky='news',padx=4,pady=4)
-
-        self.widget_tooltip(self.add_path_button,"Set path to scan.")
-
-        temp_frame.grid_columnconfigure(3, weight=1)
-
-        self.single_device=BooleanVar()
-        single_device_button = Checkbutton(temp_frame,text=' Scan only on initial device',variable=self.single_device)
-        single_device_button.grid(row=1, column=0, sticky='news',padx=4,pady=4,columnspan=4)
-        self.single_device.set(self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE))
-
-        self.widget_tooltip(single_device_button,"Don't cross device boundaries (mount points, bindings etc.)")
-
-        ##############
-        self.exclude_regexp_scan=BooleanVar()
-
-        temp_frame2 = LabelFrame(self.scan_dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
-        temp_frame2.grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=4)
-
-        self.exclude_srocll_frame=dialogs.SFrame(temp_frame2,bg=self.bg_color)
-        self.exclude_srocll_frame.pack(fill='both',expand=True,side='top')
-        self.exclude_frame=self.exclude_srocll_frame.frame()
-
-        buttons_fr2 = Frame(temp_frame2,bg=self.bg_color,takefocus=False)
-        buttons_fr2.pack(fill='x',expand=False,side='bottom')
-
-        self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
-        self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
-
-        self.widget_tooltip(self.add_exclude_button_dir,"Add path as exclude expression ...")
-
-        self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
-
-        tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
-
-        self.widget_tooltip(self.add_exclude_button,tooltip_string)
-
-        self.add_exclude_button.pack(side='left',pady=4,padx=4)
-
-        Checkbutton(buttons_fr2,text='treat as a regular expression',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
-
-        self.exclude_frame.grid_columnconfigure(1, weight=1)
-        self.exclude_frame.grid_rowconfigure(99, weight=1)
-        ##############
-
-        skip_button = Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
-        skip_button.grid(row=4,column=0,sticky='news',padx=8,pady=3,columnspan=3)
-
-        self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
-
-        self.scan_button = Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
-        self.scan_button.pack(side='right',padx=4,pady=4)
-
-        self.scan_cancel_button = Button(self.scan_dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
-        self.scan_cancel_button.pack(side='left',padx=4,pady=4)
-
-        self.scan_dialog.focus=self.scan_cancel_button
-
-        ############
-        temp_frame3 = LabelFrame(self.scan_dialog.area_main,text='Custom Data Extractors:',borderwidth=2,bg=self.bg_color,takefocus=False)
-        temp_frame3.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3)
-
-        sf_par3 = dialogs.SFrame(temp_frame3,bg=self.bg_color)
-        sf_par3.pack(fill='both',expand=True,side='top')
-        self.cde_frame = cde_frame = sf_par3.frame()
-
-        (lab_use := Label(cde_frame,text='Use',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=0,sticky='news')
-        (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=1,sticky='news')
-        (lab_min := Label(cde_frame,text='Min Size',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=2,sticky='news')
-        (lab_max := Label(cde_frame,text='Max Size',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=3,sticky='news')
-        (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
-        (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='w')).grid(row=0, column=5,sticky='news')
-        (lab_timeout := Label(cde_frame,text='Timeout',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
-        (lab_test := Label(cde_frame,text='Test',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
-        (lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='w',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
-
-        use_tooltip = "Mark to use CD Extractor"
-        mask_tooltip = "glob expresions separated by comma ','\ne.g. '*.7z, *.zip, *.gz'"
-        min_tooltip = "Minimum size of file to aplly CD expresion or crc\nmay be empty e.g. 0"
-        max_tooltip = "Maximum size of file  aplly CD expresion or crc\nmay be empty e.g. '100MB'"
-        exec_tooltip = "executable or batch script that will be run\nwith file for extraction\nmay have parameters\nWill be executed with scanned file full path\ne.g. '7z l', 'cat', '~/my_extraction.sh', 'c:\\my_extraction.bat'"
-        open_tooltip = "set executable file af Custom Data Extractor..."
-        timeout_tooltip = "Time limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated"
-        test_tooltip = "Test Custom Data Extractor\non single selected file ..."
-        crc_tooltip = "Calculate CRC (SHA1) for ALL\nfiles matching glob and size cryteria\nIt may take a long time."
-
-        self.widget_tooltip(lab_use,use_tooltip)
-        self.widget_tooltip(lab_mask,mask_tooltip)
-        self.widget_tooltip(lab_min,min_tooltip)
-        self.widget_tooltip(lab_max,max_tooltip)
-        self.widget_tooltip(lab_exec,exec_tooltip)
-        self.widget_tooltip(lab_open,open_tooltip)
-        self.widget_tooltip(lab_timeout,timeout_tooltip)
-        self.widget_tooltip(lab_test,test_tooltip)
-        self.widget_tooltip(lab_crc,crc_tooltip)
-
-        self.CDE_ENTRIES_MAX = 16
-        self.CDE_use_var_list = []
-        self.CDE_mask_var_list=[]
-        self.CDE_size_min_var_list=[]
-        self.CDE_size_max_var_list=[]
-        self.CDE_executable_var_list=[]
-        self.CDE_timeout_var_list=[]
-        self.CDE_crc_var_list=[]
-
-        for e in range(self.CDE_ENTRIES_MAX):
-            self.CDE_use_var_list.append(BooleanVar())
-            self.CDE_mask_var_list.append(StringVar())
-            self.CDE_size_min_var_list.append(StringVar())
-            self.CDE_size_max_var_list.append(StringVar())
-            self.CDE_executable_var_list.append(StringVar())
-            self.CDE_timeout_var_list.append(StringVar())
-            self.CDE_crc_var_list.append(BooleanVar())
-
-            row = e+1
-            use_checkbutton = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e])
-            use_checkbutton.grid(row=row,column=0,sticky='news')
-
-            mask_entry = Entry(cde_frame,textvariable=self.CDE_mask_var_list[e])
-            mask_entry.grid(row=row, column=1,sticky='news')
-
-            size_min_entry = Entry(cde_frame,textvariable=self.CDE_size_min_var_list[e],width=6)
-            size_min_entry.grid(row=row, column=2,sticky ='news')
-
-            size_max_entry = Entry(cde_frame,textvariable=self.CDE_size_max_var_list[e],width=6)
-            size_max_entry.grid(row=row, column=3,sticky ='news')
-
-            executable_entry = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e])
-            executable_entry.grid(row=row, column=4,sticky='news')
-
-            open_button = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
-            open_button.grid(row=row,column=5,sticky='news')
-
-            timeout_entry = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e])
-            timeout_entry.grid(row=row, column=6,sticky='news')
-
-            test_button = Button(cde_frame,image=self.ico_test,command = lambda x=e : self.cde_test(x) )
-            test_button.grid(row=row,column=7,sticky='news')
-
-            crc_entry = Checkbutton(cde_frame,variable=self.CDE_crc_var_list[e])
-            crc_entry.grid(row=row, column=8,sticky='news')
-
-            self.widget_tooltip(use_checkbutton,use_tooltip)
-            self.widget_tooltip(mask_entry,mask_tooltip)
-            self.widget_tooltip(size_min_entry,min_tooltip)
-            self.widget_tooltip(size_max_entry,max_tooltip)
-            self.widget_tooltip(executable_entry,exec_tooltip)
-            self.widget_tooltip(open_button,open_tooltip)
-            self.widget_tooltip(timeout_entry,timeout_tooltip)
-            self.widget_tooltip(test_button,test_tooltip)
-            self.widget_tooltip(crc_entry,crc_tooltip)
-
-        cde_frame.grid_columnconfigure(1, weight=1)
-        cde_frame.grid_columnconfigure(4, weight=1)
-
-        #######################################################################
-        self.info_dialog_on_main = dialogs.LabelDialog(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_ask_dialog = dialogs.TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
-        self.text_info_dialog = dialogs.TextDialogInfo(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
-        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-
-        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
-
-        self.widget_tooltip(self.progress_dialog_on_scan.abort_button,'')
-
-        self.progress_dialog_on_load = dialogs.ProgressDialog(self_main,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.progress_dialog_on_load = dialogs.ProgressDialog(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
         self.widget_tooltip(self.progress_dialog_on_load.abort_button,'')
 
-        self.find_dialog=dialogs.GenericDialog(self_main,self_ico_librer,self.bg_color,'Search database',pre_show=pre_show,post_close=post_close)
-
-        self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
-
-        self.widget_tooltip(self.progress_dialog_on_find.abort_button,'')
-
-        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_tree,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-
-        ##############
-        #self.find_size_use_var = BooleanVar()
-        self.find_filename_search_kind_var = StringVar()
-        self.find_cd_search_kind_var = StringVar()
-
-        self.find_range_var = StringVar()
-
-        self.find_size_min_var = StringVar()
-        self.find_size_max_var = StringVar()
-
-        self.find_name_regexp_var = StringVar()
-        self.find_name_glob_var = StringVar()
-        self.find_name_fuzz_var = StringVar()
-
-        #self.find_name_var = StringVar()
-        self.find_name_case_sens_var = BooleanVar()
-
-        self.find_cd_regexp_var = StringVar()
-        self.find_cd_glob_var = StringVar()
-        self.find_cd_fuzz_var = StringVar()
-
-        #self.find_cd_var = StringVar()
-        self.find_cd_case_sens_var = BooleanVar()
-
-        self.find_filename_fuzzy_threshold = StringVar()
-        self.find_cd_fuzzy_threshold = StringVar()
-        ##############
-
-        def ver_number(var):
-            temp=core_str_to_bytes(var)
-
-            if temp>0:
-                return var
-            else:
-                return ''
-
-        self.find_range_var.set(self.cfg.get(CFG_KEY_find_range))
-        self.find_cd_search_kind_var.set(self.cfg.get(CFG_KEY_find_cd_search_kind))
-        self.find_filename_search_kind_var.set(self.cfg.get(CFG_KEY_find_filename_search_kind))
-
-        self.find_size_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_min)))
-        self.find_size_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_max)))
-
-        self.find_name_regexp_var.set(self.cfg.get(CFG_KEY_find_name_regexp))
-        self.find_name_glob_var.set(self.cfg.get(CFG_KEY_find_name_glob))
-        self.find_name_fuzz_var.set(self.cfg.get(CFG_KEY_find_name_fuzz))
-        self.find_name_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_name_case_sens))
-
-        self.find_cd_regexp_var.set(self.cfg.get(CFG_KEY_find_cd_regexp))
-        self.find_cd_glob_var.set(self.cfg.get(CFG_KEY_find_cd_glob))
-        self.find_cd_fuzz_var.set(self.cfg.get(CFG_KEY_find_cd_fuzz))
-        self.find_cd_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_cd_case_sens))
-
-        self.find_filename_fuzzy_threshold.set(self.cfg.get(CFG_KEY_filename_fuzzy_threshold))
-        self.find_cd_fuzzy_threshold.set(self.cfg.get(CFG_KEY_cd_fuzzy_threshold))
-
-        ##############
-
-        self.find_size_min_var.trace_add("write", lambda i,j,k : self.find_mod())
-        self.find_size_max_var.trace_add("write", lambda i,j,k : self.find_mod())
-
-        self.find_name_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
-        self.find_name_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
-        self.find_name_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
-        self.find_name_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
-
-        self.find_cd_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
-        self.find_cd_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
-        self.find_cd_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
-        self.find_cd_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
-
-        self.find_filename_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
-        self.find_cd_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
-
-        sfdma = self.find_dialog.area_main
-
-        (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
-        (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record',variable=self.find_range_var,value='single',command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-        (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_var,value='all',command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
-
-        (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
-
-        Radiobutton(find_filename_frame,text="Don't use this cryteria",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
-
-        self.find_filename_regexp_entry = Entry(find_filename_frame,textvariable=self.find_name_regexp_var,validate="key")
-        self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
-        self.find_filename_fuzz_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzz_var,validate="key")
-
-        self.find_filename_regexp_entry.bind("<KeyPress>", self.find_name_var_mod)
-        self.find_filename_glob_entry.bind("<KeyPress>", self.find_name_var_mod)
-        self.find_filename_fuzz_entry.bind("<KeyPress>", self.find_name_var_mod)
-
-        self.find_filename_regexp_entry.grid(row=2, column=1, sticky='we',padx=4,pady=4)
-        self.find_filename_glob_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
-        self.find_filename_fuzz_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
-
-        self.find_filename_case_sens_cb = Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod)
-        self.find_filename_case_sens_cb.grid(row=3, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
-
-        self.find_filename_fuzzy_threshold_lab = Label(find_filename_frame,text='Threshold:',bg=self.bg_color,anchor='e')
-        self.find_filename_fuzzy_threshold_entry = Entry(find_filename_frame,textvariable=self.find_filename_fuzzy_threshold)
-        self.find_filename_fuzzy_threshold_lab.grid(row=4, column=2, sticky='wens',padx=4,pady=4)
-        self.find_filename_fuzzy_threshold_entry.grid(row=4, column=3, sticky='wens',padx=4,pady=4)
-
-        find_filename_frame.grid_columnconfigure( 1, weight=1)
-
-        (find_cd_frame := LabelFrame(sfdma,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
-
-        Radiobutton(find_cd_frame,text="Don't use this cryteria",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_cd_frame,text="files without custom data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
-        Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=5, column=0, sticky='news',padx=4,pady=4)
-
-        self.find_cd_regexp_entry = Entry(find_cd_frame,textvariable=self.find_cd_regexp_var,validate="key")
-        self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
-        self.find_cd_fuzz_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzz_var,validate="key")
-
-        self.find_cd_regexp_entry.bind("<KeyPress>", self.find_name_var_mod)
-        self.find_cd_glob_entry.bind("<KeyPress>", self.find_name_var_mod)
-        self.find_cd_fuzz_entry.bind("<KeyPress>", self.find_name_var_mod)
-
-        self.find_cd_regexp_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
-        self.find_cd_glob_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
-        self.find_cd_fuzz_entry.grid(row=5, column=1, sticky='we',padx=4,pady=4)
-
-        self.cd_case_sens_cb = Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod)
-        self.cd_case_sens_cb.grid(row=4, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
-
-        self.find_cd_fuzzy_threshold_lab = Label(find_cd_frame,text='Threshold:',bg=self.bg_color,anchor='e')
-        self.find_cd_fuzzy_threshold_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzzy_threshold)
-        self.find_cd_fuzzy_threshold_lab.grid(row=5, column=2, sticky='wens',padx=4,pady=4)
-        self.find_cd_fuzzy_threshold_entry.grid(row=5, column=3, sticky='wens',padx=4,pady=4)
-
-        find_cd_frame.grid_columnconfigure(1, weight=1)
-
-        (find_size_frame := LabelFrame(sfdma,text='File size range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
-        find_size_frame.grid_columnconfigure((0,1,2,3), weight=1)
-
-        Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
-        Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
-
-        def validate_size_str(val):
-            return True if val == "" or val.isdigit() else False
-
-        #entry_validator = self.main.register(validate_size_str)
-        #,validate="key",validatecommand=(entry_validator,"%P")
-        Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
-        Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
-
-        Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_do_search ).pack(side='left', anchor='n',padx=5,pady=5)
-        self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
-        self.search_show_butt.pack(side='left', anchor='n',padx=5,pady=5)
-        self.search_save_butt = Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results )
-        self.search_save_butt.pack(side='left', anchor='n',padx=5,pady=5)
-        self.search_prev_butt = Button(self.find_dialog.area_buttons, text='prev (Shift+F3)', width=14, command=self.find_prev_from_dialog )
-        self.search_prev_butt.pack(side='left', anchor='n',padx=5,pady=5)
-        self.search_next_butt = Button(self.find_dialog.area_buttons, text='next (F3)', width=14, command=self.find_next_from_dialog )
-        self.search_next_butt.pack(side='left', anchor='n',padx=5,pady=5)
-        Button(self.find_dialog.area_buttons, text='Close', width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
-
-        sfdma.grid_rowconfigure(4, weight=1)
-        sfdma.grid_columnconfigure(0, weight=1)
-
-        self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=lambda new_widget : pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(on_main_window_dialog=False))
-        self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,self_ico_librer,self.bg_color,pre_show=pre_show,post_close=post_close)
-       #######################################################################
-        #About Dialog
-        self.aboout_dialog=dialogs.GenericDialog(self_main,self_ico_librer,self.bg_color,'',pre_show=pre_show,post_close=post_close)
-
-        frame1 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
-        frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
-        self.aboout_dialog.area_main.grid_rowconfigure(1, weight=1)
-
-        text= f'\n\nLibrer {VER_TIMESTAMP}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n'
-
-        Label(frame1,text=text,bg=self.bg_color,justify='center').pack(expand=1,fill='both')
-
-        frame2 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
-        frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
-        lab2_text=  \
-                    'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
-                    'DATABASE DIRECTORY :  ' + DB_DIR + '\n' + \
-                    'LOGS DIRECTORY     :  ' + LOG_DIR + '\n\n' + \
-                    'Current log file   :  ' + log
-
-        lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='left')
-        lab_courier.pack(expand=1,fill='both')
-
-        try:
-            lab_courier.configure(font=('Courier', 10))
-        except:
-            try:
-                lab_courier.configure(font=('TkFixedFont', 10))
-            except:
-                pass
-
         #######################################################################
-        #License Dialog
-        try:
-            self.license=Path(path_join(LIBRER_DIR,'LICENSE')).read_text(encoding='ASCII')
-        except Exception as exception_1:
-            l_error(exception_1)
-            try:
-                self.license=Path(path_join(dirname(LIBRER_DIR),'LICENSE')).read_text(encoding='ASCII')
-            except Exception as exception_2:
-                l_error(exception_2)
-                self.exit()
-
-        self.license_dialog=dialogs.GenericDialog(self_main,self_ico['license'],self.bg_color,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
-
-        frame1 = LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
-        frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
-        self.license_dialog.area_main.grid_rowconfigure(0, weight=1)
-
-        lab_courier=Label(frame1,text=self.license,bg=self.bg_color,justify='center')
-        lab_courier.pack(expand=1,fill='both')
-
-        try:
-            lab_courier.configure(font=('Courier', 10))
-        except:
-            try:
-                lab_courier.configure(font=('TkFixedFont', 10))
-            except:
-                pass
 
         def file_cascade_post():
             item_actions_state=('disabled','normal')[self.sel_item is not None]
@@ -1144,8 +1151,8 @@ class Gui:
                 self_help_cascade_add_command = self.help_cascade.add_command
                 self_help_cascade_add_separator = self.help_cascade.add_separator
 
-                self_help_cascade_add_command(label = 'About',command=self.aboout_dialog.show,accelerator="F1", image = self_ico['about'],compound='left')
-                self_help_cascade_add_command(label = 'License',command=self.license_dialog.show, image = self_ico['license'],compound='left')
+                self_help_cascade_add_command(label = 'About',command=lambda : self.get_about_dialog().show(),accelerator="F1", image = self_ico['about'],compound='left')
+                self_help_cascade_add_command(label = 'License',command=lambda : self.get_license_dialog().show(), image = self_ico['license'],compound='left')
                 self_help_cascade_add_separator()
                 self_help_cascade_add_command(label = 'Open current Log',command=self.show_log, image = self_ico['log'],compound='left')
                 self_help_cascade_add_command(label = 'Open logs directory',command=self.show_logs_dir, image = self_ico['logs'],compound='left')
@@ -1183,12 +1190,28 @@ class Gui:
 
         #######################################################################
 
-        self_tree.bind("<Motion>", self.motion_on_tree)
-        self_tree.bind("<Leave>", lambda event : self.widget_leave())
+        self.main_update()
+        try:
+            cfg_geometry=self.cfg.get('geometry','')
 
-        #######################################################################
+            if cfg_geometry:
+                self_main.geometry(cfg_geometry)
+            else:
+                x_offset = int(0.5*(self_main.winfo_screenwidth()-self_main.winfo_width()))
+                y_offset = int(0.5*(self_main.winfo_screenheight()-self_main.winfo_height()))
 
-        self.exclude_regexp_scan.set(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP))
+                self_main.geometry(f'+{x_offset}+{y_offset}')
+
+        except Exception as e:
+            self.status(str(e))
+            l_error(e)
+            cfg_geometry = None
+
+        self_main.deiconify()
+
+        #prevent displacement
+        if cfg_geometry :
+            self_main.geometry(cfg_geometry)
 
         self.menu_disable()
         self.menubar_config(cursor='watch')
@@ -1211,10 +1234,8 @@ class Gui:
 
         str_self_progress_dialog_on_load_abort_button = str(self_progress_dialog_on_load.abort_button)
 
-
         #############################
 
-        #self.scan_dialog.widget.update()
         self.tooltip_message[str_self_progress_dialog_on_load_abort_button]='Abort loading.'
         self_progress_dialog_on_load.abort_button.configure(image=self.ico['cancel'],text='Abort',compound='left')
         self_progress_dialog_on_load.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
@@ -1282,6 +1303,29 @@ class Gui:
 
         self.tree_semi_focus()
         self.status_info.configure(image='',text = 'Ready')
+
+        self_tree_bind = self_tree.bind
+
+        self_tree_bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
+        self_tree_bind('<Double-Button-1>', self.double_left_button)
+        self_tree_bind("<Motion>", self.motion_on_tree)
+        self_tree_bind("<Leave>", lambda event : self.widget_leave())
+
+        self_tree_bind('<KeyPress>', self.key_press )
+        self_tree_bind('<<TreeviewOpen>>', self.open_item )
+        self_tree_bind('<ButtonPress-3>', self.context_menu_show)
+
+        self_tree_bind("<<TreeviewSelect>>", self.tree_select)
+
+        self_main_bind = self_main.bind
+
+        self_main_bind("<FocusOut>",lambda event : self.menubar_unpost() )
+        self_main_bind("<FocusIn>",lambda event : self.focusin() )
+
+        self_main_bind('<KeyPress-F1>', lambda event : self.get_about_dialog().show())
+        self_main_bind('<KeyPress-n>', lambda event : self.scan_dialog_show())
+        self_main_bind('<KeyPress-N>', lambda event : self.scan_dialog_show())
+        self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
 
         self_main.mainloop()
 
@@ -1487,11 +1531,13 @@ class Gui:
 
     def finder_wrapper_show(self):
         if self.current_record:
+            dialog = self.get_find_dialog()
+
             self.find_dialog_shown=True
             self.find_mod()
             self.searching_aborted = False
 
-            self.find_dialog.show('Find')
+            dialog.show('Find')
             self.find_dialog_shown=False
 
             self.tree_semi_focus()
@@ -2378,7 +2424,6 @@ class Gui:
         #    return False
         #self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_from_entry))
 
-
         if not path_to_scan_from_entry:
             self.info_dialog_on_scan.show('Error. No paths to scan.','Add paths to scan.')
             return False
@@ -2411,7 +2456,6 @@ class Gui:
 
         #librer_core.log_skipped = self.log_skipped_var.get()
         self.log_skipped = self.log_skipped_var.get()
-
 
         self_progress_dialog_on_scan.lab_l1.configure(text='CDE Total space:')
         self_progress_dialog_on_scan.lab_l2.configure(text='CDE Files number:' )
@@ -2656,6 +2700,8 @@ class Gui:
                 self.tree.focus_set()
 
     def scan_dialog_show(self,do_scan=False):
+        dialog = self.get_scan_dialog()
+
         self.exclude_mask_update()
 
         e=0
@@ -2676,7 +2722,7 @@ class Gui:
 
         self.scan_dialog.do_command_after_show=self.scan if do_scan else None
 
-        self.scan_dialog.show()
+        dialog.show()
 
     def exclude_regexp_set(self):
         self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,self.exclude_regexp_scan.get())
@@ -2706,9 +2752,9 @@ class Gui:
                 row+=1
 
         if row:
-            self.exclude_srocll_frame.pack(fill='both',expand=True,side='top')
+            self.exclude_scroll_frame.pack(fill='both',expand=True,side='top')
         else:
-            self.exclude_srocll_frame.pack_forget()
+            self.exclude_scroll_frame.pack_forget()
 
     def set_path_to_scan(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -2742,7 +2788,6 @@ class Gui:
                 cd_ok,output = librer_core.test_cde(executable,timeout_int,file_to_test)
 
                 self.text_dialog_on_scan.show('CDE Test',output)
-
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd

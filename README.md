@@ -35,19 +35,26 @@ Custom data extractor is a command that can be invoked with a single parameter -
 
 > "7z l" - Listing the contents of the archive. Applicable to files like *.7z, *.zip, etc. (linux)
 
-> "C:\Program Files\7-Zip\7z.exe l"  - Listing the contents of the archive (windows)
+> "C:\Program Files\\[7-Zip](https://www.7-zip.org)\7z.exe l"  - Listing the contents of the archive (windows)
 
 > "cat" - Listing the contents of the entire file. May be applied to *.cue files or media playlists *.m3u or any text files (Linux)
 
 > "cmd /c more"  - Listing the contents of the entire file. May be applied to *.cue files or media playlists *.m3u or any text files (windows)
 
-> "md5sum" - use it if you want to store the checksum of a file
+> "[ffprobe](https://ffmpeg.org/ffprobe.html) -hide_banner" - get media tags and other metadata from media files like *.mp3 etc.
 
-> "anything.sh"  - maybe not exactly "anything", but use your own script to apply more complex criteria to individual files and process the data to be stored.
+> "[exiftool](https://exiftool.sourceforge.net/)" get exif data from images like *.jpg and many more
 
+> "[pdftotext](https://linux.die.net/man/1/pdftotext) - - <" - get text content of pdf file
 
+> "strings" - get printable strings from any file
+
+> "anything.sh/anything.bat"  - maybe not exactly "anything", but use your own script to apply more complex criteria to individual files and process the data to be stored.
 
 ## Usage tips:
+- don't put any destructive actions in your Custom Data Extractors scrips
+- try to keep as little custom data as possible, to speed up scanning and searching records and keep record files small
+- if general purpose and generally available tools produce too much and not needed text data, write a wrapper script (*.sh, *bat) executing specific tool and post-process retrieved data. Wrapper can also help when the tool expects more variable parameters or in an unusual order
 
 
 ## Supported platforms:
