@@ -342,6 +342,10 @@ class Gui:
     #######################################################################
     action_abort=False
 
+    def clip_copy(self,what):
+        self.main.clipboard_clear()
+        self.main.clipboard_append(what)
+
     def progress_dialog_find_abort(self):
         self.status("Abort pressed ...")
         self.action_abort=True
@@ -364,7 +368,9 @@ class Gui:
         self.hg_index=(self.hg_index+1) % self.hg_ico_len
         return self.hg_ico[self.hg_index]
 
+    @restore_status_line
     def pre_show(self,on_main_window_dialog=True,new_widget=None):
+        #self.status("Opening dialog ...")
         self.menubar_unpost()
         self.hide_tooltip()
         self.popup_unpost()
@@ -390,7 +396,7 @@ class Gui:
     @gui_block
     def get_text_info_dialog(self):
         if not self.text_info_dialog_created:
-            self.status("Opening dialog ...")
+            self.status("Creating dialog ...")
 
             self.text_info_dialog = dialogs.TextDialogInfo(self.main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
@@ -405,7 +411,7 @@ class Gui:
     @gui_block
     def get_ask_dialog_on_main(self):
         if not self.ask_dialog_on_main_created:
-            self.status("Opening dialog ...")
+            self.status("Creating dialog ...")
 
             self.ask_dialog_on_main = dialogs.LabelDialogQuestion(self.main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico['warning'])
 
@@ -419,35 +425,34 @@ class Gui:
     @gui_block
     def get_scan_dialog(self):
         if not self.scan_dialog_created:
-            self.status("Opening dialog ...")
+            self.status("Creating dialog ...")
 
             self_ico_librer = self.ico_librer
 
-            self.scan_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
+            self.scan_dialog=dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
 
             self_ico = self.ico
 
             self.log_skipped_var=BooleanVar()
             self.log_skipped_var.set(False)
 
-            self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
-            self.scan_dialog.area_main.grid_rowconfigure(3, weight=1)
+            dialog.area_main.grid_columnconfigure(0, weight=1)
+            dialog.area_main.grid_rowconfigure(3, weight=1)
 
-            self.scan_dialog.widget.bind('<Alt_L><p>',lambda event : self.set_path_to_scan())
-            self.scan_dialog.widget.bind('<Alt_L><P>',lambda event : self.set_path_to_scan())
-            self.scan_dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
-            self.scan_dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
-
-            self.scan_dialog.widget.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
-            self.scan_dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
+            dialog.widget.bind('<Alt_L><p>',lambda event : self.set_path_to_scan())
+            dialog.widget.bind('<Alt_L><P>',lambda event : self.set_path_to_scan())
+            dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
+            dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
+            #dialog.widget.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
+            #dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
 
             ##############
 
-            temp_frame = Frame(self.scan_dialog.area_main,borderwidth=2,bg=self.bg_color)
+            temp_frame = Frame(dialog.area_main,borderwidth=2,bg=self.bg_color)
             temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
 
             ul_lab=Label(temp_frame,text="User label:",bg=self.bg_color,anchor='w')
-            ul_lab.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            ul_lab.grid(row=0, column=0, sticky='news',padx=4,pady=4)\
 
             self.widget_tooltip(ul_lab,"Label of record to be created\nCannot be changed later.")
 
@@ -457,8 +462,7 @@ class Gui:
 
             self.widget_tooltip(scan_label_entry,"Label of record to be created\nCannot be changed later.")
 
-            lab1=Label(temp_frame,text="Path to scan:",bg=self.bg_color,anchor='w')
-            lab1.grid(row=0, column=2, sticky='news',padx=4,pady=4)
+            Label(temp_frame,text="Path to scan:",bg=self.bg_color,anchor='w').grid(row=0, column=2, sticky='news',padx=4,pady=4)
 
             self.path_to_scan_entry_var=StringVar(value=self.last_dir)
             path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
@@ -481,7 +485,7 @@ class Gui:
             ##############
             self.exclude_regexp_scan=BooleanVar()
 
-            temp_frame2 = LabelFrame(self.scan_dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+            temp_frame2 = LabelFrame(dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
 
             #TODO
             #temp_frame2.grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=4)
@@ -512,22 +516,21 @@ class Gui:
             self.exclude_frame.grid_rowconfigure(99, weight=1)
             ##############
 
-            skip_button = Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
+            skip_button = Checkbutton(dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
             #TODO
             #skip_button.grid(row=4,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
             self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
 
-            self.scan_button = Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
-            self.scan_button.pack(side='right',padx=4,pady=4)
+            Button(dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0).pack(side='right',padx=4,pady=4)
 
-            self.scan_cancel_button = Button(self.scan_dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
+            self.scan_cancel_button = Button(dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
             self.scan_cancel_button.pack(side='left',padx=4,pady=4)
 
-            self.scan_dialog.focus=self.scan_cancel_button
+            dialog.focus=self.scan_cancel_button
 
             ############
-            temp_frame3 = LabelFrame(self.scan_dialog.area_main,text='Custom Data Extractors:',borderwidth=2,bg=self.bg_color,takefocus=False)
+            temp_frame3 = LabelFrame(dialog.area_main,text='Custom Data Extractors:',borderwidth=2,bg=self.bg_color,takefocus=False)
             temp_frame3.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3)
 
             sf_par3 = dialogs.SFrame(temp_frame3,bg=self.bg_color)
@@ -554,15 +557,17 @@ class Gui:
             test_tooltip = "Test Custom Data Extractor\non single selected file ..."
             crc_tooltip = "Calculate CRC (SHA1) for ALL\nfiles matching glob and size cryteria\nIt may take a long time."
 
-            self.widget_tooltip(lab_use,use_tooltip)
-            self.widget_tooltip(lab_mask,mask_tooltip)
-            self.widget_tooltip(lab_min,min_tooltip)
-            self.widget_tooltip(lab_max,max_tooltip)
-            self.widget_tooltip(lab_exec,exec_tooltip)
-            self.widget_tooltip(lab_open,open_tooltip)
-            self.widget_tooltip(lab_timeout,timeout_tooltip)
-            self.widget_tooltip(lab_test,test_tooltip)
-            self.widget_tooltip(lab_crc,crc_tooltip)
+            self_widget_tooltip = self.widget_tooltip
+
+            self_widget_tooltip(lab_use,use_tooltip)
+            self_widget_tooltip(lab_mask,mask_tooltip)
+            self_widget_tooltip(lab_min,min_tooltip)
+            self_widget_tooltip(lab_max,max_tooltip)
+            self_widget_tooltip(lab_exec,exec_tooltip)
+            self_widget_tooltip(lab_open,open_tooltip)
+            self_widget_tooltip(lab_timeout,timeout_tooltip)
+            self_widget_tooltip(lab_test,test_tooltip)
+            self_widget_tooltip(lab_crc,crc_tooltip)
 
             self.CDE_ENTRIES_MAX = 16
             self.CDE_use_var_list = []
@@ -627,19 +632,83 @@ class Gui:
 
             ###########################################
 
-            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-            self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self_ico['warning'])
-            self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-
-            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-            self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
-
-            self.widget_tooltip(self.progress_dialog_on_scan.abort_button,'')
+            #self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.exclude_regexp_scan.set(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP))
 
         return self.scan_dialog
+
+    progress_dialog_on_scan_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_progress_dialog_on_scan(self):
+        if not self.progress_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
+
+            self.widget_tooltip(self.progress_dialog_on_scan.abort_button,'')
+            self.progress_dialog_on_scan_created = True
+
+        return self.progress_dialog_on_scan
+
+    info_dialog_on_scan_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_info_dialog_on_scan(self):
+        if not self.info_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.info_dialog_on_scan_created = True
+
+        return self.info_dialog_on_scan
+
+    text_dialog_on_scan_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_text_dialog_on_scan(self):
+        if not self.text_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.text_dialog_on_scan_created = True
+
+        return self.text_dialog_on_scan
+
+    text_ask_dialog_on_scan_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_text_ask_dialog_on_scan(self):
+        if not self.text_ask_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico['warning'])
+            self.text_ask_dialog_on_scan_created = True
+
+        return self.text_ask_dialog_on_scan
+
+    progress_dialog_on_find_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_progress_dialog_on_find(self):
+        if not self.progress_dialog_on_find_created:
+            self.status("Creating dialog ...")
+
+            self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
+            self.widget_tooltip(self.progress_dialog_on_find.abort_button,'Abort searching.')
+
+            self.progress_dialog_on_find_created = True
+
+        return self.progress_dialog_on_find
 
     find_dialog_created = False
     @restore_status_line
@@ -647,19 +716,13 @@ class Gui:
     @gui_block
     def get_find_dialog(self):
         if not self.find_dialog_created:
-            self.status("Opening dialog ...")
+            self.status("Creating dialog ...")
 
             self_ico_librer = self.ico_librer
 
             ###################################
             self.find_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Search database',pre_show=self.pre_show,post_close=self.post_close)
 
-            self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-            self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
-
-            self.widget_tooltip(self.progress_dialog_on_find.abort_button,'')
-
-            ##############
             #self.find_size_use_var = BooleanVar()
             self.find_filename_search_kind_var = StringVar()
             self.find_cd_search_kind_var = StringVar()
@@ -673,17 +736,14 @@ class Gui:
             self.find_name_glob_var = StringVar()
             self.find_name_fuzz_var = StringVar()
 
-            #self.find_name_var = StringVar()
             self.find_name_case_sens_var = BooleanVar()
+            self.find_name_fuzzy_threshold = StringVar()
 
             self.find_cd_regexp_var = StringVar()
             self.find_cd_glob_var = StringVar()
             self.find_cd_fuzz_var = StringVar()
 
-            #self.find_cd_var = StringVar()
             self.find_cd_case_sens_var = BooleanVar()
-
-            self.find_filename_fuzzy_threshold = StringVar()
             self.find_cd_fuzzy_threshold = StringVar()
             ##############
 
@@ -712,7 +772,7 @@ class Gui:
             self.find_cd_fuzz_var.set(self.cfg.get(CFG_KEY_find_cd_fuzz))
             self.find_cd_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_cd_case_sens))
 
-            self.find_filename_fuzzy_threshold.set(self.cfg.get(CFG_KEY_filename_fuzzy_threshold))
+            self.find_name_fuzzy_threshold.set(self.cfg.get(CFG_KEY_filename_fuzzy_threshold))
             self.find_cd_fuzzy_threshold.set(self.cfg.get(CFG_KEY_cd_fuzzy_threshold))
 
             ##############
@@ -730,7 +790,7 @@ class Gui:
             self.find_cd_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
             self.find_cd_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
 
-            self.find_filename_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_name_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
             self.find_cd_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
 
             sfdma = self.find_dialog.area_main
@@ -751,9 +811,9 @@ class Gui:
             self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
             self.find_filename_fuzz_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzz_var,validate="key")
 
-            self.find_filename_regexp_entry.bind("<KeyPress>", self.find_name_var_mod)
-            self.find_filename_glob_entry.bind("<KeyPress>", self.find_name_var_mod)
-            self.find_filename_fuzz_entry.bind("<KeyPress>", self.find_name_var_mod)
+            self.find_filename_regexp_entry.bind("<KeyPress>", lambda event : self.find_mod)
+            self.find_filename_glob_entry.bind("<KeyPress>", lambda event : self.find_mod)
+            self.find_filename_fuzz_entry.bind("<KeyPress>", lambda event : self.find_mod)
 
             self.find_filename_regexp_entry.grid(row=2, column=1, sticky='we',padx=4,pady=4)
             self.find_filename_glob_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
@@ -763,7 +823,7 @@ class Gui:
             self.find_filename_case_sens_cb.grid(row=3, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
 
             self.find_filename_fuzzy_threshold_lab = Label(find_filename_frame,text='Threshold:',bg=self.bg_color,anchor='e')
-            self.find_filename_fuzzy_threshold_entry = Entry(find_filename_frame,textvariable=self.find_filename_fuzzy_threshold)
+            self.find_filename_fuzzy_threshold_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzzy_threshold)
             self.find_filename_fuzzy_threshold_lab.grid(row=4, column=2, sticky='wens',padx=4,pady=4)
             self.find_filename_fuzzy_threshold_entry.grid(row=4, column=3, sticky='wens',padx=4,pady=4)
 
@@ -783,9 +843,9 @@ class Gui:
             self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
             self.find_cd_fuzz_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzz_var,validate="key")
 
-            self.find_cd_regexp_entry.bind("<KeyPress>", self.find_name_var_mod)
-            self.find_cd_glob_entry.bind("<KeyPress>", self.find_name_var_mod)
-            self.find_cd_fuzz_entry.bind("<KeyPress>", self.find_name_var_mod)
+            self.find_cd_regexp_entry.bind("<KeyPress>", lambda event : self.find_mod)
+            self.find_cd_glob_entry.bind("<KeyPress>", lambda event : self.find_mod)
+            self.find_cd_fuzz_entry.bind("<KeyPress>", lambda event : self.find_mod)
 
             self.find_cd_regexp_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
             self.find_cd_glob_entry.grid(row=5, column=1, sticky='we',padx=4,pady=4)
@@ -842,7 +902,7 @@ class Gui:
     @gui_block
     def get_about_dialog(self):
         if not self.about_dialog_created:
-            self.status("Opening dialog ...")
+            self.status("Creating dialog ...")
 
             self.aboout_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
 
@@ -883,7 +943,7 @@ class Gui:
     @gui_block
     def get_license_dialog(self):
         if not self.license_dialog_created:
-            self.status("Opening dialog ...")
+            self.status("Creating dialog ...")
 
             try:
                 self.license=Path(path_join(LIBRER_DIR,'LICENSE')).read_text(encoding='ASCII')
@@ -926,7 +986,6 @@ class Gui:
 
         self.cfg_get_bool=self.cfg.get_bool
 
-        self.paths_to_scan_frames=[]
         self.exclude_frames=[]
 
         signal(SIGINT, lambda a, k : self.handle_sigint())
@@ -956,6 +1015,8 @@ class Gui:
         self.hg_index = 0
         hg_indices=('01','02','03','04','05','06','07','08', '11','12','13','14','15','16','17','18', '21','22','23','24','25','26','27','28', '31','32','33','34','35','36','37','38',)
         self.hg_ico={ i:self_ico[str('hg'+j)] for i,j in enumerate(hg_indices) }
+        #self_hg_ico = self.hg_ico
+        self.hg_ico_len = len(self.hg_ico)
 
         self.ico_record = self_ico['record']
         self.ico_cd_ok = self_ico['cd_ok']
@@ -968,7 +1029,9 @@ class Gui:
         self.ico_folder_link = self_ico['folder_link']
         self.ico_folder_error = self_ico['folder_error']
         self.ico_empty = self_ico['empty']
-        self.ico_delete = self_ico['delete']
+
+
+        #self.ico_delete = self_ico['delete']
 
         self_ico_librer = self.ico_librer = self_ico['librer']
         self.ico_test = self_ico['test']
@@ -984,19 +1047,21 @@ class Gui:
 
         self.SYMLINK='S'
 
+        self.FOUND = 'X'
+
         #self.defaultFont = font.nametofont("TkDefaultFont")
         #self.defaultFont.configure(family="Monospace regular",size=8,weight=font.BOLD)
         #self.defaultFont.configure(family="Monospace regular",size=10)
         #self_main.option_add("*Font", self.defaultFont)
 
-        self.tooltip = Toplevel(self_main)
-        self.tooltip_withdraw = self.tooltip.withdraw
+        self_tooltip = self.tooltip = Toplevel(self_main)
+        self.tooltip_withdraw = self_tooltip.withdraw
         self.tooltip_withdraw()
-        self.tooltip_deiconify = self.tooltip.deiconify
-        self.tooltip_wm_geometry = self.tooltip.wm_geometry
+        self.tooltip_deiconify = self_tooltip.deiconify
+        self.tooltip_wm_geometry = self_tooltip.wm_geometry
 
         self.tooltip.wm_overrideredirect(True)
-        self.tooltip_lab=Label(self.tooltip, justify='left', background="#ffffe0", relief='solid', borderwidth=0, wraplength = 1200)
+        self.tooltip_lab=Label(self_tooltip, justify='left', background="#ffffe0", relief='solid', borderwidth=0, wraplength = 1200)
         self.tooltip_lab.pack(ipadx=1)
         self.tooltip_lab_configure = self.tooltip_lab.configure
 
@@ -1021,15 +1086,15 @@ class Gui:
 
         style_map = style.map
 
-        style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
-        style_map("TButton",  foreground=[('disabled',"gray"),('',"black")] )
+        style_map("TButton", relief=[('disabled',"flat"),('',"raised")] )
+        style_map("TButton", foreground=[('disabled',"gray"),('',"black")] )
 
         style_map("TEntry", foreground=[("disabled",self.bg_color),('','black')],relief=[("disabled",'flat'),('','sunken')],borderwidth=[("disabled",0),('',2)])
         style_map("TCheckbutton", foreground=[("disabled",'darkgray'),('','black')],relief=[("disabled",'flat'),('','sunken')])
 
         style.configure("TCheckbutton", state="disabled", background=self.bg_color, foreground="black")
 
-        style_map("Treeview.Heading",  relief=[('','raised')] )
+        style_map("Treeview.Heading", relief=[('','raised')] )
         style_configure("Treeview",rowheight=18)
 
         bg_focus='#90DD90'
@@ -1047,16 +1112,16 @@ class Gui:
         #style_configure("Treeview", fieldbackground=self.bg_color)
 
         #######################################################################
-        self.menubar = Menu(self_main,bg=self.bg_color)
-        self_main.config(menu=self.menubar)
+        menubar = self.menubar = Menu(self_main,bg=self.bg_color)
+        self_main.config(menu=menubar)
         #######################################################################
 
         self.tooltip_message={}
 
-        self.menubar_config = self.menubar.config
-        self.menubar_cget = self.menubar.cget
+        self.menubar_config = menubar.config
+        self.menubar_cget = menubar.cget
 
-        self.menubar_entryconfig = self.menubar.entryconfig
+        self.menubar_entryconfig = menubar.entryconfig
         self.menubar_norm = lambda x : self.menubar_entryconfig(x, state="normal")
         self.menubar_disable = lambda x : self.menubar_entryconfig(x, state="disabled")
 
@@ -1068,21 +1133,24 @@ class Gui:
 
         self.widget_tooltip_cget(self.status_record,'Selected record (user label):')
 
-        self.status_record_path=Label(status_frame,text='--',width=20,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_record_path.pack(fill='x',expand=1,side='left')
-        self.status_record_path_configure = lambda x : self.status_record_path.configure(text = x,compound='left')
+        self_status_record_path = self.status_record_path=Label(status_frame,text='--',width=20,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self_status_record_path.pack(fill='x',expand=1,side='left')
+        self_status_record_path_configure = self_status_record_path.configure
+        self.status_record_path_configure = lambda x : self_status_record_path_configure(text = x,compound='left')
 
-        self.widget_tooltip_cget(self.status_record_path,'Scanpath of selected record')
+        self.widget_tooltip_cget(self_status_record_path,'Scanpath of selected record')
 
-        self.status_record_subpath=Label(status_frame,text='--',width=60,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_record_subpath.pack(fill='x',expand=1,side='left')
-        self.status_record_subpath_configure = lambda x : self.status_record_subpath.configure(text = x,compound='left')
+        self_status_record_subpath = self.status_record_subpath=Label(status_frame,text='--',width=60,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self_status_record_subpath.pack(fill='x',expand=1,side='left')
+        self_status_record_subpath_configure = self_status_record_subpath.configure
+        self.status_record_subpath_configure = lambda x : self_status_record_subpath_configure(text = x,compound='left')
 
-        self.widget_tooltip_cget(self.status_record_subpath,'subpath of selected item')
+        self.widget_tooltip_cget(self_status_record_subpath,'subpath of selected item')
 
         self.status_info = Label(status_frame,text='Initializing...',relief='sunken',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_info.pack(fill='x',expand=1,side='left')
-        self.status= lambda x : self.status_info.configure(text = x)
+        self_status_info_configure = self.status_info.configure
+        self.status= lambda x : self_status_info_configure(text = x)
 
         self.tree=Treeview(self_main,takefocus=True,show=('tree','headings') )
         self_tree = self.tree
@@ -1092,8 +1160,7 @@ class Gui:
         self.tree_get_children = self.tree.get_children
         self.tree_focus = lambda item : self.tree.focus(item)
 
-        self.org_label={}
-        self_org_label = self.org_label
+        self_org_label = self.org_label = {}
 
         self_org_label['#0']='Label'
         self_org_label['size_h']='Size'
@@ -1115,7 +1182,8 @@ class Gui:
         self_tree_heading('size_h',anchor='w')
         self_tree_heading('ctime_h',anchor='n')
 
-        vsb1 = Scrollbar(self_main, orient='vertical', command=self_tree.yview,takefocus=False)
+        self_tree_yview = self_tree.yview
+        vsb1 = Scrollbar(self_main, orient='vertical', command=self_tree_yview,takefocus=False)
 
         self_tree.configure(yscrollcommand=vsb1.set)
 
@@ -1133,6 +1201,7 @@ class Gui:
 
         self_tree_tag_configure(self.RECORD, foreground='green')
         self_tree_tag_configure(self.SYMLINK, foreground='gray')
+        self_tree_tag_configure(self.FOUND, foreground='red')
 
         self.biggest_file_of_path={}
         self.biggest_file_of_path_id={}
@@ -1165,7 +1234,7 @@ class Gui:
                 self_file_cascade_add_separator = self.file_cascade.add_separator
 
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
-                self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="N",image = self_ico['record'],compound='left')
+                self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="N",image = self.ico_record,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="F",image = self_ico['find'],compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
@@ -1173,8 +1242,8 @@ class Gui:
                 #self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
 
-        self.file_cascade= Menu(self.menubar,tearoff=0,bg=self.bg_color,postcommand=file_cascade_post)
-        self.menubar.add_cascade(label = 'File',menu = self.file_cascade,accelerator="Alt+F")
+        self.file_cascade= Menu(menubar,tearoff=0,bg=self.bg_color,postcommand=file_cascade_post)
+        menubar.add_cascade(label = 'File',menu = self.file_cascade,accelerator="Alt+F")
 
         def help_cascade_post():
             self.help_cascade.delete(0,'end')
@@ -1191,9 +1260,9 @@ class Gui:
                 self_help_cascade_add_separator()
                 self_help_cascade_add_command(label = 'Open homepage',command=self.show_homepage, image = self_ico['home'],compound='left')
 
-        self.help_cascade= Menu(self.menubar,tearoff=0,bg=self.bg_color,postcommand=help_cascade_post)
+        self.help_cascade= Menu(menubar,tearoff=0,bg=self.bg_color,postcommand=help_cascade_post)
 
-        self.menubar.add_cascade(label = 'Help',menu = self.help_cascade)
+        menubar.add_cascade(label = 'Help',menu = self.help_cascade)
 
         #######################################################################
         self.reset_sels()
@@ -1278,13 +1347,11 @@ class Gui:
         self.status_info.configure(image='',text = 'Checking records to load ...')
         records_quant,records_size = librer_core.read_records_pre()
 
-        self_hg_ico = self.hg_ico
-        self.hg_ico_len = len(self_hg_ico)
-
+        print(records_quant)
         if records_quant:
             self.status_info.configure(image='',text = 'Loading records ...')
+
             read_thread=Thread(target=lambda : librer_core.read_records(),daemon=True)
-            read_thread.start()
             read_thread_is_alive = read_thread.is_alive
 
             self_progress_dialog_on_load.lab_l1.configure(text='Records space:')
@@ -1299,23 +1366,37 @@ class Gui:
             wait_var=BooleanVar()
             wait_var.set(False)
 
+            read_thread.start()
+
+            core_bytes_to_str_records_size = core_bytes_to_str(records_size)
+            fnumber_records_quant = fnumber(records_quant)
+
+            self_progress_dialog_on_load_lab_r1_configure = self_progress_dialog_on_load.lab_r1.configure
+            self_progress_dialog_on_load_lab_r2_configure = self_progress_dialog_on_load.lab_r2.configure
+            self_progress_dialog_on_load_lab_0_configure = self_progress_dialog_on_load_lab[0].configure
+
+            self_progress_dialog_on_load_progr1var_set = self_progress_dialog_on_load_progr1var.set
+            self_progress_dialog_on_load_progr2var_set = self_progress_dialog_on_load_progr2var.set
+
+            self_main_after = self.main.after
+
             while read_thread_is_alive() or librer_core.records_to_show :
                 self_progress_dialog_on_load_lab[2].configure(image=self.get_hg_ico())
 
                 if librer_core.records_to_show:
                     new_rec,quant,size = librer_core.records_to_show.pop(0)
 
-                    self_progress_dialog_on_load.lab_r1.configure(text= core_bytes_to_str(size) + '/' + core_bytes_to_str(records_size))
-                    self_progress_dialog_on_load.lab_r2.configure(text= fnumber(quant) + '/' + fnumber(records_quant))
+                    self_progress_dialog_on_load_lab_r1_configure(text= core_bytes_to_str(size) + '/' + core_bytes_to_str_records_size)
+                    self_progress_dialog_on_load_lab_r2_configure(text= fnumber(quant) + '/' + fnumber_records_quant)
 
-                    self_progress_dialog_on_load_lab[0].configure(text=librer_core.info_line)
+                    self_progress_dialog_on_load_lab_0_configure(text=librer_core.info_line)
 
-                    self_progress_dialog_on_load_progr1var.set(100*size/records_size)
-                    self_progress_dialog_on_load_progr2var.set(100*quant/records_quant)
+                    self_progress_dialog_on_load_progr1var_set(100*size/records_size)
+                    self_progress_dialog_on_load_progr2var_set(100*quant/records_quant)
 
                     self.single_record_show(new_rec)
                 else:
-                    self.main.after(25,lambda : wait_var.set(not wait_var.get()))
+                    self_main_after(25,lambda : wait_var.set(not wait_var.get()))
                     self.main.wait_variable(wait_var)
 
                 if self.action_abort:
@@ -1464,7 +1545,7 @@ class Gui:
 
                     record_path = record.db.scan_path
                     size = core_bytes_to_str(record.db.sum_size)
-                    time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.db.get_time()))
+                    time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time()))
                     self.tooltip_lab_configure(text=record.get_info() + (f'\n\n================================================================\n{node_cd}' if node_cd else '') )
 
                     self.tooltip_deiconify()
@@ -1547,13 +1628,15 @@ class Gui:
 
     def exit(self):
         try:
+            self.status('exiting ...')
             self.cfg.set('last_dir',self.last_dir)
             self.cfg.set('geometry',str(self.main.geometry()))
+            self.status('saving config ...')
             self.cfg.write()
+            self.status('exit.')
         except Exception as e:
             l_error(e)
 
-        self.status('exiting ...')
         #self.main.withdraw()
         sys.exit(0)
         #self.main.destroy()
@@ -1644,9 +1727,6 @@ class Gui:
 
     find_dialog_shown=False
 
-    def find_name_var_mod(self,event):
-        self.find_params_changed=True
-
     def find_mod(self):
         try:
             if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
@@ -1681,7 +1761,7 @@ class Gui:
             elif self.cfg.get_bool(CFG_KEY_find_cd_case_sens) != bool(self.find_cd_case_sens_var.get()):
                 self.find_params_changed=True
 
-            elif self.cfg.get_bool(CFG_KEY_filename_fuzzy_threshold) != bool(self.find_filename_fuzzy_threshold.get()):
+            elif self.cfg.get_bool(CFG_KEY_filename_fuzzy_threshold) != bool(self.find_name_fuzzy_threshold.get()):
                 self.find_params_changed=True
             elif self.cfg.get_bool(CFG_KEY_cd_fuzzy_threshold) != bool(self.find_cd_fuzzy_threshold.get()):
                 self.find_params_changed=True
@@ -1695,7 +1775,6 @@ class Gui:
                 self.find_cd_regexp_entry.configure(state='normal')
             else:
                 self.find_cd_regexp_entry.configure(state='disabled')
-
 
             if self.find_filename_search_kind_var.get() == 'fuzzy':
                 self.find_filename_fuzzy_threshold_lab.configure(state='normal')
@@ -1784,7 +1863,7 @@ class Gui:
             find_name = find_name_regexp if find_filename_search_kind=='regexp' else find_name_glob if find_filename_search_kind=='glob' else find_name_fuzz if find_filename_search_kind=='fuzzy' else ''
             find_cd = find_cd_regexp if find_cd_search_kind=='regexp' else find_cd_glob if find_cd_search_kind=='glob' else find_cd_fuzz if find_cd_search_kind=='fuzzy' else ''
 
-            filename_fuzzy_threshold = self.find_filename_fuzzy_threshold.get()
+            filename_fuzzy_threshold = self.find_name_fuzzy_threshold.get()
             cd_fuzzy_threshold = self.find_cd_fuzzy_threshold.get()
 
             if find_size_min:
@@ -1839,6 +1918,8 @@ class Gui:
             self.cfg.set(CFG_KEY_filename_fuzzy_threshold,filename_fuzzy_threshold)
             self.cfg.set(CFG_KEY_cd_fuzzy_threshold,cd_fuzzy_threshold)
 
+            self_progress_dialog_on_find = self.get_progress_dialog_on_find()
+
             search_thread=Thread(target=lambda : librer_core.find_items_in_all_records(range_par,
                 min_num,max_num,
                 find_filename_search_kind,find_name,find_name_case_sens,
@@ -1854,12 +1935,7 @@ class Gui:
             self_hg_ico = self.hg_ico
             len_self_hg_ico = len(self_hg_ico)
 
-            self_progress_dialog_on_find = self.progress_dialog_on_find
-            str_self_progress_dialog_on_find_abort_button = str(self_progress_dialog_on_find.abort_button)
-
             #############################
-
-            self.tooltip_message[str_self_progress_dialog_on_find_abort_button]='Abort searching.'
 
             self_progress_dialog_on_find.show('Search progress')
 
@@ -1878,9 +1954,6 @@ class Gui:
             self_progress_dialog_on_find_lab_r1_config = self.progress_dialog_on_find.lab_r1.config
             self_progress_dialog_on_find_lab_r2_config = self.progress_dialog_on_find.lab_r2.config
 
-
-            #self.lab_r2.config(text='r2')
-
             update_once=True
             self_ico_empty = self.ico_empty
             prev_curr_files = curr_files = 0
@@ -1896,6 +1969,7 @@ class Gui:
             librer_core_files_search_quant = librer_core.files_search_quant
             fnumber_librer_core_files_search_quant = fnumber(librer_core_files_search_quant)
             fnumber_records_len = fnumber(records_len)
+
             while search_thread_is_alive():
                 now=time()
                 ######################################################################################
@@ -2411,7 +2485,7 @@ class Gui:
             return
 
         if self.scan_label_entry_var.get()=='':
-            self.info_dialog_on_scan.show('Error. Empty label.','Set user label.')
+            self.get_info_dialog_on_scan().show('Error. Empty label.','Set user label.')
             return
 
         self.scanning_in_progress=True
@@ -2450,15 +2524,15 @@ class Gui:
         path_to_scan_from_entry = abspath(self.path_to_scan_entry_var.get())
         #print('path_to_scan_from_entry:',path_to_scan_from_entry)
 
-        exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
+        #exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
 
         #if res:=librer_core.set_exclude_masks(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
-        #    self.info_dialog_on_scan.show('Error. Fix expression.',res)
+        #    self.get_info_dialog_on_scan().show('Error. Fix expression.',res)
         #    return False
         #self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_from_entry))
 
         if not path_to_scan_from_entry:
-            self.info_dialog_on_scan.show('Error. No paths to scan.','Add paths to scan.')
+            self.get_info_dialog_on_scan().show('Error. No paths to scan.','Add paths to scan.')
             return False
 
         new_record = librer_core.create(self.scan_label_entry_var.get(),path_to_scan_from_entry)
@@ -2466,7 +2540,7 @@ class Gui:
         self.main_update()
 
         #############################
-        self_progress_dialog_on_scan = self.progress_dialog_on_scan
+        self_progress_dialog_on_scan = self.progress_dialog_on_scan = self.get_progress_dialog_on_scan()
         self_progress_dialog_on_scan_lab = self_progress_dialog_on_scan.lab
         self_progress_dialog_on_scan_area_main_update = self_progress_dialog_on_scan.area_main.update
 
@@ -2550,7 +2624,7 @@ class Gui:
             timeout,
             '1' if self.CDE_crc_var_list[e].get() else '0' ]
 
-            cde_sklejka_list.append('<>'.join(line_list))
+            cde_sklejka_list.append('|'.join(line_list))
 
             if self.CDE_use_var_list[e].get():
                 any_cde_enabled=True
@@ -2564,7 +2638,7 @@ class Gui:
                     timeout_int,
                     crc ) )
 
-        self.cfg.set(CFG_KEY_CDE_SETTINGS,'|'.join(cde_sklejka_list))
+        self.cfg.set(CFG_KEY_CDE_SETTINGS,'\n'.join(cde_sklejka_list))
 
         check_dev = self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE)
 
@@ -2734,15 +2808,16 @@ class Gui:
                     self.tree_semi_focus()
                 self.tree.focus_set()
 
-    def scan_dialog_show(self,do_scan=False):
+    def scan_dialog_show(self):
+        #self.exclude_mask_update()
+
         dialog = self.get_scan_dialog()
 
-        self.exclude_mask_update()
-
+        self.status("Opening dialog ...")
         e=0
-        for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('|'):
+        for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('\n'):
             try:
-                v1,v2,v3,v4,v5,v6,v7 = e_section.split('<>')
+                v1,v2,v3,v4,v5,v6,v7 = e_section.split('|')
                 self.CDE_use_var_list[e].set(True if v1=='1' else False)
                 self.CDE_mask_var_list[e].set(v2)
                 self.CDE_size_min_var_list[e].set(v3)
@@ -2751,12 +2826,11 @@ class Gui:
                 self.CDE_timeout_var_list[e].set(v6)
                 self.CDE_crc_var_list[e].set(True if v7=='1' else False)
                 e+=1
-            except:
-                print(e_section)
+            except Exception as e:
+                print(e,e_section)
                 break
 
-        self.scan_dialog.do_command_after_show=self.scan if do_scan else None
-
+        dialog.do_command_after_show=lambda : self.status("")
         dialog.show()
 
     def exclude_regexp_set(self):
@@ -2817,12 +2891,13 @@ class Gui:
 
             info = ' '.join(self.CDE_executable_var_list[e].get().split() + [file_to_test]) + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '')
 
-            self.text_ask_dialog_on_scan.show('Test selected Custom Data Extractor on selected file ?',info)
+            ask_dialog = self.get_text_ask_dialog_on_scan()
+            ask_dialog.show('Test selected Custom Data Extractor on selected file ?',info)
 
-            if self.text_ask_dialog_on_scan.res_bool:
+            if ask_dialog.res_bool:
                 cd_ok,output = librer_core.test_cde(executable,timeout_int,file_to_test)
 
-                self.text_dialog_on_scan.show('CDE Test',output)
+                self.get_text_dialog_on_scan().show('CDE Test',output)
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -2986,7 +3061,7 @@ class Gui:
 
         #print(record_db.label)
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-        values = (record_db.label,record_db.label,0,record_db.scan_path,size,core.bytes_to_str(size),record_db.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record_db.get_time())),self.RECORD)
+        values = (record_db.label,record_db.label,0,record_db.scan_path,size,core.bytes_to_str(size),record_db.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time())),self.RECORD)
         #print('insert:',values)
         record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record_db.label,image=self.ico_record,tags=self.RECORD)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
@@ -3109,7 +3184,7 @@ class Gui:
                 #if not opened:
                 #    self.open_item(None,item)
             elif kind == self.RECORD :
-                time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.db.get_time()))
+                time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time()))
                 self.get_text_info_dialog().show('Record Info.',record.get_info())
 
                 #if opened:

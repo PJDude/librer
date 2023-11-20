@@ -56,38 +56,37 @@ class GenericDialog:
         self.bg_color=bg_color
 
         self.icon = icon
-        self.widget = Toplevel(parent,bg=self.bg_color,bd=0, relief='flat')
-        self.widget.withdraw()
-        self.widget.update()
-        self.widget.protocol("WM_DELETE_WINDOW", lambda : self.hide())
+        self.widget = widget = Toplevel(parent,bg=self.bg_color,bd=0, relief='flat')
+        widget.withdraw()
+        widget.update()
+        widget.protocol("WM_DELETE_WINDOW", lambda : self.hide())
 
         global locked_by_child
-        locked_by_child[self.widget]=None
+        locked_by_child[widget]=None
 
         self.set_mins(min_width,min_height)
 
         self.focus=None
 
-        self.widget.iconphoto(False, *icon)
+        widget.iconphoto(False, *icon)
 
-        self.widget.title(title)
-        self.widget.bind('<Escape>', lambda event : self.hide() )
-
-        self.widget.bind('<KeyPress-Return>', self.return_bind)
-        self.widget.bind("<FocusIn>",lambda event : self.focusin() )
+        widget.title(title)
+        widget.bind('<Escape>', lambda event : self.hide() )
+        widget.bind('<KeyPress-Return>', self.return_bind)
+        widget.bind("<FocusIn>",lambda event : self.focusin() )
 
         self.parent=parent
 
         self.pre_show=pre_show
         self.post_close=post_close
 
-        self.area_main = Frame(self.widget,bg=self.bg_color)
+        self.area_main = Frame(widget,bg=self.bg_color)
         self.area_main.pack(side='top',expand=1,fill='both')
 
         #only grid here
         self.area_main.grid_columnconfigure(0, weight=1)
 
-        self.area_buttons = Frame(self.widget,bg=self.bg_color)
+        self.area_buttons = Frame(widget,bg=self.bg_color)
         self.area_buttons.pack(side='bottom',expand=0,fill='x')
 
         self.wait_var=BooleanVar()
@@ -95,6 +94,10 @@ class GenericDialog:
 
         self.do_command_after_show=None
         self.command_on_close=None
+
+    def clip_copy(self,what):
+        self.widget.clipboard_clear()
+        self.widget.clipboard_append(what)
 
     def set_mins(self,min_width,min_height):
         self.widget.minsize(min_width, min_height)
@@ -115,37 +118,40 @@ class GenericDialog:
             child_widget.focus_set()
 
     def show(self,wait=True):
-        if self.pre_show:
-            self.pre_show(new_widget=self.widget)
+        self.parent.config(cursor="watch")
+        self.parent.update()
 
-        self.widget.wm_transient(self.parent)
+        widget = self.widget
+
+        if self.pre_show:
+            self.pre_show(new_widget=widget)
+
+        widget.wm_transient(self.parent)
 
         global locked_by_child
-        locked_by_child[self.parent]=self.widget
+        locked_by_child[self.parent]=widget
 
         self.focus_restore=True
         self.pre_focus=self.parent.focus_get()
 
-        self.widget.update()
-        set_geometry_by_parent(self.widget,self.parent)
+        widget.update()
+        set_geometry_by_parent(widget,self.parent)
 
         self.wait_var.set(False)
         self.res_bool=False
 
         try:
-            self.widget.deiconify()
-            self.widget.update()
-            #self.widget.grab_set()
+            widget.deiconify()
+            widget.update()
+            #widget.grab_set()
         except Exception as e:
             print(e)
-
-        self.parent.config(cursor="watch")
 
         if self.focus:
             self.focus.focus_set()
             #focus.focus_force()
 
-        set_geometry_by_parent(self.widget,self.parent)
+        set_geometry_by_parent(widget,self.parent)
 
         if self.do_command_after_show:
             commnad_res = self.do_command_after_show()
@@ -156,31 +162,31 @@ class GenericDialog:
 
         #windows re-show workaround
         try:
-            self.widget.iconphoto(False, *self.icon)
+            widget.iconphoto(False, *self.icon)
         except Exception as e:
             print(e)
 
         if wait:
-            self.widget.wait_variable(self.wait_var)
+            widget.wait_variable(self.wait_var)
 
     def hide(self,force_hide=False):
+        widget = self.widget
+
         global locked_by_child
-        if locked_by_child[self.widget]:
+        if locked_by_child[widget]:
             return
 
         if not force_hide and self.command_on_close:
             self.command_on_close()
         else:
-            #self.widget.grab_release()
+            #widget.grab_release()
 
-            self.widget.withdraw()
+            widget.withdraw()
 
             try:
-                self.widget.update()
+                widget.update()
             except Exception as e:
                 pass
-
-            self.parent.config(cursor="")
 
             if self.post_close:
                 self.post_close()
@@ -194,6 +200,7 @@ class GenericDialog:
             locked_by_child[self.parent]=None
 
             self.wait_var.set(True)
+            self.parent.config(cursor="")
 
 class LabelDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=120):
@@ -233,7 +240,6 @@ class LabelDialogQuestion(LabelDialog):
     def show(self,title='',message=''):
         self.res_bool=False
         super().show(title,message)
-
 
 class ProgressDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=550,min_height=120):
@@ -311,6 +317,8 @@ class TextDialogInfo(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=1000,min_height=600):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
+        self.message = ''
+
         textwidth=80
         self.text = scrolledtext.ScrolledText(self.area_main,relief='groove' , bd=2,bg='white',width = textwidth,takefocus=True)
         self.text.frame.config(takefocus=False)
@@ -324,15 +332,25 @@ class TextDialogInfo(GenericDialog):
         self.area_main.grid_rowconfigure(0, weight=1)
 
         self.cancel_button=Button(self.area_buttons, text='Close', width=14, command=super().hide )
-        self.cancel_button.pack(side='bottom', anchor='n',padx=5,pady=5)
+        self.cancel_button.pack(side='left', anchor='e',padx=5,pady=5)
+
+        self.copy_button=Button(self.area_buttons, text='Copy', width=14, command=self.clip_copy_message )
+        self.copy_button.pack(side='right', anchor='w',padx=5,pady=5)
 
         self.focus=self.cancel_button
+
+    def clip_copy_message(self):
+        self.clip_copy(self.message)
+        self.copy_button.configure(state='disabled')
 
     def show(self,title='',message=''):
         self.widget.title(title)
 
         self.text.configure(state='normal')
         self.text.delete('1.0', 'end')
+
+        self.message = message
+
         for line in message.split('\n'):
             line_splitted=line.split('|')
             tag=line_splitted[1] if len(line_splitted)>1 else None
@@ -341,6 +359,8 @@ class TextDialogInfo(GenericDialog):
 
         self.text.configure(state='disabled')
         self.text.grid(row=0,column=0,sticky='news',padx=5,pady=5)
+
+        self.copy_button.configure(state='normal')
 
         super().show()
 
@@ -440,7 +460,6 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
         self.check.configure(command=self.mod)
 
         self.widget.bind('<KeyRelease>',lambda event : self.mod())
-
         self.widget.bind('<KeyPress-F3>', self.f3_bind)
 
         self.focus=self.entry

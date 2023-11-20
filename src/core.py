@@ -55,6 +55,8 @@ from re import IGNORECASE
 from signal import SIGTERM
 
 from time import time
+from time import strftime
+from time import localtime
 
 from gzip import open as gzip_open
 from gzip import decompress as gzip_decompress
@@ -163,9 +165,6 @@ class LibrerCoreData :
 
         self.creation_os,self.creation_host = f'{platform_system()} {platform_release()}',platform_node()
 
-    def get_time(self):
-        return self.creation_time/1000
-
 #######################################################################
 class LibrerCoreRecord :
     def __init__(self,label,path,log):
@@ -182,6 +181,10 @@ class LibrerCoreRecord :
 
         self.crc_progress_info=0
         self.FILE_NAME = ''
+        self.FILE_SIZE = 0
+
+    def get_time(self):
+        return self.db.creation_time/1000
 
     def new_file_name(self):
         return f'{self.db.rid}.dat'
@@ -190,7 +193,8 @@ class LibrerCoreRecord :
         self.abort_action = True
 
     def get_info(self):
-        return f'name: {self.db.label}\nscan path: {self.db.scan_path}\nsize: {bytes_to_str(self.db.sum_size)}\nhost: {self.db.creation_host}\nOS: {self.db.creation_os}\ncreation time: {self.db.creation_time}\nfile: {self.FILE_NAME}'
+        local_time = strftime('%Y/%m/%d %H:%M:%S',localtime(self.get_time()))
+        return f'name: {self.db.label}\nscan path: {self.db.scan_path}\nsize: {bytes_to_str(self.db.sum_size)}\nhost: {self.db.creation_host}\nOS: {self.db.creation_os}\ncreation time: {local_time}\nfile: {self.FILE_NAME}\nfile size: {bytes_to_str(self.FILE_SIZE)}'
 
     def calc_crc(self,fullpath,size):
         CRC_BUFFER_SIZE=4*1024*1024
@@ -347,6 +351,19 @@ class LibrerCoreRecord :
 
         #for ext,stat in sorted(self.ext_statistics.items(),key = lambda x : x[1],reverse=True):
         #    print(ext,stat)
+    def data_group_test_rec(self,dictionary):
+        list_flat = []
+        for entry_name,items_list in dictionary.items():
+
+            list_flat.append(entry_name)
+
+            (is_dir,is_file,is_symlink,is_bind,size,mtime,sub_dict) = items_list[0:7]
+
+            if is_dir:
+                if not is_symlink and not is_bind:
+                    list_flat.extend(self.data_group_test_rec(sub_dict))
+
+        return list_flat
 
     def tupelize_rec(self,dictionary):
         entry_LUT_encode_loc = entry_LUT_encode
@@ -565,6 +582,44 @@ class LibrerCoreRecord :
         code = entry_LUT_encode[ (is_dir,is_file,is_symlink,is_bind, has_cd,has_files,cd_ok,False) ]
         self.db.data = ('record',code,size,mtime,self.tupelize_rec(self.scan_data))
 
+        if False:
+            flat_list = self.data_group_test_rec(self.scan_data)
+
+            maxlen = len(flat_list)
+            ints_list = [x for x in range(maxlen)]
+
+            with gzip_open('debug_dump.list.gz', "wb") as gzip_file:
+                pickle_dump(flat_list, gzip_file)
+
+            with gzip_open('debug_dump.list_to_tuple.gz', "wb") as gzip_file:
+                pickle_dump(tuple(flat_list), gzip_file)
+
+            with gzip_open('debug_dump.list.indexes.gz', "wb") as gzip_file:
+                pickle_dump(ints_list, gzip_file)
+
+            with gzip_open('debug_dump.list.indexes_to_tuple.gz', "wb") as gzip_file:
+                pickle_dump(tuple(ints_list), gzip_file)
+
+            with gzip_open('debug_dump.set.gz', "wb") as gzip_file:
+                pickle_dump(set(flat_list), gzip_file)
+
+            with gzip_open('debug_dump.set_to_list.gz', "wb") as gzip_file:
+                pickle_dump(list(set(flat_list)), gzip_file)
+
+            with gzip_open('debug_dump.set_to_list_to_tuple.gz', "wb") as gzip_file:
+                pickle_dump(tuple(list(set(flat_list))), gzip_file)
+
+            with gzip_open('debug_dump.set_to_list_sorted.gz', "wb") as gzip_file:
+                pickle_dump(list(sorted(set(flat_list))), gzip_file)
+
+            with gzip_open('debug_dump.set_to_list_sorted_to_tuple.gz', "wb") as gzip_file:
+                pickle_dump(tuple(list(sorted(set(flat_list)))), gzip_file)
+
+            with gzip_open('debug_dump.string.gz', "wb") as gzip_file:
+                pickle_dump('/'.join(set(flat_list)), gzip_file)
+
+            print('flat_list len:',len(flat_list),' set:',len(set(flat_list)))
+
     def find_items(self,
             size_min,size_max,
             filename_search_kind,name_func_to_call,cd_search_kind,cd_func_to_call):
@@ -708,6 +763,8 @@ class LibrerCoreRecord :
 
         try:
             full_file_path = sep.join([db_dir,file_name])
+            stat_res = stat(full_file_path)
+            self.FILE_SIZE = stat_res.st_size
             with gzip_open(full_file_path, "rb") as gzip_file:
                 self.db = pickle_load(gzip_file)
 
