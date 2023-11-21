@@ -171,8 +171,8 @@ class LibrerCoreRecord :
         self.db = LibrerCoreData(label,path)
 
         self.log = log
-        self.find_results = set()
-        self.find_results_list = []
+        self.find_results = []
+
         self.info_line = ''
         self.info_line_current = ''
 
@@ -632,8 +632,8 @@ class LibrerCoreRecord :
         error_kind_code = self.search_kind_code_tab['error']
         fuzzy_kind_code = self.search_kind_code_tab['fuzzy']
 
-        find_results = self.find_results = set()
-        find_results_add = find_results.add
+        find_results = self.find_results = []
+        find_results_add = find_results.append
 
         data_loc = self.db.data
 
@@ -671,6 +671,8 @@ class LibrerCoreRecord :
                     print('format error:',data_entry_len,data_entry[0])
                     continue
 
+                next_level = parent_path_components + [name]
+
                 is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed = entry_LUT_decode_loc[code]
 
                 sub_data = fifth_field if is_dir and has_files else None
@@ -684,11 +686,10 @@ class LibrerCoreRecord :
                         #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
                         if name_func_to_call:
                             if name_func_to_call(name):
-                                single_res = parent_path_components + [name]
-                                find_results_add( tuple(single_res) )
+                                find_results_add( tuple([tuple(next_level),size,mtime]) )
 
                     if sub_data:
-                        search_list_append( (sub_data,parent_path_components + [name]) )
+                        search_list_append( (sub_data,next_level) )
 
                 elif is_file:
                     if use_size:
@@ -742,9 +743,17 @@ class LibrerCoreRecord :
                         else:
                             continue
 
-                    find_results_add( tuple(parent_path_components + [name]) )
+                    find_results_add( tuple([tuple(next_level),size,mtime ]) )
 
-        self.find_results_list = list(find_results)
+    def find_items_sort(self,what,reverse):
+        if what=='data':
+            self.find_results.sort(key = lambda x : x[0],reverse=reverse)
+        elif what=='size':
+            self.find_results.sort(key = lambda x : (x[0][0:-1],x[1]),reverse=reverse)
+        elif what=='ctime':
+            self.find_results.sort(key = lambda x : (x[0][0:-1],x[2]),reverse=reverse)
+        else:
+            print('unknown sorting',what,mod)
 
     def save(self) :
         file_name=self.new_file_name()
@@ -754,6 +763,12 @@ class LibrerCoreRecord :
 
         with gzip_open(file_path, "wb") as gzip_file:
             pickle_dump(self.db, gzip_file)
+
+        try:
+            self.FILE_NAME = file_name
+            self.FILE_SIZE = stat(file_path).st_size
+        except Exception as e:
+            print('stat error:%s' % e )
 
         self.info_line = ''
 
