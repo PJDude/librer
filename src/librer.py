@@ -1529,21 +1529,27 @@ class Gui:
                     record = self.item_to_record[record_item]
 
                     node_cd = None
-                    try:
-                        tuple_len = len(self.item_to_data[item])
-                        if tuple_len==5:
-                            (entry_name,code,size,mtime,fifth_field) = self.item_to_data[item]
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed = core.entry_LUT_decode[code]
+                    if item in self.item_to_data:
+                        try:
+                            data = self.item_to_data[item]
+                            #print('data:',data)
 
-                            if has_cd:
-                                if cd_data := fifth_field:
-                                    cd_txt = record.get_cd_text(cd_data,is_compressed)
+                            tuple_len = len(self.item_to_data[item])
+                            if tuple_len==5:
+                                (entry_name_nr,code,size,mtime,fifth_field) = self.item_to_data[item]
+                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok = core.entry_LUT_decode[code]
 
-                                    node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_txt.split('\n')[0:10]] ) + '\n'
+                                if has_cd:
+                                    cd_nr = fifth_field
+                                    if cd_data := record.custom_data[cd_nr][1]:
+                                        #print('a1',cd_nr,cd_data)
+                                        cd_txt = cd_data
+                                        #record.get_cd_text(cd_data)
 
-                    except Exception as exc:
-                        print(exc)
-                        pass
+                                        node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_txt.split('\n')[0:10]] ) + '\n'
+
+                        except Exception as exc:
+                            print('show_tooltips_tree',exc)
 
                     record_path = record.db.scan_path
                     size = core_bytes_to_str(record.db.sum_size)
@@ -2420,7 +2426,6 @@ class Gui:
 
         self.column_sort(tree)
 
-    @logwrapper
     def tree_sort_item(self,parent_item):
         tree = self.tree
 
@@ -2940,6 +2945,8 @@ class Gui:
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.exclude_mask_update()
 
+    @block_actions_processing
+    @gui_block
     def open_item(self,item=None,to_the_bottom=False):
         tree=self.tree
 
@@ -2967,14 +2974,20 @@ class Gui:
             new_items_values = {}
 
             ###############################################
+            record = self.item_to_record[self.get_item_record(item)[0]]
+
+            if tree.tag_has(self.RECORD,item):
+                if record.decompress():
+                    self.item_to_data[item] = record.filestructure
+
             top_data_tuple = self.item_to_data[item]
 
             len_top_data_tuple = len(top_data_tuple)
             if len_top_data_tuple==4:
-                (top_entry_name,top_code,top_size,top_mtime) = top_data_tuple
+                (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple
                 top_fifth_field=None
             elif len_top_data_tuple==5:
-                (top_entry_name,top_code,top_size,top_mtime,top_fifth_field) = top_data_tuple
+                (top_entry_name_nr,top_code,top_size,top_mtime,top_fifth_field) = top_data_tuple
             else:
                 l_error(f'data top format incompatible:{top_data_tuple}')
                 print(f'data top format incompatible:{top_data_tuple}')
@@ -2982,25 +2995,27 @@ class Gui:
 
             #sub_dictionary,cd
 
-            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_cd_is_compressed = entry_LUT_decode_loc[top_code]
+            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok = entry_LUT_decode_loc[top_code]
 
+            record_get_file_name = record.get_file_name
             #print('top_has_files:',item,top_entry_name,top_has_files,top_fifth_field)
             if top_has_files:
                 for data_tuple in top_fifth_field:
 
                     #print('data_tuple:',data_tuple)
 
-                    (entry_name,code,size,mtime) = data_tuple[0:4]
+                    (entry_name_nr,code,size,mtime) = data_tuple[0:4]
 
                     #len_data_tuple = len(data_tuple)
                     #if len_data_tuple==4:
                     #elif len_data_tuple==5:
                     try:
                         fifth_field = data_tuple[4]
-                        #(entry_name,code,size,mtime,fifth_field) = data_tuple
+                        #(entry_name_nr,code,size,mtime,fifth_field) = data_tuple
                     except:
                         pass
 
+                    entry_name = record_get_file_name(entry_name_nr)
                     #else:
                     #    fifth_field = None
                     #    l_error(f'data format incompatible:{data_tuple}')
@@ -3009,12 +3024,22 @@ class Gui:
 
                     #sub_dictionary,cd
 
-                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed = entry_LUT_decode_loc[code]
+                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok = entry_LUT_decode_loc[code]
 
                     sub_data_tuple = None
 
                     if has_cd:
-                        cd_data = fifth_field
+                        #cd_data = fifth_field
+
+                        #cd_nr = fifth_field
+                        #fla node'u rekordu
+
+                        #print('a2',cd_nr)
+                        #try:
+                        #    cd_data = record.custom_data[cd_nr][1]
+                        #except:
+                        #    cd_data = cd_nr
+
                         sub_dictionary = False
                     elif has_files:
                         sub_dictionary = True
@@ -3026,7 +3051,8 @@ class Gui:
                         image=self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink or is_bind else self.ico_folder
                         kind = self_DIR
                     else:
-                        image= ((self.ico_cd_ok_compr if cd_ok else self.ico_cd_error_compr) if is_compressed else (self.ico_cd_ok if cd_ok else self.ico_cd_error)) if has_cd else self.ico_empty
+                        image= self.ico_cd_ok if cd_ok else self.ico_cd_error if has_cd else self.ico_empty
+                        #((self.ico_cd_ok_compr if cd_ok else self.ico_cd_error_compr) if is_compressed else
 
                         kind = self_FILE
 
@@ -3078,7 +3104,7 @@ class Gui:
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
 
-        self.item_to_data[record_item] = record_db.data
+        #self.item_to_data[record_item] = record.filestructure
 
         self.tree.focus(record_item)
         self.tree.selection_set(record_item)
@@ -3205,11 +3231,14 @@ class Gui:
                     if tuple_len==5:
                         (entry_name,code,size,mtime,fifth_field) = self.item_to_data[item]
 
-                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,is_compressed = core.entry_LUT_decode[code]
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok = core.entry_LUT_decode[code]
 
                         if has_cd :
-                            if cd_data := fifth_field:
-                                cd_txt = record.get_cd_text(cd_data,is_compressed)
+                            cd_nr = fifth_field
+                            #print('a3',cd_nr)
+                            if cd_data := record.custom_data[cd_nr][1]:
+                                cd_txt = cd_data
+                                #record.get_cd_text(cd_data,is_compressed)
 
                                 self.get_text_info_dialog().show('Custom Data',cd_txt)
                                 return
