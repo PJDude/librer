@@ -234,8 +234,6 @@ class Config:
 
 class Gui:
     #sel_path_full=''
-    #sel_record=''
-
     actions_processing=False
 
     def block_actions_processing(func):
@@ -977,6 +975,12 @@ class Gui:
 
         return self.license_dialog
 
+    def record_export(self):
+        print('TODO record_export')
+
+    def record_import(self):
+        print('TODO record_import')
+
     def __init__(self,cwd):
         self.cwd=cwd
 
@@ -1062,6 +1066,15 @@ class Gui:
 
         self.tooltip.wm_overrideredirect(True)
         self.tooltip_lab=Label(self_tooltip, justify='left', background="#ffffe0", relief='solid', borderwidth=0, wraplength = 1200)
+
+        try:
+            self.tooltip_lab.configure(font=('Courier', 10))
+        except:
+            try:
+                self.tooltip_lab.configure(font=('TkFixedFont', 10))
+            except:
+                pass
+
         self.tooltip_lab.pack(ipadx=1)
         self.tooltip_lab_configure = self.tooltip_lab.configure
 
@@ -1232,6 +1245,8 @@ class Gui:
 
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
                 self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record,compound='left')
+                self_file_cascade_add_command(label = 'Export record ...',  command = self.record_export)
+                self_file_cascade_add_command(label = 'Import record ...',  command = self.record_import)
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self_ico['find'],compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
@@ -1537,24 +1552,26 @@ class Gui:
                             tuple_len = len(self.item_to_data[item])
                             if tuple_len==5:
                                 (entry_name_nr,code,size,mtime,fifth_field) = self.item_to_data[item]
-                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok = core.entry_LUT_decode[code]
+                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.entry_LUT_decode[code]
 
                                 if has_cd:
                                     cd_nr = fifth_field
-                                    if cd_data := record.custom_data[cd_nr][1]:
-                                        #print('a1',cd_nr,cd_data)
-                                        cd_txt = cd_data
+
+                                    node_cd = '\nDouble click to open custom data for file.'
+                                    #if cd_data := record.custom_data[cd_nr][1]:
+                                    #    #print('a1',cd_nr,cd_data)
+                                    #    cd_txt = cd_data
                                         #record.get_cd_text(cd_data)
 
-                                        node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_txt.split('\n')[0:10]] ) + '\n'
+                                    #    node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_txt.split('\n')[0:10]] ) + '\n'
 
                         except Exception as exc:
                             print('show_tooltips_tree',exc)
 
-                    record_path = record.db.scan_path
-                    size = core_bytes_to_str(record.db.sum_size)
+                    record_path = record.header.scan_path
+                    size = core_bytes_to_str(record.header.sum_size)
                     time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time()))
-                    self.tooltip_lab_configure(text=record.get_info() + (f'\n\n================================================================\n{node_cd}' if node_cd else '') )
+                    self.tooltip_lab_configure(text=record.txtinfo + (f'\n\n================================================================\n{node_cd}' if node_cd else '') )
 
                     self.tooltip_deiconify()
 
@@ -1700,7 +1717,7 @@ class Gui:
 
                 for record in librer_core.records:
                     if record.find_results:
-                        report_file_write(f'record:{record.db.label}\n')
+                        report_file_write(f'record:{record.header.label}\n')
                         for res_item,res_size,res_mtime in record.find_results:
                             report_file_write(f'  {sep.join(res_item)}\n')
 
@@ -1714,7 +1731,7 @@ class Gui:
         rest_txt_list = []
         for record in librer_core.records:
             if record.find_results:
-                rest_txt_list.append(f'record:{record.db.label}')
+                rest_txt_list.append(f'record:{record.header.label}')
                 for res_item,res_size,res_mtime in record.find_results:
                     rest_txt_list.append(f'  {sep.join(res_item)}')
 
@@ -2182,7 +2199,7 @@ class Gui:
                 record_name = self.tree.item(item,'text')
                 self.status_record_configure(record_name)
                 self.current_record = record = self.item_to_record[item]
-                self.status_record_path_configure(record.db.scan_path)
+                self.status_record_path_configure(record.header.scan_path)
                 self.status_record_subpath_configure('')
             else:
                 record_item,record_name,subpath = self.get_item_record(item)
@@ -2383,6 +2400,8 @@ class Gui:
         c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
         pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico['record'],compound='left')
+        pop_add_command(label = 'Export record ...',  command = self.record_export)
+        pop_add_command(label = 'Import record ...',  command = self.record_import)
         pop_add_separator()
         pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left')
         pop_add_separator()
@@ -2672,8 +2691,8 @@ class Gui:
         #############################
         while scan_thread_is_alive():
             change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-            change3 = self_progress_dialog_on_scan_update_lab_text(3,local_core_bytes_to_str(new_record.db.sum_size) )
-            change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(new_record.db.quant_files) )
+            change3 = self_progress_dialog_on_scan_update_lab_text(3,local_core_bytes_to_str(new_record.header.sum_size) )
+            change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(new_record.header.quant_files) )
 
             now=time()
 
@@ -2733,23 +2752,23 @@ class Gui:
             self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
             self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
-            new_record_db = new_record.db
+            #new_record_db = new_record.db
             while cd_thread_is_alive():
                 change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_core_bytes_to_str(new_record_db.files_cde_size_extracted) )
-                change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record_db.files_cde_errors_quant) )
+                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_core_bytes_to_str(new_record.header.files_cde_size_extracted) )
+                change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record.header.files_cde_errors_quant) )
 
-                files_q = new_record_db.files_cde_quant
-                files_perc = files_q * 100.0 / new_record_db.files_cde_quant_sum if new_record_db.files_cde_quant_sum else 0
+                files_q = new_record.header.files_cde_quant
+                files_perc = files_q * 100.0 / new_record.header.files_cde_quant_sum if new_record.header.files_cde_quant_sum else 0
 
-                files_size = new_record_db.files_cde_size
-                files_size_perc = files_size * 100.0 / new_record_db.files_cde_size_sum if new_record_db.files_cde_size_sum else 0
+                files_size = new_record.header.files_cde_size
+                files_size_perc = files_size * 100.0 / new_record.header.files_cde_size_sum if new_record.header.files_cde_size_sum else 0
 
                 self_progress_dialog_on_scan_progr1var_set(files_size_perc)
                 self_progress_dialog_on_scan_progr2var_set(files_perc)
 
-                self_progress_dialog_on_scan_lab_r1_config(text=local_core_bytes_to_str(new_record_db.files_cde_size) + '/' + local_core_bytes_to_str(new_record_db.files_cde_size_sum))
-                self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(new_record_db.files_cde_quant_sum))
+                self_progress_dialog_on_scan_lab_r1_config(text=local_core_bytes_to_str(new_record.header.files_cde_size) + '/' + local_core_bytes_to_str(new_record.header.files_cde_size_sum))
+                self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(new_record.header.files_cde_quant_sum))
 
                 if self.action_abort:
                     new_record.abort()
@@ -2780,6 +2799,9 @@ class Gui:
 
             cd_thread.join()
 
+        new_record.pack_data()
+        new_record.save()
+
         self_progress_dialog_on_scan_update_lab_text(1,'')
         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
         self_progress_dialog_on_scan_update_lab_text(3,'')
@@ -2793,16 +2815,16 @@ class Gui:
 
     def delete_data_record(self):
         if self.current_record:
-            label = self.current_record.db.label
-            path = self.current_record.db.scan_path
-            creation_time = self.current_record.db.creation_time
+            label = self.current_record.header.label
+            path = self.current_record.header.scan_path
+            creation_time = self.current_record.header.creation_time
 
             dialog = self.get_ask_dialog_on_main()
 
             dialog.show('Delete selected data record ?',f'Data record label: {label}\n\nscan path:{path}\n\ndata file:{self.current_record.FILE_NAME}' )
 
             if dialog.res_bool:
-                librer_core.delete_record_by_id(self.current_record.db.rid)
+                librer_core.delete_record_by_id(self.current_record.header.rid)
                 record_item = self.record_to_item[self.current_record]
                 self.tree.delete(record_item)
 
@@ -2945,6 +2967,26 @@ class Gui:
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.exclude_mask_update()
 
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def access_filestructure(self,record):
+        self.hide_tooltip()
+        self.popup_unpost()
+        self.status('loading filestructure ...')
+        self.main.update()
+        record.decompress_filestructure()
+
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def access_custom_data(self,record):
+        self.hide_tooltip()
+        self.popup_unpost()
+        self.status('loading custom data ...')
+        self.main.update()
+        record.decompress_custom_data()
+
     @block_actions_processing
     @gui_block
     def open_item(self,item=None,to_the_bottom=False):
@@ -2977,8 +3019,9 @@ class Gui:
             record = self.item_to_record[self.get_item_record(item)[0]]
 
             if tree.tag_has(self.RECORD,item):
-                if record.decompress():
-                    self.item_to_data[item] = record.filestructure
+                self.access_filestructure(record)
+                self.item_to_data[item] = record.filestructure
+                #if record.decompress_filestructure() and record.decompress_custom_data():
 
             top_data_tuple = self.item_to_data[item]
 
@@ -2995,7 +3038,7 @@ class Gui:
 
             #sub_dictionary,cd
 
-            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok = entry_LUT_decode_loc[top_code]
+            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_has_crc = entry_LUT_decode_loc[top_code]
 
             record_get_file_name = record.get_file_name
             #print('top_has_files:',item,top_entry_name,top_has_files,top_fifth_field)
@@ -3024,7 +3067,7 @@ class Gui:
 
                     #sub_dictionary,cd
 
-                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok = entry_LUT_decode_loc[code]
+                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = entry_LUT_decode_loc[code]
 
                     sub_data_tuple = None
 
@@ -3085,18 +3128,18 @@ class Gui:
     @gui_block
     @logwrapper
     def single_record_show(self,record):
-        record_db = record.db
+        #record_db = record.db
 
         #self.status(f'loading {record_db.label} ...')
 
-        size=record_db.sum_size
+        size=record.header.sum_size
         #print('R size:',size)
 
-        #print(record_db.label)
+        #print(record.label)
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-        values = (record_db.label,record_db.label,0,record_db.scan_path,size,core.bytes_to_str(size),record_db.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time())),self.RECORD)
+        values = (record.header.label,record.header.label,0,record.header.scan_path,size,core.bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time())),self.RECORD)
         #print('insert:',values)
-        record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record_db.label,image=self.ico_record,tags=self.RECORD)
+        record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.ico_record,tags=self.RECORD)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
         self.tree_sort_item(None)
@@ -3128,7 +3171,7 @@ class Gui:
 
         self.item_to_data={}
 
-        for record in sorted(librer_core.records,key=lambda x : x.db.creation_time):
+        for record in sorted(librer_core.records,key=lambda x : x.header.creation_time):
             self.single_record_show(record)
 
         self.menu_enable()
@@ -3220,7 +3263,7 @@ class Gui:
                 #    self.open_item(item)
             elif kind == self.RECORD :
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time()))
-                self.get_text_info_dialog().show('Record Info.',record.get_info())
+                self.get_text_info_dialog().show('Record Info.',record.txtinfo)
 
                 #if opened:
                 #    self.open_item(item)
@@ -3231,11 +3274,13 @@ class Gui:
                     if tuple_len==5:
                         (entry_name,code,size,mtime,fifth_field) = self.item_to_data[item]
 
-                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok = core.entry_LUT_decode[code]
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.entry_LUT_decode[code]
 
                         if has_cd :
                             cd_nr = fifth_field
                             #print('a3',cd_nr)
+                            self.access_custom_data(record)
+
                             if cd_data := record.custom_data[cd_nr][1]:
                                 cd_txt = cd_data
                                 #record.get_cd_text(cd_data,is_compressed)

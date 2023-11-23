@@ -55,7 +55,7 @@ Custom data extractor is a command that can be invoked with a single parameter -
 - don't put any destructive actions in your Custom Data Extractors scrips
 - try to keep as little custom data as possible, to speed up scanning and searching records and keep record files small
 - if general purpose and generally available tools produce too much and not needed text data, write a wrapper script (*.sh, *bat) executing specific tool and post-process retrieved data. Wrapper can also help when the tool expects more variable parameters or in an unusual order
-
+- You don't have to use Custom Data if you don't need to. Only the file system will be cataloged.
 
 ## Supported platforms:
 - Linux
@@ -66,7 +66,7 @@ Custom data extractor is a command that can be invoked with a single parameter -
 
 
 ## Technical information
-Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data. It is stored as a single .dat file in librer database directory. Its internal format is a hierarchical python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed by [gzip](https://docs.python.org/3/library/gzip.html). The record file, once saved, is never modified afterward. It can only be deleted upon request. All record files are independent of each other.
+Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data and CRC data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [bzip2](https://docs.python.org/3/library/bz2.html#module-bz2) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request. All record files are independent of each other.
 
 ###### Manual build (linux):
 ```
