@@ -975,11 +975,27 @@ class Gui:
 
         return self.license_dialog
 
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
     def record_export(self):
-        print('TODO record_export')
+        if self.current_record:
+            if record_file := asksaveasfilename(parent = self.main, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
+                self.status('saving file "%s" ...' % str(record_file))
+                self.current_record.save(record_file)
 
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
     def record_import(self):
-        print('TODO record_import')
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        if res:=askopenfilename(title='Select Record File',initialdir=initialdir,parent=self.main,filetypes=( ("dat Files","*.dat"),("All Files","*.*") ) ):
+            self.last_dir=dirname(res)
+
+            self.status('importing record  ...')
+
+            if new_record := librer_core.import_record(res):
+                self.single_record_show(new_record)
 
     def __init__(self,cwd):
         self.cwd=cwd
@@ -1025,10 +1041,10 @@ class Gui:
 
         self.ico_record = self_ico['record']
         self.ico_cd_ok = self_ico['cd_ok']
+        self.ico_cd_ok_crc = self_ico['cd_ok_crc']
         self.ico_cd_error = self_ico['cd_error']
-
-        self.ico_cd_ok_compr = self_ico['cd_ok_compr']
-        self.ico_cd_error_compr = self_ico['cd_error_compr']
+        self.ico_cd_error_crc = self_ico['cd_error_crc']
+        self.ico_crc = self_ico['crc']
 
         self.ico_folder = self_ico['folder']
         self.ico_folder_link = self_ico['folder_link']
@@ -1390,6 +1406,12 @@ class Gui:
 
             self_main_after = self.main.after
 
+            wait_var_set = wait_var.set
+            wait_var_get = wait_var.get
+            self_main_wait_variable = self.main.wait_variable
+
+            self_single_record_show = self.single_record_show
+
             while read_thread_is_alive() or librer_core.records_to_show :
                 self_progress_dialog_on_load_lab[2].configure(image=self.get_hg_ico())
 
@@ -1404,10 +1426,10 @@ class Gui:
                     self_progress_dialog_on_load_progr1var_set(100*size/records_size)
                     self_progress_dialog_on_load_progr2var_set(100*quant/records_quant)
 
-                    self.single_record_show(new_rec)
+                    self_single_record_show(new_rec)
                 else:
-                    self_main_after(25,lambda : wait_var.set(not wait_var.get()))
-                    self.main.wait_variable(wait_var)
+                    self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+                    self_main_wait_variable(wait_var)
 
                 if self.action_abort:
                     librer_core.abort()
@@ -1557,8 +1579,8 @@ class Gui:
                                 if has_cd:
                                     cd_nr = fifth_field
 
-                                    node_cd = '\nDouble click to open custom data for file.'
-                                    #if cd_data := record.custom_data[cd_nr][1]:
+                                    node_cd = '    Double click to open custom data for file.'
+                                    #if cd_data := record.custom_data[cd_nr]:
                                     #    #print('a1',cd_nr,cd_data)
                                     #    cd_txt = cd_data
                                         #record.get_cd_text(cd_data)
@@ -1571,7 +1593,7 @@ class Gui:
                     record_path = record.header.scan_path
                     size = core_bytes_to_str(record.header.sum_size)
                     time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time()))
-                    self.tooltip_lab_configure(text=record.txtinfo + (f'\n\n================================================================\n{node_cd}' if node_cd else '') )
+                    self.tooltip_lab_configure(text=record.txtinfo + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') )
 
                     self.tooltip_deiconify()
 
@@ -1708,10 +1730,10 @@ class Gui:
     def find_save_results(self):
         self.find_items()
 
-        if report_file := asksaveasfilename(parent = self.find_dialog.widget, initialfile = 'librer_search_report.txt',defaultextension=".txt",filetypes=[("All Files","*.*"),("Text Files","*.txt")]):
-            self.status('saving file "%s" ...' % str(report_file))
+        if report_file_name := asksaveasfilename(parent = self.find_dialog.widget, initialfile = 'librer_search_report.txt',defaultextension=".txt",filetypes=[("All Files","*.*"),("Text Files","*.txt")]):
+            self.status('saving file "%s" ...' % str(report_file_name))
 
-            with open(report_file,'w') as report_file:
+            with open(report_file_name,'w') as report_file:
                 report_file_write = report_file.write
                 #report_file_write('criteria: \n')
 
@@ -1723,7 +1745,7 @@ class Gui:
 
                         report_file_write('\n')
 
-            self.status('file saved: "%s"' % str(report_file))
+            self.status('file saved: "%s"' % str(report_file_name))
 
     def find_show_results(self):
         self.find_items()
@@ -2671,7 +2693,7 @@ class Gui:
         check_dev = self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE)
 
         #############################
-        scan_thread=Thread(target=lambda : new_record.scan(librer_core.db_dir,cde_list,check_dev),daemon=True)
+        scan_thread=Thread(target=lambda : new_record.scan(cde_list,check_dev),daemon=True)
         scan_thread.start()
         scan_thread_is_alive = scan_thread.is_alive
 
@@ -2752,7 +2774,6 @@ class Gui:
             self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
             self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
-            #new_record_db = new_record.db
             while cd_thread_is_alive():
                 change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
                 change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_core_bytes_to_str(new_record.header.files_cde_size_extracted) )
@@ -2794,18 +2815,40 @@ class Gui:
 
                         update_once=True
 
-                self.main.after(25,lambda : wait_var.set(not wait_var.get()))
-                self.main.wait_variable(wait_var)
+                self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+                self_main_wait_variable(wait_var)
 
             cd_thread.join()
-
-        new_record.pack_data()
-        new_record.save()
 
         self_progress_dialog_on_scan_update_lab_text(1,'')
         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
         self_progress_dialog_on_scan_update_lab_text(3,'')
         self_progress_dialog_on_scan_update_lab_text(4,'')
+
+        ##################################
+        pack_thread=Thread(target=lambda : new_record.pack_data(),daemon=True)
+        pack_thread.start()
+        pack_thread_is_alive = pack_thread.is_alive
+        while pack_thread_is_alive():
+            change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
+            self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
+            self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+            self_main_wait_variable(wait_var)
+        pack_thread.join()
+        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+
+        ##################################
+        save_thread=Thread(target=lambda : new_record.save(),daemon=True)
+        save_thread.start()
+        save_thread_is_alive = save_thread.is_alive
+        while save_thread_is_alive():
+            change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
+            self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
+            self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+            self_main_wait_variable(wait_var)
+        save_thread.join()
+        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+        ##################################
 
         self.single_record_show(new_record)
 
@@ -3021,83 +3064,43 @@ class Gui:
             if tree.tag_has(self.RECORD,item):
                 self.access_filestructure(record)
                 self.item_to_data[item] = record.filestructure
-                #if record.decompress_filestructure() and record.decompress_custom_data():
 
             top_data_tuple = self.item_to_data[item]
 
-            len_top_data_tuple = len(top_data_tuple)
-            if len_top_data_tuple==4:
-                (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple
-                top_fifth_field=None
-            elif len_top_data_tuple==5:
-                (top_entry_name_nr,top_code,top_size,top_mtime,top_fifth_field) = top_data_tuple
-            else:
-                l_error(f'data top format incompatible:{top_data_tuple}')
-                print(f'data top format incompatible:{top_data_tuple}')
-                return
-
-            #sub_dictionary,cd
+            (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple[0:4]
 
             top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_has_crc = entry_LUT_decode_loc[top_code]
 
             record_get_file_name = record.get_file_name
             #print('top_has_files:',item,top_entry_name,top_has_files,top_fifth_field)
             if top_has_files:
-                for data_tuple in top_fifth_field:
-
-                    #print('data_tuple:',data_tuple)
+                for data_tuple in top_data_tuple[4]:
 
                     (entry_name_nr,code,size,mtime) = data_tuple[0:4]
 
-                    #len_data_tuple = len(data_tuple)
-                    #if len_data_tuple==4:
-                    #elif len_data_tuple==5:
-                    try:
-                        fifth_field = data_tuple[4]
-                        #(entry_name_nr,code,size,mtime,fifth_field) = data_tuple
-                    except:
-                        pass
-
                     entry_name = record_get_file_name(entry_name_nr)
-                    #else:
-                    #    fifth_field = None
-                    #    l_error(f'data format incompatible:{data_tuple}')
-                    #    print(f'data format incompatible:{data_tuple}')
-                    #    continue
-
-                    #sub_dictionary,cd
 
                     is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = entry_LUT_decode_loc[code]
 
                     sub_data_tuple = None
 
-                    if has_cd:
-                        #cd_data = fifth_field
-
-                        #cd_nr = fifth_field
-                        #fla node'u rekordu
-
-                        #print('a2',cd_nr)
-                        #try:
-                        #    cd_data = record.custom_data[cd_nr][1]
-                        #except:
-                        #    cd_data = cd_nr
-
-                        sub_dictionary = False
-                    elif has_files:
+                    elem_index = 4
+                    if has_files:
                         sub_dictionary = True
-                        sub_data_tuple = fifth_field
+                        sub_data_tuple = data_tuple[elem_index]
+                        elem_index+=1
                     else:
                         sub_dictionary = False
 
-                    if is_dir:
-                        image=self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink or is_bind else self.ico_folder
-                        kind = self_DIR
-                    else:
-                        image= self.ico_cd_ok if cd_ok else self.ico_cd_error if has_cd else self.ico_empty
-                        #((self.ico_cd_ok_compr if cd_ok else self.ico_cd_error_compr) if is_compressed else
+                    if has_cd:
+                        elem_index+=1
 
-                        kind = self_FILE
+                    if has_crc:
+                        pass
+
+                    kind = self_DIR if is_dir else self_FILE
+
+                    image = (self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink or is_bind else self.ico_folder) if is_dir else (self.ico_cd_ok if cd_ok else self.ico_cd_error) if has_cd and not has_crc else (self.ico_cd_ok_crc if cd_ok else self.ico_cd_error_crc) if has_cd and has_crc else self.ico_crc if has_crc else self.ico_empty
 
                     if is_symlink or is_bind:
                         tags=self_SYMLINK
@@ -3108,10 +3111,10 @@ class Gui:
                     values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),kind)
 
                     sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
-                    new_items_values[ ( sort_index,values,entry_name,image,True if sub_dictionary else False) ] = (sub_dictionary,tags,data_tuple)
+                    new_items_values[ ( sort_index,values,entry_name,image,True if has_files else False) ] = (has_files,tags,data_tuple)
 
                 tree_insert = tree.insert
-                for (sort_index,values,entry_name,image,sub_dictionary_bool),(sub_dictionary,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
+                for (sort_index,values,entry_name,image,sub_dictionary_bool),(has_files,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
                     new_item=tree_insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
                     self.item_to_data[new_item] = data_tuple
                     if sub_dictionary_bool:
@@ -3128,17 +3131,11 @@ class Gui:
     @gui_block
     @logwrapper
     def single_record_show(self,record):
-        #record_db = record.db
-
-        #self.status(f'loading {record_db.label} ...')
-
         size=record.header.sum_size
-        #print('R size:',size)
 
-        #print(record.label)
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         values = (record.header.label,record.header.label,0,record.header.scan_path,size,core.bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time())),self.RECORD)
-        #print('insert:',values)
+
         record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.ico_record,tags=self.RECORD)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
@@ -3269,24 +3266,21 @@ class Gui:
                 #    self.open_item(item)
             else:
                 try:
-                    #code,size,mtime,sub_dictionary
-                    tuple_len = len(self.item_to_data[item])
-                    if tuple_len==5:
-                        (entry_name,code,size,mtime,fifth_field) = self.item_to_data[item]
+                    data_tuple = self.item_to_data[item]
+                    (entry_name,code,size,mtime) = data_tuple[0:4]
 
-                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.entry_LUT_decode[code]
+                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.entry_LUT_decode[code]
 
-                        if has_cd :
-                            cd_nr = fifth_field
-                            #print('a3',cd_nr)
-                            self.access_custom_data(record)
+                    if has_cd: #wiec nie has_files
+                        cd_index = data_tuple[4]
 
-                            if cd_data := record.custom_data[cd_nr][1]:
-                                cd_txt = cd_data
-                                #record.get_cd_text(cd_data,is_compressed)
+                        self.access_custom_data(record)
 
-                                self.get_text_info_dialog().show('Custom Data',cd_txt)
-                                return
+                        if cd_data := record.custom_data[cd_index]:
+                            cd_txt = cd_data
+
+                            self.get_text_info_dialog().show('Custom Data',cd_txt)
+                            return
 
                     self.info_dialog_on_main.show('Information','No Custom data.')
                 except Exception as e:

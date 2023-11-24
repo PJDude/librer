@@ -66,7 +66,7 @@ Custom data extractor is a command that can be invoked with a single parameter -
 
 
 ## Technical information
-Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data and CRC data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [bzip2](https://docs.python.org/3/library/bz2.html#module-bz2) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request. All record files are independent of each other.
+Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data and CRC data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other.
 
 ###### Manual build (linux):
 ```
