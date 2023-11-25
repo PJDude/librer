@@ -26,8 +26,8 @@
 #
 ####################################################################################
 
-from fnmatch import fnmatch
-from shutil import rmtree
+#from fnmatch import fnmatch
+#from shutil import rmtree
 
 from time import sleep
 from time import strftime
@@ -35,9 +35,6 @@ from time import localtime
 from time import time
 
 from os import sep
-from os import stat
-from os import scandir
-from os import readlink
 from os import rmdir
 from os import system
 from os import getcwd
@@ -53,8 +50,6 @@ from os.path import normpath
 from os.path import dirname
 from os.path import join as path_join
 from os.path import isfile as path_isfile
-from os.path import split as path_split
-from os.path import exists as path_exists
 
 from platform import node
 from pathlib import Path
@@ -73,6 +68,7 @@ from tkinter import LabelFrame
 from tkinter import Frame
 from tkinter import StringVar
 from tkinter import BooleanVar
+from tkinter import IntVar
 
 from tkinter.ttk import Checkbutton
 from tkinter.ttk import Radiobutton
@@ -82,6 +78,7 @@ from tkinter.ttk import Button
 from tkinter.ttk import Entry
 from tkinter.ttk import Combobox
 from tkinter.ttk import Style
+from tkinter.ttk import Scale
 
 from tkinter.filedialog import askdirectory
 from tkinter.filedialog import asksaveasfilename
@@ -138,6 +135,12 @@ CFG_KEY_find_cd_case_sens = 'cd_case_sens'
 CFG_KEY_filename_fuzzy_threshold = 'filename_fuzzy_threshold'
 CFG_KEY_cd_fuzzy_threshold = 'cd_fuzzy_threshold'
 
+CFG_KEY_export_cd = 'export_cd'
+CFG_KEY_export_crc = 'export_crc'
+
+CFG_KEY_import_cd = 'export_cd'
+CFG_KEY_import_crc = 'export_crc'
+
 cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
@@ -163,7 +166,13 @@ cfg_defaults={
     CFG_KEY_find_cd_case_sens:False,
 
     CFG_KEY_filename_fuzzy_threshold:'0.95',
-    CFG_KEY_cd_fuzzy_threshold:'0.95'
+    CFG_KEY_cd_fuzzy_threshold:'0.95',
+
+    CFG_KEY_export_cd:True,
+    CFG_KEY_export_crc:True,
+
+    CFG_KEY_import_cd:True,
+    CFG_KEY_import_crc:True
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -200,9 +209,11 @@ class Config:
 
     def set(self,key,val,section='main'):
         self.config.set(section,key,str(val))
+        return val
 
     def set_bool(self,key,val,section='main'):
         self.config.set(section,key,('0','1')[val])
+        return val
 
     def get(self,key,default='',section='main'):
         try:
@@ -708,6 +719,113 @@ class Gui:
 
         return self.progress_dialog_on_find
 
+    def export_to_file(self):
+        self.export_dialog_file = asksaveasfilename(parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
+        self.export_dialog.hide()
+
+    def export_comp_set(self):
+        self.export_compr_var_int.set(int(self.export_compr_var.get()))
+
+    export_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_export_dialog(self):
+        if not self.export_dialog_created:
+
+            self.export_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Export record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.export_cd_var = BooleanVar()
+            self.export_crc_var = BooleanVar()
+            self.export_compr_var = IntVar()
+            self.export_compr_var_int = IntVar()
+
+            self.export_cd_var.set(self.cfg.get_bool(CFG_KEY_export_cd))
+            self.export_crc_var.set(self.cfg.get_bool(CFG_KEY_export_crc))
+
+            self.export_compr_var.set(16)
+            self.export_compr_var_int.set(16)
+
+            (export_frame := LabelFrame(self.export_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            self.export_dialog.area_main.grid_columnconfigure( 0, weight=1)
+            self.export_dialog.area_main.grid_columnconfigure( 1, weight=1)
+
+            self.export_dialog.area_main.grid_rowconfigure( 2, weight=1)
+
+            self.export_cd_cb = Checkbutton(export_frame,text='Include \'Custom Data\'',variable=self.export_cd_var)
+            self.export_crc_cb = Checkbutton(export_frame,text='Include CRC values',variable=self.export_crc_var)
+
+            self.export_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
+            self.export_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+
+            export_frame.grid_columnconfigure( 0, weight=1)
+
+            (export_frame_compr := LabelFrame(self.export_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+
+            Scale(export_frame_compr, variable=self.export_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.export_comp_set()).pack(fill='x',side='left',expand=1,padx=2)
+            Label(export_frame_compr, textvariable=self.export_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
+
+            self.export_dialog_file=None
+
+            Button(self.export_dialog.area_buttons, text='Select File ...', width=14, command= self.export_to_file ).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.export_dialog.area_buttons, text='Close', width=14, command=self.export_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+
+            self.export_dialog_created = True
+        return self.export_dialog
+
+    def import_from_file(self):
+        self.import_dialog_file = askopenfilename(parent = self.import_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
+        self.import_dialog.hide()
+
+    def import_comp_set(self):
+        self.import_compr_var_int.set(int(self.import_compr_var.get()))
+
+    import_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_import_dialog(self):
+        if not self.import_dialog_created:
+
+            self.import_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Import record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.import_cd_var = BooleanVar()
+            self.import_crc_var = BooleanVar()
+            self.import_compr_var = IntVar()
+            self.import_compr_var_int = IntVar()
+
+            self.import_cd_var.set(self.cfg.get_bool(CFG_KEY_import_cd))
+            self.import_crc_var.set(self.cfg.get_bool(CFG_KEY_import_crc))
+
+            self.import_compr_var.set(16)
+            self.import_compr_var_int.set(16)
+
+            (import_frame := LabelFrame(self.import_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            self.import_dialog.area_main.grid_columnconfigure( 0, weight=1)
+            self.import_dialog.area_main.grid_columnconfigure( 1, weight=1)
+
+            self.import_dialog.area_main.grid_rowconfigure( 2, weight=1)
+
+            self.import_cd_cb = Checkbutton(import_frame,text='Include \'Custom Data\'',variable=self.import_cd_var)
+            self.import_crc_cb = Checkbutton(import_frame,text='Include CRC values',variable=self.import_crc_var)
+
+            self.import_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
+            self.import_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+
+            import_frame.grid_columnconfigure( 0, weight=1)
+
+            (import_frame_compr := LabelFrame(self.import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+
+            Scale(import_frame_compr, variable=self.import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.import_comp_set()).pack(fill='x',side='left',expand=1,padx=2)
+            Label(import_frame_compr, textvariable=self.import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
+
+            self.import_dialog_file=None
+
+            Button(self.import_dialog.area_buttons, text='Select File ...', width=14, command= self.import_from_file ).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.import_dialog.area_buttons, text='Close', width=14, command=self.import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+
+            self.import_dialog_created = True
+        return self.import_dialog
+
+
     find_dialog_created = False
     @restore_status_line
     @block_actions_processing
@@ -715,8 +833,6 @@ class Gui:
     def get_find_dialog(self):
         if not self.find_dialog_created:
             self.status("Creating dialog ...")
-
-            self_ico_librer = self.ico_librer
 
             ###################################
             self.find_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Search database',pre_show=self.pre_show,post_close=self.post_close)
@@ -980,22 +1096,47 @@ class Gui:
     @gui_block
     def record_export(self):
         if self.current_record:
-            if record_file := asksaveasfilename(parent = self.main, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
-                self.status('saving file "%s" ...' % str(record_file))
-                self.current_record.save(record_file)
+            dialog = self.get_export_dialog()
+            dialog.show()
+
+            if self.export_dialog_file:
+                keep_cd = self.cfg.set_bool(CFG_KEY_export_cd,self.export_cd_var.get())
+                keep_crc = self.cfg.set_bool(CFG_KEY_export_crc,self.export_crc_var.get())
+
+                self.status('saving file "%s" ...' % str(self.export_dialog_file))
+
+                self.current_record.clone_record(self.export_dialog_file,keep_cd,keep_crc,self.export_compr_var_int.get())
+
+                #self.current_record.save(self.export_dialog_file)
 
     @restore_status_line
     @block_actions_processing
     @gui_block
     def record_import(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askopenfilename(title='Select Record File',initialdir=initialdir,parent=self.main,filetypes=( ("dat Files","*.dat"),("All Files","*.*") ) ):
-            self.last_dir=dirname(res)
+
+        dialog = self.get_import_dialog()
+        dialog.show()
+
+        if self.import_dialog_file:
+            keep_cd = self.cfg.set_bool(CFG_KEY_import_cd,self.import_cd_var.get())
+            keep_crc = self.cfg.set_bool(CFG_KEY_import_crc,self.import_crc_var.get())
 
             self.status('importing record  ...')
 
-            if new_record := librer_core.import_record(res):
-                self.single_record_show(new_record)
+            new_record = librer_core.create()
+            if new_record.load(self.import_dialog_file):
+                self.log.warning('import failed :%s',file_path)
+                self.records.remove(new_record)
+                return None
+
+            local_file_name = 'imported.'+ str(time()) + '.dat'
+            local_file = sep.join([DB_DIR,local_file_name])
+            new_record.clone_record(local_file,keep_cd,keep_crc,self.import_compr_var_int.get())
+
+            new_record.load_wrap(DB_DIR,local_file_name)
+            self.single_record_show(new_record)
+
 
     def __init__(self,cwd):
         self.cwd=cwd
@@ -1045,6 +1186,8 @@ class Gui:
         self.ico_cd_error = self_ico['cd_error']
         self.ico_cd_error_crc = self_ico['cd_error_crc']
         self.ico_crc = self_ico['crc']
+
+        self.ico_find = self_ico['find']
 
         self.ico_folder = self_ico['folder']
         self.ico_folder_link = self_ico['folder_link']
@@ -1261,10 +1404,10 @@ class Gui:
 
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
                 self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record,compound='left')
-                self_file_cascade_add_command(label = 'Export record ...',  command = self.record_export)
-                self_file_cascade_add_command(label = 'Import record ...',  command = self.record_import)
+                self_file_cascade_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self_ico['find'],compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
+                self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
                 #self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self_ico['empty'],compound='left')
                 #self_file_cascade_add_separator()
@@ -1474,8 +1617,12 @@ class Gui:
         self_main_bind('<Control-f>', lambda event : self.finder_wrapper_show())
         self_main_bind('<Control-F>', lambda event : self.finder_wrapper_show())
 
-        self_main_bind('<Control-e>', lambda event : self.expand_all())
-        self_main_bind('<Control-E>', lambda event : self.expand_all())
+        self_main_bind('<Control-e>', lambda event : self.record_export())
+        self_main_bind('<Control-E>', lambda event : self.record_export())
+        #self.expand_all())
+
+        self_main_bind('<Control-i>', lambda event : self.record_import())
+        self_main_bind('<Control-I>', lambda event : self.record_import())
 
         self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
 
@@ -1592,7 +1739,7 @@ class Gui:
 
                     record_path = record.header.scan_path
                     size = core_bytes_to_str(record.header.sum_size)
-                    time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time()))
+                    time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time))
                     self.tooltip_lab_configure(text=record.txtinfo + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') )
 
                     self.tooltip_deiconify()
@@ -2391,7 +2538,6 @@ class Gui:
         tree=self.tree
 
         if tree.identify("region", event.x, event.y) == 'heading':
-            print('heading')
             return
 
         if not self.actions_processing:
@@ -2410,6 +2556,7 @@ class Gui:
         pop_add_separator = pop.add_separator
         pop_add_cascade = pop.add_cascade
         pop_add_command = pop.add_command
+        self_ico = self.ico
 
         c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
         c_nav_add_command = c_nav.add_command
@@ -2421,9 +2568,9 @@ class Gui:
         c_nav_add_command(label = 'Go to first record'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
         c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
-        pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico['record'],compound='left')
-        pop_add_command(label = 'Export record ...',  command = self.record_export)
-        pop_add_command(label = 'Import record ...',  command = self.record_import)
+        pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self_ico['record'],compound='left')
+        pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
         pop_add_separator()
         pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left')
         pop_add_separator()
@@ -2431,7 +2578,7 @@ class Gui:
         pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.RECORD) else 'disabled', image = self.ico_empty,compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
         pop_add_separator()
-        pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_find,compound='left')
         pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
         pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
         pop_add_separator()
@@ -3072,7 +3219,7 @@ class Gui:
             top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_has_crc = entry_LUT_decode_loc[top_code]
 
             record_get_file_name = record.get_file_name
-            #print('top_has_files:',item,top_entry_name,top_has_files,top_fifth_field)
+
             if top_has_files:
                 for data_tuple in top_data_tuple[4]:
 
@@ -3108,7 +3255,7 @@ class Gui:
                         tags=''
 
                     #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-                    values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime//1000000000)),kind)
+                    values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime)),kind)
 
                     sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
                     new_items_values[ ( sort_index,values,entry_name,image,True if has_files else False) ] = (has_files,tags,data_tuple)
@@ -3134,7 +3281,7 @@ class Gui:
         size=record.header.sum_size
 
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-        values = (record.header.label,record.header.label,0,record.header.scan_path,size,core.bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time())),self.RECORD)
+        values = (record.header.label,record.header.label,0,record.header.scan_path,size,core.bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time)),self.RECORD)
 
         record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.ico_record,tags=self.RECORD)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
@@ -3259,7 +3406,7 @@ class Gui:
                 #if not opened:
                 #    self.open_item(item)
             elif kind == self.RECORD :
-                time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.get_time()))
+                time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time))
                 self.get_text_info_dialog().show('Record Info.',record.txtinfo)
 
                 #if opened:
