@@ -434,11 +434,13 @@ class Gui:
 
         if self.CDE_use_var_list[e].get():
             self.executable_entry[e].configure(state='normal')
+            self.shell_checkbutton[e].configure(state='normal')
             self.open_button[e].configure(state='normal')
             self.timeout_entry[e].configure(state='normal')
             self.test_button[e].configure(state='normal')
         else:
             self.executable_entry[e].configure(state='disabled')
+            self.shell_checkbutton[e].configure(state='disabled')
             self.open_button[e].configure(state='disabled')
             self.timeout_entry[e].configure(state='disabled')
             self.test_button[e].configure(state='disabled')
@@ -592,17 +594,19 @@ class Gui:
             (lab_min := Label(cde_frame,text='Min\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=1,sticky='news')
             (lab_max := Label(cde_frame,text='Max\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=2,sticky='news')
             (lab_exec := Label(cde_frame,text='CD Extractor Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=3,sticky='news')
-            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=4,sticky='news')
-            (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=5,sticky='news')
-            (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
-            (lab_use := Label(cde_frame,text='CD',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
-            (lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
+            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
+            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=5,sticky='news')
+            (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=6,sticky='news')
+            (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
+            (lab_use := Label(cde_frame,text='CD',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
+            (lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
 
             use_tooltip = "Mark to use CD Extractor"
             mask_tooltip = "glob expresions separated by comma ','\ne.g. '*.7z, *.zip, *.gz'"
             min_tooltip = "Minimum size of file\nto aplly CD extraction or crc\nmay be empty e.g. 10k"
             max_tooltip = "Maximum size of file\nto aplly CD extraction or crc\nmay be empty e.g. '100MB'"
             exec_tooltip = "Executable or batch script that will be run\nwith the file for extraction as last parameter.\nMay have other fixed parameters\nWill be executed with the full path of the scanned file\ne.g. '7z l', 'cat', 'my_extractor.sh', 'my_extractor.bat'"
+            shell_tooltip = "Execute in system shell"
             open_tooltip = "Set executable file as Custom Data Extractor..."
             timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or no value means no timeout"
             test_tooltip = "Test Custom Data Extractor\non single manually selected file ..."
@@ -615,17 +619,20 @@ class Gui:
             self_widget_tooltip(lab_min,min_tooltip)
             self_widget_tooltip(lab_max,max_tooltip)
             self_widget_tooltip(lab_exec,exec_tooltip)
+            self_widget_tooltip(lab_shell,shell_tooltip)
             self_widget_tooltip(lab_open,open_tooltip)
             self_widget_tooltip(lab_timeout,timeout_tooltip)
             self_widget_tooltip(lab_test,test_tooltip)
             self_widget_tooltip(lab_crc,crc_tooltip)
 
             self.CDE_ENTRIES_MAX = 16
+
             self.CDE_use_var_list = []
             self.CDE_mask_var_list=[]
             self.CDE_size_min_var_list=[]
             self.CDE_size_max_var_list=[]
             self.CDE_executable_var_list=[]
+            self.CDE_shell_var_list=[]
             self.CDE_timeout_var_list=[]
             self.CDE_crc_var_list=[]
 
@@ -634,6 +641,7 @@ class Gui:
             self.size_max_entry={}
             self.use_checkbutton={}
             self.executable_entry={}
+            self.shell_checkbutton={}
             self.open_button={}
             self.timeout_entry={}
             self.test_button={}
@@ -645,6 +653,7 @@ class Gui:
                 self.CDE_size_min_var_list.append(StringVar())
                 self.CDE_size_max_var_list.append(StringVar())
                 self.CDE_executable_var_list.append(StringVar())
+                self.CDE_shell_var_list.append(BooleanVar())
                 self.CDE_timeout_var_list.append(StringVar())
                 self.CDE_crc_var_list.append(BooleanVar())
 
@@ -662,26 +671,30 @@ class Gui:
                 self.executable_entry[e] = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e],style='TEntry')
                 self.executable_entry[e].grid(row=row, column=3,sticky='news')
 
+                self.shell_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_shell_var_list[e])
+                self.shell_checkbutton[e].grid(row=row, column=4,sticky='news')
+
                 self.open_button[e] = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
-                self.open_button[e].grid(row=row,column=4,sticky='news')
+                self.open_button[e].grid(row=row,column=5,sticky='news')
 
                 self.timeout_entry[e] = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e],width=3,style='TEntry')
-                self.timeout_entry[e].grid(row=row, column=5,sticky='news')
+                self.timeout_entry[e].grid(row=row, column=6,sticky='news')
 
                 self.test_button[e] = Button(cde_frame,image=self.ico_test,command = lambda x=e : self.cde_test(x) )
-                self.test_button[e].grid(row=row,column=6,sticky='news')
+                self.test_button[e].grid(row=row,column=7,sticky='news')
 
                 self.use_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
-                self.use_checkbutton[e].grid(row=row,column=7,sticky='news')
+                self.use_checkbutton[e].grid(row=row,column=8,sticky='news')
 
                 self.crc_entry[e] = Checkbutton(cde_frame,variable=self.CDE_crc_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
-                self.crc_entry[e].grid(row=row, column=8,sticky='news')
+                self.crc_entry[e].grid(row=row, column=9,sticky='news')
 
                 self.widget_tooltip(self.mask_entry[e],mask_tooltip)
                 self.widget_tooltip(self.size_min_entry[e],min_tooltip)
                 self.widget_tooltip(self.size_max_entry[e],max_tooltip)
                 self.widget_tooltip(self.use_checkbutton[e],use_tooltip)
                 self.widget_tooltip(self.executable_entry[e],exec_tooltip)
+                self.widget_tooltip(self.shell_checkbutton[e],shell_tooltip)
                 self.widget_tooltip(self.open_button[e],open_tooltip)
                 self.widget_tooltip(self.timeout_entry[e],timeout_tooltip)
                 self.widget_tooltip(self.test_button[e],test_tooltip)
@@ -2759,8 +2772,9 @@ class Gui:
             if self.scan(compression_level):
                 self.scan_dialog_hide_wrapper()
         except Exception as e:
-            l_error(e)
-            self.status(str(e))
+            l_error(f'scan_wraper: {e}')
+            self.status(f'scan_wraper {e}')
+            self.scan_dialog_hide_wrapper()
 
         self.scanning_in_progress=False
 
@@ -2872,6 +2886,7 @@ class Gui:
             smin = self.CDE_size_min_var_list[e].get()
             smax = self.CDE_size_max_var_list[e].get()
             exe = self.CDE_executable_var_list[e].get()
+            shell = self.CDE_shell_var_list[e].get()
             timeout = self.CDE_timeout_var_list[e].get()
             crc = self.CDE_crc_var_list[e].get()
 
@@ -2889,6 +2904,7 @@ class Gui:
             smin,
             smax,
             exe,
+            '1' if shell else '0',
             timeout,
             '1' if self.CDE_crc_var_list[e].get() else '0' ]
 
@@ -2896,6 +2912,7 @@ class Gui:
 
             if self.CDE_use_var_list[e].get():
                 any_cde_enabled=True
+
                 cde_list.append( (
                     tuple([elem.strip() for elem in mask.split(',')]),
                     True if smin_int>=0 else False,
@@ -2903,6 +2920,7 @@ class Gui:
                     True if smax_int>=0 else False,
                     smax_int,
                     tuple(exe.split()),
+                    shell,
                     timeout_int,
                     crc ) )
 
@@ -3109,17 +3127,31 @@ class Gui:
         e=0
         for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('\n'):
             try:
-                v1,v2,v3,v4,v5,v6,v7 = e_section.split('|')
+                v1,v2,v3,v4,v5,v6,v7,v8 = e_section.split('|')
+
                 self.CDE_use_var_list[e].set(True if v1=='1' else False)
                 self.CDE_mask_var_list[e].set(v2)
                 self.CDE_size_min_var_list[e].set(v3)
                 self.CDE_size_max_var_list[e].set(v4)
                 self.CDE_executable_var_list[e].set(v5)
-                self.CDE_timeout_var_list[e].set(v6)
-                self.CDE_crc_var_list[e].set(True if v7=='1' else False)
+                self.CDE_shell_var_list[e].set(True if v6=='1' else False)
+                self.CDE_timeout_var_list[e].set(v7)
+                self.CDE_crc_var_list[e].set(True if v8=='1' else False)
                 e+=1
             except Exception as e:
                 print(e,e_section)
+                print('clearing settings')
+                for e in range(self.CDE_ENTRIES_MAX):
+                    self.CDE_use_var_list[e].set(False)
+                    self.CDE_mask_var_list[e].set('')
+                    self.CDE_size_min_var_list[e].set('')
+                    self.CDE_size_max_var_list[e].set('')
+                    self.CDE_executable_var_list[e].set('')
+                    self.CDE_shell_var_list[e].set(False)
+                    self.CDE_timeout_var_list[e].set('')
+                    self.CDE_crc_var_list[e].set(False)
+                self.cfg.set(CFG_KEY_CDE_SETTINGS,'')
+                self.cfg.write()
                 break
 
         for e in range(self.CDE_ENTRIES_MAX):
@@ -3174,6 +3206,7 @@ class Gui:
             expr = normpath(abspath(res))
 
             executable = self.CDE_executable_var_list[e].get().split()
+            shell = self.CDE_shell_var_list[e].get()
             timeout = self.CDE_timeout_var_list[e].get()
 
             try:
@@ -3190,7 +3223,7 @@ class Gui:
             ask_dialog.show('Test selected Custom Data Extractor on selected file ?',info)
 
             if ask_dialog.res_bool:
-                cd_ok,output = librer_core.test_cde(executable,timeout_int,file_to_test)
+                cd_ok,output = librer_core.test_cde(executable,shell,timeout_int,file_to_test)
 
                 self.get_text_dialog_on_scan().show('CDE Test',output)
 

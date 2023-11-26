@@ -42,7 +42,7 @@ class Executor :
         self.run_thread=Thread(target=self.run_in_thread,daemon=True)
         self.run_thread.start()
 
-    def run(self,command_list_to_execute,timeout=None):
+    def run(self,command_list_to_execute,shell,timeout=None):
         #print('run',command_list_to_execute,timeout)
 
         self.output = ''
@@ -51,10 +51,11 @@ class Executor :
         self.running = True
         self.res_ok = True
         self.killed = False
-        start = time()
-
-        self.command_list_to_execute = command_list_to_execute
         error_message = ''
+
+        start = time()
+        self.shell = shell
+        self.command_list_to_execute = command_list_to_execute
 
         while self.running:
             if timeout:
@@ -93,7 +94,7 @@ class Executor :
                 output_list_append =  output_list.append
 
                 try:
-                    proc = Popen(self.command_list_to_execute, stdout=PIPE, stderr=STDOUT)
+                    proc = Popen(self.command_list_to_execute, stdout=PIPE, stderr=STDOUT,shell=self.shell)
                     self.pid = proc.pid
 
                     proc_stdout_readline = proc.stdout.readline

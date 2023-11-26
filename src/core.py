@@ -164,7 +164,7 @@ class LibrerRecordHeader :
         self.files_cde_size_extracted = 0
         self.files_cde_errors_quant = 0
 
-        cde_list = []
+        self.cde_list = []
 
         self.creation_os,self.creation_host = f'{platform_system()} {platform_release()}',platform_node()
 
@@ -366,6 +366,7 @@ class LibrerRecord:
         self.customdata_pool_index = 0
 
         if cde_list:
+            self.log.info('estimating CD pool')
             self.info_line = f'estimating files pool for custom data extraction'
             self.prepare_customdata_pool_rec(self.scan_data,[])
 
@@ -402,7 +403,7 @@ class LibrerRecord:
                         matched = False
 
                         rule_nr=-1
-                        for expressions,use_smin,smin_int,use_smax,smax_int,executable,timeout,crc in cde_list:
+                        for expressions,use_smin,smin_int,use_smax,smax_int,executable,shell,timeout,crc in cde_list:
                             if self.abort_action:
                                 break
                             if matched:
@@ -461,7 +462,7 @@ class LibrerRecord:
             if self.abort_action:
                 break
 
-            expressions,use_smin,smin_int,use_smax,smax_int,executable,timeout,crc = cde_list[rule_nr]
+            expressions,use_smin,smin_int,use_smax,smax_int,executable,shell,timeout,crc = cde_list[rule_nr]
 
             full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
 
@@ -475,7 +476,7 @@ class LibrerRecord:
 
             self.info_line_current = f'{subpath} ({bytes_to_str(size)})'
 
-            cd_ok,output = exe_run(cde_run_list,timeout)
+            cd_ok,output = exe_run(cde_run_list,shell,timeout)
 
             if not cd_ok:
                 self_header.files_cde_errors_quant +=1
@@ -848,10 +849,13 @@ class LibrerRecord:
             info_list.append(f'quant_folders:{fnumber(self_header.quant_folders)}')
             info_list.append(f'sum_size:{bytes_to_str(self_header.sum_size)}')
 
-            if self_header.cde_list:
-                info_list.append('\nCDE rules (draft):')
-                for nr,single_cde in enumerate(self_header.cde_list):
-                    info_list.append(str(nr) + ':' + str(single_cde))
+            try:
+                if self_header.cde_list:
+                    info_list.append('\nCDE rules (draft):')
+                    for nr,single_cde in enumerate(self_header.cde_list):
+                        info_list.append(str(nr) + ':' + str(single_cde))
+            except:
+                pass
 
         self.txtinfo = '\n'.join(info_list)
 
@@ -969,11 +973,11 @@ class LibrerCore:
     records = set()
     db_dir=''
 
-    def test_cde(self,executable,timeout,file_to_test):
+    def test_cde(self,executable,shell,timeout,file_to_test):
         exe = Executor()
         cde_run_list = executable + [file_to_test]
 
-        cd_ok,output = exe.run(cde_run_list,timeout)
+        cd_ok,output = exe.run(cde_run_list,shell,timeout)
         exe.end()
 
         return cd_ok,output
