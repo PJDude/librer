@@ -602,8 +602,8 @@ class Gui:
             mask_tooltip = "glob expresions separated by comma ','\ne.g. '*.7z, *.zip, *.gz'"
             min_tooltip = "Minimum size of file\nto aplly CD extraction or crc\nmay be empty e.g. 10k"
             max_tooltip = "Maximum size of file\nto aplly CD extraction or crc\nmay be empty e.g. '100MB'"
-            exec_tooltip = "executable or batch script that will be run\nwith file for extraction\nmay have parameters\nWill be executed with scanned file full path\ne.g. '7z l', 'cat', '~/my_extraction.sh', 'c:\\my_extraction.bat'"
-            open_tooltip = "set executable file as Custom Data Extractor..."
+            exec_tooltip = "Executable or batch script that will be run\nwith the file for extraction as last parameter.\nMay have other fixed parameters\nWill be executed with the full path of the scanned file\ne.g. '7z l', 'cat', 'my_extractor.sh', 'my_extractor.bat'"
+            open_tooltip = "Set executable file as Custom Data Extractor..."
             timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or no value means no timeout"
             test_tooltip = "Test Custom Data Extractor\non single manually selected file ..."
             crc_tooltip = "Calculate CRC (SHA1) for all\nfiles matching glob and size cryteria\nIt may take a long time."
@@ -773,7 +773,7 @@ class Gui:
         return self.progress_dialog_on_find
 
     def export_to_file(self):
-        self.export_dialog_file = asksaveasfilename(parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
+        self.export_dialog_file = asksaveasfilename(initialdir=self.last_dir,parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
         self.export_dialog.hide()
 
     def export_comp_set(self):
@@ -826,7 +826,7 @@ class Gui:
         return self.export_dialog
 
     def import_from_file(self):
-        self.import_dialog_file = askopenfilename(parent = self.import_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
+        self.import_dialog_file = askopenfilename(initialdir=self.last_dir,parent = self.import_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
         self.import_dialog.hide()
 
     def import_comp_set(self):
@@ -1160,6 +1160,7 @@ class Gui:
 
                 self.current_record.clone_record(self.export_dialog_file,keep_cd,keep_crc,self.export_compr_var_int.get())
 
+                self.last_dir = dirname(self.export_dialog_file)
                 #self.current_record.save(self.export_dialog_file)
 
     @restore_status_line
@@ -1189,7 +1190,7 @@ class Gui:
 
             new_record.load_wrap(DB_DIR,local_file_name)
             self.single_record_show(new_record)
-
+            self.last_dir = dirname(self.import_dialog_file)
 
     def __init__(self,cwd):
         self.cwd=cwd
@@ -1323,6 +1324,8 @@ class Gui:
         style_configure("Treeview",rowheight=18)
 
         style.configure("TScale", background=self.bg_color)
+        style.configure('TScale.slider', background=self.bg_color)
+        style.configure('TScale.Horizontal.TScale', background=self.bg_color)
 
         bg_focus='#90DD90'
         bg_focus_off='#90AA90'
@@ -1456,13 +1459,18 @@ class Gui:
             if self.actions_processing:
                 self_file_cascade_add_command = self.file_cascade.add_command
                 self_file_cascade_add_separator = self.file_cascade.add_separator
+                state_on_records = 'normal' if librer_core.records else 'disabled'
 
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
                 self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record,compound='left')
-                self_file_cascade_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left')
+
+                self_file_cascade_add_separator()
+                self_file_cascade_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
                 self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
-                self_file_cascade_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_empty,compound='left')
-                self_file_cascade_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_custom_data, image = self.ico_empty,compound='left')
+                self_file_cascade_add_separator()
+                self_file_cascade_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_empty,compound='left',state=state_on_records)
+                self_file_cascade_add_separator()
+                self_file_cascade_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata, image = self.ico_empty,compound='left',state=state_on_records)
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
@@ -1682,7 +1690,7 @@ class Gui:
         self_main_bind('<Control-I>', lambda event : self.record_import())
 
         self_main_bind('<Alt-Return>', lambda event : self.record_info())
-        self_main_bind('<Return>', lambda event : self.show_custom_data())
+        self_main_bind('<Return>', lambda event : self.show_customdata())
 
         self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
 
@@ -1787,7 +1795,7 @@ class Gui:
                                     cd_nr = fifth_field
 
                                     node_cd = '    Double click to open custom data for file.'
-                                    #if cd_data := record.custom_data[cd_nr]:
+                                    #if cd_data := record.customdata[cd_nr]:
                                     #    #print('a1',cd_nr,cd_data)
                                     #    cd_txt = cd_data
                                         #record.get_cd_text(cd_data)
@@ -2609,6 +2617,7 @@ class Gui:
         pop_add_cascade = pop.add_cascade
         pop_add_command = pop.add_command
         self_ico = self.ico
+        state_on_records = 'normal' if librer_core.records else 'disabled'
 
         c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
         c_nav_add_command = c_nav.add_command
@@ -2621,12 +2630,16 @@ class Gui:
         c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
         pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self_ico['record'],compound='left')
-        pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left')
-        pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
-        pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_empty,compound='left')
-        pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_custom_data,image = self.ico_empty,compound='left')
         pop_add_separator()
-        pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left')
+        pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=state_on_records)
+        pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
+        pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
+        pop_add_separator()
+        pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_empty,compound='left',state=state_on_records)
+        pop_add_separator()
+        pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left',state=state_on_records)
+        pop_add_separator()
+        pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=state_on_records)
         pop_add_separator()
 
         pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.RECORD) else 'disabled', image = self.ico_empty,compound='left')
@@ -2766,8 +2779,9 @@ class Gui:
     @restore_status_line
     @logwrapper
     def scan(self,compression_level):
+        #self.cfg.write()
+
         #self.status('Scanning...')
-        self.cfg.write()
 
         #librer_core.reset()
         #self.status_path_configure(text='')
@@ -2786,6 +2800,8 @@ class Gui:
         if not path_to_scan_from_entry:
             self.get_info_dialog_on_scan().show('Error. No paths to scan.','Add paths to scan.')
             return False
+
+        self.last_dir = path_to_scan_from_entry
 
         new_record = librer_core.create(self.scan_label_entry_var.get(),path_to_scan_from_entry)
 
@@ -2881,12 +2897,12 @@ class Gui:
             if self.CDE_use_var_list[e].get():
                 any_cde_enabled=True
                 cde_list.append( (
-                    [elem.strip() for elem in mask.split(',')],
+                    tuple([elem.strip() for elem in mask.split(',')]),
                     True if smin_int>=0 else False,
                     smin_int,
                     True if smax_int>=0 else False,
                     smax_int,
-                    exe.split(),
+                    tuple(exe.split()),
                     timeout_int,
                     crc ) )
 
@@ -2895,7 +2911,7 @@ class Gui:
         check_dev = self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE)
 
         #############################
-        scan_thread=Thread(target=lambda : new_record.scan(cde_list,check_dev),daemon=True)
+        scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
         scan_thread.start()
         scan_thread_is_alive = scan_thread.is_alive
 
@@ -2968,7 +2984,7 @@ class Gui:
 
             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomlplete.'
 
-            cd_thread=Thread(target=lambda : new_record.extract_custom_data(),daemon=True)
+            cd_thread=Thread(target=lambda : new_record.extract_customdata(),daemon=True)
             cd_thread.start()
 
             cd_thread_is_alive = cd_thread.is_alive
@@ -3147,7 +3163,7 @@ class Gui:
     def set_path_to_scan(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
-            self.last_dir=res
+            self.last_dir = res
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
 
     def cde_test(self,e):
@@ -3228,12 +3244,12 @@ class Gui:
     @restore_status_line
     @block_actions_processing
     @gui_block
-    def access_custom_data(self,record):
+    def access_customdata(self,record):
         self.hide_tooltip()
         self.popup_unpost()
         self.status('loading custom data ...')
         self.main.update()
-        record.decompress_custom_data()
+        record.decompress_customdata()
 
     @block_actions_processing
     @gui_block
@@ -3446,11 +3462,11 @@ class Gui:
             tree=event.widget
             if tree.identify("region", event.x, event.y) != 'heading':
                 if item:=tree.identify('item',event.x,event.y):
-                    self.main.after_idle(self.show_custom_data)
+                    self.main.after_idle(self.show_customdata)
 
         #return "break"
 
-    def show_custom_data(self):
+    def show_customdata(self):
         item=self.tree.focus()
         if item:
             try:
@@ -3465,9 +3481,9 @@ class Gui:
                 if has_cd: #wiec nie has_files
                     cd_index = data_tuple[4]
 
-                    self.access_custom_data(record)
+                    self.access_customdata(record)
 
-                    if cd_data := record.custom_data[cd_index]:
+                    if cd_data := record.customdata[cd_index]:
                         cd_txt = cd_data
 
                         self.get_text_info_dialog().show('Custom Data',cd_txt)

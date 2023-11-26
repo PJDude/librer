@@ -4,7 +4,7 @@ A file cataloging program with extensive customization options to suit user pref
 **The software and this document are under development and in a pre-release state.**
 
 ## Features:
-The primary purpose of this software is to enable users to catalog their files, particularly on removable media like memory cards and portable drives. It allows user to add metadata, referred to here as **custom data**, and facilitates future searching through the created records. **Custom data** consists of textual information acquired through the execution of user-chosen commands or scripts. **Custom data** may include any text data customized to meet the user's requirements, restricted only by the available memory and the software accessible for data retrieval. The retrieved data is stored in a newly created database record and can be utilized for search or verification purposes.
+The primary purpose of this software is to enable users to catalog their files, particularly on removable media like memory cards and portable drives. It allows user to add metadata, referred to here as **custom data**, and facilitates future searching through the created records. **Custom data** consists of textual information acquired through the execution of user-chosen commands or scripts. **Custom data** may include any text data customized to meet the user's requirements, restricted only by the available memory and the software accessible for data retrieval. The retrieved data is stored in a newly created database record and can be utilized for search or verification purposes. **Liber**  allows you to search files using regular expressions, glob expressions and **fuzzy matching** on both filenames and custom data. Created data records can be exported and imported to share data with others or for backup purposes.
 
 ## Screenshots:
 
@@ -66,7 +66,7 @@ Custom data extractor is a command that can be invoked with a single parameter -
 
 
 ## Technical information
-Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data and CRC data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other.
+Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data and CRC data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other.Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) package.
 
 ###### Manual build (linux):
 ```
