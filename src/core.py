@@ -51,8 +51,6 @@ from fnmatch import translate
 from re import search
 from sys import getsizeof
 
-from hashlib import sha1
-
 from collections import defaultdict
 
 from re import compile as re_compile
@@ -186,61 +184,23 @@ class LibrerRecord:
         self.abort_action = False
         self.files_search_progress = 0
 
-        self.crc_progress_info=0
+        #self.crc_progress_info=0
 
         self.FILE_NAME = ''
         self.FILE_SIZE = 0
         self.file_path = ''
 
         self.zipinfo={'header':'?','filestructure':'?','filenames':'?','customdata':'?'}
+        self.exe = None
 
     def new_file_name(self):
         return f'{self.header.rid}.dat'
 
     def abort(self):
+        if self.exe:
+            self.exe.abort_now()
+
         self.abort_action = True
-
-    def calc_crc(self,fullpath,size):
-        CRC_BUFFER_SIZE=4*1024*1024
-        buf = bytearray(CRC_BUFFER_SIZE)
-        view = memoryview(buf)
-
-        self.crc_progress_info=0
-
-        try:
-            file_handle=open(fullpath,'rb')
-            file_handle_readinto=file_handle.readinto
-        except Exception as e:
-            self.log.error(e)
-            return None
-        else:
-            hasher = sha1()
-            hasher_update=hasher.update
-
-            #faster for smaller files
-            if size<CRC_BUFFER_SIZE:
-                hasher_update(view[:file_handle_readinto(buf)])
-            else:
-                while rsize := file_handle_readinto(buf):
-                    hasher_update(view[:rsize])
-
-                    if rsize==CRC_BUFFER_SIZE:
-                        #still reading
-                        self.crc_progress_info+=rsize
-
-                    if self.abort_action:
-                        break
-
-                self.crc_progress_info=0
-
-            file_handle.close()
-
-            if self.abort_action:
-                return None
-
-            #only complete result
-            #return hasher.hexdigest()
-            return hasher.digest()
 
     def scan_rec(self, path, scan_like_data,filenames_set,check_dev=True,dev_call=None) :
         if self.abort_action:
@@ -425,7 +385,7 @@ class LibrerRecord:
                                     break
 
                                 if fnmatch(full_file_path,expr):
-                                    self_customdata_pool[self.customdata_pool_index]=(items_list,subpath,rule_nr)
+                                    self_customdata_pool[self.customdata_pool_index]=(items_list,subpath,rule_nr,size)
                                     self.customdata_pool_index += 1
                                     self.cd_stat[rule_nr]+=1
                                     self.header.files_cde_size_sum += size
@@ -434,6 +394,9 @@ class LibrerRecord:
             except Exception as e:
                 self.log.error('prepare_customdata_pool_rec error::%s',e )
                 print('prepare_customdata_pool_rec',e,entry_name,size,is_dir,is_file,is_symlink,is_bind,has_files,mtime)
+
+    def extract_customdata_update(self):
+        self.info_line_current = self.exe.info
 
     def extract_customdata(self):
         self_header = self.header
@@ -449,40 +412,40 @@ class LibrerRecord:
 
         cde_list = self.header.cde_list
 
-        exe = Executor()
 
         customdata_helper={}
 
         cd_index=0
         self_customdata_append = self.customdata.append
-        self_calc_crc = self.calc_crc
-        exe_run = exe.run
 
-        for (scan_like_list,subpath,rule_nr) in self.customdata_pool.values():
+        io_list=[]
+
+        #############################################################
+        for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
             if self.abort_action:
                 break
-
-            expressions,use_smin,smin_int,use_smax,smax_int,executable,shell,timeout,crc = cde_list[rule_nr]
+            expressions,use_smin,smin_int,use_smax,smax_int,executable,shell,timeout,do_crc = cde_list[rule_nr]
 
             full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
 
-            size = scan_like_list[0]
+            #cde_run_list = list(executable) + [full_file_path]
 
-            cde_run_list = list(executable) + [full_file_path]
+            io_list.append( [ list(executable),full_file_path,timeout,shell,do_crc,size,scan_like_list,rule_nr ] )
 
-            if crc:
-                self.info_line_current = f'{subpath} CRC calculation ({bytes_to_str(size)})'
-                crc_val = self_calc_crc(full_file_path,size)
+        #############################################################
+        self.exe=Executor(io_list,self.extract_customdata_update)
 
-            self.info_line_current = f'{subpath} ({bytes_to_str(size)})'
-
-            cd_ok,output = exe_run(cde_run_list,shell,timeout)
-
-            if not cd_ok:
-                self_header.files_cde_errors_quant +=1
+        self.exe.run()
+        #############################################################
+        for io_list_elem in io_list:
+            executable,full_file_path,timeout,shell,do_crc,size,scan_like_list,rule_nr,result_tuple = io_list_elem
+            if do_crc:
+                returncode,output,crc_val = result_tuple
+            else:
+                returncode,output = result_tuple
 
             new_elem={}
-            new_elem['cd_ok']=cd_ok
+            new_elem['cd_ok']= True if returncode==0 else False
 
             if output not in customdata_helper:
                 customdata_helper[output]=cd_index
@@ -493,21 +456,64 @@ class LibrerRecord:
             else:
                 new_elem['cd_index']=customdata_helper[output]
 
-            if crc:
+            if do_crc:
                 new_elem['crc_val']=crc_val
 
             scan_like_list.append(new_elem)
 
-            self_header.files_cde_quant += 1
-            self_header.files_cde_size += size
-            self_header.files_cde_size_extracted += getsizeof(output)
+        #############################################################
 
-            self.info_line_current = ''
+        if False:
+            for (scan_like_list,subpath,rule_nr) in self.customdata_pool.values():
+                if self.abort_action:
+                    break
+
+                expressions,use_smin,smin_int,use_smax,smax_int,executable,shell,timeout,crc = cde_list[rule_nr]
+
+                full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
+
+                size = scan_like_list[0]
+
+                cde_run_list = list(executable) + [full_file_path]
+
+                if crc:
+                    self.info_line_current = f'{subpath} CRC calculation ({bytes_to_str(size)})'
+                    crc_val = self_calc_crc(full_file_path,size)
+
+                self.info_line_current = f'{subpath} ({bytes_to_str(size)})'
+
+                cd_ok,output = exe_run(cde_run_list,shell,timeout)
+
+                if not cd_ok:
+                    self_header.files_cde_errors_quant +=1
+
+                new_elem={}
+                new_elem['cd_ok']=cd_ok
+
+                if output not in customdata_helper:
+                    customdata_helper[output]=cd_index
+                    new_elem['cd_index']=cd_index
+                    cd_index+=1
+
+                    self_customdata_append(output)
+                else:
+                    new_elem['cd_index']=customdata_helper[output]
+
+                if crc:
+                    new_elem['crc_val']=crc_val
+
+                scan_like_list.append(new_elem)
+
+                self_header.files_cde_quant += 1
+                self_header.files_cde_size += size
+                self_header.files_cde_size_extracted += getsizeof(output)
+
+                self.info_line_current = ''
 
         del self.customdata_pool
         del customdata_helper
 
-        exe.end()
+        self.exe = None
 
     search_kind_code_tab={'dont':0,'without':1,'any':2,'error':3,'regexp':4,'glob':5,'fuzzy':6}
 
@@ -572,7 +578,6 @@ class LibrerRecord:
                 except Exception as e:
                     self.log.error('tupelize_rec error::%s',e )
                     print('tupelize_rec error:',e,' entry_name:',entry_name,' items_list:',items_list)
-
 
         return tuple(sorted(sub_list,key = lambda x : x[1:4]))
     #############################################################
@@ -703,14 +708,6 @@ class LibrerRecord:
                 self.files_search_progress +=1
 
                 name_nr,code,size,mtime = data_entry[0:4]
-
-                #data_entry_len = len(data_entry)
-                #if data_entry_len==5:
-                #elif data_entry_len==4:
-                #    name_nr,code,size,mtime = data_entry
-                #else:
-                #    print('format error:',data_entry_len,data_entry[0])
-                #    continue
 
                 name = filenames_loc[name_nr]
 
@@ -973,15 +970,6 @@ class LibrerCore:
     records = set()
     db_dir=''
 
-    def test_cde(self,executable,shell,timeout,file_to_test):
-        exe = Executor()
-        cde_run_list = executable + [file_to_test]
-
-        cd_ok,output = exe.run(cde_run_list,shell,timeout)
-        exe.end()
-
-        return cd_ok,output
-
     def __init__(self,db_dir,log):
         self.records = set()
         self.db_dir = db_dir
@@ -1184,7 +1172,6 @@ class LibrerCore:
             self.files_search_progress += record.header.quant_files
             self.find_res_quant = len(record.find_results)
         ############################################################
-
 
     def delete_record_by_id(self,rid):
         for record in self.records:

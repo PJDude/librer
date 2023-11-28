@@ -242,7 +242,7 @@ class LabelDialogQuestion(LabelDialog):
         super().show(title,message)
 
 class ProgressDialog(GenericDialog):
-    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=550,min_height=120):
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=550,min_height=120,ShowProgress=True):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
         self.lab={}
@@ -258,7 +258,10 @@ class ProgressDialog(GenericDialog):
 
         self.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
-        (frame_0:=Frame(self.area_main,bg=self.bg_color)).grid(row=0, column=0, sticky='news')
+        frame_0=Frame(self.area_main,bg=self.bg_color)
+        if ShowProgress:
+            frame_0.grid(row=0, column=0, sticky='news')
+
         self.progr1var = DoubleVar()
         self.progr1=Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr1var)
         self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')

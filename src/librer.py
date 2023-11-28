@@ -29,7 +29,7 @@
 #from fnmatch import fnmatch
 #from shutil import rmtree
 
-from time import sleep
+#from time import sleep
 from time import strftime
 from time import localtime
 from time import time
@@ -70,15 +70,14 @@ from tkinter import StringVar
 from tkinter import BooleanVar
 from tkinter import IntVar
 
+from tkinter.ttk import Treeview
 from tkinter.ttk import Checkbutton
 from tkinter.ttk import Radiobutton
-from tkinter.ttk import Treeview
 from tkinter.ttk import Scrollbar
 from tkinter.ttk import Button
 from tkinter.ttk import Entry
-from tkinter.ttk import Combobox
-from tkinter.ttk import Style
 from tkinter.ttk import Scale
+from tkinter.ttk import Style
 
 from tkinter.filedialog import askdirectory
 from tkinter.filedialog import asksaveasfilename
@@ -95,6 +94,7 @@ import console
 import dialogs
 
 from librer_images import librer_image
+from executor import Executor
 
 #l_debug = logging.debug
 l_info = logging.info
@@ -422,7 +422,7 @@ class Gui:
         if not self.ask_dialog_on_main_created:
             self.status("Creating dialog ...")
 
-            self.ask_dialog_on_main = dialogs.LabelDialogQuestion(self.main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico['warning'])
+            self.ask_dialog_on_main = dialogs.LabelDialogQuestion(self.main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
 
             self.ask_dialog_on_main_created = True
 
@@ -730,6 +730,23 @@ class Gui:
 
         return self.progress_dialog_on_scan
 
+    simple_progress_dialog_on_scan_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_simple_progress_dialog_on_scan(self):
+        if not self.simple_progress_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.simple_progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,ShowProgress=False,min_width=400,min_height=200)
+
+            self.simple_progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
+
+            self.widget_tooltip(self.simple_progress_dialog_on_scan.abort_button,'')
+            self.simple_progress_dialog_on_scan_created = True
+
+        return self.simple_progress_dialog_on_scan
+
     info_dialog_on_scan_created = False
     @restore_status_line
     @block_actions_processing
@@ -764,7 +781,7 @@ class Gui:
         if not self.text_ask_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico['warning'])
+            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
             self.text_ask_dialog_on_scan_created = True
 
         return self.text_ask_dialog_on_scan
@@ -1259,6 +1276,7 @@ class Gui:
         self.ico_folder = self_ico['folder']
         self.ico_folder_link = self_ico['folder_link']
         self.ico_folder_error = self_ico['folder_error']
+        self.ico_warning = self_ico['warning']
         self.ico_empty = self_ico['empty']
 
         #self.ico_delete = self_ico['delete']
@@ -1318,27 +1336,26 @@ class Gui:
         style_configure("TButton", anchor = "center")
         style_configure("TButton", background = self.bg_color)
 
-        style_configure("TCheckbutton", background = self.bg_color,anchor='center',padding=(10, 0, 10, 0))
-        style_configure("TCombobox", borderwidth=2,highlightthickness=1,bordercolor='darkgray')
-
-        style.configure('TRadiobutton', background=self.bg_color)
+        style_configure("TCheckbutton", background = self.bg_color,anchor='center',padding=(10, 0, 10, 0),)
 
         style_map = style.map
 
-        style_map("TButton", relief=[('disabled',"flat"),('',"raised")] )
-        style_map("TButton", foreground=[('disabled',"gray"),('',"black")] )
+        style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],relief=[('disabled',"flat"),('',"sunken")])
+
+        style_configure('TRadiobutton', background=self.bg_color)
+
+
+        style_map("TButton", relief=[('disabled',"flat"),('',"raised")],foreground=[('disabled',"gray"),('',"black")] )
 
         style_map("TEntry", foreground=[("disabled",'darkgray'),('','black')],relief=[("disabled",'flat'),('','sunken')],borderwidth=[("disabled",0),('',2)],fieldbackground=[("disabled",self.bg_color),('','white')])
-        style_map("TCheckbutton", foreground=[("disabled",'darkgray'),('','black')],relief=[("disabled",'flat'),('','sunken')])
 
-        style.configure("TCheckbutton", state="disabled", background=self.bg_color, foreground="black")
 
         style_map("Treeview.Heading", relief=[('','raised')] )
         style_configure("Treeview",rowheight=18)
 
-        style.configure("TScale", background=self.bg_color)
-        style.configure('TScale.slider', background=self.bg_color)
-        style.configure('TScale.Horizontal.TScale', background=self.bg_color)
+        style_configure("TScale", background=self.bg_color)
+        style_configure('TScale.slider', background=self.bg_color)
+        style_configure('TScale.Horizontal.TScale', background=self.bg_color)
 
         bg_focus='#90DD90'
         bg_focus_off='#90AA90'
@@ -1456,7 +1473,7 @@ class Gui:
 
         self.info_dialog_on_main = dialogs.LabelDialog(self_main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
-        #self.text_ask_dialog_on_main = dialogs.TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self_ico['warning'])
+        #self.text_ask_dialog_on_main = dialogs.TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
 
         self.progress_dialog_on_load = dialogs.ProgressDialog(self_main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
@@ -1710,6 +1727,7 @@ class Gui:
         self_main.mainloop()
 
     def focusin(self):
+        #print('focusin')
         if self.locked_by_child:
             self.locked_by_child.focus_set()
 
@@ -1794,26 +1812,30 @@ class Gui:
                     record = self.item_to_record[record_item]
 
                     node_cd = None
+                    node_crc = None
                     if item in self.item_to_data:
                         try:
                             data = self.item_to_data[item]
                             #print('data:',data)
 
-                            tuple_len = len(self.item_to_data[item])
-                            if tuple_len==5:
-                                (entry_name_nr,code,size,mtime,fifth_field) = self.item_to_data[item]
-                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.entry_LUT_decode[code]
+                            data_tuple = self.item_to_data[item]
 
-                                if has_cd:
-                                    cd_nr = fifth_field
+                            (entry_name_nr,code,size,mtime) =  data_tuple[0:4]
 
-                                    node_cd = '    Double click to open custom data for file.'
-                                    #if cd_data := record.customdata[cd_nr]:
-                                    #    #print('a1',cd_nr,cd_data)
-                                    #    cd_txt = cd_data
-                                        #record.get_cd_text(cd_data)
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.entry_LUT_decode[code]
 
-                                    #    node_cd = '\n'.join( [(line[0:127] + '...') if len(line)>127 else line for line in cd_txt.split('\n')[0:10]] ) + '\n'
+                            elem_index = 4
+                            if has_files:
+                                sub_dictionary = True
+                                elem_index+=1
+
+                            if has_cd:
+                                elem_index+=1
+
+                            if has_crc:
+                                node_crc = data_tuple[elem_index]
+
+                            node_cd = '    Double click to open custom data for file.'
 
                         except Exception as exc:
                             print('show_tooltips_tree',exc)
@@ -1821,7 +1843,7 @@ class Gui:
                     record_path = record.header.scan_path
                     size = core_bytes_to_str(record.header.sum_size)
                     time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time))
-                    self.tooltip_lab_configure(text=record.txtinfo + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') )
+                    self.tooltip_lab_configure(text=record.txtinfo + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') + (f'\n\n=====================================================\n{node_crc}\n=====================================================' if node_crc else '') )
 
                     self.tooltip_deiconify()
 
@@ -3198,12 +3220,29 @@ class Gui:
             self.last_dir = res
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
 
+    #def cde_test_abort(exe):
+    #    exe.abort_now
+    def cde_test_loop_update(self,prog_dialog):
+        #print('cde_test_loop_update',prog_dialog)
+        prog_dialog.lab[2].configure(image=self.get_hg_ico())
+        prog_dialog.widget.update()
+        #if self.action_abort:
+        #    exe.abort_now()
+        #    break
+        #print('cde_test_loop_update end')
+        self.main.after(25,lambda : self.exe_wait_var.set(not self.exe_wait_var.get()))
+        self.main.wait_variable(self.exe_wait_var)
+
+    def cde_test_abort(self,exe):
+        #print('cde_test_abort')
+        exe.abort_now()
+
     def cde_test(self,e):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=( ("All Files","*.*"),("All Files","*.*") ) ):
-            self.last_dir=dirname(res)
+        if full_file_path:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=( ("All Files","*.*"),("All Files","*.*") ) ):
+            self.last_dir=dirname(full_file_path)
 
-            expr = normpath(abspath(res))
+            #expr = normpath(abspath(full_file_path))
 
             executable = self.CDE_executable_var_list[e].get().split()
             shell = self.CDE_shell_var_list[e].get()
@@ -3214,18 +3253,50 @@ class Gui:
             except:
                 timeout_int = None
 
-            file_to_test = res.replace('/',sep)
-            #print('file_to_test:',file_to_test)
+            file_to_test = full_file_path.replace('/',sep)
 
-            info = ' '.join(self.CDE_executable_var_list[e].get().split() + [file_to_test]) + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '')
+            info = ' '.join(self.CDE_executable_var_list[e].get().split() + [file_to_test]) + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '') + f'\nshell:{"Yes" if shell else "No"}'
 
             ask_dialog = self.get_text_ask_dialog_on_scan()
+            simple_progress_dialog_scan = self.get_simple_progress_dialog_on_scan()
+            str_simple_progress_dialog_scan_abort_button = str(simple_progress_dialog_scan.abort_button)
+            self.tooltip_message[str_simple_progress_dialog_scan_abort_button]='tooltippa'
+
+
             ask_dialog.show('Test selected Custom Data Extractor on selected file ?',info)
 
-            if ask_dialog.res_bool:
-                cd_ok,output = librer_core.test_cde(executable,shell,timeout_int,file_to_test)
+            wait_var=BooleanVar()
+            wait_var.set(False)
 
-                self.get_text_dialog_on_scan().show('CDE Test',output)
+            self_main_after = self.main.after
+            self_main_wait_variable = self.main.wait_variable
+            wait_var_set = wait_var.set
+            wait_var_get = wait_var.get
+
+            self.cfg.write()
+
+            self.exe_wait_var=BooleanVar()
+            self.exe_wait_var.set(False)
+
+            if ask_dialog.res_bool:
+                simple_progress_dialog_scan.show('Testing selected Custom Data Extractor')
+
+                self.action_abort=False
+                crc = False
+                size = 0 #only for crc
+                io_list = [ [executable,full_file_path,timeout_int,shell,crc,size] ]
+
+                exe=Executor(io_list,lambda : self.cde_test_loop_update(simple_progress_dialog_scan))
+                simple_progress_dialog_scan.command_on_close=lambda : self.cde_test_abort(exe)
+                exe.run()
+
+                simple_progress_dialog_scan.hide(True)
+
+                result_tuple = io_list[0][6]
+
+                returncode,output = result_tuple
+                self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if returncode==0 else "with Error"}',output)
+
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd

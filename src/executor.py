@@ -26,51 +26,136 @@
 #
 ####################################################################################
 
-from subprocess import Popen, STDOUT, PIPE
-from threading import Thread
+from subprocess import Popen, STDOUT, PIPE,TimeoutExpired
 from time import time
-from time import sleep
+#from time import sleep
 from psutil import Process
 from signal import SIGTERM
+from hashlib import sha1
+
+from os import set_blocking
 
 class Executor :
-    def __init__(self):
-        self.command_list_to_execute = None
-        self.output=''
-        self.keep_running = True
+    def __init__(self,io_list,callback):
+        self.io_list=io_list
+        self.callback=callback
 
-        self.run_thread=Thread(target=self.run_in_thread,daemon=True)
-        self.run_thread.start()
+        self.keep_running=True
+        self.timeout=None
+        self.info = ''
 
-    def run(self,command_list_to_execute,shell,timeout=None):
-        #print('run',command_list_to_execute,timeout)
+    def calc_crc(self,fullpath,size):
+        CRC_BUFFER_SIZE=4*1024*1024
+        buf = bytearray(CRC_BUFFER_SIZE)
+        view = memoryview(buf)
 
-        self.output = ''
-        self.pid = None
+        #self.crc_progress_info=0
 
-        self.running = True
-        self.res_ok = True
-        self.killed = False
-        error_message = ''
+        try:
+            file_handle=open(fullpath,'rb')
+            file_handle_readinto=file_handle.readinto
+        except Exception as e:
+            self.log.error(e)
+            return None
+        else:
+            hasher = sha1()
+            hasher_update=hasher.update
 
-        start = time()
-        self.shell = shell
-        self.command_list_to_execute = command_list_to_execute
+            #faster for smaller files
+            if size<CRC_BUFFER_SIZE:
+                hasher_update(view[:file_handle_readinto(buf)])
+            else:
+                while rsize := file_handle_readinto(buf):
+                    hasher_update(view[:rsize])
 
-        while self.running:
-            if timeout:
-                if time()-start>timeout:
-                    self.kill(self.pid)
-                    if not self.killed:
-                        error_message += '\nKilled after timeout.'
-                        self.killed = True
+                    #if rsize==CRC_BUFFER_SIZE:
+                        #still reading
+                        #self.crc_progress_info+=rsize
 
-            sleep(0.001)
+                    if not self.keep_running:
+                        break
 
-        return self.res_ok and not self.killed,(self.output if self.output else '') + error_message
+                #self.crc_progress_info=0
+
+            file_handle.close()
+
+            if not self.keep_running:
+                return None
+
+            #only complete result
+            #return hasher.hexdigest()
+            return hasher.digest()
+
+    def abort_now(self):
+        self.keep_running=False
+        self.timeout=time()
+
+    def run(self):
+        for single_command_combo in self.io_list:
+            self_results_list_append = single_command_combo.append
+            executable,full_file_path,timeout,shell,do_crc,size = single_command_combo[0:6]
+            single_command_list = executable + [full_file_path]
+
+            if self.keep_running:
+                try:
+                    returncode=200
+                    killed=False
+                    self.timeout=time()+timeout if timeout else None
+
+                    #####################################
+                    single_command_list_joined = ' '.join(single_command_list)
+                    command = single_command_list_joined if shell else single_command_list
+
+                    self.info = single_command_list_joined
+
+                    proc = Popen(command, stdout=PIPE, stderr=PIPE,shell=shell)
+                    #####################################
+
+                    while True:
+                        try:
+                            output, errs = proc.communicate(timeout=0.001)
+                            output = output + errs
+                        except TimeoutExpired:
+                            self.callback()
+                            if self.timeout:
+                                if pid:=proc.pid:
+                                    if time()>self.timeout:
+                                        self.kill(pid)
+                                        killed=True
+                        except Exception as e:
+                            print('run disaster:',e)
+
+                        else:
+                            break
+
+                    try:
+                        output = output.decode()
+                    except Exception as de:
+                        output = str(de)
+                        #pass
+
+                    returncode=proc.returncode
+
+                except Exception as e:
+                    output = str(e)
+                    print('run_error:',e)
+                    returncode=100 if killed else 101
+
+                if killed:
+                    output = output + '\nKilled.'
+                if do_crc:
+                    crc=self.calc_crc(full_file_path,size)
+                    self_results_list_append(tuple([returncode,output,crc]))
+                else:
+                    self_results_list_append(tuple([returncode,output]))
+
+            else:
+                if do_crc:
+                    self_results_list_append((300,'CDE aborted',0))
+                else:
+                    self_results_list_append((300,'CDE aborted'))
 
     def kill(self,pid):
-
         proc = Process(pid)
 
         #proc.send_signal(SIGSTOP)
@@ -84,40 +169,4 @@ class Executor :
             #print('SIGTERM send to',pid)
 
         except Exception as e:
-            print(e)
-
-    def run_in_thread(self):
-        while self.keep_running:
-            if self.command_list_to_execute:
-                self.output = ''
-                output_list = []
-                output_list_append =  output_list.append
-
-                try:
-                    proc = Popen(self.command_list_to_execute, stdout=PIPE, stderr=STDOUT,shell=self.shell)
-                    self.pid = proc.pid
-
-                    proc_stdout_readline = proc.stdout.readline
-                    proc_poll = proc.poll
-                    while True:
-                        output=proc_stdout_readline().decode("ISO-8859-1")
-                        output_list_append(output)
-                        if not output and proc_poll() is not None:
-                            break
-
-                except Exception as e:
-                    self.res_ok = False
-                    output_list_append(str(e))
-                    print(e)
-
-                self.output = ''.join(output_list)
-                self.command_list_to_execute=None
-                self.running = False
-            else:
-                sleep(0.001)
-
-    def end(self):
-        self.keep_running=False
-        self.run_thread.join()
-
-
+            print('kill',e)
