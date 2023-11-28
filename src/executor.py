@@ -32,6 +32,7 @@ from time import time
 from psutil import Process
 from signal import SIGTERM
 from hashlib import sha1
+from os import sep
 
 class Executor :
     def __init__(self,io_list,callback):
@@ -92,7 +93,8 @@ class Executor :
         for single_command_combo in self.io_list:
             self_results_list_append = single_command_combo.append
             executable,full_file_path,timeout,shell,do_crc,size = single_command_combo[0:6]
-            single_command_list = executable + [full_file_path]
+
+            single_command_list = executable + [full_file_path.replace('/',sep)]
 
             if self.keep_running:
                 try:
