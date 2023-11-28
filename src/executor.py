@@ -33,8 +33,6 @@ from psutil import Process
 from signal import SIGTERM
 from hashlib import sha1
 
-from os import set_blocking
-
 class Executor :
     def __init__(self,io_list,callback):
         self.io_list=io_list
