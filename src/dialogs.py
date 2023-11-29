@@ -114,6 +114,7 @@ class GenericDialog:
 
     def focusin(self):
         global locked_by_child
+        #print('\nlocked_by_child\n',[print(k,v) for k,v in locked_by_child.items()])
         if child_widget := locked_by_child[self.widget]:
             child_widget.focus_set()
 
@@ -188,6 +189,8 @@ class GenericDialog:
             except Exception as e:
                 pass
 
+            locked_by_child[self.parent]=None
+
             if self.post_close:
                 self.post_close()
 
@@ -197,7 +200,6 @@ class GenericDialog:
                 else:
                     self.parent.focus_set()
 
-            locked_by_child[self.parent]=None
 
             self.wait_var.set(True)
             self.parent.config(cursor="")

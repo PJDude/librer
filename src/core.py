@@ -363,7 +363,7 @@ class LibrerRecord:
                         matched = False
 
                         rule_nr=-1
-                        for expressions,use_smin,smin_int,use_smax,smax_int,executable,shell,timeout,crc in cde_list:
+                        for expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc in cde_list:
                             if self.abort_action:
                                 break
                             if matched:
@@ -397,6 +397,13 @@ class LibrerRecord:
 
     def extract_customdata_update(self):
         self.info_line_current = self.exe.info
+        self_header = self.header
+
+        self_header.files_cde_errors_quant = self.exe.files_cde_errors_quant
+
+        self_header.files_cde_quant = self.exe.files_cde_quant
+        self_header.files_cde_size = self.exe.files_cde_size
+        self_header.files_cde_size_extracted = self.exe.files_cde_size_extracted
 
     def extract_customdata(self):
         self_header = self.header
@@ -424,13 +431,13 @@ class LibrerRecord:
         for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
             if self.abort_action:
                 break
-            expressions,use_smin,smin_int,use_smax,smax_int,executable,shell,timeout,do_crc = cde_list[rule_nr]
+            expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,do_crc = cde_list[rule_nr]
 
             full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
 
             #cde_run_list = list(executable) + [full_file_path]
 
-            io_list.append( [ list(executable),full_file_path,timeout,shell,do_crc,size,scan_like_list,rule_nr ] )
+            io_list.append( [ executable,parameters,full_file_path,timeout,shell,do_crc,size,scan_like_list,rule_nr ] )
 
         #############################################################
         self.exe=Executor(io_list,self.extract_customdata_update)
@@ -438,7 +445,7 @@ class LibrerRecord:
         self.exe.run()
         #############################################################
         for io_list_elem in io_list:
-            executable,full_file_path,timeout,shell,do_crc,size,scan_like_list,rule_nr,result_tuple = io_list_elem
+            executable,parameters,full_file_path,timeout,shell,do_crc,size,scan_like_list,rule_nr,result_tuple = io_list_elem
             if do_crc:
                 returncode,output,crc_val = result_tuple
             else:
@@ -468,13 +475,13 @@ class LibrerRecord:
                 if self.abort_action:
                     break
 
-                expressions,use_smin,smin_int,use_smax,smax_int,executable,shell,timeout,crc = cde_list[rule_nr]
+                expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc = cde_list[rule_nr]
 
                 full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
 
                 size = scan_like_list[0]
 
-                cde_run_list = list(executable) + [full_file_path]
+                cde_run_list = list(executable) + list(parameters) + [full_file_path]
 
                 if crc:
                     self.info_line_current = f'{subpath} CRC calculation ({bytes_to_str(size)})'
@@ -806,7 +813,12 @@ class LibrerRecord:
             print('unknown sorting',what,mod)
 
     def prepare_info(self):
+        bytes_to_str_mod = lambda x : bytes_to_str(x) if type(x) == int else x
+
         info_list = []
+
+        self.txtinfo = 'init'
+        self.txtinfo_basic = 'init-basic'
 
         try:
              self.FILE_SIZE = stat(self.file_path).st_size
@@ -821,30 +833,30 @@ class LibrerRecord:
             self_header = self.header
 
             local_time = strftime('%Y/%m/%d %H:%M:%S',localtime(self.header.creation_time))
-            info_list.append(f'name: {self_header.label}')
-            info_list.append(f'scan path: {self_header.scan_path}')
-            info_list.append(f'size: {bytes_to_str(self_header.sum_size)}')
-            info_list.append(f'host: {self_header.creation_host}')
-            info_list.append(f'OS: {self_header.creation_os}')
-            info_list.append(f'creation time: {local_time}')
-            info_list.append(f'file: {self.FILE_NAME}')
+            info_list.append(f'record label    : {self_header.label}')
             info_list.append(f'')
-            info_list.append(f'file size: {bytes_to_str(self.FILE_SIZE)}')
+            info_list.append(f'scanned path    : {self_header.scan_path}')
+            info_list.append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
+            info_list.append(f'scanned files   : {fnumber(self_header.quant_files)}')
+            info_list.append(f'scanned folders : {fnumber(self_header.quant_folders)}')
             info_list.append(f'')
-            info_list.append(f'internal sizes:')
+            info_list.append(f'creation host   : {self_header.creation_host} ({self_header.creation_os})')
+            info_list.append(f'creation time   : {local_time}')
+
+            self.txtinfo_basic = '\n'.join(info_list)
+
             info_list.append(f'')
-            info_list.append( '                   compressed  decompressed')
+            info_list.append(f'database file   : {self.FILE_NAME} ({bytes_to_str(self.FILE_SIZE)})')
+            info_list.append(f'')
+            info_list.append(f'internal sizes  :   compressed  decompressed')
+            info_list.append(f'')
 
-            bytes_to_str_mod = lambda x : bytes_to_str(x) if type(x) == int else x
+            info_list.append(f'header          :{bytes_to_str_mod(zip_file_info["header"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["header"]).rjust(14)}')
+            info_list.append(f'filestructure   :{bytes_to_str_mod(zip_file_info["filestructure"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["filestructure"]).rjust(14)}')
+            info_list.append(f'file names      :{bytes_to_str_mod(zip_file_info["filenames"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["filenames"]).rjust(14)}')
 
-            info_list.append(f'header        :{bytes_to_str_mod(zip_file_info["header"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["header"]).rjust(14)}')
-            info_list.append(f'filestructure :{bytes_to_str_mod(zip_file_info["filestructure"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["filestructure"]).rjust(14)}')
-            info_list.append(f'file names    :{bytes_to_str_mod(zip_file_info["filenames"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["filenames"]).rjust(14)}')
-            info_list.append(f'custom data   :{bytes_to_str_mod(zip_file_info["customdata"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["customdata"]).rjust(14)}')
-
-            info_list.append(f'\nquant_files:{fnumber(self_header.quant_files)}')
-            info_list.append(f'quant_folders:{fnumber(self_header.quant_folders)}')
-            info_list.append(f'sum_size:{bytes_to_str(self_header.sum_size)}')
+            if zip_file_info["customdata"]:
+                info_list.append(f'custom data     :{bytes_to_str_mod(zip_file_info["customdata"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["customdata"]).rjust(14)}')
 
             try:
                 if self_header.cde_list:
@@ -884,10 +896,13 @@ class LibrerRecord:
             self.zipinfo['filenames'] = len(filenames_ser)
             zip_file.writestr('filenames',cctx.compress(filenames_ser))
 
-            self.info_line = f'saving {filename} (Custom Data)'
-            customdata_ser = dumps(self.customdata)
-            self.zipinfo['customdata'] = len(customdata_ser)
-            zip_file.writestr('customdata',cctx.compress(customdata_ser))
+            if self.customdata:
+                self.info_line = f'saving {filename} (Custom Data)'
+                customdata_ser = dumps(self.customdata)
+                self.zipinfo['customdata'] = len(customdata_ser)
+                zip_file.writestr('customdata',cctx.compress(customdata_ser))
+            else:
+                self.zipinfo['customdata'] = 0
 
         self.prepare_info()
 
@@ -953,10 +968,14 @@ class LibrerRecord:
             dctx = ZstdDecompressor()
             with ZipFile(self.file_path, "r") as zip_file:
 
-                customdata_ser_comp = zip_file.read('customdata')
-                customdata_ser = dctx.decompress(customdata_ser_comp)
-                self.customdata = loads( customdata_ser )
-                self.zipinfo['customdata'] = len(customdata_ser)
+                try:
+                    customdata_ser_comp = zip_file.read('customdata')
+                    customdata_ser = dctx.decompress(customdata_ser_comp)
+                    self.customdata = loads( customdata_ser )
+                    self.zipinfo['customdata'] = len(customdata_ser)
+                except:
+                    self.customdata = []
+                    self.zipinfo['customdata'] = 0
 
             self.decompressed_customdata = True
 

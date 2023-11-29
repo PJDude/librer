@@ -59,16 +59,7 @@ from signal import SIGINT
 
 from configparser import ConfigParser
 
-from tkinter import Tk
-from tkinter import Toplevel
-from tkinter import PhotoImage
-from tkinter import Menu
-from tkinter import Label
-from tkinter import LabelFrame
-from tkinter import Frame
-from tkinter import StringVar
-from tkinter import BooleanVar
-from tkinter import IntVar
+from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 
 from tkinter.ttk import Treeview
 from tkinter.ttk import Checkbutton
@@ -94,7 +85,7 @@ import console
 import dialogs
 
 from librer_images import librer_image
-from executor import Executor
+from executor import Executor,get_command_list
 
 #l_debug = logging.debug
 l_info = logging.info
@@ -384,17 +375,19 @@ class Gui:
         self.hide_tooltip()
         self.popup_unpost()
 
-        self.locked_by_child=new_widget
         if on_main_window_dialog:
+            if new_widget:
+                self.main_locked_by_child=new_widget
+
             self.actions_processing=False
             self.menu_disable()
             self.menubar_config(cursor="watch")
 
     def post_close(self,on_main_window_dialog=True):
-        self.locked_by_child=None
         self.main.focus_set()
 
         if on_main_window_dialog:
+            self.main_locked_by_child=None
             self.actions_processing=True
             self.menu_enable()
             self.menubar_config(cursor="")
@@ -434,12 +427,14 @@ class Gui:
 
         if self.CDE_use_var_list[e].get():
             self.executable_entry[e].configure(state='normal')
+            self.parameters_entry[e].configure(state='normal')
             self.shell_checkbutton[e].configure(state='normal')
             self.open_button[e].configure(state='normal')
             self.timeout_entry[e].configure(state='normal')
             self.test_button[e].configure(state='normal')
         else:
             self.executable_entry[e].configure(state='disabled')
+            self.parameters_entry[e].configure(state='disabled')
             self.shell_checkbutton[e].configure(state='disabled')
             self.open_button[e].configure(state='disabled')
             self.timeout_entry[e].configure(state='disabled')
@@ -590,27 +585,31 @@ class Gui:
             sf_par3.pack(fill='both',expand=True,side='top')
             self.cde_frame = cde_frame = sf_par3.frame()
 
-            (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=0,sticky='news')
-            (lab_min := Label(cde_frame,text='Min\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=1,sticky='news')
-            (lab_max := Label(cde_frame,text='Max\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=2,sticky='news')
-            (lab_exec := Label(cde_frame,text='CD Extractor Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=3,sticky='news')
-            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
-            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=5,sticky='news')
-            (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=6,sticky='news')
-            (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
-            (lab_use := Label(cde_frame,text='CD',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
-            (lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
+            (lab_use := Label(cde_frame,text='Use',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=0,sticky='news')
+            (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=1,sticky='news')
+            (lab_min := Label(cde_frame,text='Min\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=2,sticky='news')
+            (lab_max := Label(cde_frame,text='Max\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=3,sticky='news')
+            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
+            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news')
+            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
+            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=7,sticky='news')
+            (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=8,sticky='news')
+            (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
+            #(lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
 
             use_tooltip = "Mark to use CD Extractor"
             mask_tooltip = "glob expresions separated by comma ','\ne.g. '*.7z, *.zip, *.gz'"
+            #min_tooltip = "Minimum size of file\nto aplly CD extraction or crc\nmay be empty e.g. 10k"
             min_tooltip = "Minimum size of file\nto aplly CD extraction or crc\nmay be empty e.g. 10k"
-            max_tooltip = "Maximum size of file\nto aplly CD extraction or crc\nmay be empty e.g. '100MB'"
+            #max_tooltip = "Maximum size of file\nto aplly CD extraction or crc\nmay be empty e.g. '100MB'"
+            max_tooltip = "Maximum size of file\nto aplly CD extraction\nmay be empty e.g. '100MB'"
             exec_tooltip = "Executable or batch script that will be run\nwith the file for extraction as last parameter.\nMay have other fixed parameters\nWill be executed with the full path of the scanned file\ne.g. '7z l', 'cat', 'my_extractor.sh', 'my_extractor.bat'"
+            pars_tooltip = "parameters use % sign for file_path place"
             shell_tooltip = "Execute in system shell"
             open_tooltip = "Set executable file as Custom Data Extractor..."
             timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or no value means no timeout"
             test_tooltip = "Test Custom Data Extractor\non single manually selected file ..."
-            crc_tooltip = "Calculate CRC (SHA1) for all\nfiles matching glob and size cryteria\nIt may take a long time."
+            #crc_tooltip = "Calculate CRC (SHA1) for all\nfiles matching glob and size cryteria\nIt may take a long time."
 
             self_widget_tooltip = self.widget_tooltip
 
@@ -619,11 +618,12 @@ class Gui:
             self_widget_tooltip(lab_min,min_tooltip)
             self_widget_tooltip(lab_max,max_tooltip)
             self_widget_tooltip(lab_exec,exec_tooltip)
+            self_widget_tooltip(lab_pars,pars_tooltip)
             self_widget_tooltip(lab_shell,shell_tooltip)
             self_widget_tooltip(lab_open,open_tooltip)
             self_widget_tooltip(lab_timeout,timeout_tooltip)
             self_widget_tooltip(lab_test,test_tooltip)
-            self_widget_tooltip(lab_crc,crc_tooltip)
+            #self_widget_tooltip(lab_crc,crc_tooltip)
 
             self.CDE_ENTRIES_MAX = 16
 
@@ -632,6 +632,7 @@ class Gui:
             self.CDE_size_min_var_list=[]
             self.CDE_size_max_var_list=[]
             self.CDE_executable_var_list=[]
+            self.CDE_parameters_var_list=[]
             self.CDE_shell_var_list=[]
             self.CDE_timeout_var_list=[]
             self.CDE_crc_var_list=[]
@@ -641,6 +642,7 @@ class Gui:
             self.size_max_entry={}
             self.use_checkbutton={}
             self.executable_entry={}
+            self.parameters_entry={}
             self.shell_checkbutton={}
             self.open_button={}
             self.timeout_entry={}
@@ -653,55 +655,61 @@ class Gui:
                 self.CDE_size_min_var_list.append(StringVar())
                 self.CDE_size_max_var_list.append(StringVar())
                 self.CDE_executable_var_list.append(StringVar())
+                self.CDE_parameters_var_list.append(StringVar())
                 self.CDE_shell_var_list.append(BooleanVar())
                 self.CDE_timeout_var_list.append(StringVar())
                 self.CDE_crc_var_list.append(BooleanVar())
 
                 row = e+1
 
+                self.use_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
+                self.use_checkbutton[e].grid(row=row,column=0,sticky='news')
+
                 self.mask_entry[e] = Entry(cde_frame,textvariable=self.CDE_mask_var_list[e])
-                self.mask_entry[e].grid(row=row, column=0,sticky='news')
+                self.mask_entry[e].grid(row=row, column=1,sticky='news')
 
                 self.size_min_entry[e] = Entry(cde_frame,textvariable=self.CDE_size_min_var_list[e],width=6)
-                self.size_min_entry[e].grid(row=row, column=1,sticky ='news')
+                self.size_min_entry[e].grid(row=row, column=2,sticky ='news')
 
                 self.size_max_entry[e] = Entry(cde_frame,textvariable=self.CDE_size_max_var_list[e],width=6)
-                self.size_max_entry[e].grid(row=row, column=2,sticky ='news')
+                self.size_max_entry[e].grid(row=row, column=3,sticky ='news')
 
                 self.executable_entry[e] = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e],style='TEntry')
-                self.executable_entry[e].grid(row=row, column=3,sticky='news')
+                self.executable_entry[e].grid(row=row, column=4,sticky='news')
+
+                self.parameters_entry[e] = Entry(cde_frame,textvariable=self.CDE_parameters_var_list[e],style='TEntry')
+                self.parameters_entry[e].grid(row=row, column=5,sticky='news')
 
                 self.shell_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_shell_var_list[e])
-                self.shell_checkbutton[e].grid(row=row, column=4,sticky='news')
+                self.shell_checkbutton[e].grid(row=row, column=6,sticky='news')
 
                 self.open_button[e] = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
-                self.open_button[e].grid(row=row,column=5,sticky='news')
+                self.open_button[e].grid(row=row,column=7,sticky='news')
 
                 self.timeout_entry[e] = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e],width=3,style='TEntry')
-                self.timeout_entry[e].grid(row=row, column=6,sticky='news')
+                self.timeout_entry[e].grid(row=row, column=8,sticky='news')
 
                 self.test_button[e] = Button(cde_frame,image=self.ico_test,command = lambda x=e : self.cde_test(x) )
-                self.test_button[e].grid(row=row,column=7,sticky='news')
+                self.test_button[e].grid(row=row,column=9,sticky='news')
 
-                self.use_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
-                self.use_checkbutton[e].grid(row=row,column=8,sticky='news')
-
-                self.crc_entry[e] = Checkbutton(cde_frame,variable=self.CDE_crc_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
-                self.crc_entry[e].grid(row=row, column=9,sticky='news')
+                #self.crc_entry[e] = Checkbutton(cde_frame,variable=self.CDE_crc_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
+                #self.crc_entry[e].grid(row=row, column=9,sticky='news')
 
                 self.widget_tooltip(self.mask_entry[e],mask_tooltip)
                 self.widget_tooltip(self.size_min_entry[e],min_tooltip)
                 self.widget_tooltip(self.size_max_entry[e],max_tooltip)
                 self.widget_tooltip(self.use_checkbutton[e],use_tooltip)
                 self.widget_tooltip(self.executable_entry[e],exec_tooltip)
+                self.widget_tooltip(self.parameters_entry[e],exec_tooltip)
                 self.widget_tooltip(self.shell_checkbutton[e],shell_tooltip)
                 self.widget_tooltip(self.open_button[e],open_tooltip)
                 self.widget_tooltip(self.timeout_entry[e],timeout_tooltip)
                 self.widget_tooltip(self.test_button[e],test_tooltip)
-                self.widget_tooltip(self.crc_entry[e],crc_tooltip)
+                #self.widget_tooltip(self.crc_entry[e],crc_tooltip)
 
-            cde_frame.grid_columnconfigure(0, weight=1)
-            cde_frame.grid_columnconfigure(3, weight=1)
+            cde_frame.grid_columnconfigure(1, weight=2)
+            cde_frame.grid_columnconfigure(4, weight=2)
+            cde_frame.grid_columnconfigure(5, weight=1)
 
             self.scan_dialog_created = True
 
@@ -721,7 +729,7 @@ class Gui:
         if not self.progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
             self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
@@ -738,7 +746,7 @@ class Gui:
         if not self.simple_progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.simple_progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,ShowProgress=False,min_width=400,min_height=200)
+            self.simple_progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),ShowProgress=False,min_width=400,min_height=200)
 
             self.simple_progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
@@ -755,7 +763,7 @@ class Gui:
         if not self.info_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.info_dialog_on_scan_created = True
 
         return self.info_dialog_on_scan
@@ -768,7 +776,7 @@ class Gui:
         if not self.text_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.text_dialog_on_scan_created = True
 
         return self.text_dialog_on_scan
@@ -781,7 +789,7 @@ class Gui:
         if not self.text_ask_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
+            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
             self.text_ask_dialog_on_scan_created = True
 
         return self.text_ask_dialog_on_scan
@@ -794,7 +802,7 @@ class Gui:
         if not self.progress_dialog_on_find_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
             self.widget_tooltip(self.progress_dialog_on_find.abort_button,'Abort searching.')
 
@@ -835,7 +843,7 @@ class Gui:
             self.export_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
             self.export_cd_cb = Checkbutton(export_frame,text='Include \'Custom Data\'',variable=self.export_cd_var)
-            self.export_crc_cb = Checkbutton(export_frame,text='Include CRC values',variable=self.export_crc_var)
+            #self.export_crc_cb = Checkbutton(export_frame,text='Include CRC values',variable=self.export_crc_var)
 
             self.export_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
             self.export_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
@@ -888,7 +896,7 @@ class Gui:
             self.import_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
             self.import_cd_cb = Checkbutton(import_frame,text='Include \'Custom Data\'',variable=self.import_cd_var)
-            self.import_crc_cb = Checkbutton(import_frame,text='Include CRC values',variable=self.import_crc_var)
+            #self.import_crc_cb = Checkbutton(import_frame,text='Include CRC values',variable=self.import_crc_var)
 
             self.import_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
             self.import_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
@@ -1088,7 +1096,7 @@ class Gui:
             sfdma.grid_columnconfigure(0, weight=1)
 
             self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
-            self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
             self.find_dialog_created = True
 
@@ -1236,7 +1244,7 @@ class Gui:
 
         signal(SIGINT, lambda a, k : self.handle_sigint())
 
-        self.locked_by_child=None
+        self.main_locked_by_child=None
         ####################################################################
         self_main = self.main = Tk()
 
@@ -1340,7 +1348,7 @@ class Gui:
 
         style_map = style.map
 
-        style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],relief=[('disabled',"flat"),('',"sunken")])
+        style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],relief=[('disabled',"flat"),('',"sunken")],foreground=[('disabled',"gray"),('',"black")])
 
         style_configure('TRadiobutton', background=self.bg_color)
 
@@ -1421,7 +1429,7 @@ class Gui:
 
         self_org_label = self.org_label = {}
 
-        self_org_label['#0']='Label'
+        self_org_label['#0']='Name'
         self_org_label['size_h']='Size'
         self_org_label['ctime_h']='Time'
 
@@ -1436,7 +1444,7 @@ class Gui:
         tree_column('ctime_h', width=150, minwidth=100, stretch='no',anchor='e')
 
         tree_heading = tree.heading
-        tree_heading('#0',text='Label \u25B2',anchor='w')
+        tree_heading('#0',text='Name \u25B2',anchor='w')
         tree_heading('size_h',anchor='w',text=self_org_label['size_h'])
         tree_heading('ctime_h',anchor='n',text=self_org_label['ctime_h'])
 
@@ -1728,8 +1736,8 @@ class Gui:
 
     def focusin(self):
         #print('focusin')
-        if self.locked_by_child:
-            self.locked_by_child.focus_set()
+        if self.main_locked_by_child:
+            self.main_locked_by_child.focus_set()
 
     def unpost(self):
         self.hide_tooltip()
@@ -1811,8 +1819,8 @@ class Gui:
                     record_item,record_name,subpath = self.get_item_record(item)
                     record = self.item_to_record[record_item]
 
-                    node_cd = None
-                    node_crc = None
+                    node_cd = ''
+                    #node_crc = None
                     if item in self.item_to_data:
                         try:
                             data = self.item_to_data[item]
@@ -1831,11 +1839,10 @@ class Gui:
 
                             if has_cd:
                                 elem_index+=1
+                                node_cd = '\n\nDouble click to open custom data for file.'
 
-                            if has_crc:
-                                node_crc = data_tuple[elem_index]
-
-                            node_cd = '    Double click to open custom data for file.'
+                            #if has_crc:
+                            #    node_crc = data_tuple[elem_index]
 
                         except Exception as exc:
                             print('show_tooltips_tree',exc)
@@ -1843,7 +1850,8 @@ class Gui:
                     record_path = record.header.scan_path
                     size = core_bytes_to_str(record.header.sum_size)
                     time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time))
-                    self.tooltip_lab_configure(text=record.txtinfo + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') + (f'\n\n=====================================================\n{node_crc}\n=====================================================' if node_crc else '') )
+                    self.tooltip_lab_configure(text=record.txtinfo_basic + node_cd)
+                    # + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') + (f'\n\n=====================================================\n{node_crc}\n=====================================================' if node_crc else '')
 
                     self.tooltip_deiconify()
 
@@ -2545,39 +2553,42 @@ class Gui:
         self.tree_sel_change(item)
 
     def tree_on_mouse_button_press(self,event):
-        self.menubar_unpost()
-        self.hide_tooltip()
-        self.popup_unpost()
-
         if self.actions_processing:
-            tree=event.widget
+            self.menubar_unpost()
+            self.hide_tooltip()
+            self.popup_unpost()
 
-            region = tree.identify("region", event.x, event.y)
+            if self.actions_processing:
+                tree=event.widget
 
-            if region == 'separator':
-                return None
+                region = tree.identify("region", event.x, event.y)
 
-            if region == 'heading':
-                col_nr = tree.identify_column(event.x)
-                colname = col_nr if col_nr=='#0' else tree.column(col_nr,'id')
+                if region == 'separator':
+                    return None
 
-                if colname in self.REAL_SORT_COLUMN:
-                    self.column_sort_click(tree,colname)
-                else :
-                    print('unknown col:',col_nr,colname)
-            elif item:=tree.identify('item',event.x,event.y):
-                tree.selection_remove(tree.selection())
+                if region == 'heading':
+                    col_nr = tree.identify_column(event.x)
+                    colname = col_nr if col_nr=='#0' else tree.column(col_nr,'id')
 
-                tree.focus(item)
-                tree.selection_set(item)
-                self.tree_semi_focus()
+                    if colname in self.REAL_SORT_COLUMN:
+                        self.column_sort_click(tree,colname)
+                    else :
+                        print('unknown col:',col_nr,colname)
+                elif item:=tree.identify('item',event.x,event.y):
+                    tree.selection_remove(tree.selection())
 
-                self.tree_sel_change(item)
+                    tree.focus(item)
+                    tree.selection_set(item)
+                    self.tree_semi_focus()
 
-                #prevents processing of expanding nodes
-                #return "break"
+                    self.tree_sel_change(item)
 
-        return None
+                    #prevents processing of expanding nodes
+                    #return "break"
+
+            return None
+        else:
+            return "break"
 
     sel_item = None
 
@@ -2630,69 +2641,70 @@ class Gui:
             l_error(e)
 
     def context_menu_show(self,event):
-        tree=self.tree
+        if self.actions_processing:
+            tree=self.tree
 
-        if tree.identify("region", event.x, event.y) == 'heading':
-            return
+            if tree.identify("region", event.x, event.y) == 'heading':
+                return
 
-        if not self.actions_processing:
-            return
+            if not self.actions_processing:
+                return
 
-        tree.focus_set()
-        self.tree_on_mouse_button_press(event)
-        tree.update()
+            tree.focus_set()
+            self.tree_on_mouse_button_press(event)
+            tree.update()
 
-        item_actions_state=('disabled','normal')[self.sel_item is not None]
+            item_actions_state=('disabled','normal')[self.sel_item is not None]
 
-        pop=self.popup
+            pop=self.popup
 
-        pop.delete(0,'end')
+            pop.delete(0,'end')
 
-        pop_add_separator = pop.add_separator
-        pop_add_cascade = pop.add_cascade
-        pop_add_command = pop.add_command
-        self_ico = self.ico
-        state_on_records = 'normal' if librer_core.records else 'disabled'
+            pop_add_separator = pop.add_separator
+            pop_add_cascade = pop.add_cascade
+            pop_add_command = pop.add_command
+            self_ico = self.ico
+            state_on_records = 'normal' if librer_core.records else 'disabled'
 
-        c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
-        c_nav_add_command = c_nav.add_command
-        c_nav_add_separator = c_nav.add_separator
+            c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
+            c_nav_add_command = c_nav.add_command
+            c_nav_add_separator = c_nav.add_separator
 
-        c_nav_add_command(label = 'Go to next record'       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
-        c_nav_add_command(label = 'Go to previous record'   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
-        c_nav_add_separator()
-        c_nav_add_command(label = 'Go to first record'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
-        c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to next record'       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to previous record'   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_separator()
+            c_nav_add_command(label = 'Go to first record'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
-        pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self_ico['record'],compound='left')
-        pop_add_separator()
-        pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=state_on_records)
-        pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
-        pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
-        pop_add_separator()
-        pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_empty,compound='left',state=state_on_records)
-        pop_add_separator()
-        pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left',state=state_on_records)
-        pop_add_separator()
-        pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=state_on_records)
-        pop_add_separator()
+            pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self_ico['record'],compound='left')
+            pop_add_separator()
+            pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=state_on_records)
+            pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
+            pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
+            pop_add_separator()
+            pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_empty,compound='left',state=state_on_records)
+            pop_add_separator()
+            pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left',state=state_on_records)
+            pop_add_separator()
+            pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=state_on_records)
+            pop_add_separator()
 
-        pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.RECORD) else 'disabled', image = self.ico_empty,compound='left')
-        #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
-        pop_add_separator()
-        pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_find,compound='left')
-        pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
-        pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
-        pop_add_separator()
+            pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.RECORD) else 'disabled', image = self.ico_empty,compound='left')
+            #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
+            pop_add_separator()
+            pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_find,compound='left')
+            pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+            pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+            pop_add_separator()
 
-        pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
+            pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
 
-        try:
-            pop.tk_popup(event.x_root, event.y_root)
-        except Exception as e:
-            print(e)
+            try:
+                pop.tk_popup(event.x_root, event.y_root)
+            except Exception as e:
+                print(e)
 
-        pop.grab_release()
+            pop.grab_release()
 
     @logwrapper
     def column_sort_click(self, tree, colname):
@@ -2837,6 +2849,18 @@ class Gui:
             self.get_info_dialog_on_scan().show('Error. No paths to scan.','Add paths to scan.')
             return False
 
+        #wryfikacja
+        for e in range(self.CDE_ENTRIES_MAX):
+            if self.CDE_use_var_list[e].get():
+                mask = self.CDE_mask_var_list[e].get().strip()
+                if not mask:
+                    self.get_info_dialog_on_scan().show('Wrong mask expression',f'Empty mask nr:{e+1}.')
+                    return False
+                exe = self.CDE_executable_var_list[e].get().strip()
+                if not exe:
+                    self.get_info_dialog_on_scan().show('Wrong executable',f'Empty executable nr:{e+1}.')
+                    return False
+
         self.last_dir = path_to_scan_from_entry
 
         new_record = librer_core.create(self.scan_label_entry_var.get(),path_to_scan_from_entry)
@@ -2903,13 +2927,13 @@ class Gui:
         cde_list=[]
 
         for e in range(self.CDE_ENTRIES_MAX):
-
-            mask = self.CDE_mask_var_list[e].get()
-            smin = self.CDE_size_min_var_list[e].get()
-            smax = self.CDE_size_max_var_list[e].get()
-            exe = self.CDE_executable_var_list[e].get()
+            mask = self.CDE_mask_var_list[e].get().strip()
+            smin = self.CDE_size_min_var_list[e].get().strip()
+            smax = self.CDE_size_max_var_list[e].get().strip()
+            exe = self.CDE_executable_var_list[e].get().strip()
+            pars = self.CDE_parameters_var_list[e].get().strip()
             shell = self.CDE_shell_var_list[e].get()
-            timeout = self.CDE_timeout_var_list[e].get()
+            timeout = self.CDE_timeout_var_list[e].get().strip()
             crc = self.CDE_crc_var_list[e].get()
 
             smin_int = core_str_to_bytes(smin)
@@ -2926,6 +2950,7 @@ class Gui:
             smin,
             smax,
             exe,
+            pars,
             '1' if shell else '0',
             timeout,
             '1' if self.CDE_crc_var_list[e].get() else '0' ]
@@ -2941,7 +2966,8 @@ class Gui:
                     smin_int,
                     True if smax_int>=0 else False,
                     smax_int,
-                    tuple(exe.split()),
+                    exe,
+                    pars,
                     shell,
                     timeout_int,
                     crc ) )
@@ -3115,30 +3141,31 @@ class Gui:
         return True
 
     def delete_data_record(self):
-        if self.current_record:
-            label = self.current_record.header.label
-            path = self.current_record.header.scan_path
-            creation_time = self.current_record.header.creation_time
+        if self.actions_processing:
+            if self.current_record:
+                label = self.current_record.header.label
+                path = self.current_record.header.scan_path
+                creation_time = self.current_record.header.creation_time
 
-            dialog = self.get_ask_dialog_on_main()
+                dialog = self.get_ask_dialog_on_main()
 
-            dialog.show('Delete selected data record ?',f'Data record label: {label}\n\nscan path:{path}\n\ndata file:{self.current_record.FILE_NAME}' )
+                dialog.show('Delete selected data record ?',f'Data record label: {label}\n\nscan path:{path}\n\ndata file:{self.current_record.FILE_NAME}' )
 
-            if dialog.res_bool:
-                librer_core.delete_record_by_id(self.current_record.header.rid)
-                record_item = self.record_to_item[self.current_record]
-                self.tree.delete(record_item)
+                if dialog.res_bool:
+                    librer_core.delete_record_by_id(self.current_record.header.rid)
+                    record_item = self.record_to_item[self.current_record]
+                    self.tree.delete(record_item)
 
-                self.status_record_configure('')
-                self.status_record_path_configure('')
-                self.status_record_subpath_configure('')
-                if remaining_records := self.tree.get_children():
-                    if new_sel_record := remaining_records[0]:
-                        self.tree.selection_set(new_sel_record)
-                        self.tree.focus(new_sel_record)
+                    self.status_record_configure('')
+                    self.status_record_path_configure('')
+                    self.status_record_subpath_configure('')
+                    if remaining_records := self.tree.get_children():
+                        if new_sel_record := remaining_records[0]:
+                            self.tree.selection_set(new_sel_record)
+                            self.tree.focus(new_sel_record)
 
-                    self.tree_semi_focus()
-                self.tree.focus_set()
+                        self.tree_semi_focus()
+                    self.tree.focus_set()
 
     def scan_dialog_show(self):
         #self.exclude_mask_update()
@@ -3149,16 +3176,17 @@ class Gui:
         e=0
         for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('\n'):
             try:
-                v1,v2,v3,v4,v5,v6,v7,v8 = e_section.split('|')
+                v1,v2,v3,v4,v5,v6,v7,v8,v9 = e_section  .split('|')
 
                 self.CDE_use_var_list[e].set(True if v1=='1' else False)
                 self.CDE_mask_var_list[e].set(v2)
                 self.CDE_size_min_var_list[e].set(v3)
                 self.CDE_size_max_var_list[e].set(v4)
                 self.CDE_executable_var_list[e].set(v5)
-                self.CDE_shell_var_list[e].set(True if v6=='1' else False)
-                self.CDE_timeout_var_list[e].set(v7)
-                self.CDE_crc_var_list[e].set(True if v8=='1' else False)
+                self.CDE_parameters_var_list[e].set(v6)
+                self.CDE_shell_var_list[e].set(True if v7=='1' else False)
+                self.CDE_timeout_var_list[e].set(v8)
+                self.CDE_crc_var_list[e].set(True if v9=='1' else False)
                 e+=1
             except Exception as e:
                 print(e,e_section)
@@ -3169,6 +3197,7 @@ class Gui:
                     self.CDE_size_min_var_list[e].set('')
                     self.CDE_size_max_var_list[e].set('')
                     self.CDE_executable_var_list[e].set('')
+                    self.CDE_parameters_var_list[e].set('')
                     self.CDE_shell_var_list[e].set(False)
                     self.CDE_timeout_var_list[e].set('')
                     self.CDE_crc_var_list[e].set(False)
@@ -3242,9 +3271,8 @@ class Gui:
         if full_file_path:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=( ("All Files","*.*"),("All Files","*.*") ) ):
             self.last_dir=dirname(full_file_path)
 
-            #expr = normpath(abspath(full_file_path))
-
-            executable = self.CDE_executable_var_list[e].get().split()
+            executable = self.CDE_executable_var_list[e].get()
+            parameters = self.CDE_parameters_var_list[e].get()
             shell = self.CDE_shell_var_list[e].get()
             timeout = self.CDE_timeout_var_list[e].get()
 
@@ -3253,15 +3281,17 @@ class Gui:
             except:
                 timeout_int = None
 
-            file_to_test = full_file_path.replace('/',sep)
+            command_list = get_command_list(executable,parameters,full_file_path,shell)
+            if not command_list:
+                self.get_info_dialog_on_scan().show('Wrong parameters string','Non empty and without $ sign')
+                return
 
-            info = ' '.join(self.CDE_executable_var_list[e].get().split() + [file_to_test]) + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '') + f'\nshell:{"Yes" if shell else "No"}'
+            info = ' '.join(command_list) + '\n' + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '') + f'\nshell:{"Yes" if shell else "No"}'
 
             ask_dialog = self.get_text_ask_dialog_on_scan()
             simple_progress_dialog_scan = self.get_simple_progress_dialog_on_scan()
             str_simple_progress_dialog_scan_abort_button = str(simple_progress_dialog_scan.abort_button)
             self.tooltip_message[str_simple_progress_dialog_scan_abort_button]='tooltippa'
-
 
             ask_dialog.show('Test selected Custom Data Extractor on selected file ?',info)
 
@@ -3284,7 +3314,7 @@ class Gui:
                 self.action_abort=False
                 crc = False
                 size = 0 #only for crc
-                io_list = [ [executable,full_file_path,timeout_int,shell,crc,size] ]
+                io_list = [ [executable,parameters,full_file_path,timeout_int,shell,crc,size] ]
 
                 exe=Executor(io_list,lambda : self.cde_test_loop_update(simple_progress_dialog_scan))
                 simple_progress_dialog_scan.command_on_close=lambda : self.cde_test_abort(exe)
@@ -3292,11 +3322,10 @@ class Gui:
 
                 simple_progress_dialog_scan.hide(True)
 
-                result_tuple = io_list[0][6]
+                result_tuple = io_list[0][7]
 
                 returncode,output = result_tuple
                 self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if returncode==0 else "with Error"}',output)
-
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -3568,40 +3597,47 @@ class Gui:
                 if item:=tree.identify('item',event.x,event.y):
                     self.main.after_idle(self.show_customdata)
 
-        #return "break"
+        return "break"
 
     def show_customdata(self):
-        item=self.tree.focus()
-        if item:
-            try:
-                record_item,record_name,subpath = self.get_item_record(item)
-                record = self.item_to_record[record_item]
+        if self.actions_processing:
+            item=self.tree.focus()
+            if item:
+                try:
+                    record_item,record_name,subpath = self.get_item_record(item)
+                    record = self.item_to_record[record_item]
 
-                data_tuple = self.item_to_data[item]
-                (entry_name,code,size,mtime) = data_tuple[0:4]
+                    if self.tree.tag_has(self.RECORD,item):
+                        self.record_info()
+                    elif item in self.item_to_data: #dla rekordu nie spelnione
+                        data_tuple = self.item_to_data[item]
+                        (entry_name,code,size,mtime) = data_tuple[0:4]
 
-                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.entry_LUT_decode[code]
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.entry_LUT_decode[code]
 
-                if has_cd: #wiec nie has_files
-                    cd_index = data_tuple[4]
+                        if has_cd: #wiec nie has_files
+                            cd_index = data_tuple[4]
 
-                    self.access_customdata(record)
+                            self.access_customdata(record)
 
-                    if cd_data := record.customdata[cd_index]:
-                        cd_txt = cd_data
+                            if cd_data := record.customdata[cd_index]:
+                                cd_txt = cd_data
 
-                        self.get_text_info_dialog().show('Custom Data',cd_txt)
-                        return
+                                self.get_text_info_dialog().show('Custom Data',cd_txt)
+                                return
 
-                self.info_dialog_on_main.show('Information','No Custom data.')
-            except Exception as e:
-                self.info_dialog_on_main.show(e)
-                pass
+                        self.info_dialog_on_main.show('Information','No Custom data.')
+
+
+                except Exception as e:
+                    self.info_dialog_on_main.show(e)
+                    pass
 
     def record_info(self):
-        if self.current_record:
-            time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(self.current_record.header.creation_time))
-            self.get_text_info_dialog().show('Record Info.',self.current_record.txtinfo)
+        if self.actions_processing:
+            if self.current_record:
+                time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(self.current_record.header.creation_time))
+                self.get_text_info_dialog().show('Record Info.',self.current_record.txtinfo)
 
     #@logwrapper
     #def tree_action(self,item):

@@ -34,6 +34,32 @@ from signal import SIGTERM
 from hashlib import sha1
 from os import sep
 
+from os import name as os_name
+from sys import getsizeof
+
+windows = bool(os_name=='nt')
+
+def get_command_list(executable,parameters,full_file_path,shell=False):
+    if windows:
+        full_file_path = full_file_path.replace('/',sep)
+
+    if shell:
+        executable=f'"{executable}"'
+        full_file_path = f'"{full_file_path}"'
+
+    if parameters:
+        parameters = parameters.replace('"$"','$')
+        if '$' not in parameters:
+            return None
+    else:
+        parameters='$'
+
+    parameters_list = [p_elem.replace('$',full_file_path) for p_elem in parameters.split() if p_elem]
+
+    single_command_list = [executable] + parameters_list
+
+    return single_command_list
+
 class Executor :
     def __init__(self,io_list,callback):
         self.io_list=io_list
@@ -42,6 +68,13 @@ class Executor :
         self.keep_running=True
         self.timeout=None
         self.info = ''
+
+        self.files_cde_errors_quant = 0
+
+        self.files_cde_quant = 0
+        self.files_cde_size = 0
+        self.files_cde_size_extracted = 0
+
 
     def calc_crc(self,fullpath,size):
         CRC_BUFFER_SIZE=4*1024*1024
@@ -92,9 +125,10 @@ class Executor :
     def run(self):
         for single_command_combo in self.io_list:
             self_results_list_append = single_command_combo.append
-            executable,full_file_path,timeout,shell,do_crc,size = single_command_combo[0:6]
+            executable,parameters,full_file_path,timeout,shell,do_crc,size = single_command_combo[0:7]
+            do_crc = False #TODO hidden option
 
-            single_command_list = executable + [full_file_path.replace('/',sep)]
+            single_command_list = get_command_list(executable,parameters,full_file_path,shell)
 
             if self.keep_running:
                 try:
@@ -142,18 +176,31 @@ class Executor :
                     returncode=100 if killed else 101
 
                 if killed:
+                    returncode = 102
                     output = output + '\nKilled.'
-                if do_crc:
-                    crc=self.calc_crc(full_file_path,size)
-                    self_results_list_append(tuple([returncode,output,crc]))
-                else:
-                    self_results_list_append(tuple([returncode,output]))
+                #if do_crc:
+                #    crc=self.calc_crc(full_file_path,size)
+                #    self_results_list_append(tuple([returncode,output,crc]))
+                #else:
+                #    self_results_list_append(tuple([returncode,output]))
 
             else:
-                if do_crc:
-                    self_results_list_append((300,'CDE aborted',0))
-                else:
-                    self_results_list_append((300,'CDE aborted'))
+                returncode = 300
+                output = 'CDE aborted'
+                #if do_crc:
+                #    self_results_list_append((300,'CDE aborted',0))
+                #else:
+                #    self_results_list_append((300,'CDE aborted'))
+
+            self_results_list_append(tuple([returncode,output]))
+
+            if returncode:
+                self.files_cde_errors_quant+=1
+
+            self.files_cde_quant += 1
+            self.files_cde_size = size
+            self.files_cde_size_extracted += getsizeof(output)
+
 
     def kill(self,pid):
         proc = Process(pid)
