@@ -28,7 +28,6 @@
 
 from subprocess import Popen, STDOUT, PIPE,TimeoutExpired
 from time import time
-#from time import sleep
 from psutil import Process
 from signal import SIGTERM
 from hashlib import sha1
@@ -38,6 +37,7 @@ from os import name as os_name
 from sys import getsizeof
 
 windows = bool(os_name=='nt')
+param_indicator = '%'
 
 def get_command_list(executable,parameters,full_file_path,shell=False):
     if windows:
@@ -48,13 +48,13 @@ def get_command_list(executable,parameters,full_file_path,shell=False):
         full_file_path = f'"{full_file_path}"'
 
     if parameters:
-        parameters = parameters.replace('"$"','$')
-        if '$' not in parameters:
+        if param_indicator not in parameters:
             return None
+        parameters = parameters.replace(f'"{param_indicator}"',param_indicator)
     else:
-        parameters='$'
+        parameters=param_indicator
 
-    parameters_list = [p_elem.replace('$',full_file_path) for p_elem in parameters.split() if p_elem]
+    parameters_list = [p_elem.replace(param_indicator,full_file_path) for p_elem in parameters.split() if p_elem]
 
     single_command_list = [executable] + parameters_list
 
@@ -198,7 +198,7 @@ class Executor :
                 self.files_cde_errors_quant+=1
 
             self.files_cde_quant += 1
-            self.files_cde_size = size
+            self.files_cde_size += size
             self.files_cde_size_extracted += getsizeof(output)
 
 

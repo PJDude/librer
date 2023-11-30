@@ -26,18 +26,10 @@
 #
 ####################################################################################
 
-#from fnmatch import fnmatch
-#from shutil import rmtree
-
 #from time import sleep
-from time import strftime
-from time import localtime
-from time import time
+from time import strftime,localtime,time
 
-from os import sep
-from os import rmdir
-from os import system
-from os import getcwd
+from os import sep,rmdir,system,getcwd
 from os import name as os_name
 
 windows = bool(os_name=='nt')
@@ -45,34 +37,22 @@ windows = bool(os_name=='nt')
 if windows:
     from os import startfile
 
-from os.path import abspath
-from os.path import normpath
-from os.path import dirname
+from os.path import abspath,normpath,dirname
 from os.path import join as path_join
 from os.path import isfile as path_isfile
 
 from platform import node
 from pathlib import Path
 
-from signal import signal
-from signal import SIGINT
-
-from configparser import ConfigParser
+from signal import signal,SIGINT
 
 from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
-
-from tkinter.ttk import Treeview
-from tkinter.ttk import Checkbutton
-from tkinter.ttk import Radiobutton
-from tkinter.ttk import Scrollbar
-from tkinter.ttk import Button
-from tkinter.ttk import Entry
-from tkinter.ttk import Scale
-from tkinter.ttk import Style
-
-from tkinter.filedialog import askdirectory
-from tkinter.filedialog import asksaveasfilename
-from tkinter.filedialog import askopenfilename
+from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Entry,Scale,Style
+from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename
+from zstandard import ZstdCompressor
+from zstandard import ZstdDecompressor
+from pickle import dumps
+from pickle import loads
 
 from threading import Thread
 from traceback import format_stack
@@ -85,7 +65,7 @@ import console
 import dialogs
 
 from librer_images import librer_image
-from executor import Executor,get_command_list
+from executor import Executor,get_command_list,param_indicator
 
 #l_debug = logging.debug
 l_info = logging.info
@@ -106,7 +86,7 @@ CFG_KEY_SINGLE_DEVICE = 'single_device'
 CFG_KEY_SINGLE_DEVICE = 'single_device'
 
 CFG_KEY_find_size_min = 'find_size_min'
-CFG_KEY_find_range = 'find_range'
+CFG_KEY_find_range_all = 'find_range_all'
 CFG_KEY_find_cd_search_kind = 'find_cd_search_kind'
 CFG_KEY_find_filename_search_kind = 'find_filename_search_kind'
 
@@ -132,6 +112,9 @@ CFG_KEY_export_crc = 'export_crc'
 CFG_KEY_import_cd = 'export_cd'
 CFG_KEY_import_crc = 'export_crc'
 
+CFG_last_dir = 'last_dir'
+CFG_geometry = 'geometry'
+
 cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
@@ -139,7 +122,7 @@ cfg_defaults={
     CFG_KEY_EXCLUDE:'',
     CFG_KEY_CDE_SETTINGS:'',
 
-    CFG_KEY_find_range:'all',
+    CFG_KEY_find_range_all:False,
     CFG_KEY_find_filename_search_kind:'dont',
     CFG_KEY_find_cd_search_kind:'dont',
 
@@ -163,7 +146,10 @@ cfg_defaults={
     CFG_KEY_export_crc:True,
 
     CFG_KEY_import_cd:True,
-    CFG_KEY_import_crc:True
+    CFG_KEY_import_crc:True,
+
+    CFG_last_dir:'.',
+    CFG_geometry:''
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -173,64 +159,49 @@ def fnumber(num):
 
 class Config:
     def __init__(self,config_dir):
-        #l_debug('Initializing config: %s', config_dir)
-        self.config = ConfigParser()
-        self.config.add_section('main')
-        #self.config.add_section('geometry')
+        self.cfg = {}
 
         self.path = config_dir
-        self.file = self.path + '/cfg.ini'
+        self.file = self.path + '/cfg.dat'
 
     def write(self):
         l_info('writing config')
         Path(self.path).mkdir(parents=True,exist_ok=True)
-        with open(self.file, 'w', encoding='ASCII') as configfile:
-            self.config.write(configfile)
+
+        with open(self.file, "wb") as f:
+            f.write(ZstdCompressor(level=8,threads=1).compress(dumps(self.cfg)))
 
     def read(self):
         l_info('reading config')
         if path_isfile(self.file):
             try:
-                with open(self.file, 'r', encoding='ASCII') as configfile:
-                    self.config.read_file(configfile)
+                with open(self.file, "rb") as f:
+                    self.cfg = loads(ZstdDecompressor().decompress(f.read()))
+
             except Exception as e:
                 l_error(e)
         else:
             l_warning('no config file: %s',self.file)
 
-    def set(self,key,val,section='main'):
-        self.config.set(section,key,str(val))
+    def set(self,key,val):
+        self.cfg[key]=val
         return val
 
-    def set_bool(self,key,val,section='main'):
-        self.config.set(section,key,('0','1')[val])
-        return val
-
-    def get(self,key,default='',section='main'):
+    def get(self,key):
         try:
-            res=self.config.get(section,key)
+            res=self.cfg[key]
         except Exception as e:
             l_warning('gettting config key: %s',key)
             l_warning(e)
-            res=default
-            if not res:
-                res=cfg_defaults[key]
 
-            self.set(key,res,section=section)
-
-        return str(res)
-
-    def get_bool(self,key,section='main'):
-        try:
-            res=self.config.get(section,key)
-            return res=='1'
-
-        except Exception as e:
-            l_warning('gettting config key: %s',key)
-            l_warning(e)
             res=cfg_defaults[key]
-            self.set_bool(key,res,section=section)
-            return res
+
+            #if not res:
+            #    res=default
+
+            self.cfg[key]=res
+
+        return res
 
 ###########################################################
 
@@ -572,7 +543,7 @@ class Gui:
             self.single_device=BooleanVar()
             single_device_button = Checkbutton(dialog.area_buttons,text='one device mode',variable=self.single_device)
             single_device_button.pack(side='right',padx=2,pady=2)
-            self.single_device.set(self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE))
+            self.single_device.set(self.cfg_get(CFG_KEY_SINGLE_DEVICE))
             self.widget_tooltip(single_device_button,"Don't cross device boundaries (mount points, bindings etc.) - recommended")
 
             dialog.focus=self.scan_cancel_button
@@ -590,9 +561,9 @@ class Gui:
             (lab_min := Label(cde_frame,text='Min\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=2,sticky='news')
             (lab_max := Label(cde_frame,text='Max\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=3,sticky='news')
             (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
-            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news')
-            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
-            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=7,sticky='news')
+            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=5,sticky='news')
+            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
+            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
             (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=8,sticky='news')
             (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
             #(lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
@@ -604,7 +575,7 @@ class Gui:
             #max_tooltip = "Maximum size of file\nto aplly CD extraction or crc\nmay be empty e.g. '100MB'"
             max_tooltip = "Maximum size of file\nto aplly CD extraction\nmay be empty e.g. '100MB'"
             exec_tooltip = "Executable or batch script that will be run\nwith the file for extraction as last parameter.\nMay have other fixed parameters\nWill be executed with the full path of the scanned file\ne.g. '7z l', 'cat', 'my_extractor.sh', 'my_extractor.bat'"
-            pars_tooltip = "parameters use % sign for file_path place"
+            pars_tooltip = f"parameters of the CDE executable.\nUse '{param_indicator}' sign to indicate 'file path'\nlocation, or leave it empty."
             shell_tooltip = "Execute in system shell"
             open_tooltip = "Set executable file as Custom Data Extractor..."
             timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or no value means no timeout"
@@ -677,14 +648,14 @@ class Gui:
                 self.executable_entry[e] = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e],style='TEntry')
                 self.executable_entry[e].grid(row=row, column=4,sticky='news')
 
+                self.open_button[e] = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
+                self.open_button[e].grid(row=row,column=5,sticky='news')
+
                 self.parameters_entry[e] = Entry(cde_frame,textvariable=self.CDE_parameters_var_list[e],style='TEntry')
-                self.parameters_entry[e].grid(row=row, column=5,sticky='news')
+                self.parameters_entry[e].grid(row=row, column=6,sticky='news')
 
                 self.shell_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_shell_var_list[e])
-                self.shell_checkbutton[e].grid(row=row, column=6,sticky='news')
-
-                self.open_button[e] = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
-                self.open_button[e].grid(row=row,column=7,sticky='news')
+                self.shell_checkbutton[e].grid(row=row, column=7,sticky='news')
 
                 self.timeout_entry[e] = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e],width=3,style='TEntry')
                 self.timeout_entry[e].grid(row=row, column=8,sticky='news')
@@ -700,7 +671,7 @@ class Gui:
                 self.widget_tooltip(self.size_max_entry[e],max_tooltip)
                 self.widget_tooltip(self.use_checkbutton[e],use_tooltip)
                 self.widget_tooltip(self.executable_entry[e],exec_tooltip)
-                self.widget_tooltip(self.parameters_entry[e],exec_tooltip)
+                self.widget_tooltip(self.parameters_entry[e],pars_tooltip)
                 self.widget_tooltip(self.shell_checkbutton[e],shell_tooltip)
                 self.widget_tooltip(self.open_button[e],open_tooltip)
                 self.widget_tooltip(self.timeout_entry[e],timeout_tooltip)
@@ -709,7 +680,7 @@ class Gui:
 
             cde_frame.grid_columnconfigure(1, weight=2)
             cde_frame.grid_columnconfigure(4, weight=2)
-            cde_frame.grid_columnconfigure(5, weight=1)
+            cde_frame.grid_columnconfigure(6, weight=1)
 
             self.scan_dialog_created = True
 
@@ -717,7 +688,7 @@ class Gui:
 
             #self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
-            self.exclude_regexp_scan.set(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP))
+            self.exclude_regexp_scan.set(self.cfg_get(CFG_KEY_EXCLUDE_REGEXP))
 
         return self.scan_dialog
 
@@ -826,12 +797,12 @@ class Gui:
 
             self.export_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Export record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.export_cd_var = BooleanVar()
-            self.export_crc_var = BooleanVar()
+            #self.export_crc_var = BooleanVar()
             self.export_compr_var = IntVar()
             self.export_compr_var_int = IntVar()
 
-            self.export_cd_var.set(self.cfg.get_bool(CFG_KEY_export_cd))
-            self.export_crc_var.set(self.cfg.get_bool(CFG_KEY_export_crc))
+            self.export_cd_var.set(self.cfg.get(CFG_KEY_export_cd))
+            #self.export_crc_var.set(self.cfg.get(CFG_KEY_export_crc))
 
             self.export_compr_var.set(16)
             self.export_compr_var_int.set(16)
@@ -846,7 +817,7 @@ class Gui:
             #self.export_crc_cb = Checkbutton(export_frame,text='Include CRC values',variable=self.export_crc_var)
 
             self.export_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
-            self.export_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            #self.export_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
 
             export_frame.grid_columnconfigure( 0, weight=1)
 
@@ -879,12 +850,12 @@ class Gui:
 
             self.import_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Import record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.import_cd_var = BooleanVar()
-            self.import_crc_var = BooleanVar()
+            #self.import_crc_var = BooleanVar()
             self.import_compr_var = IntVar()
             self.import_compr_var_int = IntVar()
 
-            self.import_cd_var.set(self.cfg.get_bool(CFG_KEY_import_cd))
-            self.import_crc_var.set(self.cfg.get_bool(CFG_KEY_import_crc))
+            self.import_cd_var.set(self.cfg.get(CFG_KEY_import_cd))
+            #self.import_crc_var.set(self.cfg.get(CFG_KEY_import_crc))
 
             self.import_compr_var.set(16)
             self.import_compr_var_int.set(16)
@@ -899,7 +870,7 @@ class Gui:
             #self.import_crc_cb = Checkbutton(import_frame,text='Include CRC values',variable=self.import_crc_var)
 
             self.import_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
-            self.import_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            #self.import_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
 
             import_frame.grid_columnconfigure( 0, weight=1)
 
@@ -932,7 +903,7 @@ class Gui:
             self.find_filename_search_kind_var = StringVar()
             self.find_cd_search_kind_var = StringVar()
 
-            self.find_range_var = StringVar()
+            self.find_range_all = BooleanVar()
 
             self.find_size_min_var = StringVar()
             self.find_size_max_var = StringVar()
@@ -960,7 +931,11 @@ class Gui:
                 else:
                     return ''
 
-            self.find_range_var.set(self.cfg.get(CFG_KEY_find_range))
+            try:
+                self.find_range_all.set(self.cfg.get(CFG_KEY_find_range_all))
+            except Exception as d1:
+                print(d1)
+
             self.find_cd_search_kind_var.set(self.cfg.get(CFG_KEY_find_cd_search_kind))
             self.find_filename_search_kind_var.set(self.cfg.get(CFG_KEY_find_filename_search_kind))
 
@@ -970,12 +945,12 @@ class Gui:
             self.find_name_regexp_var.set(self.cfg.get(CFG_KEY_find_name_regexp))
             self.find_name_glob_var.set(self.cfg.get(CFG_KEY_find_name_glob))
             self.find_name_fuzz_var.set(self.cfg.get(CFG_KEY_find_name_fuzz))
-            self.find_name_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_name_case_sens))
+            self.find_name_case_sens_var.set(self.cfg.get(CFG_KEY_find_name_case_sens))
 
             self.find_cd_regexp_var.set(self.cfg.get(CFG_KEY_find_cd_regexp))
             self.find_cd_glob_var.set(self.cfg.get(CFG_KEY_find_cd_glob))
             self.find_cd_fuzz_var.set(self.cfg.get(CFG_KEY_find_cd_fuzz))
-            self.find_cd_case_sens_var.set(self.cfg.get_bool(CFG_KEY_find_cd_case_sens))
+            self.find_cd_case_sens_var.set(self.cfg.get(CFG_KEY_find_cd_case_sens))
 
             self.find_name_fuzzy_threshold.set(self.cfg.get(CFG_KEY_filename_fuzzy_threshold))
             self.find_cd_fuzzy_threshold.set(self.cfg.get(CFG_KEY_cd_fuzzy_threshold))
@@ -1001,8 +976,8 @@ class Gui:
             sfdma = self.find_dialog.area_main
 
             (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
-            (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record',variable=self.find_range_var,value='single',command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-            (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_var,value='all',command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
+            (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record',variable=self.find_range_all,value=False,command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
             (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
@@ -1191,8 +1166,9 @@ class Gui:
             dialog.show()
 
             if self.export_dialog_file:
-                keep_cd = self.cfg.set_bool(CFG_KEY_export_cd,self.export_cd_var.get())
-                keep_crc = self.cfg.set_bool(CFG_KEY_export_crc,self.export_crc_var.get())
+                keep_cd = self.cfg.set(CFG_KEY_export_cd,self.export_cd_var.get())
+                #keep_crc = self.cfg.set(CFG_KEY_export_crc,self.export_crc_var.get())
+                keep_crc = False
 
                 self.status('saving file "%s" ...' % str(self.export_dialog_file))
 
@@ -1211,8 +1187,9 @@ class Gui:
         dialog.show()
 
         if self.import_dialog_file:
-            keep_cd = self.cfg.set_bool(CFG_KEY_import_cd,self.import_cd_var.get())
-            keep_crc = self.cfg.set_bool(CFG_KEY_import_crc,self.import_crc_var.get())
+            keep_cd = self.cfg.set(CFG_KEY_import_cd,self.import_cd_var.get())
+            #keep_crc = self.cfg.set(CFG_KEY_import_crc,self.import_crc_var.get())
+            keep_crc = False
 
             self.status('importing record  ...')
 
@@ -1236,9 +1213,9 @@ class Gui:
         self.cfg = Config(CONFIG_DIR)
         self.cfg.read()
 
-        self.last_dir = self.cfg.get('last_dir',self.cwd).replace('/',sep)
+        self.last_dir = self.cfg.get(CFG_last_dir).replace('/',sep)
 
-        self.cfg_get_bool=self.cfg.get_bool
+        self.cfg_get=self.cfg.get
 
         self.exclude_frames=[]
 
@@ -1512,6 +1489,8 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
+                self_file_cascade_add_command(label = 'Clear Find Results',command = self.find_clear, image = self.ico_empty,compound='left')
+                self_file_cascade_add_separator()
                 #self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self_ico['empty'],compound='left')
                 #self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
@@ -1566,7 +1545,7 @@ class Gui:
 
         self.main_update()
         try:
-            cfg_geometry=self.cfg.get('geometry','')
+            cfg_geometry=self.cfg.get(CFG_geometry)
 
             if cfg_geometry:
                 self_main.geometry(cfg_geometry)
@@ -1795,7 +1774,9 @@ class Gui:
                 subpath_list.append(data)
                 item=tree.parent(item)
 
-        return (item,current_record_name,sep + sep.join(reversed(subpath_list)))
+        subpath_list.reverse()
+        return (item,current_record_name,subpath_list)
+        #sep + sep.join(reversed(subpath_list))
 
     def show_tooltips_tree(self,event):
         self.unschedule_tooltips_tree(event)
@@ -1816,7 +1797,7 @@ class Gui:
 
             elif item := tree.identify('item', event.x, event.y):
                 if col=="#0" :
-                    record_item,record_name,subpath = self.get_item_record(item)
+                    record_item,record_name,subpath_list = self.get_item_record(item)
                     record = self.item_to_record[record_item]
 
                     node_cd = ''
@@ -1934,8 +1915,8 @@ class Gui:
     def exit(self):
         try:
             self.status('exiting ...')
-            self.cfg.set('last_dir',self.last_dir)
-            self.cfg.set('geometry',str(self.main.geometry()))
+            self.cfg.set(CFG_last_dir,self.last_dir)
+            self.cfg.set(CFG_geometry,str(self.main.geometry()))
             self.status('saving config ...')
             self.cfg.write()
             self.status('exit.')
@@ -1972,6 +1953,11 @@ class Gui:
 
     def find_close(self):
         self.find_dialog.hide()
+
+    def find_clear(self):
+        print('find_clear')
+
+
 
     def find_prev(self):
         if not self.any_find_result:
@@ -2033,7 +2019,7 @@ class Gui:
                 self.find_params_changed=True
             elif self.cfg.get(CFG_KEY_find_filename_search_kind) != self.find_filename_search_kind_var.get():
                 self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_range) != self.find_range_var.get():
+            elif self.cfg.get(CFG_KEY_find_range_all) != self.find_range_all.get():
                 self.find_params_changed=True
             elif self.cfg.get(CFG_KEY_find_size_min) != self.find_size_min_var.get():
                 self.find_params_changed=True
@@ -2047,7 +2033,7 @@ class Gui:
             elif self.cfg.get(CFG_KEY_find_name_fuzz) != self.find_name_fuzz_var.get():
                 self.find_params_changed=True
 
-            elif self.cfg.get_bool(CFG_KEY_find_name_case_sens) != bool(self.find_name_case_sens_var.get()):
+            elif self.cfg.get(CFG_KEY_find_name_case_sens) != self.find_name_case_sens_var.get():
                 self.find_params_changed=True
 
             elif self.cfg.get(CFG_KEY_find_cd_regexp) != self.find_cd_regexp_var.get():
@@ -2057,7 +2043,7 @@ class Gui:
             elif self.cfg.get(CFG_KEY_find_cd_fuzz) != self.find_cd_fuzz_var.get():
                 self.find_params_changed=True
 
-            elif self.cfg.get_bool(CFG_KEY_find_cd_case_sens) != bool(self.find_cd_case_sens_var.get()):
+            elif self.cfg.get(CFG_KEY_find_cd_case_sens) != self.find_cd_case_sens_var.get():
                 self.find_params_changed=True
 
             elif self.cfg.get(CFG_KEY_filename_fuzzy_threshold) != self.find_name_fuzzy_threshold.get():
@@ -2131,7 +2117,7 @@ class Gui:
             self.searching_aborted = False
 
             self.action_abort = False
-            find_range = self.find_range_var.get()
+            find_range_all = self.find_range_all.get()
 
             find_size_min = self.find_size_min_var.get()
             find_size_max = self.find_size_max_var.get()
@@ -2176,7 +2162,7 @@ class Gui:
                     self.info_dialog_on_find.show('error','max size < min size')
                     return
 
-            range_par = self.current_record if find_range=='single' else None
+            range_par = self.current_record if not find_range_all else None
 
             if check_res := librer_core.find_items_in_all_records_check(
                 range_par,
@@ -2187,7 +2173,7 @@ class Gui:
                 self.info_dialog_on_find.show('regular expression error',check_res)
                 return
 
-            self.cfg.set(CFG_KEY_find_range,find_range)
+            self.cfg.set(CFG_KEY_find_range_all,find_range_all)
             self.cfg.set(CFG_KEY_find_cd_search_kind,find_cd_search_kind)
             self.cfg.set(CFG_KEY_find_filename_search_kind,find_filename_search_kind)
 
@@ -2197,12 +2183,12 @@ class Gui:
             self.cfg.set(CFG_KEY_find_name_regexp,find_name_regexp)
             self.cfg.set(CFG_KEY_find_name_glob,find_name_glob)
             self.cfg.set(CFG_KEY_find_name_fuzz,find_name_fuzz)
-            self.cfg.set_bool(CFG_KEY_find_name_case_sens,find_name_case_sens)
+            self.cfg.set(CFG_KEY_find_name_case_sens,find_name_case_sens)
 
             self.cfg.set(CFG_KEY_find_cd_regexp,find_cd_regexp)
             self.cfg.set(CFG_KEY_find_cd_glob,find_cd_glob)
             self.cfg.set(CFG_KEY_find_cd_fuzz,find_cd_fuzz)
-            self.cfg.set_bool(CFG_KEY_find_cd_case_sens,find_cd_case_sens)
+            self.cfg.set(CFG_KEY_find_cd_case_sens,find_cd_case_sens)
 
             self.cfg.set(CFG_KEY_filename_fuzzy_threshold,filename_fuzzy_threshold)
             self.cfg.set(CFG_KEY_cd_fuzzy_threshold,cd_fuzzy_threshold)
@@ -2412,6 +2398,9 @@ class Gui:
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
+
+            #self.tree.item(current_item,tags=self.FOUND)
+
             self.tree.see(current_item)
             self.tree.update()
 
@@ -2447,7 +2436,7 @@ class Gui:
 
         item=tree.focus()
         if item:
-            record_item,record_name,subpath = self.get_item_record(item)
+            record_item,record_name,subpath_list = self.get_item_record(item)
 
             item_to_sel = tree.next(record_item) if direction==1 else tree.prev(record_item)
 
@@ -2482,7 +2471,9 @@ class Gui:
                 self.status_record_path_configure(record.header.scan_path)
                 self.status_record_subpath_configure('')
             else:
-                record_item,record_name,subpath = self.get_item_record(item)
+                record_item,record_name,subpath_list = self.get_item_record(item)
+
+                subpath = sep + sep.join(subpath_list)
                 self.status_record_subpath_configure(subpath)
         else:
             self.current_record = None
@@ -2696,6 +2687,7 @@ class Gui:
             pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
             pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
             pop_add_separator()
+            pop_add_command(label = 'Clear Find Results',command = self.find_clear, image = self.ico_empty,compound='left')
 
             pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
 
@@ -2840,7 +2832,7 @@ class Gui:
 
         #exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
 
-        #if res:=librer_core.set_exclude_masks(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
+        #if res:=librer_core.set_exclude_masks(self.cfg_get(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
         #    self.get_info_dialog_on_scan().show('Error. Fix expression.',res)
         #    return False
         #self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_from_entry))
@@ -2860,6 +2852,17 @@ class Gui:
                 if not exe:
                     self.get_info_dialog_on_scan().show('Wrong executable',f'Empty executable nr:{e+1}.')
                     return False
+
+                #param_indicator
+
+                executable = self.CDE_executable_var_list[e].get()
+                parameters = self.CDE_parameters_var_list[e].get()
+
+                command_list = get_command_list(executable,parameters,'dummy full_file_path',True)
+                if not command_list:
+                    self.get_info_dialog_on_scan().show('Wrong parameters',f"Non empty and without '{param_indicator}' sign\n#{e}: ({parameters})")
+                    return False
+
 
         self.last_dir = path_to_scan_from_entry
 
@@ -2974,7 +2977,7 @@ class Gui:
 
         self.cfg.set(CFG_KEY_CDE_SETTINGS,'\n'.join(cde_sklejka_list))
 
-        check_dev = self.cfg_get_bool(CFG_KEY_SINGLE_DEVICE)
+        check_dev = self.cfg_get(CFG_KEY_SINGLE_DEVICE)
 
         #############################
         scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
@@ -3037,7 +3040,7 @@ class Gui:
 
         scan_thread.join()
 
-        self.cfg.set_bool(CFG_KEY_SINGLE_DEVICE,check_dev)
+        self.cfg.set(CFG_KEY_SINGLE_DEVICE,check_dev)
 
         if self.action_abort:
             self_progress_dialog_on_scan.hide(True)
@@ -3048,7 +3051,7 @@ class Gui:
         if any_cde_enabled:
             self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
 
-            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomlplete.'
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomplete.'
 
             cd_thread=Thread(target=lambda : new_record.extract_customdata(),daemon=True)
             cd_thread.start()
@@ -3174,36 +3177,45 @@ class Gui:
 
         self.status("Opening dialog ...")
         e=0
-        for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('\n'):
-            try:
-                v1,v2,v3,v4,v5,v6,v7,v8,v9 = e_section  .split('|')
+        sklejka_settings = self.cfg.get(CFG_KEY_CDE_SETTINGS)
 
-                self.CDE_use_var_list[e].set(True if v1=='1' else False)
-                self.CDE_mask_var_list[e].set(v2)
-                self.CDE_size_min_var_list[e].set(v3)
-                self.CDE_size_max_var_list[e].set(v4)
-                self.CDE_executable_var_list[e].set(v5)
-                self.CDE_parameters_var_list[e].set(v6)
-                self.CDE_shell_var_list[e].set(True if v7=='1' else False)
-                self.CDE_timeout_var_list[e].set(v8)
-                self.CDE_crc_var_list[e].set(True if v9=='1' else False)
-                e+=1
-            except Exception as e:
-                print(e,e_section)
-                print('clearing settings')
-                for e in range(self.CDE_ENTRIES_MAX):
-                    self.CDE_use_var_list[e].set(False)
-                    self.CDE_mask_var_list[e].set('')
-                    self.CDE_size_min_var_list[e].set('')
-                    self.CDE_size_max_var_list[e].set('')
-                    self.CDE_executable_var_list[e].set('')
-                    self.CDE_parameters_var_list[e].set('')
-                    self.CDE_shell_var_list[e].set(False)
-                    self.CDE_timeout_var_list[e].set('')
-                    self.CDE_crc_var_list[e].set(False)
-                self.cfg.set(CFG_KEY_CDE_SETTINGS,'')
-                self.cfg.write()
-                break
+        do_clear_settings = False
+        if sklejka_settings:
+            for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('\n'):
+                try:
+                    v1,v2,v3,v4,v5,v6,v7,v8,v9 = e_section  .split('|')
+
+                    self.CDE_use_var_list[e].set(True if v1=='1' else False)
+                    self.CDE_mask_var_list[e].set(v2)
+                    self.CDE_size_min_var_list[e].set(v3)
+                    self.CDE_size_max_var_list[e].set(v4)
+                    self.CDE_executable_var_list[e].set(v5)
+                    self.CDE_parameters_var_list[e].set(v6)
+                    self.CDE_shell_var_list[e].set(True if v7=='1' else False)
+                    self.CDE_timeout_var_list[e].set(v8)
+                    self.CDE_crc_var_list[e].set(True if v9=='1' else False)
+                    e+=1
+                except Exception as e:
+                    print(e,e_section)
+                    do_clear_settings=True
+                    #print('clearing settings')
+                    break
+        else:
+            do_clear_settings=True
+
+        if do_clear_settings:
+            for e in range(self.CDE_ENTRIES_MAX):
+                self.CDE_use_var_list[e].set(False)
+                self.CDE_mask_var_list[e].set('')
+                self.CDE_size_min_var_list[e].set('')
+                self.CDE_size_max_var_list[e].set('')
+                self.CDE_executable_var_list[e].set('')
+                self.CDE_parameters_var_list[e].set('')
+                self.CDE_shell_var_list[e].set(False)
+                self.CDE_timeout_var_list[e].set('')
+                self.CDE_crc_var_list[e].set(False)
+            self.cfg.set(CFG_KEY_CDE_SETTINGS,'')
+            self.cfg.write()
 
         for e in range(self.CDE_ENTRIES_MAX):
             self.use_checkbutton_mod(e)
@@ -3212,7 +3224,7 @@ class Gui:
         dialog.show()
 
     def exclude_regexp_set(self):
-        self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,self.exclude_regexp_scan.get())
+        self.cfg.set(CFG_KEY_EXCLUDE_REGEXP,self.exclude_regexp_scan.get())
 
     def exclude_mask_update(self) :
         for subframe in self.exclude_frames:
@@ -3223,7 +3235,7 @@ class Gui:
 
         row=0
 
-        for entry in self.cfg.get(CFG_KEY_EXCLUDE,'').split('|'):
+        for entry in self.cfg.get(CFG_KEY_EXCLUDE).split('|'):
             if entry:
                 (frame:=Frame(self.exclude_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
                 self.exclude_frames.append(frame)
@@ -3283,7 +3295,7 @@ class Gui:
 
             command_list = get_command_list(executable,parameters,full_file_path,shell)
             if not command_list:
-                self.get_info_dialog_on_scan().show('Wrong parameters string','Non empty and without $ sign')
+                self.get_info_dialog_on_scan().show('Wrong parameters string',f"Non empty and without '{param_indicator}' sign")
                 return
 
             info = ' '.join(command_list) + '\n' + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '') + f'\nshell:{"Yes" if shell else "No"}'
@@ -3351,13 +3363,13 @@ class Gui:
             self.exclude_mask_string(mask)
 
     def exclude_mask_string(self,mask):
-        orglist=self.cfg.get(CFG_KEY_EXCLUDE,'').split('|')
+        orglist=self.cfg.get(CFG_KEY_EXCLUDE).split('|')
         orglist.append(mask)
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.exclude_mask_update()
 
     def exclude_mask_remove(self,mask) :
-        orglist=self.cfg.get(CFG_KEY_EXCLUDE,'').split('|')
+        orglist=self.cfg.get(CFG_KEY_EXCLUDE).split('|')
         orglist.remove(mask)
         if '' in orglist:
             orglist.remove('')
@@ -3413,7 +3425,17 @@ class Gui:
             new_items_values = {}
 
             ###############################################
-            record = self.item_to_record[self.get_item_record(item)[0]]
+            record_item,record_name,subpath_list = self.get_item_record(item)
+
+            #print('subpath_list',subpath_list)
+
+            record = self.item_to_record[record_item]
+
+            #try:
+            #    print(record.find_results[0])
+            #except Exception as e:
+            #    print('totu:',e)
+
 
             if tree.tag_has(self.RECORD,item):
                 self.access_filestructure(record)
@@ -3433,6 +3455,9 @@ class Gui:
                     (entry_name_nr,code,size,mtime) = data_tuple[0:4]
 
                     entry_name = record_get_file_name(entry_name_nr)
+
+                    entry_subpath_tuple = tuple(subpath_list + [entry_name])
+                    #print('entry_subpath_tuple',entry_subpath_tuple)
 
                     is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = entry_LUT_decode_loc[code]
 
@@ -3460,6 +3485,18 @@ class Gui:
                         tags=self_SYMLINK
                     else:
                         tags=''
+                        if record.find_results:
+                            for find_result in record.find_results:
+                                #print(f'compare:{find_result[0]} vs {entry_subpath_tuple}')
+                                if find_result[0]==entry_subpath_tuple:
+                                    #print('   czad!')
+                                    tags=self.FOUND
+                                    break
+                                #else:
+                                #    print('lipa')
+
+                    #self.tree.item(current_item,tags=self.FOUND)
+                    #items_names_tuple,res_size,res_mtime=record.find_results[self.find_result_index]
 
                     #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
                     values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime)),kind)
@@ -3604,7 +3641,7 @@ class Gui:
             item=self.tree.focus()
             if item:
                 try:
-                    record_item,record_name,subpath = self.get_item_record(item)
+                    record_item,record_name,subpath_list = self.get_item_record(item)
                     record = self.item_to_record[record_item]
 
                     if self.tree.tag_has(self.RECORD,item):
@@ -3643,7 +3680,7 @@ class Gui:
     #def tree_action(self,item):
     #    tree=self.tree
     #    try:
-    #        record_item,record_name,subpath = self.get_item_record(item)
+    #        record_item,record_name,subpath_list = self.get_item_record(item)
     #        record = self.item_to_record[record_item]
 
             #kind = tree.set(item,'kind')

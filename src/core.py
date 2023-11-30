@@ -26,42 +26,32 @@
 #
 ####################################################################################
 
-from zstandard import ZstdCompressor
-from zstandard import ZstdDecompressor
+from zstandard import ZstdCompressor,ZstdDecompressor
 
 from zipfile import ZipFile
 
-from os import scandir
-from os import stat
-from os import sep
+from os import scandir,stat,sep
+from os import remove as os_remove
 
+from os.path import abspath,normpath,basename
 from os.path import join as path_join
-from os.path import abspath
-from os.path import normpath
-from os.path import basename
 
 from platform import system as platform_system
 from platform import release as platform_release
 from platform import node as platform_node
 
-from os import remove as os_remove
+from fnmatch import fnmatch,translate
 
-from fnmatch import fnmatch
-from fnmatch import translate
-from re import search
+from re import search,IGNORECASE
+from re import compile as re_compile
+
 from sys import getsizeof
 
 from collections import defaultdict
 
-from re import compile as re_compile
-from re import IGNORECASE
+from time import time,strftime,localtime
 
-from time import time
-from time import strftime
-from time import localtime
-
-from pickle import dumps
-from pickle import loads
+from pickle import dumps,loads
 
 from difflib import SequenceMatcher
 
@@ -171,7 +161,6 @@ class LibrerRecord:
     def __init__(self,label,path,log):
         self.header = LibrerRecordHeader(label,path)
 
-        #self.filenames = ()
         self.filestructure = ()
         self.customdata = []
 
@@ -192,6 +181,9 @@ class LibrerRecord:
 
         self.zipinfo={'header':'?','filestructure':'?','filenames':'?','customdata':'?'}
         self.exe = None
+
+    def find_results_clean(self):
+        self.find_results = []
 
     def new_file_name(self):
         return f'{self.header.rid}.dat'
@@ -620,9 +612,10 @@ class LibrerRecord:
         is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = entry_LUT_decode_loc[code]
         if not keep_cd or not keep_crc:
             has_cd = has_cd and keep_cd
-            has_crc = has_crc and keep_crc
-            if not has_crc:
+            if not has_cd:
                 cd_ok=False
+
+            has_crc = has_crc and keep_crc
 
             code = entry_LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc) ]
 
@@ -880,27 +873,27 @@ class LibrerRecord:
         self.log.info('saving %s' % file_path)
 
         with ZipFile(file_path, "w") as zip_file:
-            cctx = ZstdCompressor(level=compression_level,threads=-1)
+            compressor = ZstdCompressor(level=compression_level,threads=-1)
 
             header_ser = dumps(self.header)
             self.zipinfo['header'] = len(header_ser)
-            zip_file.writestr('header',cctx.compress(header_ser))
+            zip_file.writestr('header',compressor.compress(header_ser))
 
             self.info_line = f'saving {filename} (File stucture)'
             filestructure_ser = dumps(self.filestructure)
             self.zipinfo['filestructure'] = len(filestructure_ser)
-            zip_file.writestr('filestructure',cctx.compress(filestructure_ser))
+            zip_file.writestr('filestructure',compressor.compress(filestructure_ser))
 
             self.info_line = f'saving {filename} (File names)'
             filenames_ser = dumps(self.filenames)
             self.zipinfo['filenames'] = len(filenames_ser)
-            zip_file.writestr('filenames',cctx.compress(filenames_ser))
+            zip_file.writestr('filenames',compressor.compress(filenames_ser))
 
             if self.customdata:
                 self.info_line = f'saving {filename} (Custom Data)'
                 customdata_ser = dumps(self.customdata)
                 self.zipinfo['customdata'] = len(customdata_ser)
-                zip_file.writestr('customdata',cctx.compress(customdata_ser))
+                zip_file.writestr('customdata',compressor.compress(customdata_ser))
             else:
                 self.zipinfo['customdata'] = 0
 
@@ -919,11 +912,9 @@ class LibrerRecord:
         file_name = basename(normpath(file_path))
         self.log.info('loading %s' % file_name)
 
-        dctx = ZstdDecompressor()
-
         try:
             with ZipFile(file_path, "r") as zip_file:
-                header_ser = dctx.decompress(zip_file.read('header'))
+                header_ser = ZstdDecompressor().decompress(zip_file.read('header'))
                 self.header = loads( header_ser )
                 self.zipinfo['header'] = len(header_ser)
 
@@ -943,14 +934,15 @@ class LibrerRecord:
     decompressed_filestructure = False
     def decompress_filestructure(self):
         if not self.decompressed_filestructure:
-            dctx = ZstdDecompressor()
 
             with ZipFile(self.file_path, "r") as zip_file:
-                filestructure_ser = dctx.decompress(zip_file.read('filestructure'))
+                decompressor = ZstdDecompressor()
+
+                filestructure_ser = decompressor.decompress(zip_file.read('filestructure'))
                 self.filestructure = loads( filestructure_ser )
                 self.zipinfo['filestructure'] = len(filestructure_ser)
 
-                filenames_ser = dctx.decompress(zip_file.read('filenames'))
+                filenames_ser = decompressor.decompress(zip_file.read('filenames'))
                 self.filenames = loads(filenames_ser)
                 self.zipinfo['filenames'] = len(filenames_ser)
 
@@ -965,12 +957,11 @@ class LibrerRecord:
     decompressed_customdata = False
     def decompress_customdata(self):
         if not self.decompressed_customdata:
-            dctx = ZstdDecompressor()
-            with ZipFile(self.file_path, "r") as zip_file:
 
+            with ZipFile(self.file_path, "r") as zip_file:
                 try:
                     customdata_ser_comp = zip_file.read('customdata')
-                    customdata_ser = dctx.decompress(customdata_ser_comp)
+                    customdata_ser = ZstdDecompressor().decompress(customdata_ser_comp)
                     self.customdata = loads( customdata_ser )
                     self.zipinfo['customdata'] = len(customdata_ser)
                 except:
@@ -1112,12 +1103,18 @@ class LibrerCore:
 
         return None
 
+    def find_results_clean(self):
+        for record in self.records:
+            record.find_results_clean()
+
     def find_items_in_all_records(self,
             range_par,
             size_min,size_max,
             find_filename_search_kind,name_expr,name_case_sens,
             find_cd_search_kind,cd_expr,cd_case_sens,
             filename_fuzzy_threshold,cd_fuzzy_threshold):
+
+        self.find_results_clean()
 
         if name_expr:
             filename_fuzzy_threshold_float=float(filename_fuzzy_threshold) if find_filename_search_kind == 'fuzzy' else 0
