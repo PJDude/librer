@@ -1397,6 +1397,16 @@ class Gui:
         self_status_info_configure = self.status_info.configure
         self.status= lambda x : self_status_info_configure(text = x)
 
+        self.status_find = Label(status_frame,image=self.ico_find,relief='flat',state='disabled',borderwidth=1,bg=self.bg_color,width=18)
+        self.status_find.pack(fill='x',expand=0,side='right')
+        self_status_find_configure = self.status_find.configure
+        self.status_find.bind("<ButtonPress-1>", lambda event : self.finder_wrapper_show() )
+        self.status_find_tooltip = lambda message : self.widget_tooltip(self.status_find,message)
+
+        self.status_find_tooltip_default = 'No search results\nClick to open find dialog.'
+        self.status_find_tooltip(self.status_find_tooltip_default)
+
+        ##############################################################################
         tree = self.tree = Treeview(self_main,takefocus=True,show=('tree','headings') )
 
         self.tree_set = tree.set
@@ -1489,7 +1499,7 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Clear Find Results',command = self.find_clear, image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_find_result else 'disabled')
                 self_file_cascade_add_separator()
                 #self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self_ico['empty'],compound='left')
                 #self_file_cascade_add_separator()
@@ -1710,6 +1720,8 @@ class Gui:
         self_main_bind('<Return>', lambda event : self.show_customdata())
 
         self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
+        self_main_bind('<F3>', lambda event : self.find_next())
+        self_main_bind('<Shift-F3>', lambda event : self.find_prev())
 
         self_main.mainloop()
 
@@ -1954,17 +1966,48 @@ class Gui:
     def find_close(self):
         self.find_dialog.hide()
 
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
     def find_clear(self):
-        print('find_clear')
+        self.status('Cleaning search results ...')
 
+        librer_core.find_results_clean()
 
+        self_tree_get_children = self.tree.get_children
+        nodes_set = set(self_tree_get_children())
+        nodes_set_pop = nodes_set.pop
+        nodes_set_add = nodes_set.add
+        self_tree_item = self.tree.item
+        self_FOUND = self.FOUND
 
+        while nodes_set:
+            item=nodes_set_pop()
+
+            tags=self_tree_item(item,'tags')
+            if self_FOUND in tags:
+                tags = set(tags)
+                tags.remove(self_FOUND)
+                self_tree_item(item,tags=tags)
+
+            _ = {nodes_set_add(child) for child in self_tree_get_children(item)}
+
+        self.status_find_tooltip(self.status_find_tooltip_default)
+
+        self.any_find_result = False
+
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
     def find_prev(self):
         if not self.any_find_result:
             self.finder_wrapper_show()
         else:
             self.select_find_result(-1)
 
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
     def find_next(self):
         if not self.any_find_result:
             self.finder_wrapper_show()
@@ -2245,18 +2288,25 @@ class Gui:
             fnumber_librer_core_files_search_quant = fnumber(librer_core_files_search_quant)
             fnumber_records_len = fnumber(records_len)
 
+            time_without_busy_sign=0
             while search_thread_is_alive():
                 now=time()
                 ######################################################################################
 
                 change0 = self_progress_dialog_on_find_update_lab_text(0,librer_core.info_line)
                 if now>last_res_check+1:
-                    change3 = self_progress_dialog_on_find_update_lab_text(3,'Found Files: ' + fnumber(librer_core.find_res_quant + len(librer_core.search_record_ref.find_results)) )
+                    #change3 = self_progress_dialog_on_find_update_lab_text(3,f'Found Files: {fnumber(librer_core.find_res_quant)} ({fnumber(len(librer_core.search_record_ref.find_results))})' )
+                    change3 = self_progress_dialog_on_find_update_lab_text(3,f'Found Files: {fnumber(librer_core.find_res_quant)}' )
                     last_res_check=now
                 else:
                     change3 = False
 
-                curr_files = librer_core.files_search_progress + librer_core.search_record_ref.files_search_progress
+                curr_files = librer_core.files_search_progress
+                #if librer_core.search_record_ref:
+                    #+ librer_core.search_record_ref.files_search_progress
+                #else:
+                #    curr_files = 0
+
                 files_perc = curr_files * 100.0 / librer_core_files_search_quant
 
                 self_progress_dialog_on_find_progr1var_set(librer_core.records_perc_info)
@@ -2267,7 +2317,7 @@ class Gui:
 
                 if self.action_abort:
                     librer_core.abort()
-                    librer_core.search_record_ref.abort()
+                    #librer_core.search_record_ref.abort()
                     break
 
                 if change0 or change3 or prev_curr_files != curr_files:
@@ -2307,7 +2357,9 @@ class Gui:
 
             abort_info = '\nSearching aborted. Resuls may be incomplete.' if self.action_abort else ''
 
-            self.info_dialog_on_find.show('Search sesults',f'found: {fnumber(find_results_quant_sum)} items.' + abort_info)
+            find_results_quant_sum_format = fnumber(find_results_quant_sum)
+            self.info_dialog_on_find.show('Search results',f'found: {find_results_quant_sum_format} items.' + abort_info)
+            self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
 
             if self.action_abort:
                 self.searching_aborted = True
@@ -2505,13 +2557,7 @@ class Gui:
                     ctrl_pressed = 'Control' in event_str
                     shift_pressed = 'Shift' in event_str
 
-                    if key=='F3':
-                        if shift_pressed:
-                            self.find_prev()
-                        else:
-                            self.find_next()
-
-                    elif key=='BackSpace':
+                    if key=='BackSpace':
                         pass
                     elif key in ('c','C'):
                         if ctrl_pressed:
@@ -2687,7 +2733,8 @@ class Gui:
             pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
             pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
             pop_add_separator()
-            pop_add_command(label = 'Clear Find Results',command = self.find_clear, image = self.ico_empty,compound='left')
+            pop_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_find_result else 'disabled')
+            pop_add_separator()
 
             pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
 

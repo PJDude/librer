@@ -26,12 +26,17 @@
 #
 ####################################################################################
 
+from time import sleep
+#from threading import Thread
+from multiprocessing import Process, Manager
+
 from zstandard import ZstdCompressor,ZstdDecompressor
 
 from zipfile import ZipFile
 
 from os import scandir,stat,sep
 from os import remove as os_remove
+from os import cpu_count
 
 from os.path import abspath,normpath,basename
 from os.path import join as path_join
@@ -444,7 +449,7 @@ class LibrerRecord:
                 returncode,output = result_tuple
 
             new_elem={}
-            new_elem['cd_ok']= True if returncode==0 else False
+            new_elem['cd_ok']= bool(returncode==0)
 
             if output not in customdata_helper:
                 customdata_helper[output]=cd_index
@@ -513,8 +518,6 @@ class LibrerRecord:
         del customdata_helper
 
         self.exe = None
-
-    search_kind_code_tab={'dont':0,'without':1,'any':2,'error':3,'regexp':4,'glob':5,'fuzzy':6}
 
     #############################################################
     def tupelize_rec(self,scan_like_data):
@@ -656,56 +659,59 @@ class LibrerRecord:
         new_record.filestructure = self.clone_record_rec(self.customdata,self.filenames,self.filestructure,keep_cd,keep_crc)
         new_record.save(file_path,compression_level)
 
+    ########################################################################################
     def find_items(self,
+            record_nr,managed_progress,managed_results,managed_results_len,managed_abort,
             size_min,size_max,
             filename_search_kind,name_func_to_call,cd_search_kind,cd_func_to_call):
 
+        self.find_results = []
+        managed_results[record_nr] = []
+
         self.decompress_filestructure()
 
-        dont_kind_code = self.search_kind_code_tab['dont']
-        regexp_kind_code = self.search_kind_code_tab['regexp']
-        glob_kind_code = self.search_kind_code_tab['glob']
-        without_kind_code = self.search_kind_code_tab['without']
-        any_kind_code = self.search_kind_code_tab['any']
-        error_kind_code = self.search_kind_code_tab['error']
-        fuzzy_kind_code = self.search_kind_code_tab['fuzzy']
-
-        find_results = self.find_results = []
-        find_results_add = find_results.append
+        results = set()
+        results_add = results.add
 
         filenames_loc = self.filenames
         filestructure = self.filestructure
 
         self.files_search_progress = 0
 
-        filename_search_kind_code = self.search_kind_code_tab[filename_search_kind]
-        cd_search_kind_code = self.search_kind_code_tab[cd_search_kind]
-
-        if cd_search_kind_code!=dont_kind_code:
+        if cd_search_kind!='dont':
             self.decompress_customdata()
 
         entry_LUT_decode_loc = entry_LUT_decode
 
-        use_size = True if size_min or size_max else False
+        use_size = bool(size_min or size_max)
 
         search_list = [ (filestructure[4],[]) ]
         search_list_pop = search_list.pop
         search_list_append = search_list.append
 
-        rgf_group = (regexp_kind_code,glob_kind_code,fuzzy_kind_code)
+        cd_search_kind_is_regezp_glob_or_fuzzy = bool(cd_search_kind in ('regexp','glob','fuzzy'))
+        cd_search_kind_is_dont_or_without = bool(cd_search_kind in ('dont','without'))
+
+        when_folder_may_apply = bool(cd_search_kind_is_dont_or_without and not use_size)
+        cd_search_kind_is_any = bool(cd_search_kind=='any')
+        cd_search_kind_is_without = bool(cd_search_kind=='without')
+        cd_search_kind_is_error = bool(cd_search_kind=='error')
 
         self_customdata = self.customdata
+
         while search_list:
-            if self.abort_action:
+            if managed_abort[record_nr]:
                 break
 
             filestructure,parent_path_components = search_list_pop()
 
             for data_entry in filestructure:
-                if self.abort_action:
+                if managed_abort[record_nr]:
                     break
 
                 self.files_search_progress +=1
+
+                managed_progress[record_nr]=self.files_search_progress
 
                 name_nr,code,size,mtime = data_entry[0:4]
 
@@ -724,18 +730,17 @@ class LibrerRecord:
                     cd_nr = data_entry[elem_index]
                     elem_index+=1
 
-                if has_crc:
-                    crc = data_entry[elem_index]
-
-                cd_search_kind_code_is_rgf = True if cd_search_kind_code in rgf_group else False
+                #if has_crc:
+                #    crc = data_entry[elem_index]
 
                 next_level = parent_path_components + [name]
                 if is_dir :
-                    if cd_search_kind_code==dont_kind_code and not use_size:
+                    if when_folder_may_apply:
                         #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
                         if name_func_to_call:
                             if name_func_to_call(name):
-                                find_results_add( tuple([tuple(next_level),size,mtime]) )
+                                results_add( tuple([tuple(next_level),size,mtime]) )
+                                managed_results_len[record_nr]+=1
 
                     if sub_data:
                         search_list_append( (sub_data,next_level) )
@@ -753,18 +758,21 @@ class LibrerRecord:
                                 continue
 
                     if name_func_to_call:
-                        func_res_code = name_func_to_call(name)
-                        if not func_res_code:
+                        try:
+                            if not name_func_to_call(name):
+                                continue
+                        except Exception as e:
+                            self.log.error('find_items(1):%s',str(e) )
                             continue
 
                     #oczywistosc
-                    #if cd_search_kind_code==dont_kind_code:
+                    #if cd_search_kind=='dont':
                     #    pass
 
-                    if cd_search_kind_code==any_kind_code:
+                    if cd_search_kind_is_any:
                         if not has_cd or not cd_ok:
                             continue
-                    elif cd_search_kind_code_is_rgf:
+                    elif cd_search_kind_is_regezp_glob_or_fuzzy:
                         if has_cd and cd_ok:
                             cd_data = self_customdata[cd_nr]
                         else:
@@ -772,28 +780,30 @@ class LibrerRecord:
 
                         if cd_func_to_call:
                             try:
-                                #cd_txt = cd_data
-                                #self.get_cd_text(cd_data)
-
                                 if not cd_func_to_call(cd_data):
                                     continue
                             except Exception as e:
-                                self.log.error('find_items_rec:%s',str(e) )
+                                self.log.error('find_items(2):%s',str(e) )
                                 continue
 
                         else:
                             continue
-                    elif cd_search_kind_code==without_kind_code:
+                    elif cd_search_kind_is_without:
                         if has_cd:
                             continue
-                    elif cd_search_kind_code==error_kind_code:
+                    elif cd_search_kind_is_error:
                         if has_cd:
                             if cd_ok:
                                 continue
                         else:
                             continue
 
-                    find_results_add( tuple([tuple(next_level),size,mtime ]) )
+                    results_add( tuple([tuple(next_level),size,mtime ]) )
+                    managed_results_len[record_nr]+=1
+
+
+        managed_results[record_nr] = list(results)
+        #self.find_results
 
     def find_items_sort(self,what,reverse):
         if what=='data':
@@ -975,6 +985,12 @@ class LibrerRecord:
         else:
             return False
 
+def global_find_items(record,record_nr,managed_progress,managed_results,managed_results_len,managed_abort,size_min,size_max,find_filename_search_kind,name_func_to_call,find_cd_search_kind,cd_func_to_call):
+    record.find_items(record_nr,managed_progress,managed_results,managed_results_len,managed_abort,
+        size_min,size_max,
+        find_filename_search_kind,name_func_to_call,
+        find_cd_search_kind,cd_func_to_call)
+
 #######################################################################
 class LibrerCore:
     records = set()
@@ -1107,7 +1123,7 @@ class LibrerCore:
         for record in self.records:
             record.find_results_clean()
 
-    def find_items_in_all_records(self,
+    def find_items_in_all_records_old(self,
             range_par,
             size_min,size_max,
             find_filename_search_kind,name_expr,name_case_sens,
@@ -1128,7 +1144,7 @@ class LibrerCore:
                 else:
                     name_func_to_call = lambda x : re_compile(translate(name_expr), IGNORECASE).match(x)
             elif find_filename_search_kind == 'fuzzy':
-                name_func_to_call = lambda x : True if SequenceMatcher(None, name_expr, x).ratio()>filename_fuzzy_threshold_float else False
+                name_func_to_call = lambda x : bool(SequenceMatcher(None, name_expr, x).ratio()>filename_fuzzy_threshold_float)
             else:
                 name_func_to_call = None
         else:
@@ -1146,7 +1162,7 @@ class LibrerCore:
                 else:
                     cd_func_to_call = lambda x : re_compile(translate(cd_expr), IGNORECASE).match(x)
             elif find_cd_search_kind == 'fuzzy':
-                cd_func_to_call = lambda x : True if SequenceMatcher(None, name_expr, x).ratio()>cd_fuzzy_threshold_float else False
+                cd_func_to_call = lambda x : bool(SequenceMatcher(None, name_expr, x).ratio()>cd_fuzzy_threshold_float)
             else:
                 cd_func_to_call = None
         else:
@@ -1186,8 +1202,280 @@ class LibrerCore:
                 print(e)
 
             self.files_search_progress += record.header.quant_files
-            self.find_res_quant = len(record.find_results)
+            self.find_res_quant += len(record.find_results)
         ############################################################
+
+    ########################################################################################################################
+    def find_items_in_all_records(self,
+            range_par,
+            size_min,size_max,
+            find_filename_search_kind,name_expr,name_case_sens,
+            find_cd_search_kind,cd_expr,cd_case_sens,
+            filename_fuzzy_threshold,cd_fuzzy_threshold):
+
+        self.find_results_clean()
+
+        if name_expr:
+            filename_fuzzy_threshold_float=float(filename_fuzzy_threshold) if find_filename_search_kind == 'fuzzy' else 0
+
+            if find_filename_search_kind == 'regexp':
+                name_func_to_call = lambda x : search(name_expr,x)
+            elif find_filename_search_kind == 'glob':
+                if name_case_sens:
+                    #name_func_to_call = lambda x : fnmatch(x,name_expr)
+                    name_func_to_call = lambda x : re_compile(translate(name_expr)).match(x)
+                else:
+                    name_func_to_call = lambda x : re_compile(translate(name_expr), IGNORECASE).match(x)
+            elif find_filename_search_kind == 'fuzzy':
+                name_func_to_call = lambda x : bool(SequenceMatcher(None, name_expr, x).ratio()>filename_fuzzy_threshold_float)
+            else:
+                name_func_to_call = None
+        else:
+            name_func_to_call = None
+
+        if cd_expr:
+            cd_fuzzy_threshold_float = float(cd_fuzzy_threshold) if find_cd_search_kind == 'fuzzy' else 0
+
+            if find_cd_search_kind == 'regexp':
+                cd_func_to_call = lambda x : search(cd_expr,x)
+            elif find_cd_search_kind == 'glob':
+                if cd_case_sens:
+                    #cd_func_to_call = lambda x : fnmatch(x,cd_expr)
+                    cd_func_to_call = lambda x : re_compile(translate(cd_expr)).match(x)
+                else:
+                    cd_func_to_call = lambda x : re_compile(translate(cd_expr), IGNORECASE).match(x)
+            elif find_cd_search_kind == 'fuzzy':
+                cd_func_to_call = lambda x : bool(SequenceMatcher(None, name_expr, x).ratio()>cd_fuzzy_threshold_float)
+            else:
+                cd_func_to_call = None
+        else:
+            cd_func_to_call = None
+
+        self.find_res_quant = 0
+        records_to_process = [range_par] if range_par else list(self.records)
+
+        records_to_process.sort(reverse = True,key = lambda x : x.header.quant_files)
+        #for record in records_to_process:
+        #    print(record.header.label,'\t',record.header.quant_files)
+
+
+        self.files_search_progress = 0
+
+        self.search_record_nr=0
+        #self.search_record_ref=None
+
+        #records_len = len(self.records)
+
+        self.abort_action = False
+        for record in records_to_process:
+            record.abort_action = False
+        ############################################################
+        ############################################################
+
+        max_processes = cpu_count()
+        #max_processes = 8
+
+        manager = Manager()
+
+        managed_results = manager.dict()
+        managed_results_len = manager.dict()
+        managed_progress = manager.dict()
+        managed_abort = manager.dict()
+        for record_nr,record in enumerate(records_to_process):
+            managed_results[record_nr]=[]
+            managed_results_len[record_nr]=0
+            managed_progress[record_nr]=0
+            managed_abort[record_nr]=False
+
+        self.info_line = 'Initializing subprocesses ...'
+        jobs = {}
+        records_to_process_len = len(records_to_process)
+        for record_nr,record in enumerate(records_to_process):
+            subprocess = Process(target=global_find_items, args=(record,record_nr,managed_progress,managed_results,managed_results_len,managed_abort,size_min,size_max,
+                                find_filename_search_kind,name_func_to_call,
+                                find_cd_search_kind,cd_func_to_call))
+
+            jobs[record_nr] = [False,subprocess]
+
+        self.info_line = 'subprocesses run.'
+
+        #####################################################
+        while True:
+            if self.abort_action:
+                break
+
+            need_to_run = [ record_nr for record_nr in range(records_to_process_len) if jobs[record_nr][0]==False ]
+            need_to_run_len = len(need_to_run)
+
+            running = len([record_nr for record_nr in range(records_to_process_len) if jobs[record_nr][0]==True and jobs[record_nr][1].is_alive() ])
+
+            self.search_record_nr = records_to_process_len-running-need_to_run_len
+            self.records_perc_info = self.search_record_nr * 100.0 / records_to_process_len
+
+            self.info_line = f'Running threads: {running}'
+
+            #done = records_to_process_len-running-need_to_run_len
+            #print(f'{need_to_run_len=} {running=}')
+
+            if need_to_run:
+                if running<max_processes:
+                    record_nr = need_to_run[0]
+
+                    jobs[record_nr][0] = True
+                    jobs[record_nr][1].start()
+
+                    #print(f'starting {records_to_process[record_nr].header.label}')
+                    continue
+
+            if running==0 and need_to_run_len==0:
+                break
+
+            progress_sum=0
+            found_sum=0
+            for record_nr,record in enumerate(records_to_process):
+                #print(managed_progress[record_nr])
+                progress_sum+=managed_progress[record_nr]
+                found_sum+=managed_results_len[record_nr]
+
+            self.files_search_progress = progress_sum
+            self.find_res_quant = found_sum
+
+
+            sleep(0.01)
+
+        #####################################################
+        for record_nr,record in enumerate(records_to_process):
+            record.find_results=managed_results[record_nr]
+
+        for subprocess_combo in jobs.values():
+            if subprocess_combo[0]:
+                subprocess_combo[1].join()
+
+        return True
+
+
+
+
+
+
+
+
+        #print('endu')
+
+        #subprocess.start()
+
+        self.info_line = 'Waiting for results ...'
+
+
+
+        #for key,val in managed_results.items():
+        #    print(key,val)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        self.info_line = 'Initializing threads ...'
+
+        threads_pool = {record:[False,Thread(daemon=True, target = lambda : record.find_items(
+                                                size_min,size_max,
+                                                find_filename_search_kind,name_func_to_call,
+                                                find_cd_search_kind,cd_func_to_call) ) ] for record in sel_range }
+
+        global_find_items(record,size_min,size_max,
+                                find_filename_search_kind,name_func_to_call,
+                                find_cd_search_kind,cd_func_to_call,managed_results)
+
+
+        #queue = Queue()
+        #p = Process(target=global_record_find_items, args=(queue, 1))
+        ##p.start()
+        #p.join() # this blocks until the process terminates
+        #result = queue.get()
+
+
+
+        self.files_search_progress = 0
+        self.find_res_quant = 0
+
+        while True:
+            need_to_run = [record for record in sel_range if threads_pool[record][0]==False ]
+            need_to_run_len = len(need_to_run)
+
+            running = len([record for record in sel_range if threads_pool[record][0]==True and threads_pool[record][1].is_alive() ])
+
+            self.info_line = f'Running threads: {running}'
+
+            #done = sel_range_len-running-need_to_run_len
+            #print(f'{need_to_run_len=} {running=}')
+
+            if need_to_run:
+                if running<max_threads:
+                    record = need_to_run[0]
+
+                    threads_pool[record][0] = True
+                    threads_pool[record][1].start()
+
+                    print(f'starting {record.header.label}')
+                    continue
+
+            if running==0 and need_to_run_len==0:
+                break
+            else:
+                sleep(0.01)
+                self.find_res_quant = sum([len(record.find_results) for record in sel_range]) # and not threads_pool[record][1].is_alive()
+
+        print('loopik done')
+
+        for record in sel_range:
+            threads_pool[record][1].join()
+            if record.find_results:
+                print(record.header.label,len(record.find_results))
+
+        return
+
+        #for record in sel_range:
+        #    threads.append()
+
+        for record in sel_range:
+            self.search_record_ref = record
+
+            self.search_record_nr+=1
+            self.records_perc_info = self.search_record_nr * 100.0 / records_len
+
+            self.info_line = f'searching in record: {record.header.label}'
+
+            if self.abort_action:
+                break
+
+            try:
+                record.abort_action = False
+                record.find_items(
+                    size_min,size_max,
+                    find_filename_search_kind,name_func_to_call,
+                    find_cd_search_kind,cd_func_to_call)
+            except Exception as e:
+                print(e)
+
+            self.files_search_progress += record.header.quant_files
+            self.find_res_quant += len(record.find_results)
+        ############################################################
+
+    ########################################################################################################################
 
     def delete_record_by_id(self,rid):
         for record in self.records:
