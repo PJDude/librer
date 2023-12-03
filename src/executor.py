@@ -28,7 +28,6 @@
 
 from subprocess import Popen, STDOUT, PIPE,TimeoutExpired
 from time import time
-from psutil import Process
 from signal import SIGTERM
 from hashlib import sha1
 from os import sep
@@ -36,8 +35,10 @@ from os import sep
 from os import name as os_name
 from sys import getsizeof
 
+from psutil import Process
+
 windows = bool(os_name=='nt')
-param_indicator = '%'
+PARAM_INDICATOR_SIGN = '%'
 
 def get_command_list(executable,parameters,full_file_path,shell=False):
     if windows:
@@ -48,13 +49,13 @@ def get_command_list(executable,parameters,full_file_path,shell=False):
         full_file_path = f'"{full_file_path}"'
 
     if parameters:
-        if param_indicator not in parameters:
+        if PARAM_INDICATOR_SIGN not in parameters:
             return None
-        parameters = parameters.replace(f'"{param_indicator}"',param_indicator)
+        parameters = parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN)
     else:
-        parameters=param_indicator
+        parameters=PARAM_INDICATOR_SIGN
 
-    parameters_list = [p_elem.replace(param_indicator,full_file_path) for p_elem in parameters.split() if p_elem]
+    parameters_list = [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.split() if p_elem]
 
     single_command_list = [executable] + parameters_list
 
@@ -75,7 +76,6 @@ class Executor :
         self.files_cde_size = 0
         self.files_cde_size_extracted = 0
 
-
     def calc_crc(self,fullpath,size):
         CRC_BUFFER_SIZE=4*1024*1024
         buf = bytearray(CRC_BUFFER_SIZE)
@@ -87,36 +87,37 @@ class Executor :
             file_handle=open(fullpath,'rb')
             file_handle_readinto=file_handle.readinto
         except Exception as e:
-            self.log.error(e)
+            #self.log.error(e)
+            print(e)
             return None
+
+        hasher = sha1()
+        hasher_update=hasher.update
+
+        #faster for smaller files
+        if size<CRC_BUFFER_SIZE:
+            hasher_update(view[:file_handle_readinto(buf)])
         else:
-            hasher = sha1()
-            hasher_update=hasher.update
+            while rsize := file_handle_readinto(buf):
+                hasher_update(view[:rsize])
 
-            #faster for smaller files
-            if size<CRC_BUFFER_SIZE:
-                hasher_update(view[:file_handle_readinto(buf)])
-            else:
-                while rsize := file_handle_readinto(buf):
-                    hasher_update(view[:rsize])
+                #if rsize==CRC_BUFFER_SIZE:
+                    #still reading
+                    #self.crc_progress_info+=rsize
 
-                    #if rsize==CRC_BUFFER_SIZE:
-                        #still reading
-                        #self.crc_progress_info+=rsize
+                if not self.keep_running:
+                    break
 
-                    if not self.keep_running:
-                        break
+            #self.crc_progress_info=0
 
-                #self.crc_progress_info=0
+        file_handle.close()
 
-            file_handle.close()
+        if not self.keep_running:
+            return None
 
-            if not self.keep_running:
-                return None
-
-            #only complete result
-            #return hasher.hexdigest()
-            return hasher.digest()
+        #only complete result
+        #return hasher.hexdigest()
+        return hasher.digest()
 
     def abort_now(self):
         self.keep_running=False
@@ -126,49 +127,48 @@ class Executor :
         for single_command_combo in self.io_list:
             self_results_list_append = single_command_combo.append
             executable,parameters,full_file_path,timeout,shell,do_crc,size = single_command_combo[0:7]
-            do_crc = False #TODO hidden option
+            #do_crc = False #TODO hidden option
 
             single_command_list = get_command_list(executable,parameters,full_file_path,shell)
 
             if self.keep_running:
+                killed=False
+                returncode=200
+
                 try:
-                    returncode=200
-                    killed=False
                     self.timeout=time()+timeout if timeout else None
 
                     #####################################
                     single_command_list_joined = ' '.join(single_command_list)
-                    command = single_command_list_joined if shell else single_command_list
-
                     self.info = single_command_list_joined
 
-                    proc = Popen(command, stdout=PIPE, stderr=PIPE,shell=shell)
-                    #####################################
+                    command = single_command_list_joined if shell else single_command_list
+                    with Popen(command, stdout=PIPE, stderr=STDOUT,shell=shell) as proc:
+                        while True:
+                            try:
+                                output, errs = proc.communicate(timeout=0.001)
+                                #output = output + errs  # errs should be empty
+                            except TimeoutExpired:
+                                self.callback()
+                                if self.timeout:
+                                    if pid:=proc.pid:
+                                        if time()>self.timeout:
+                                            self.kill(pid)
+                                            killed=True
+                            except Exception as e:
+                                print('run disaster:',e)
 
-                    while True:
+                            else:
+                                break
+
                         try:
-                            output, errs = proc.communicate(timeout=0.001)
-                            output = output + errs
-                        except TimeoutExpired:
-                            self.callback()
-                            if self.timeout:
-                                if pid:=proc.pid:
-                                    if time()>self.timeout:
-                                        self.kill(pid)
-                                        killed=True
-                        except Exception as e:
-                            print('run disaster:',e)
+                            output = output.decode()
+                        except Exception as de:
+                            output = str(de)
+                            #pass
 
-                        else:
-                            break
-
-                    try:
-                        output = output.decode()
-                    except Exception as de:
-                        output = str(de)
-                        #pass
-
-                    returncode=proc.returncode
+                        returncode=proc.returncode
+                    #####################################
 
                 except Exception as e:
                     output = str(e)
@@ -178,6 +178,7 @@ class Executor :
                 if killed:
                     returncode = 102
                     output = output + '\nKilled.'
+
                 #if do_crc:
                 #    crc=self.calc_crc(full_file_path,size)
                 #    self_results_list_append(tuple([returncode,output,crc]))
