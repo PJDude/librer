@@ -2207,7 +2207,7 @@ class Gui:
 
             range_par = self.current_record if not find_range_all else None
 
-            if check_res := librer_core.find_items_in_all_records_check(
+            if check_res := librer_core.find_items_in_records_check(
                 range_par,
                 min_num,max_num,
                 find_filename_search_kind,find_name,find_name_case_sens,
@@ -2238,7 +2238,7 @@ class Gui:
 
             self_progress_dialog_on_find = self.get_progress_dialog_on_find()
 
-            search_thread=Thread(target=lambda : librer_core.find_items_in_all_records(range_par,
+            search_thread=Thread(target=lambda : librer_core.find_items_in_records(range_par,
                 min_num,max_num,
                 find_filename_search_kind,find_name,find_name_case_sens,
                 find_cd_search_kind,find_cd,find_cd_case_sens,
@@ -2318,7 +2318,7 @@ class Gui:
                 if self.action_abort:
                     librer_core.abort()
                     #librer_core.search_record_ref.abort()
-                    break
+                    #break
 
                 if change0 or change3 or prev_curr_files != curr_files:
                     prev_curr_files = curr_files
