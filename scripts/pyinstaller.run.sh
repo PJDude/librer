@@ -53,3 +53,4 @@ pyinstaller --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add
 
 pyinstaller --noconfirm --console --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --distpath=../$outdir_ro --onefile ./record_console.py -n record
 
+mv -v ../$outdir_ro/record ../$outdir_lo
