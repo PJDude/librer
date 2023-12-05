@@ -32,8 +32,6 @@ from subprocess import Popen, STDOUT, PIPE,TimeoutExpired
 
 from time import sleep, perf_counter,time,strftime,localtime
 
-from signal import SIGTERM,SIGKILL
-
 from threading import Thread
 
 from multiprocessing import Process, Queue

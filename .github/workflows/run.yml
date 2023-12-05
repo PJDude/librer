@@ -163,15 +163,15 @@ jobs:
     - name: upload pyinstaller onefile
       uses: actions/upload-artifact@v3
       with:
-        name: librer-pyinstaller-lin-onefile-lo
-        path: ./build-pyinstaller-lin-lo/librer
+        name: librer-pyinstaller-lin-onefile-gui
+        path: ./build-pyinstaller-lin_lo/librer
         if-no-files-found: error
 
     - name: upload pyinstaller onefile cmd
       uses: actions/upload-artifact@v3
       with:
         name: librer-pyinstaller-lin-onefile-cmd
-        path: ./build-pyinstaller-lin-ro/record
+        path: ./build-pyinstaller-lin_ro/record
         if-no-files-found: error
 
     - name: upload pyinstaller distro
@@ -200,7 +200,7 @@ jobs:
 
     - name: pack linux onefile pyinstaller
       run: |
-        cd ./build-pyinstaller-lin-lo
+        cd ./build-pyinstaller-lin_lo
         chmod 777 ./librer
         chmod 777 ./record
         tar -czvf ../librer.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz librer record
