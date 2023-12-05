@@ -18,23 +18,38 @@ outdir_ro=${outdir}_ro
 #rm -rf ../$outdir
 #mkdir ../$outdir
 
+echo ''
 echo running-pyinstaller
+echo wd:`pwd`
 
 echo python:`python3 --version` > distro.info.txt
 echo pyinstaller:`pyinstaller --version` >> distro.info.txt
 
-#--strip
-pyinstaller --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../$outdir_l ./librer.py
+echo ''
+echo running-pyinstaller-stage1
+echo wd:`pwd`
 
-pyinstaller --noconfirm --console --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../$outdir_r ./record_console.py -n record
+#--strip
+pyinstaller --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --distpath=../$outdir_l ./librer.py
+
+pyinstaller --noconfirm --console --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --distpath=../$outdir_r ./record_console.py -n record
 
 mv -v ../$outdir_r/record/record ../$outdir_l/librer
 
 cd ../$outdir_l/
+echo ''
+echo running-pyinstaller-stage1-packing
+echo wd:`pwd`
+
 zip -9 -r -m ./librer.pyinstaller.lin.zip ./librer
 
 cd ../src
-pyinstaller --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../$outdir_lo --onefile ./librer.py
 
-pyinstaller --noconfirm --console --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../$outdir_ro --onefile ./record_console.py -n record
+echo ''
+echo running-pyinstaller-stage2
+echo wd:`pwd`
+
+pyinstaller --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --distpath=../$outdir_lo --onefile ./librer.py
+
+pyinstaller --noconfirm --console --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --distpath=../$outdir_ro --onefile ./record_console.py -n record
 
