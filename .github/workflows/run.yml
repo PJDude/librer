@@ -178,7 +178,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: librer-pyinstaller-lin-distro
-        path: ./build-pyinstaller-lin-l/librer.pyinstaller.lin.zip
+        path: ./build-pyinstaller-lin_l/librer.pyinstaller.lin.zip
         if-no-files-found: error
 
     #####################################
@@ -209,7 +209,7 @@ jobs:
 
     - name: move linux distro pyinstaller
       run: |
-        cd ./build-pyinstaller-lin-l
+        cd ./build-pyinstaller-lin_l
         mv ./librer.pyinstaller.lin.zip ../librer.${{ steps.version.outputs.version }}.portable.linux.tgz
 
     #####################################
