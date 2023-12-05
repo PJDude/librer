@@ -171,7 +171,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: librer-pyinstaller-lin-onefile-cmd
-        path: ./build-pyinstaller-lin_ro/record
+        path: ./build-pyinstaller-lin_lo/record
         if-no-files-found: error
 
     - name: upload pyinstaller distro
