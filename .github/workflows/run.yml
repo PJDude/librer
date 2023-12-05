@@ -47,31 +47,31 @@ jobs:
       shell: cmd
 
     #####################################
-    - name: run nuitka
-      working-directory: ./scripts
-      run: "nuitka.run.bat"
-      shell: cmd
+    #- name: run nuitka
+    #  working-directory: ./scripts
+    #  run: "nuitka.run.bat"
+    #  shell: cmd
 
-    - name: upload nuitka onefile gui
-      uses: actions/upload-artifact@v3
-      with:
-        name: nuitka-win-onefile-gui
-        path: ./build-nuitka-win/G/librer.exe
-        if-no-files-found: error
+    #- name: upload nuitka onefile gui
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: nuitka-win-onefile-gui
+    #    path: ./build-nuitka-win/G/librer.exe
+    #    if-no-files-found: error
 
-    - name: upload nuitka onefile cmd
-      uses: actions/upload-artifact@v3
-      with:
-        name: nuitka-win-onefile-cmd
-        path: ./build-nuitka-win/C/librercmd.exe
-        if-no-files-found: error
+    #- name: upload nuitka onefile cmd
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: nuitka-win-onefile-cmd
+    #    path: ./build-nuitka-win/C/librercmd.exe
+    #    if-no-files-found: error
 
-    - name: upload nuitka distro
-      uses: actions/upload-artifact@v3
-      with:
-        name: nuitka-win-distro
-        path: ./build-nuitka-win/librer.nuitka.win.zip
-        if-no-files-found: error
+    #- name: upload nuitka distro
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: nuitka-win-distro
+    #    path: ./build-nuitka-win/librer.nuitka.win.zip
+    #    if-no-files-found: error
 
     #####################################
     - name: run pyinstaller
@@ -90,7 +90,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: pyinstaller-win-onefile-cmd
-        path: ./build-pyinstaller-win/O_C/librercmd.exe
+        path: ./build-pyinstaller-win/O_C/record.exe
         if-no-files-found: error
 
     - name: upload pyinstaller distro
@@ -137,23 +137,23 @@ jobs:
       run: bash "icons.convert.sh"
 
     #####################################
-    - name: run nuitka
-      working-directory: ./scripts
-      run: bash "nuitka.run.sh"
+    #- name: run nuitka
+    #  working-directory: ./scripts
+    #  run: bash "nuitka.run.sh"
 
-    - name: upload nuitka onefile
-      uses: actions/upload-artifact@v3
-      with:
-        name: librer-nuitka-lin-onefile
-        path: ./build-nuitka-lin/librer
-        if-no-files-found: error
+    #- name: upload nuitka onefile
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: librer-nuitka-lin-onefile
+    #    path: ./build-nuitka-lin/librer
+    #    if-no-files-found: error
 
-    - name: upload nuitka distro
-      uses: actions/upload-artifact@v3
-      with:
-        name: librer-nuitka-lin-distro
-        path: ./build-nuitka-lin/librer.nuitka.lin.zip
-        if-no-files-found: error
+    #- name: upload nuitka distro
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: librer-nuitka-lin-distro
+    #    path: ./build-nuitka-lin/librer.nuitka.lin.zip
+    #    if-no-files-found: error
 
     #####################################
     - name: run pyinstaller
@@ -163,15 +163,22 @@ jobs:
     - name: upload pyinstaller onefile
       uses: actions/upload-artifact@v3
       with:
-        name: librer-pyinstaller-lin-onefile
-        path: ./build-pyinstaller-lin/librer
+        name: librer-pyinstaller-lin-onefile-lo
+        path: ./build-pyinstaller-lin-lo/librer
+        if-no-files-found: error
+
+    - name: upload pyinstaller onefile cmd
+      uses: actions/upload-artifact@v3
+      with:
+        name: librer-pyinstaller-lin-onefile-cmd
+        path: ./build-pyinstaller-lin-ro/record
         if-no-files-found: error
 
     - name: upload pyinstaller distro
       uses: actions/upload-artifact@v3
       with:
         name: librer-pyinstaller-lin-distro
-        path: ./build-pyinstaller-lin/librer.pyinstaller.lin.zip
+        path: ./build-pyinstaller-lin-l/librer.pyinstaller.lin.zip
         if-no-files-found: error
 
     #####################################
@@ -179,47 +186,47 @@ jobs:
       id: version
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
-    - name: pack linux onefile nuitka
-      run: |
-        cd ./build-nuitka-lin
-        chmod 777 ./librer
-        tar -czvf ../librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz librer
-        rm ./librer
+    #- name: pack linux onefile nuitka
+    #  run: |
+    #    cd ./build-nuitka-lin
+    #    chmod 777 ./librer
+    #    tar -czvf ../librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz librer
+    #    rm ./librer
 
-    - name: move linux distro nuitka
-      run: |
-        cd ./build-nuitka-lin
-        mv ./librer.nuitka.lin.zip ../librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
+    #- name: move linux distro nuitka
+    #  run: |
+    #    cd ./build-nuitka-lin
+    #    mv ./librer.nuitka.lin.zip ../librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
 
     - name: pack linux onefile pyinstaller
       run: |
-        cd ./build-pyinstaller-lin
+        cd ./build-pyinstaller-lin-lo
         chmod 777 ./librer
-        tar -czvf ../librer.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz librer
+        chmod 777 ./record
+        tar -czvf ../librer.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz librer record
         rm ./librer
+        rm ./record
 
     - name: move linux distro pyinstaller
       run: |
-        cd ./build-pyinstaller-lin
+        cd ./build-pyinstaller-lin-l
         mv ./librer.pyinstaller.lin.zip ../librer.${{ steps.version.outputs.version }}.portable.linux.tgz
 
-
     #####################################
-    - name: download windows onefile nuitka gui
-      uses: actions/download-artifact@v3
-      with:
-        name: nuitka-win-onefile-gui
-        path: ./
+    #- name: download windows onefile nuitka gui
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: nuitka-win-onefile-gui
+    #    path: ./
 
-    - name: download windows onefile nuitka cmd
-      uses: actions/download-artifact@v3
-      with:
-        name: nuitka-win-onefile-cmd
-        path: ./
+    #- name: download windows onefile nuitka cmd
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: nuitka-win-onefile-cmd
+    #    path: ./
 
-    - name: pack windows onefile nuitka
-      run: zip -9 -m librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip librer.exe librercmd.exe
-
+    #- name: pack windows onefile nuitka
+    #  run: zip -9 -m librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip librer.exe librercmd.exe
 
     - name: download windows onefile pyinstaller gui
       uses: actions/download-artifact@v3
@@ -234,17 +241,17 @@ jobs:
         path: ./
 
     - name: pack windows onefile pyinstaller
-      run: zip -9 -m librer.${{ steps.version.outputs.version }}.portable.windows.onefile.zip librer.exe librercmd.exe
+      run: zip -9 -m librer.${{ steps.version.outputs.version }}.portable.windows.onefile.zip librer.exe record.exe
 
 
-    - name: download windows distro nuitka
-      uses: actions/download-artifact@v3
-      with:
-        name: nuitka-win-distro
-        path: ./
+    #- name: download windows distro nuitka
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: nuitka-win-distro
+    #    path: ./
 
-    - name: rename windows zip
-      run: mv ./librer.nuitka.win.zip ./librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+    #- name: rename windows zip
+    #  run: mv ./librer.nuitka.win.zip ./librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
 
     - name: download windows distro pyinstaller
       uses: actions/download-artifact@v3
@@ -270,7 +277,9 @@ jobs:
             librer.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz
             librer.${{ steps.version.outputs.version }}.portable.windows.zip
             librer.${{ steps.version.outputs.version }}.portable.windows.onefile.zip
-            librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz
-            librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
-            librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip
-            librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+
+        #librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz
+        #librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
+        #librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip
+        #librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+

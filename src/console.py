@@ -51,8 +51,6 @@ def parse_args(ver):
             description = f"librer version {ver}\nCopyright (c) 2022-2023 Piotr Jochymek\n\nhttps://github.com/PJDude/librer",
             )
 
-    parser.add_argument('paths',nargs='*',help='path to scan')
-
     parser.add_argument('-ad','--appdirs',action='store_true',help="don't write files in portable mode (folder \"librer.data\" in the executable directory). Use platform specific folders provided by \"appdirs\" module.")
     parser.add_argument('-l','--log' ,nargs=1,help='specify log file')
 

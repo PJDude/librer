@@ -2192,6 +2192,7 @@ class Gui:
 
             range_par = self.current_record if not find_range_all else None
 
+            print('s1')
             if check_res := librer_core.find_items_in_records_check(
                 range_par,
                 min_num,max_num,
@@ -2201,6 +2202,7 @@ class Gui:
                 self.info_dialog_on_find.show('regular expression error',check_res)
                 return
 
+            print('s2')
             self.cfg.set(CFG_KEY_find_range_all,find_range_all)
             self.cfg.set(CFG_KEY_find_cd_search_kind,find_cd_search_kind)
             self.cfg.set(CFG_KEY_find_filename_search_kind,find_filename_search_kind)
@@ -2223,6 +2225,7 @@ class Gui:
 
             self_progress_dialog_on_find = self.get_progress_dialog_on_find()
 
+            print('s3')
             search_thread=Thread(target=lambda : librer_core.find_items_in_records(range_par,
                 min_num,max_num,
                 find_filename_search_kind,find_name,find_name_case_sens,
@@ -2238,6 +2241,7 @@ class Gui:
             self_hg_ico = self.hg_ico
             len_self_hg_ico = len(self_hg_ico)
 
+            print('s4')
             #############################
 
             self_progress_dialog_on_find.show('Search progress')
@@ -2273,6 +2277,7 @@ class Gui:
             fnumber_librer_core_files_search_quant = fnumber(librer_core_files_search_quant)
             fnumber_records_len = fnumber(records_len)
 
+            print('s5')
             time_without_busy_sign=0
             while search_thread_is_alive():
                 now=time()
