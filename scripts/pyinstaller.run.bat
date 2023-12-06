@@ -12,7 +12,7 @@ SET OUTDIR=..\build-pyinstaller%VENVNAME%
 @mkdir %OUTDIR%
 
 pyinstaller --noconfirm --clean --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --windowed --contents-directory=internal librer.py  || exit /b 2
-pyinstaller --noconfirm --clean --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --console --contents-directory=internal record.py  || exit /b 1
+pyinstaller --noconfirm --clean --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --console --hide-console hide-early --contents-directory=internal record.py  || exit /b 1
 
 move %OUTDIR%\record\record.exe %OUTDIR%\librer
 

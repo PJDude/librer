@@ -15,17 +15,10 @@ The primary purpose of this software is to enable users to catalog their files, 
 ![image info](./info/search.png)
 
 ## Download:
-The portable executable for **Linux** and **Windows** can be downloaded from the Releases site:
+Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the Releases site:
 
 https://github.com/PJDude/librer/releases
 
-main distributions:
-
-**librer.**{version}**.portable.linux.tgz**
-**librer.**{version}**.portable.windows.zip**
-contain portable executables with necessary libraries made by [PyInstaller](https://pyinstaller.org/en/stable). Files with **.onefile** postfix contain self-extracting single-file distributions. They are more handy but start a little slower than main distributions (need of unpacking to temporary folder). Onefile distribution also may cause more false positive anti virus alerts (see below).
-
-**auxiliary** distributions contain compiled executable binaries made by [Nuitka](https://github.com/Nuitka/Nuitka).
 
 ## Guidelines for crafting custom data extractors
 Custom data extractor is a command that can be invoked with a single parameter - the full path to a specific file from which data is extracted. The command should provide the expected data in any textual format to the standard output (stdout). CDE can be an executable file (e.g., 7z, zip, ffmpeg, md5sum etc.) or an executable shell script (extract.sh, extract.bat etc.). The conditions it should meet are reasonably short execution time and reasonably limited information output. The criteria allowing the execution of a particular Custom data extractor include the file extension and the file size range.

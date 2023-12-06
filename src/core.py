@@ -281,12 +281,20 @@ class Executor :
                             except TimeoutExpired:
                                 self.callback()
                                 if self.timeout:
-                                    if pid:=proc.pid:
-                                        if time()>self.timeout:
-                                            self.kill(pid)
-                                            killed=True
+                                    if time()>self.timeout:
+                                        #self.kill(pid)
+                                        try:
+                                            print(f'killing :{proc}')
+                                            proc.kill()
+                                            break
+                                        except Exception as ke:
+                                            print(f'kill disaster:{ke}')
+
+                                        killed=True
+                                    #if pid:=proc.pid:
                             except Exception as e:
                                 print('run disaster:',e)
+                                break
 
                             else:
                                 break
