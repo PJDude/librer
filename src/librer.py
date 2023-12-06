@@ -44,8 +44,6 @@ from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Entry,Scale,Style
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename
 
-from pickle import dumps, loads
-
 from threading import Thread
 
 from traceback import format_stack
@@ -55,13 +53,13 @@ import logging
 
 from zstandard import ZstdCompressor,ZstdDecompressor
 
-import core
-import console
 import dialogs
+
+from pickle import dumps, loads
 
 from librer_images import librer_image
 
-from executor import Executor,get_command_list,PARAM_INDICATOR_SIGN
+from core import *
 
 windows = bool(os_name=='nt')
 
@@ -72,9 +70,6 @@ if windows:
 l_info = logging.info
 l_warning = logging.warning
 l_error = logging.error
-
-core_bytes_to_str=core.bytes_to_str
-core_str_to_bytes=core.str_to_bytes
 
 ###########################################################################################################################################
 
@@ -163,7 +158,7 @@ class Config:
         self.cfg = {}
 
         self.path = config_dir
-        self.file = self.path + '/cfg.dat'
+        self.file = self.path + '/cfg'
 
     def write(self):
         l_info('writing config')
@@ -209,7 +204,7 @@ class Gui:
     def __init__(self,cwd):
         self.cwd=cwd
 
-        self.cfg = Config(CONFIG_DIR)
+        self.cfg = Config(DATA_DIR)
         self.cfg.read()
 
         self.last_dir = self.cfg.get(CFG_last_dir).replace('/',sep)
@@ -628,7 +623,7 @@ class Gui:
 
             read_thread.start()
 
-            core_bytes_to_str_records_size = core_bytes_to_str(records_size)
+            bytes_to_str_records_size = bytes_to_str(records_size)
             fnumber_records_quant = fnumber(records_quant)
 
             self_progress_dialog_on_load_lab_r1_configure = self_progress_dialog_on_load.lab_r1.configure
@@ -652,7 +647,7 @@ class Gui:
                 if librer_core.records_to_show:
                     new_rec,quant,size = librer_core.records_to_show.pop(0)
 
-                    self_progress_dialog_on_load_lab_r1_configure(text= core_bytes_to_str(size) + '/' + core_bytes_to_str_records_size)
+                    self_progress_dialog_on_load_lab_r1_configure(text= bytes_to_str(size) + '/' + bytes_to_str_records_size)
                     self_progress_dialog_on_load_lab_r2_configure(text= fnumber(quant) + '/' + fnumber_records_quant)
 
                     self_progress_dialog_on_load_lab_0_configure(text=librer_core.info_line)
@@ -1435,7 +1430,7 @@ class Gui:
             ##############
 
             def ver_number(var):
-                temp=core_str_to_bytes(var)
+                temp=str_to_bytes(var)
 
                 if temp>0:
                     return var
@@ -1609,10 +1604,7 @@ class Gui:
             frame2 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
             lab2_text=  \
-                        'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
-                        'DATABASE DIRECTORY :  ' + DB_DIR + '\n' + \
-                        'LOGS DIRECTORY     :  ' + LOG_DIR + '\n\n' + \
-                        'Current log file   :  ' + log
+                        'Current log file   :  ' + log_file
 
             lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='left')
             lab_courier.pack(expand=1,fill='both')
@@ -1710,10 +1702,10 @@ class Gui:
                 return
 
             local_file_name = 'imported.'+ str(time()) + '.dat'
-            local_file = sep.join([DB_DIR,local_file_name])
+            local_file = sep.join([DATA_DIR,local_file_name])
             new_record.clone_record(local_file,keep_cd,keep_crc,self.import_compr_var_int.get())
 
-            new_record.load_wrap(DB_DIR,local_file_name)
+            new_record.load_wrap(DATA_DIR,local_file_name)
             self.single_record_show(new_record)
             self.last_dir = dirname(self.import_dialog_file)
 
@@ -1815,7 +1807,7 @@ class Gui:
 
                             (entry_name_nr,code,size,mtime) =  data_tuple[0:4]
 
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.LUT_decode[code]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
 
                             elem_index = 4
                             if has_files:
@@ -1833,7 +1825,7 @@ class Gui:
                             print('show_tooltips_tree',exc)
 
                     record_path = record.header.scan_path
-                    size = core_bytes_to_str(record.header.sum_size)
+                    size = bytes_to_str(record.header.sum_size)
                     time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time))
                     self.tooltip_lab_configure(text=record.txtinfo_basic + node_cd)
                     # + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') + (f'\n\n=====================================================\n{node_crc}\n=====================================================' if node_crc else '')
@@ -2170,7 +2162,7 @@ class Gui:
             cd_fuzzy_threshold = self.find_cd_fuzzy_threshold.get()
 
             if find_size_min:
-                min_num = core_str_to_bytes(find_size_min)
+                min_num = str_to_bytes(find_size_min)
                 if min_num == -1:
                     self.info_dialog_on_find.show('min size value error',f'fix "{find_size_min}"')
                     return
@@ -2178,7 +2170,7 @@ class Gui:
                 min_num = ''
 
             if find_size_max:
-                max_num = core_str_to_bytes(find_size_max)
+                max_num = str_to_bytes(find_size_max)
                 if max_num == -1:
                     self.info_dialog_on_find.show('max size value error',f'fix "{find_size_max}"')
                     return
@@ -2192,7 +2184,6 @@ class Gui:
 
             range_par = self.current_record if not find_range_all else None
 
-            print('s1')
             if check_res := librer_core.find_items_in_records_check(
                 range_par,
                 min_num,max_num,
@@ -2202,7 +2193,6 @@ class Gui:
                 self.info_dialog_on_find.show('regular expression error',check_res)
                 return
 
-            print('s2')
             self.cfg.set(CFG_KEY_find_range_all,find_range_all)
             self.cfg.set(CFG_KEY_find_cd_search_kind,find_cd_search_kind)
             self.cfg.set(CFG_KEY_find_filename_search_kind,find_filename_search_kind)
@@ -2225,7 +2215,6 @@ class Gui:
 
             self_progress_dialog_on_find = self.get_progress_dialog_on_find()
 
-            print('s3')
             search_thread=Thread(target=lambda : librer_core.find_items_in_records(range_par,
                 min_num,max_num,
                 find_filename_search_kind,find_name,find_name_case_sens,
@@ -2241,7 +2230,6 @@ class Gui:
             self_hg_ico = self.hg_ico
             len_self_hg_ico = len(self_hg_ico)
 
-            print('s4')
             #############################
 
             self_progress_dialog_on_find.show('Search progress')
@@ -2277,7 +2265,6 @@ class Gui:
             fnumber_librer_core_files_search_quant = fnumber(librer_core_files_search_quant)
             fnumber_records_len = fnumber(records_len)
 
-            print('s5')
             time_without_busy_sign=0
             while search_thread_is_alive():
                 now=time()
@@ -2319,7 +2306,7 @@ class Gui:
                         self_progress_dialog_on_find_update_lab_image(2,self_get_hg_ico())
                         update_once=True
 
-                self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+                self_main_after(25,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
                 ######################################################################################
 
@@ -2941,7 +2928,7 @@ class Gui:
         self_hg_ico = self.hg_ico
         len_self_hg_ico = len(self_hg_ico)
 
-        local_core_bytes_to_str = core_bytes_to_str
+        local_bytes_to_str = bytes_to_str
 
         self_progress_dialog_on_scan_progr1var.set(0)
         self_progress_dialog_on_scan_lab_r1_config(text='- - - -')
@@ -2970,8 +2957,8 @@ class Gui:
             timeout = self.CDE_timeout_var_list[e].get().strip()
             crc = self.CDE_crc_var_list[e].get()
 
-            smin_int = core_str_to_bytes(smin)
-            smax_int = core_str_to_bytes(smax)
+            smin_int = str_to_bytes(smin)
+            smax_int = str_to_bytes(smax)
 
             try:
                 timeout_int = int(timeout)
@@ -3031,7 +3018,7 @@ class Gui:
         #############################
         while scan_thread_is_alive():
             change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-            change3 = self_progress_dialog_on_scan_update_lab_text(3,local_core_bytes_to_str(new_record.header.sum_size) )
+            change3 = self_progress_dialog_on_scan_update_lab_text(3,local_bytes_to_str(new_record.header.sum_size) )
             change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(new_record.header.quant_files) )
 
             now=time()
@@ -3094,7 +3081,7 @@ class Gui:
 
             while cd_thread_is_alive():
                 change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_core_bytes_to_str(new_record.header.files_cde_size_extracted) )
+                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(new_record.header.files_cde_size_extracted) )
                 change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record.header.files_cde_errors_quant) )
 
                 files_q = new_record.header.files_cde_quant
@@ -3106,7 +3093,7 @@ class Gui:
                 self_progress_dialog_on_scan_progr1var_set(files_size_perc)
                 self_progress_dialog_on_scan_progr2var_set(files_perc)
 
-                self_progress_dialog_on_scan_lab_r1_config(text=local_core_bytes_to_str(new_record.header.files_cde_size) + '/' + local_core_bytes_to_str(new_record.header.files_cde_size_sum))
+                self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(new_record.header.files_cde_size) + '/' + local_bytes_to_str(new_record.header.files_cde_size_sum))
                 self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(new_record.header.files_cde_quant_sum))
 
                 if self.action_abort:
@@ -3438,7 +3425,7 @@ class Gui:
         children=tree.get_children(item)
         opened = tree.set(item,'opened')
 
-        LUT_decode_loc = core.LUT_decode
+        LUT_decode_loc = LUT_decode
 
         if opened=='0' and children:
             colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
@@ -3451,7 +3438,7 @@ class Gui:
             self_FILE = self.FILE
             self_DIR = self.DIR
             self_SYMLINK = self.SYMLINK
-            local_core_bytes_to_str = core_bytes_to_str
+            local_bytes_to_str = bytes_to_str
 
             new_items_values = {}
 
@@ -3530,7 +3517,7 @@ class Gui:
                     #items_names_tuple,res_size,res_mtime=record.find_results[self.find_result_index]
 
                     #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-                    values = (entry_name,'','0',entry_name,size,core_bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime)),kind)
+                    values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime)),kind)
 
                     sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
                     new_items_values[ ( sort_index,values,entry_name,image,bool(has_files) ) ] = (has_files,tags,data_tuple)
@@ -3555,7 +3542,7 @@ class Gui:
         size=record.header.sum_size
 
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-        values = (record.header.label,record.header.label,0,record.header.scan_path,size,core.bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time)),self.RECORD)
+        values = (record.header.label,record.header.label,0,record.header.scan_path,size,bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time)),self.RECORD)
 
         record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.ico_record,tags=self.RECORD)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
@@ -3679,7 +3666,7 @@ class Gui:
                         data_tuple = self.item_to_data[item]
                         (entry_name,code,size,mtime) = data_tuple[0:4]
 
-                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = core.LUT_decode[code]
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
 
                         if has_cd: #wiec nie has_files
                             cd_index = data_tuple[4]
@@ -3772,40 +3759,32 @@ if __name__ == "__main__":
 
         LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]))
         LIBRER_EXECUTABLE_DIR = dirname(LIBRER_EXECUTABLE_FILE)
-        DB_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'db'])
-        CONFIG_DIR = LIBRER_EXECUTABLE_DIR
+        DATA_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'data'])
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'logs'])
 
         #######################################################################
 
-        VER_TIMESTAMP = console.get_ver_timestamp()
+        VER_TIMESTAMP = get_ver_timestamp()
+        #p_args = parse_args(VER_TIMESTAMP)
 
-        p_args = console.parse_args(VER_TIMESTAMP)
+        use_appdir=False
+        #bool(p_args.appdirs)
 
-        use_appdir=bool(p_args.appdirs)
+        #if not use_appdir:
 
-        if not use_appdir:
-            try:
-                DB_DIR_TEST = sep.join([DB_DIR,'access.test'])
-                Path(DB_DIR_TEST).mkdir(parents=True,exist_ok=False)
-                rmdir(DB_DIR_TEST)
-            except Exception as e_portable:
-                print('Cannot store files in portable mode:',e_portable)
-                use_appdir=True
+        #try:
+        #    DB_DIR_TEST = sep.join([DB_DIR,'access.test'])
+        #    Path(DB_DIR_TEST).mkdir(parents=True,exist_ok=False)
+        #    rmdir(DB_DIR_TEST)
+        #except Exception as e_portable:
+        #    print('Cannot store files in portable mode:',e_portable)
+        #    use_appdir=True
 
-        if use_appdir:
-            try:
-                from appdirs import user_cache_dir,user_log_dir,user_config_dir
-                LOG_DIR = user_log_dir('librer','PJDude')
-                CONFIG_DIR = user_config_dir('librer')
-            except Exception as e_import:
-                print(e_import)
+        LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,"logs"])
 
-        else:
-            LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,"logs"])
-            CONFIG_DIR = LIBRER_EXECUTABLE_DIR
-
-        log=abspath(p_args.log[0]) if p_args.log else LOG_DIR + sep + strftime('%Y_%m_%d_%H_%M_%S',localtime(time()) ) +'.txt'
+        #p_args.log[0]) if p_args.log else
+        log_file = strftime('%Y_%m_%d_%H_%M_%S',localtime(time())) +'.txt'
+        log=abspath(LOG_DIR + sep + log_file)
 
         Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
 
@@ -3825,23 +3804,25 @@ if __name__ == "__main__":
         else:
             l_info('distro info:\n%s',distro_info)
 
-        librer_core = core.LibrerCore(DB_DIR,logging)
+        librer_core = LibrerCore(DATA_DIR,logging)
 
-        if p_args.csv:
-            signal(SIGINT, lambda a, k : librer_core.handle_sigint())
+        Gui(getcwd())
 
-            librer_core.set_paths_to_scan(p_args.paths)
+        #if p_args.csv:
+        #    signal(SIGINT, lambda a, k : librer_core.handle_sigint())
 
-            if p_args.exclude:
-                set_exclude_masks_res=librer_core.set_exclude_masks(False,p_args.exclude)
-            elif p_args.exclude_regexp:
-                set_exclude_masks_res=librer_core.set_exclude_masks(True,p_args.exclude_regexp)
-            else:
-                set_exclude_masks_res=librer_core.set_exclude_masks(False,[])
+        #    librer_core.set_paths_to_scan(p_args.paths)
 
-            if set_exclude_masks_res:
-                print(set_exclude_masks_res)
-                sys.exit(2)
+        #    if p_args.exclude:
+        #        set_exclude_masks_res=librer_core.set_exclude_masks(False,p_args.exclude)
+        #    elif p_args.exclude_regexp:
+        #        set_exclude_masks_res=librer_core.set_exclude_masks(True,p_args.exclude_regexp)
+        #    else:
+        #        set_exclude_masks_res=librer_core.set_exclude_masks(False,[])
+
+        #    if set_exclude_masks_res:
+        #        print(set_exclude_masks_res)
+        #        sys.exit(2)
 
             #run_scan_thread=Thread(target=librer_core.scan,daemon=True)
             #run_scan_thread.start()
@@ -3863,10 +3844,10 @@ if __name__ == "__main__":
             #print('')
             #librer_core.write_csv(p_args.csv[0])
 
-            print('Done')
+        #    print('Done')
 
-        else:
-            Gui(getcwd())
+        #else:
+
 
     except Exception as e_main:
         print(e_main)

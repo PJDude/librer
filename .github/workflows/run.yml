@@ -79,25 +79,25 @@ jobs:
       run: "pyinstaller.run.bat"
       shell: cmd
 
-    - name: upload pyinstaller onefile gui
-      uses: actions/upload-artifact@v3
-      with:
-        name: pyinstaller-win-onefile-gui
-        path: ./build-pyinstaller-win/O_G/librer.exe
-        if-no-files-found: error
+    #- name: upload pyinstaller onefile gui
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: pyinstaller-win-onefile-gui
+    #    path: ./build-pyinstaller-win/O_G/librer.exe
+    #    if-no-files-found: error
 
-    - name: upload pyinstaller onefile cmd
-      uses: actions/upload-artifact@v3
-      with:
-        name: pyinstaller-win-onefile-cmd
-        path: ./build-pyinstaller-win/O_C/record.exe
-        if-no-files-found: error
+    #- name: upload pyinstaller onefile cmd
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: pyinstaller-win-onefile-cmd
+    #    path: ./build-pyinstaller-win/O_C/record.exe
+    #    if-no-files-found: error
 
-    - name: upload pyinstaller distro
+    - name: upload win distro
       uses: actions/upload-artifact@v3
       with:
-        name: pyinstaller-win-distro
-        path: ./build-pyinstaller-win/librer.pyinstaller.win.zip
+        name: pyinstaller-win
+        path: ./build-pyinstaller/librer.win.zip
         if-no-files-found: error
 
 ##########################################################################
@@ -160,25 +160,25 @@ jobs:
       working-directory: ./scripts
       run: bash "pyinstaller.run.sh"
 
-    - name: upload pyinstaller onefile
-      uses: actions/upload-artifact@v3
-      with:
-        name: librer-pyinstaller-lin-onefile-gui
-        path: ./build-pyinstaller-lin_lo/librer
-        if-no-files-found: error
+    #- name: upload pyinstaller onefile
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: librer-pyinstaller-lin-onefile-gui
+    #    path: ./build-pyinstaller-lin_lo/librer
+    #    if-no-files-found: error
 
-    - name: upload pyinstaller onefile cmd
-      uses: actions/upload-artifact@v3
-      with:
-        name: librer-pyinstaller-lin-onefile-cmd
-        path: ./build-pyinstaller-lin_lo/record
-        if-no-files-found: error
+    #- name: upload pyinstaller onefile cmd
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: librer-pyinstaller-lin-onefile-cmd
+    #    path: ./build-pyinstaller-lin_lo/record
+    #    if-no-files-found: error
 
-    - name: upload pyinstaller distro
+    - name: upload lin distro
       uses: actions/upload-artifact@v3
       with:
-        name: librer-pyinstaller-lin-distro
-        path: ./build-pyinstaller-lin_l/librer.pyinstaller.lin.zip
+        name: pyinstaller-lin
+        path: ./build-pyinstaller/librer.lin.zip
         if-no-files-found: error
 
     #####################################
@@ -198,19 +198,17 @@ jobs:
     #    cd ./build-nuitka-lin
     #    mv ./librer.nuitka.lin.zip ../librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
 
-    - name: pack linux onefile pyinstaller
-      run: |
-        cd ./build-pyinstaller-lin_lo
-        chmod 777 ./librer
-        chmod 777 ./record
-        tar -czvf ../librer.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz librer record
-        rm ./librer
-        rm ./record
+    #- name: pack linux onefile pyinstaller
+    #  run: |
+    #    cd ./build-pyinstaller-lin_lo
+    #    chmod 777 ./librer
+    #    chmod 777 ./record
+    #    tar -czvf ../librer.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz librer record
+    #    rm ./librer
+    #    rm ./record
 
-    - name: move linux distro pyinstaller
-      run: |
-        cd ./build-pyinstaller-lin_l
-        mv ./librer.pyinstaller.lin.zip ../librer.${{ steps.version.outputs.version }}.portable.linux.tgz
+    - name: move linux distro
+      run: mv ./build-pyinstaller/librer.lin.zip ./librer.${{ steps.version.outputs.version }}.portable.linux.zip
 
     #####################################
     #- name: download windows onefile nuitka gui
@@ -228,20 +226,20 @@ jobs:
     #- name: pack windows onefile nuitka
     #  run: zip -9 -m librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip librer.exe librercmd.exe
 
-    - name: download windows onefile pyinstaller gui
-      uses: actions/download-artifact@v3
-      with:
-        name: pyinstaller-win-onefile-gui
-        path: ./
+    #- name: download windows onefile pyinstaller gui
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: pyinstaller-win-onefile-gui
+    #    path: ./
 
-    - name: download windows onefile pyinstaller cmd
-      uses: actions/download-artifact@v3
-      with:
-        name: pyinstaller-win-onefile-cmd
-        path: ./
+    #- name: download windows onefile pyinstaller cmd
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: pyinstaller-win-onefile-cmd
+    #    path: ./
 
-    - name: pack windows onefile pyinstaller
-      run: zip -9 -m librer.${{ steps.version.outputs.version }}.portable.windows.onefile.zip librer.exe record.exe
+    #- name: pack windows onefile pyinstaller
+    #  run: zip -9 -m librer.${{ steps.version.outputs.version }}.portable.windows.onefile.zip librer.exe record.exe
 
 
     #- name: download windows distro nuitka
@@ -253,14 +251,14 @@ jobs:
     #- name: rename windows zip
     #  run: mv ./librer.nuitka.win.zip ./librer_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
 
-    - name: download windows distro pyinstaller
+    - name: download windows distro
       uses: actions/download-artifact@v3
       with:
-        name: pyinstaller-win-distro
+        name: pyinstaller-win
         path: ./
 
     - name: rename windows zip
-      run: mv ./librer.pyinstaller.win.zip ./librer.${{ steps.version.outputs.version }}.portable.windows.zip
+      run: mv ./librer.win.zip ./librer.${{ steps.version.outputs.version }}.portable.windows.zip
 
     #####################################
     - name: Create GitHub release
@@ -273,10 +271,8 @@ jobs:
         draft: false
         prerelease: true
         files: |
-            librer.${{ steps.version.outputs.version }}.portable.linux.tgz
-            librer.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz
+            librer.${{ steps.version.outputs.version }}.portable.linux.zip
             librer.${{ steps.version.outputs.version }}.portable.windows.zip
-            librer.${{ steps.version.outputs.version }}.portable.windows.onefile.zip
 
         #librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz
         #librer_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
