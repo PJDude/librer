@@ -87,7 +87,8 @@ class GenericDialog:
         self.area_main.grid_columnconfigure(0, weight=1)
 
         self.area_buttons = Frame(widget,bg=self.bg_color)
-        self.area_buttons.pack(side='bottom',expand=0,fill='x')
+        self.area_buttons.pack(side='bottom',expand=0)
+        #,fill='x'
 
         self.wait_var=BooleanVar()
         self.wait_var.set(False)
@@ -257,8 +258,10 @@ class ProgressDialog(GenericDialog):
             self.prev_image[i]=None
 
         self.abort_button=Button(self.area_buttons, text='Abort', width=10,command=lambda : self.hide() )
+        self.abort_single_button=Button(self.area_buttons, text='Abort single file', width=10,command=lambda : self.hide() )
 
-        self.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
+        self.abort_button.pack(side='left', anchor='w',padx=5,pady=5)
+        #self.abort_single_button.pack(side='right', anchor='e',padx=5,pady=5)
 
         frame_0=Frame(self.area_main,bg=self.bg_color)
         if ShowProgress:

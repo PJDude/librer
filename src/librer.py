@@ -82,11 +82,14 @@ CFG_KEY_SINGLE_DEVICE = 'single_device'
 CFG_KEY_SINGLE_DEVICE = 'single_device'
 
 CFG_KEY_find_size_min = 'find_size_min'
+CFG_KEY_find_size_max = 'find_size_max'
+
+CFG_KEY_find_modtime_min = 'find_modtime_min'
+CFG_KEY_find_modtime_max = 'find_modtime_max'
+
 CFG_KEY_find_range_all = 'find_range_all'
 CFG_KEY_find_cd_search_kind = 'find_cd_search_kind'
 CFG_KEY_find_filename_search_kind = 'find_filename_search_kind'
-
-CFG_KEY_find_size_max = 'find_size_max'
 
 CFG_KEY_find_name_regexp = 'find_name_regexp'
 CFG_KEY_find_name_glob = 'find_name_glob'
@@ -124,6 +127,9 @@ cfg_defaults={
 
     CFG_KEY_find_size_min:'',
     CFG_KEY_find_size_max:'',
+    
+    CFG_KEY_find_modtime_min:'',
+    CFG_KEY_find_modtime_max:'',
 
     CFG_KEY_find_name_regexp:'',
     CFG_KEY_find_name_glob:'',
@@ -595,7 +601,7 @@ class Gui:
 
         self.tooltip_message[str_self_progress_dialog_on_load_abort_button]='Abort loading.'
         self_progress_dialog_on_load.abort_button.configure(image=self.ico['cancel'],text='Abort',compound='left')
-        self_progress_dialog_on_load.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
+        self_progress_dialog_on_load.abort_button.pack( anchor='center',padx=5,pady=5)
 
         self.action_abort=False
         self_progress_dialog_on_load.abort_button.configure(state='normal')
@@ -1082,7 +1088,7 @@ class Gui:
             max_tooltip = "Maximum size of file\nto aplly CD extraction\nmay be empty e.g. '100MB'"
             exec_tooltip = "Executable or batch script that will be run\nwith the file for extraction as last parameter.\nMay have other fixed parameters\nWill be executed with the full path of the scanned file\ne.g. '7z l', 'cat', 'my_extractor.sh', 'my_extractor.bat'"
             pars_tooltip = f"parameters of the CDE executable.\nUse '{PARAM_INDICATOR_SIGN}' sign to indicate 'file path'\nlocation, or leave it empty."
-            shell_tooltip = "Execute in system shell"
+            shell_tooltip = "Execute in system shell\nUse only when necessary."
             open_tooltip = "Set executable file as Custom Data Extractor..."
             timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or no value means no timeout"
             test_tooltip = "Test Custom Data Extractor\non single manually selected file ..."
@@ -1227,7 +1233,11 @@ class Gui:
 
             self.simple_progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
-            self.widget_tooltip(self.simple_progress_dialog_on_scan.abort_button,'')
+            self.widget_tooltip(self.simple_progress_dialog_on_scan.abort_button,'Abort test')
+
+            str_simple_progress_dialog_scan_abort_button = str(self.simple_progress_dialog_on_scan.abort_button)
+            self.tooltip_message[str_simple_progress_dialog_scan_abort_button]='Abort test.'
+
             self.simple_progress_dialog_on_scan_created = True
 
         return self.simple_progress_dialog_on_scan
@@ -1414,6 +1424,9 @@ class Gui:
             self.find_size_min_var = StringVar()
             self.find_size_max_var = StringVar()
 
+            self.find_modtime_min_var = StringVar()
+            self.find_modtime_max_var = StringVar()
+
             self.find_name_regexp_var = StringVar()
             self.find_name_glob_var = StringVar()
             self.find_name_fuzz_var = StringVar()
@@ -1447,6 +1460,9 @@ class Gui:
 
             self.find_size_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_min)))
             self.find_size_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_max)))
+            
+            self.find_modtime_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_modtime_min)))
+            self.find_modtime_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_modtime_max)))
 
             self.find_name_regexp_var.set(self.cfg.get(CFG_KEY_find_name_regexp))
             self.find_name_glob_var.set(self.cfg.get(CFG_KEY_find_name_glob))
@@ -1465,6 +1481,9 @@ class Gui:
 
             self.find_size_min_var.trace_add("write", lambda i,j,k : self.find_mod())
             self.find_size_max_var.trace_add("write", lambda i,j,k : self.find_mod())
+            
+            self.find_modtime_min_var.trace_add("write", lambda i,j,k : self.find_mod())
+            self.find_modtime_max_var.trace_add("write", lambda i,j,k : self.find_mod())
 
             self.find_name_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
             self.find_name_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
@@ -1547,12 +1566,12 @@ class Gui:
 
             find_cd_frame.grid_columnconfigure(1, weight=1)
 
-            (find_size_frame := LabelFrame(sfdma,text='File size range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
+            (find_size_frame := LabelFrame(sfdma,text='File size',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
             find_size_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
             Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
             Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
-
+            
             def validate_size_str(val):
                 return bool(val == "" or val.isdigit())
 
@@ -1560,6 +1579,16 @@ class Gui:
             #,validate="key",validatecommand=(entry_validator,"%P")
             Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
             Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
+                        
+            (find_modtime_frame := LabelFrame(sfdma,text='File mod time',bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
+            find_modtime_frame.grid_columnconfigure((0,1,2,3), weight=1)
+
+            Label(find_modtime_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
+            Label(find_modtime_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
+
+            Entry(find_modtime_frame,textvariable=self.find_modtime_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
+            Entry(find_modtime_frame,textvariable=self.find_modtime_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
+
 
             Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_items ).pack(side='left', anchor='n',padx=5,pady=5)
             self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
@@ -1573,7 +1602,7 @@ class Gui:
             #self.search_next_butt.pack(side='left', anchor='n',padx=5,pady=5)
             Button(self.find_dialog.area_buttons, text='Close', width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
 
-            sfdma.grid_rowconfigure(4, weight=1)
+            sfdma.grid_rowconfigure(5, weight=1)
             sfdma.grid_columnconfigure(0, weight=1)
 
             self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
@@ -2041,9 +2070,15 @@ class Gui:
                 self.find_params_changed=True
             elif self.cfg.get(CFG_KEY_find_range_all) != self.find_range_all.get():
                 self.find_params_changed=True
+            
             elif self.cfg.get(CFG_KEY_find_size_min) != self.find_size_min_var.get():
                 self.find_params_changed=True
             elif self.cfg.get(CFG_KEY_find_size_max) != self.find_size_max_var.get():
+                self.find_params_changed=True
+                
+            elif self.cfg.get(CFG_KEY_find_modtime_min) != self.find_modtime_min_var.get():
+                self.find_params_changed=True
+            elif self.cfg.get(CFG_KEY_find_modtime_max) != self.find_modtime_max_var.get():
                 self.find_params_changed=True
 
             elif self.cfg.get(CFG_KEY_find_name_regexp) != self.find_name_regexp_var.get():
@@ -2141,6 +2176,9 @@ class Gui:
 
             find_size_min = self.find_size_min_var.get()
             find_size_max = self.find_size_max_var.get()
+            
+            find_modtime_min = self.find_modtime_min_var.get()
+            find_modtime_max = self.find_modtime_max_var.get()
 
             find_name_regexp = self.find_name_regexp_var.get()
             find_name_glob = self.find_name_glob_var.get()
@@ -2181,7 +2219,16 @@ class Gui:
                 if max_num<min_num:
                     self.info_dialog_on_find.show('error','max size < min size')
                     return
-
+            
+            if find_modtime_min:
+                pass
+                #TODO
+            
+            if find_modtime_max:
+                pass
+                #TODO
+                
+                    
             range_par = self.current_record if not find_range_all else None
 
             if check_res := librer_core.find_items_in_records_check(
@@ -2199,6 +2246,9 @@ class Gui:
 
             self.cfg.set(CFG_KEY_find_size_min,find_size_min)
             self.cfg.set(CFG_KEY_find_size_max,find_size_max)
+            
+            self.cfg.set(CFG_KEY_find_modtime_min,find_modtime_min)
+            self.cfg.set(CFG_KEY_find_modtime_max,find_modtime_max)
 
             self.cfg.set(CFG_KEY_find_name_regexp,find_name_regexp)
             self.cfg.set(CFG_KEY_find_name_glob,find_name_glob)
@@ -2885,7 +2935,8 @@ class Gui:
         self.last_dir = path_to_scan_from_entry
 
         new_record = librer_core.create(self.scan_label_entry_var.get(),path_to_scan_from_entry)
-
+        
+        
         self.main_update()
 
         #############################
@@ -2900,12 +2951,15 @@ class Gui:
         self_progress_dialog_on_scan_lab_r2_config = self_progress_dialog_on_scan.lab_r2.config
 
         str_self_progress_dialog_on_scan_abort_button = str(self_progress_dialog_on_scan.abort_button)
+        
+        self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico['cancel'],text='Abort single file',compound='left',width=15,command=lambda : self.abort_single_file(new_record))
+                
+        self_progress_dialog_on_scan.abort_single_button.pack_forget()
         #############################
 
         self.scan_dialog.widget.update()
         self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
-        self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text='Cancel',compound='left')
-        self_progress_dialog_on_scan.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
+        self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text='Cancel',compound='left',width=15)
 
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
@@ -3068,10 +3122,13 @@ class Gui:
 
         if any_cde_enabled:
             self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
+            self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
+            self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text='Abort',compound='left',width=15)
 
             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomplete.'
 
-            cd_thread=Thread(target=new_record.extract_customdata,daemon=True)
+            #########################################################################################
+            cd_thread=Thread(target=new_record.extract_customdata_threaded,daemon=True)
             cd_thread.start()
 
             cd_thread_is_alive = cd_thread.is_alive
@@ -3124,6 +3181,7 @@ class Gui:
                 self_main_wait_variable(wait_var)
 
             cd_thread.join()
+            #########################################################################################
 
         self_progress_dialog_on_scan_update_lab_text(1,'')
         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
@@ -3279,22 +3337,44 @@ class Gui:
             self.last_dir = res
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
 
-    #def cde_test_abort(exe):
-    #    exe.abort_now
-    def cde_test_loop_update(self,prog_dialog):
-        #print('cde_test_loop_update',prog_dialog)
-        prog_dialog.lab[2].configure(image=self.get_hg_ico())
-        prog_dialog.widget.update()
-        #if self.action_abort:
-        #    exe.abort_now()
-        #    break
-        #print('cde_test_loop_update end')
-        self.main.after(25,lambda : self.exe_wait_var.set(not self.exe_wait_var.get()))
-        self.main.wait_variable(self.exe_wait_var)
+    def threaded_simple_run(self,command_list,shell):
+        output_list_append = self.output_list.append
 
-    def cde_test_abort(self,exe):
-        #print('cde_test_abort')
-        exe.abort_now()
+        try:
+            self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,shell=shell,text=True)
+        except Exception as re:
+            print('test run error',re,flush = True)
+            output_list_append(str(re))
+        else:
+            subprocess_stdout_readline = self.subprocess.stdout.readline
+            subprocess_poll = self.subprocess.poll
+            while True:
+                try:
+                    line = subprocess_stdout_readline()
+                except Exception as le:
+                    print(command_list,le,flush = True)
+                    line = f'{le}'
+                    print('t',type(line))
+                    decoding_error = True
+
+                output_list_append(line.rstrip('\n\r'))
+
+                if not line and subprocess_poll() is not None:
+                    self.returncode[0]=self.subprocess.returncode
+                    break
+
+        self.subprocess = True
+        sys.exit(0) #thread
+
+    def abort_single_file(self,record):
+        record.abort_single_file_cde=True
+        print('abort_single_file')
+        
+    def kill_test(self):
+        if self.subprocess and self.subprocess!=True:
+            self.output_list.append('Killing.')
+            print(f'{self.subprocess.pid=}',flush = True)
+            rec_kill(self.subprocess.pid)
 
     def cde_test(self,e):
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -3320,8 +3400,6 @@ class Gui:
 
             ask_dialog = self.get_text_ask_dialog_on_scan()
             simple_progress_dialog_scan = self.get_simple_progress_dialog_on_scan()
-            str_simple_progress_dialog_scan_abort_button = str(simple_progress_dialog_scan.abort_button)
-            self.tooltip_message[str_simple_progress_dialog_scan_abort_button]='tooltippa'
 
             ask_dialog.show('Test selected Custom Data Extractor on selected file ?',info)
 
@@ -3335,27 +3413,53 @@ class Gui:
 
             self.cfg.write()
 
-            self.exe_wait_var=BooleanVar()
-            self.exe_wait_var.set(False)
-
             if ask_dialog.res_bool:
-                simple_progress_dialog_scan.show('Testing selected Custom Data Extractor')
+                self.returncode=[100]
+                self.output_list = []
 
                 self.action_abort=False
                 crc = False
-                size = 0 #only for crc
-                io_list = [ [executable,parameters,full_file_path,timeout_int,shell,crc,size] ]
 
-                exe=Executor(io_list,lambda : self.cde_test_loop_update(simple_progress_dialog_scan))
-                simple_progress_dialog_scan.command_on_close=lambda : self.cde_test_abort(exe)
-                exe.run()
+                decoding_error = False
+
+                self.subprocess = None
+
+                test_thread = Thread(target = lambda: self.threaded_simple_run(command_list,shell),daemon=True)
+
+                simple_progress_dialog_scan.command_on_close=self.kill_test
+
+                #simple_progress_dialog_scan.command_on_close=self.kill_test
+                test_thread.start()
+
+                simple_progress_dialog_scan.show('Testing selected Custom Data Extractor')
+
+                timeout_val=time()+float(timeout_int) if timeout_int else None
+
+                simple_progress_dialog_scan_update_lab_text = simple_progress_dialog_scan.update_lab_text
+                simple_progress_dialog_scan_update_lab_image = simple_progress_dialog_scan.update_lab_image
+
+                while test_thread.is_alive():
+                    simple_progress_dialog_scan_update_lab_image(2,self.get_hg_ico())
+
+                    if timeout_val :
+                        time_left = timeout_val-time()
+                        if time_left>0:
+                            simple_progress_dialog_scan_update_lab_text(0,f'timeout: {int(time_left)}')
+                        else:
+                            simple_progress_dialog_scan_update_lab_text(0,'Timeout')
+                            self.output_list.append(f'Timeout {timeout_int}s.')
+                            self.kill_test()
+
+                    self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+                    self_main_wait_variable(wait_var)
+
+                test_thread.join()
 
                 simple_progress_dialog_scan.hide(True)
 
-                result_tuple = io_list[0][7]
+                output = '\n'.join(self.output_list)
 
-                returncode,output = result_tuple
-                self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if returncode==0 else "with Error"}',output)
+                self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if self.returncode[0]==0 else "with Error"}',output)
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd

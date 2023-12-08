@@ -168,11 +168,12 @@ def printer():
 def print_info(*args):
     print('#',*args)
 
-buffer_size = 1024*1024*64
-sys.stdout = io.TextIOWrapper(sys.stdout.detach(), write_through=True, line_buffering=False)
-sys.stdout._CHUNK_SIZE = buffer_size
 
 if __name__ == "__main__":
+    buffer_size = 1024*1024*64
+    sys.stdout = io.TextIOWrapper(sys.stdout.detach(), write_through=True, line_buffering=False)
+    sys.stdout._CHUNK_SIZE = buffer_size
+
     VER_TIMESTAMP = get_ver_timestamp()
 
     args=parse_args(VER_TIMESTAMP)

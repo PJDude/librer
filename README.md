@@ -55,8 +55,7 @@ Custom data extractor is a command that can be invoked with a single parameter -
 - Windows (10,11)
 
 ## Portability
-**librer** writes log files, configuration and database files in runtime. Default location for these files is **logs**, **db** subfolders and folder of **librer** executable . If there are no write access rights to such folder, platform-specific folders are used for cache, settings and logs (provided by **appdirs** module). You can use --appdirs command line switch to force that behavior even when local folders are accessible.
-
+**librer** writes log files, configuration and record files in runtime. Default location for these files is **logs** and **data** subfolders of **librer** main directory.
 
 ## Technical information
 Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data and CRC data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other.Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) package.
@@ -83,6 +82,12 @@ pip install -r requirements.txt
 
 python3 ./src/librer.py
 ```
+
+## Ideas for future development
+-   gather **custom data** (generated also by user scripts) not only as text but also as binary files and store them inside record file (e.g. image thumbnails etc.)
+- calculate the **CRC** of scanned files and use it to search for duplicates among different records, verify current data with the saved file system image
+
+- comparing two records with each other. e.g. two scans of the same file system performed at different times
 
 ## Licensing
 - **librer** is licensed under **[MIT license](./LICENSE)**
