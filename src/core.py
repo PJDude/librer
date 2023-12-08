@@ -26,9 +26,12 @@
 #
 ####################################################################################
 
+from pympler import asizeof
+ 
 from json import loads as json_loads
 
 from subprocess import Popen, STDOUT, PIPE,TimeoutExpired
+from subprocess import call as subprocess_call
 
 from time import sleep, perf_counter,time,strftime,localtime
 
@@ -41,6 +44,7 @@ from os import scandir,stat,sep
 from os import name as os_name
 from os import remove as os_remove
 from os import cpu_count
+from os import kill as os_kill
 
 from os.path import abspath,normpath,basename,dirname
 from os.path import join as path_join
@@ -65,11 +69,10 @@ from pathlib import Path as pathlib_Path
 
 from zstandard import ZstdCompressor,ZstdDecompressor
 
-
 from signal import SIGTERM
 from hashlib import sha1
 
-#from psutil import Process
+from psutil import Process
 
 from time import  perf_counter,time,strftime,localtime
 
@@ -79,11 +82,9 @@ from pickle import dumps,loads
 
 windows = bool(os_name=='nt')
 
-windows = bool(os_name=='nt')
 PARAM_INDICATOR_SIGN = '%'
 
-data_format_version='1.0010'
-
+data_format_version='1.0011'
 
 VERSION_FILE='version.txt'
 
@@ -169,14 +170,16 @@ def prepare_LUTs():
 
 prepare_LUTs()
 
-
 def get_command_list(executable,parameters,full_file_path,shell=False):
     if windows:
         full_file_path = full_file_path.replace('/',sep)
 
     if shell:
-        executable=f'"{executable}"'
-        full_file_path = f'"{full_file_path}"'
+        if ' ' in executable:
+            executable=f'"{executable}"'
+            
+        if ' ' in full_file_path:
+            full_file_path = f'"{full_file_path}"'
 
     if parameters:
         if PARAM_INDICATOR_SIGN not in parameters:
@@ -191,171 +194,22 @@ def get_command_list(executable,parameters,full_file_path,shell=False):
 
     return single_command_list
 
-class Executor :
-    def __init__(self,io_list,callback):
-        self.io_list=io_list
-        self.callback=callback
+def rec_kill(pid):
+    proc = Process(pid)
 
-        self.keep_running=True
-        self.timeout=None
-        self.info = ''
+    #proc.send_signal(SIGSTOP)
+    #proc.send_signal(SIGINT)
 
-        self.files_cde_errors_quant = 0
+    for child in proc.children():
+        rec_kill(child.pid)
 
-        self.files_cde_quant = 0
-        self.files_cde_size = 0
-        self.files_cde_size_extracted = 0
+    try:
+        #proc.send_signal(SIGTERM)
+        proc.send_signal(SIGTERM)
+        #print('SIGTERM send to',pid)
 
-    def calc_crc(self,fullpath,size):
-        CRC_BUFFER_SIZE=4*1024*1024
-        buf = bytearray(CRC_BUFFER_SIZE)
-        view = memoryview(buf)
-
-        #self.crc_progress_info=0
-
-        try:
-            file_handle=open(fullpath,'rb')
-            file_handle_readinto=file_handle.readinto
-        except Exception as e:
-            #self.log.error(e)
-            print(e)
-            return None
-
-        hasher = sha1()
-        hasher_update=hasher.update
-
-        #faster for smaller files
-        if size<CRC_BUFFER_SIZE:
-            hasher_update(view[:file_handle_readinto(buf)])
-        else:
-            while rsize := file_handle_readinto(buf):
-                hasher_update(view[:rsize])
-
-                #if rsize==CRC_BUFFER_SIZE:
-                    #still reading
-                    #self.crc_progress_info+=rsize
-
-                if not self.keep_running:
-                    break
-
-            #self.crc_progress_info=0
-
-        file_handle.close()
-
-        if not self.keep_running:
-            return None
-
-        #only complete result
-        #return hasher.hexdigest()
-        return hasher.digest()
-
-    def abort_now(self):
-        self.keep_running=False
-        self.timeout=time()
-
-    def run(self):
-        for single_command_combo in self.io_list:
-            self_results_list_append = single_command_combo.append
-            executable,parameters,full_file_path,timeout,shell,do_crc,size = single_command_combo[0:7]
-            #do_crc = False #TODO hidden option
-
-            single_command_list = get_command_list(executable,parameters,full_file_path,shell)
-
-            if self.keep_running:
-                killed=False
-                returncode=200
-
-                try:
-                    self.timeout=time()+timeout if timeout else None
-
-                    #####################################
-                    single_command_list_joined = ' '.join(single_command_list)
-                    self.info = single_command_list_joined
-
-                    command = single_command_list_joined if shell else single_command_list
-                    with Popen(command, stdout=PIPE, stderr=STDOUT,shell=shell) as proc:
-                        while True:
-                            try:
-                                output, errs = proc.communicate(timeout=0.001)
-                                #output = output + errs  # errs should be empty
-                            except TimeoutExpired:
-                                self.callback()
-                                if self.timeout:
-                                    if time()>self.timeout:
-                                        #self.kill(pid)
-                                        try:
-                                            print(f'killing :{proc}')
-                                            proc.kill()
-                                            break
-                                        except Exception as ke:
-                                            print(f'kill disaster:{ke}')
-
-                                        killed=True
-                                    #if pid:=proc.pid:
-                            except Exception as e:
-                                print('run disaster:',e)
-                                break
-
-                            else:
-                                break
-
-                        try:
-                            output = output.decode()
-                        except Exception as de:
-                            output = str(de)
-                            #pass
-
-                        returncode=proc.returncode
-                    #####################################
-
-                except Exception as e:
-                    output = str(e)
-                    print('run_error:',e)
-                    returncode=100 if killed else 101
-
-                if killed:
-                    returncode = 102
-                    output = output + '\nKilled.'
-
-                #if do_crc:
-                #    crc=self.calc_crc(full_file_path,size)
-                #    self_results_list_append(tuple([returncode,output,crc]))
-                #else:
-                #    self_results_list_append(tuple([returncode,output]))
-
-            else:
-                returncode = 300
-                output = 'CDE aborted'
-                #if do_crc:
-                #    self_results_list_append((300,'CDE aborted',0))
-                #else:
-                #    self_results_list_append((300,'CDE aborted'))
-
-            self_results_list_append(tuple([returncode,output]))
-
-            if returncode:
-                self.files_cde_errors_quant+=1
-
-            self.files_cde_quant += 1
-            self.files_cde_size += size
-            self.files_cde_size_extracted += getsizeof(output)
-
-
-    def kill(self,pid):
-        proc = Process(pid)
-
-        #proc.send_signal(SIGSTOP)
-        #proc.send_signal(SIGINT)
-
-        for child in proc.children():
-            self.kill(child.pid)
-
-        try:
-            proc.send_signal(SIGTERM)
-            #print('SIGTERM send to',pid)
-
-        except Exception as e:
-            print('kill',e)
+    except Exception as e:
+        print('rec_kill error',e)
 
 
 #######################################################################
@@ -380,7 +234,9 @@ class LibrerRecordHeader :
         self.files_cde_errors_quant = 0
 
         self.cde_list = []
-
+        
+        self.zipinfo = {}
+        
         self.creation_os,self.creation_host = f'{platform_system()} {platform_release()}',platform_node()
 
 #######################################################################
@@ -390,6 +246,7 @@ class LibrerRecord:
 
         self.filestructure = ()
         self.customdata = []
+        self.filenames = []
 
         self.log = log
         self.find_results = []
@@ -405,9 +262,8 @@ class LibrerRecord:
         self.FILE_SIZE = 0
         self.file_path = ''
 
-        self.zipinfo={'header':'?','filestructure':'?','filenames':'?','customdata':'?'}
-        self.exe = None
-
+        #self.quantinfo={'header':'','filestructure':'','filenames':'?','customdata':'?'}
+        
     def find_results_clean(self):
         self.find_results = []
 
@@ -415,9 +271,6 @@ class LibrerRecord:
         return f'{self.header.rid}.dat'
 
     def abort(self):
-        if self.exe:
-            self.exe.abort_now()
-
         self.abort_action = True
 
     def scan_rec(self, path, scan_like_data,filenames_set,check_dev=True,dev_call=None) :
@@ -613,17 +466,7 @@ class LibrerRecord:
                 self.log.error('prepare_customdata_pool_rec error::%s',e )
                 print('prepare_customdata_pool_rec',e,entry_name,size,is_dir,is_file,is_symlink,is_bind,has_files,mtime)
 
-    def extract_customdata_update(self):
-        self.info_line_current = self.exe.info
-        self_header = self.header
-
-        self_header.files_cde_errors_quant = self.exe.files_cde_errors_quant
-
-        self_header.files_cde_quant = self.exe.files_cde_quant
-        self_header.files_cde_size = self.exe.files_cde_size
-        self_header.files_cde_size_extracted = self.exe.files_cde_size_extracted
-
-    def extract_customdata(self):
+    def extract_customdata_threaded(self):
         self_header = self.header
         scan_path = self_header.scan_path
 
@@ -639,56 +482,142 @@ class LibrerRecord:
 
         customdata_helper={}
 
-        cd_index=0
-        self_customdata_append = self.customdata.append
-
-        io_list=[]
-
         #############################################################
-        for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
-            if self.abort_action:
-                break
-            expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,do_crc = cde_list[rule_nr]
+        def threaded_cde(timeout_semi_list):
+            cd_index=0
+            self_customdata_append = self.customdata.append
+            for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
+                decoding_error=False
+                self.killed=False
+                self.abort_single_file_cde=False
 
-            full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
+                if self.abort_action:
+                    returncode=200
+                    output = 'Custom data extraction was aborted.'
+                    aborted = True
+                else:
+                    aborted = False
 
-            io_list.append( [ executable,parameters,full_file_path,timeout,shell,do_crc,size,scan_like_list,rule_nr ] )
+                    returncode=202
+                    expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,do_crc = cde_list[rule_nr]
+                    full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
+                    single_command_list = get_command_list(executable,parameters,full_file_path,shell)
+                    single_command_list_joined = ' '.join(single_command_list)
+                    command = single_command_list_joined if shell else single_command_list
 
-        #############################################################
-        self.exe=Executor(io_list,self.extract_customdata_update)
+                    self.info_line_current = f'{single_command_list_joined} ({bytes_to_str(size)})'
 
-        self.exe.run()
-        #############################################################
-        for io_list_elem in io_list:
-            executable,parameters,full_file_path,timeout,shell,do_crc,size,scan_like_list,rule_nr,result_tuple = io_list_elem
-            if do_crc:
-                returncode,output,crc_val = result_tuple
+                    timeout_val=time()+timeout if timeout else None
+                    #####################################
+
+                    try:
+                        subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,shell=shell,text=True)
+                        timeout_semi_list[0]=(timeout_val,subprocess)
+                    except Exception as re:
+                        print('threaded_cde error:',re)
+                        subprocess = None
+                        timeout_semi_list[0]=(timeout_val,subprocess)
+                        returncode=201
+                        output = str(re)
+                    else:
+
+                        subprocess_stdout_readline = subprocess.stdout.readline
+                        subprocess_poll = subprocess.poll
+
+                        output_list = []
+                        output_list_append = output_list.append
+
+                        while True:
+                            try:
+                                line = subprocess_stdout_readline()
+                            except Exception as le:
+                                print(command,le)
+                                line = str(le)
+                                decoding_error = True
+
+                            output_list_append(line.rstrip('\n\r'))
+
+                            if not line and subprocess_poll() is not None:
+                                returncode=subprocess.returncode
+                                timeout_semi_list[0] = None
+                                break
+
+                        if self.killed:
+                            output_list.append('Killed.')
+
+                        output = '\n'.join(output_list)
+
+                    #####################################
+
+                if returncode or decoding_error or self.killed or aborted:
+                    self_header.files_cde_errors_quant+=1
+
+                if not aborted:
+                    self_header.files_cde_quant += 1
+                    self_header.files_cde_size += size
+                    self_header.files_cde_size_extracted += getsizeof(output)
+
+                new_elem={}
+                new_elem['cd_ok']= bool(returncode==0 and not decoding_error and not self.killed and not aborted)
+
+                if output not in customdata_helper:
+                    customdata_helper[output]=cd_index
+                    new_elem['cd_index']=cd_index
+                    cd_index+=1
+
+                    self_customdata_append(output)
+                else:
+                    new_elem['cd_index']=customdata_helper[output]
+
+                #if do_crc:
+                #    new_elem['crc_val']=crc_val
+                scan_like_list.append(new_elem)
+
+            print('cd thread done.')
+            sys.exit() #thread
+
+        timeout_semi_list = [None]
+
+        cde_thread = Thread(target = lambda : threaded_cde(timeout_semi_list),daemon=True)
+        cde_thread.start()
+
+        while cde_thread.is_alive():
+            if timeout_semi_list[0]:
+                timeout_val,subprocess = timeout_semi_list[0]
+                if self.abort_action or (timeout_val and time()>timeout_val):
+                    try:
+                        self.killed=True
+                        rec_kill(subprocess.pid)
+                        #if windows:
+                        #    subprocess_call(['taskkill', '/F', '/T', '/PID', str(subprocess.pid)])
+                        #else:
+                        #    rec_kill(subprocess.pid)
+                            #subprocess.kill()
+                            #os_kill(subprocess.pid, -9)
+
+                    except Exception as ke:
+                        print('killing error:',subprocess.pid,ke)
+                
+                if self.abort_single_file_cde:
+                    try:
+                        self.killed=True
+                        rec_kill(subprocess.pid)
+                        #if windows:
+                        #    subprocess_call(['taskkill', '/F', '/T', '/PID', str(subprocess.pid)])
+                        #else:
+                        #    rec_kill(subprocess.pid)
+                            #subprocess.kill()
+                            #os_kill(subprocess.pid, -9)
+
+                    except Exception as ke:
+                        print('killing error:',subprocess.pid,ke)
             else:
-                returncode,output = result_tuple
+                sleep(0.01)
 
-            new_elem={}
-            new_elem['cd_ok']= bool(returncode==0)
-
-            if output not in customdata_helper:
-                customdata_helper[output]=cd_index
-                new_elem['cd_index']=cd_index
-                cd_index+=1
-
-                self_customdata_append(output)
-            else:
-                new_elem['cd_index']=customdata_helper[output]
-
-            if do_crc:
-                new_elem['crc_val']=crc_val
-
-            scan_like_list.append(new_elem)
-
-        #############################################################
+        cde_thread.join()
 
         del self.customdata_pool
         del customdata_helper
-
-        self.exe = None
 
     #############################################################
     def tupelize_rec(self,scan_like_data):
@@ -867,7 +796,6 @@ class LibrerRecord:
 
         self_customdata = self.customdata
 
-        #results_queue_put = results_queue.put
         results_queue_put = results_queue.append
 
         while search_list:
@@ -879,8 +807,6 @@ class LibrerRecord:
 
                 search_progress_update_quant+=1
                 if search_progress_update_quant>1024:
-                    #yield (search_progress,None) #just update progress bar
-                    #yield [search_progress] #just update progress bar
                     results_queue_put([search_progress])
                     search_progress_update_quant=0
 
@@ -912,8 +838,6 @@ class LibrerRecord:
                         #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
                         if name_func_to_call:
                             if name_func_to_call(name):
-                                #yield (search_progress,tuple([tuple(next_level),size,mtime]))
-                                #yield [search_progress,size,mtime,*next_level]
                                 results_queue_put([search_progress,size,mtime,*next_level])
                                 search_progress_update_quant=0
 
@@ -973,13 +897,9 @@ class LibrerRecord:
                         else:
                             continue
 
-                    #yield (search_progress,tuple([tuple(next_level),size,mtime ]))
-                    #yield (search_progress,tuple([tuple(next_level),size,mtime ]))
-                    #yield [search_progress,size,mtime,*next_level]
                     results_queue_put([search_progress,size,mtime,*next_level])
                     search_progress_update_quant=0
 
-        #yield [search_progress]
         results_queue_put([search_progress])
         results_queue_put(True)
 
@@ -993,6 +913,7 @@ class LibrerRecord:
         else:
             print('error unknown sorting',what,reverse)
 
+    #############################################################
     def prepare_info(self):
         bytes_to_str_mod = lambda x : bytes_to_str(x) if isinstance(x,int) else x
 
@@ -1006,11 +927,6 @@ class LibrerRecord:
         except Exception as e:
             print('prepare_info stat error:%s' % e )
         else:
-            zip_file_info = {'header':0,'filestructure':0,'filenames':0,'customdata':0}
-            with ZipFile(self.file_path, "r") as zip_file:
-                for info in zip_file.infolist():
-                    zip_file_info[info.filename] = info.compress_size
-
             self_header = self.header
 
             local_time = strftime('%Y/%m/%d %H:%M:%S',localtime(self.header.creation_time))
@@ -1027,17 +943,22 @@ class LibrerRecord:
             self.txtinfo_basic = '\n'.join(info_list)
 
             info_list.append('')
-            info_list.append(f'database file   : {self.FILE_NAME} ({bytes_to_str(self.FILE_SIZE)})')
+            info_list.append(f'record file     : {self.FILE_NAME} ({bytes_to_str(self.FILE_SIZE)})')
             info_list.append('')
-            info_list.append('internal sizes  :   compressed  decompressed')
+            info_list.append( 'internal sizes  :  compressed  serialized    original    #unique      #entry')
             info_list.append('')
+            
+            h_data = self.header_sizes
+            fs_data = self.header.zipinfo["filestructure"]
+            fn_data = self.header.zipinfo["filenames"]
+            cd_data = self.header.zipinfo["customdata"]
+            
+            info_list.append(f'header          :{bytes_to_str_mod(h_data[0]).rjust(12)          }{bytes_to_str_mod(h_data[1]).rjust(12)     }{bytes_to_str_mod(h_data[2]).rjust(12)    }')
+            info_list.append(f'filestructure   :{bytes_to_str_mod(fs_data[0]).rjust(12)         }{bytes_to_str_mod(fs_data[1]).rjust(12)    }{bytes_to_str_mod(fs_data[2]).rjust(12)   }')
+            info_list.append(f'file names      :{bytes_to_str_mod(fn_data[0]).rjust(12)         }{bytes_to_str_mod(fn_data[1]).rjust(12)    }{bytes_to_str_mod(fn_data[2]).rjust(12)   }{str(len(self.filenames)).rjust(12)}')
 
-            info_list.append(f'header          :{bytes_to_str_mod(zip_file_info["header"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["header"]).rjust(14)}')
-            info_list.append(f'filestructure   :{bytes_to_str_mod(zip_file_info["filestructure"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["filestructure"]).rjust(14)}')
-            info_list.append(f'file names      :{bytes_to_str_mod(zip_file_info["filenames"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["filenames"]).rjust(14)}')
-
-            if zip_file_info["customdata"]:
-                info_list.append(f'custom data     :{bytes_to_str_mod(zip_file_info["customdata"]).rjust(14)}{bytes_to_str_mod(self.zipinfo["customdata"]).rjust(14)}')
+            if cd_data[0]:
+                info_list.append(f'custom data     :{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{str(len(self.customdata)).rjust(12)}')
 
             try:
                 if self_header.cde_list:
@@ -1063,27 +984,45 @@ class LibrerRecord:
         with ZipFile(file_path, "w") as zip_file:
             compressor = ZstdCompressor(level=compression_level,threads=-1)
 
-            header_ser = dumps(self.header)
-            self.zipinfo['header'] = len(header_ser)
-            zip_file.writestr('header',compressor.compress(header_ser))
-
-            self.info_line = f'saving {filename} (File stucture)'
+            #self.header.zipinfo = {}
+            
+            self.info_line = f'serializing File stucture'
             filestructure_ser = dumps(self.filestructure)
-            self.zipinfo['filestructure'] = len(filestructure_ser)
-            zip_file.writestr('filestructure',compressor.compress(filestructure_ser))
+            self.info_line = f'compressing File stucture'
+            filestructure_ser_compr = compressor.compress(filestructure_ser)
+            self.header.zipinfo['filestructure'] = (asizeof.asizeof(filestructure_ser_compr),asizeof.asizeof(filestructure_ser),asizeof.asizeof(self.filestructure))
+                        
+            self.info_line = f'serializing file names'
+            filenames_ser = dumps(self.filenames)
+            self.info_line = f'compressing file names'
+            filenames_ser_comp = compressor.compress(filenames_ser)
+            self.header.zipinfo['filenames'] = (asizeof.asizeof(filenames_ser_comp),asizeof.asizeof(filenames_ser),asizeof.asizeof(self.filenames))
+            
+            if self.customdata:
+                self.info_line = f'serializing custom data'
+                customdata_ser = dumps(self.customdata)
+                self.info_line = f'compressing custom data'
+                customdata_ser_compr = compressor.compress(customdata_ser)
+                self.header.zipinfo['customdata'] = (asizeof.asizeof(customdata_ser_compr),asizeof.asizeof(customdata_ser),asizeof.asizeof(self.customdata))
+            else:
+                self.header.zipinfo['customdata'] = (0,0,0)
+
+            ###########
+            header_ser = dumps(self.header)
+            header_ser_compr = compressor.compress(header_ser)
+            self.header_sizes=(asizeof.asizeof(header_ser_compr),asizeof.asizeof(header_ser),asizeof.asizeof(self.header))
+            
+            zip_file.writestr('header',compressor.compress(header_ser))
+            ###########
+            self.info_line = f'saving {filename} (File stucture)'
+            zip_file.writestr('filestructure',filestructure_ser_compr)
 
             self.info_line = f'saving {filename} (File names)'
-            filenames_ser = dumps(self.filenames)
-            self.zipinfo['filenames'] = len(filenames_ser)
-            zip_file.writestr('filenames',compressor.compress(filenames_ser))
+            zip_file.writestr('filenames',filenames_ser_comp)
 
             if self.customdata:
                 self.info_line = f'saving {filename} (Custom Data)'
-                customdata_ser = dumps(self.customdata)
-                self.zipinfo['customdata'] = len(customdata_ser)
-                zip_file.writestr('customdata',compressor.compress(customdata_ser))
-            else:
-                self.zipinfo['customdata'] = 0
+                zip_file.writestr('customdata',customdata_ser_compr)
 
         self.prepare_info()
 
@@ -1103,9 +1042,11 @@ class LibrerRecord:
 
         try:
             with ZipFile(file_path, "r") as zip_file:
-                header_ser = ZstdDecompressor().decompress(zip_file.read('header'))
+                header_ser_compr = zip_file.read('header')
+                header_ser = ZstdDecompressor().decompress(header_ser_compr)
                 self.header = loads( header_ser )
-                self.zipinfo['header'] = len(header_ser)
+
+                self.header_sizes=(asizeof.asizeof(header_ser_compr),asizeof.asizeof(header_ser),asizeof.asizeof(self.header))
 
             self.prepare_info()
 
@@ -1127,11 +1068,9 @@ class LibrerRecord:
 
                 filestructure_ser = decompressor.decompress(zip_file.read('filestructure'))
                 self.filestructure = loads( filestructure_ser )
-                self.zipinfo['filestructure'] = len(filestructure_ser)
 
                 filenames_ser = decompressor.decompress(zip_file.read('filenames'))
                 self.filenames = loads(filenames_ser)
-                self.zipinfo['filenames'] = len(filenames_ser)
 
             self.decompressed_filestructure = True
 
@@ -1149,10 +1088,8 @@ class LibrerRecord:
                     customdata_ser_comp = zip_file.read('customdata')
                     customdata_ser = ZstdDecompressor().decompress(customdata_ser_comp)
                     self.customdata = loads( customdata_ser )
-                    self.zipinfo['customdata'] = len(customdata_ser)
                 except:
                     self.customdata = []
-                    self.zipinfo['customdata'] = 0
 
             self.decompressed_customdata = True
 
@@ -1381,6 +1318,8 @@ class LibrerCore:
 
         #####################################################
         def threaded_run(record_nr,commands_list,results_list,progress_list,info_list,processes_list):
+            results_list_append = results_list[record_nr].find_results.append
+
             try:
                 subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True)
             except Exception as re:
@@ -1391,8 +1330,6 @@ class LibrerCore:
             processes_list[record_nr]=subprocess
             subprocess_stdout_readline = subprocess.stdout.readline
             subprocess_poll = subprocess.poll
-
-            results_list_append = results_list[record_nr].find_results.append
 
             while True:
                 if line := subprocess_stdout_readline():
@@ -1441,7 +1378,6 @@ class LibrerCore:
         #1 - started and alive
         #2 - started and !alive
 
-        abort_semi_list = [False]
         while True:
             if self.abort_action:
                 self.info_line = 'Aborting ...'
@@ -1458,9 +1394,8 @@ class LibrerCore:
             waiting_list = [ record_nr for record_nr in range(records_to_process_len) if jobs[record_nr][0]==0 ]
             waiting = len(waiting_list)
             running = len([record_nr for record_nr in range(records_to_process_len) if jobs[record_nr][0]==1 and jobs[record_nr][1].is_alive() ])
-            finished = len([record_nr for record_nr in range(records_to_process_len) if jobs[record_nr][0]==2])
-
-            self.search_record_nr = records_to_process_len-running-waiting
+            finished = self.search_record_nr = records_to_process_len-running-waiting
+            
             self.records_perc_info = self.search_record_nr * 100.0 / records_to_process_len
 
             self.info_line = f'Threads: waiting:{waiting}, running:{running}, finished:{finished}'
