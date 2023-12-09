@@ -1642,10 +1642,10 @@ class Gui:
 
             frame2 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
-            lab2_text=  \
-                        'Current log file   :  ' + log_file
+           
+            lab2_text=  distro_info + '\n\nCurrent log file   :  ' + log_file
 
-            lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='left')
+            lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='center')
             lab_courier.pack(expand=1,fill='both')
 
             try:
@@ -1869,7 +1869,7 @@ class Gui:
 
                     record_path = record.header.scan_path
                     size = bytes_to_str(record.header.sum_size)
-                    time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time))
+                    time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(record.header.creation_time))
                     self.tooltip_lab_configure(text=record.txtinfo_basic + node_cd)
                     # + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') + (f'\n\n=====================================================\n{node_crc}\n=====================================================' if node_crc else '')
 
@@ -3575,7 +3575,6 @@ class Gui:
             #    print(record.find_results[0])
             #except Exception as e:
             #    print('totu:',e)
-            
             self_item_to_data = self.item_to_data
 
             if tree.tag_has(self.RECORD_RAW,item):
@@ -3618,7 +3617,6 @@ class Gui:
 
                     if has_crc:
                         pass
-
                     kind = self_DIR if is_dir else self_FILE
 
                     image = (self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink or is_bind else self.ico_folder) if is_dir else (self.ico_cd_ok if cd_ok else self.ico_cd_error) if has_cd and not has_crc else (self.ico_cd_ok_crc if cd_ok else self.ico_cd_error_crc) if has_cd and has_crc else self.ico_crc if has_crc else self.ico_empty
@@ -3634,11 +3632,10 @@ class Gui:
                                     break
 
                     #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-                    values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime)),kind)
-
+                    values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(mtime)),kind)
                     sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
                     new_items_values[ ( sort_index,values,entry_name,image,bool(has_files) ) ] = (has_files,tags,data_tuple)
-
+                
                 tree_insert = tree.insert
                 for (sort_index,values,entry_name,image,sub_dictionary_bool),(has_files,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
                     new_item=tree_insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
@@ -3659,7 +3656,7 @@ class Gui:
         size=record.header.sum_size
 
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-        values = (record.header.label,record.header.label,0,record.header.scan_path,size,bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time)),self.RECORD)
+        values = (record.header.label,record.header.label,0,record.header.scan_path,size,bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(record.header.creation_time)),self.RECORD)
 
         record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.ico_record_raw_cd if record.has_cd() else self.ico_record_raw,tags=self.RECORD_RAW)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
@@ -3805,7 +3802,7 @@ class Gui:
     def record_info(self):
         if self.actions_processing:
             if self.current_record:
-                time_info = strftime('%Y/%m/%d %H:%M:%S',localtime(self.current_record.header.creation_time))
+                time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
                 self.get_text_info_dialog().show('Record Info.',self.current_record.txtinfo)
 
     #@logwrapper
@@ -3900,7 +3897,7 @@ if __name__ == "__main__":
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,"logs"])
 
         #p_args.log[0]) if p_args.log else
-        log_file = strftime('%Y_%m_%d_%H_%M_%S',localtime(time())) +'.txt'
+        log_file = strftime('%Y_%m_%d_%H_%M_%S',localtime_catched(time())) +'.txt'
         log=abspath(LOG_DIR + sep + log_file)
 
         Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
@@ -3918,6 +3915,7 @@ if __name__ == "__main__":
             distro_info=Path(path_join(LIBRER_DIR,'distro.info.txt')).read_text(encoding='ASCII')
         except Exception as exception_1:
             l_error(exception_1)
+            distro_info = 'Error. No distro.info.txt file.'
         else:
             l_info('distro info:\n%s',distro_info)
 

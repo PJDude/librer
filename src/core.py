@@ -74,8 +74,6 @@ from hashlib import sha1
 
 from psutil import Process
 
-from time import  perf_counter,time,strftime,localtime
-
 from difflib import SequenceMatcher
 
 from pickle import dumps,loads
@@ -88,6 +86,13 @@ data_format_version='1.0012'
 
 VERSION_FILE='version.txt'
 
+def localtime_catched(t):
+    try:
+        #mtime sometimes happens to be negative (Virtual box ?)
+        return localtime(t)
+    except:
+        return localtime(0)
+        
 def get_ver_timestamp():
     try:
         timestamp=pathlib_Path(path_join(dirname(__file__),VERSION_FILE)).read_text(encoding='ASCII').strip()
@@ -943,7 +948,7 @@ class LibrerRecord:
         else:
             self_header = self.header
 
-            local_time = strftime('%Y/%m/%d %H:%M:%S',localtime(self_header.creation_time))
+            local_time = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self_header.creation_time))
             info_list.append(f'record label    : {self_header.label}')
             info_list.append('')
             info_list.append(f'scanned path    : {self_header.scan_path}')
@@ -1008,9 +1013,9 @@ class LibrerRecord:
             compressor = ZstdCompressor(level=compression_level,threads=-1)
             compressor_compress = compressor.compress
             
-            self.info_line = f'serializing File stucture'
+            self.info_line = f'serializing file stucture'
             filestructure_ser = dumps(self.filestructure)
-            self.info_line = f'compressing File stucture'
+            self.info_line = f'compressing file stucture'
             filestructure_ser_compr = compressor_compress(filestructure_ser)
             self_header.zipinfo['filestructure'] = (asizeof(filestructure_ser_compr),asizeof(filestructure_ser),asizeof(self.filestructure))
 
