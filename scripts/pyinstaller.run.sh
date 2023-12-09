@@ -16,8 +16,8 @@ echo ''
 echo running-pyinstaller
 echo wd:`pwd`
 
-echo python:`python3 --version` > distro.info.txt
-echo pyinstaller:`pyinstaller --version` >> distro.info.txt
+echo `python3 --version` > distro.info.txt
+echo pyinstaller `pyinstaller --version` >> distro.info.txt
 
 echo ''
 echo running-pyinstaller-stage_librer
