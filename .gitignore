@@ -133,9 +133,9 @@ ersion.txt
 images.py
 
 
-/src/db/
+/src/data/
 /src/logs/
-/src/cfg.ini
 /src/version.txt
+/src/distro.info.txt
 /src/librer_images.py
 
