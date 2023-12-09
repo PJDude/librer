@@ -26,7 +26,7 @@
 #
 ####################################################################################
 
-from pympler import asizeof
+from pympler.asizeof import asizeof
  
 from json import loads as json_loads
 
@@ -84,7 +84,7 @@ windows = bool(os_name=='nt')
 
 PARAM_INDICATOR_SIGN = '%'
 
-data_format_version='1.0011'
+data_format_version='1.0012'
 
 VERSION_FILE='version.txt'
 
@@ -233,6 +233,12 @@ class LibrerRecordHeader :
         self.files_cde_size_extracted = 0
         self.files_cde_errors_quant = 0
 
+        self.items_names=0
+        self.items_cd=0
+        
+        self.references_names = 0
+        self.references_cd = 0
+        
         self.cde_list = []
         
         self.zipinfo = {}
@@ -628,9 +634,9 @@ class LibrerRecord:
         self_customdata = self.customdata
         sub_list = []
         for entry_name,items_list in scan_like_data.items():
-
             try:
                 entry_name_index = self.filenames_helper[entry_name]
+                self.header.references_names+=1
             except Exception as VE:
                 print('filenames error:',entry_name,VE)
             else:
@@ -671,6 +677,7 @@ class LibrerRecord:
                         sub_list_elem.append(self_tupelize_rec(sub_dict))
                     else:
                         if has_cd: #only files
+                            self.header.references_cd+=1
                             sub_list_elem.append( cd_index )
                         if has_crc: #only files
                             sub_list_elem.append( crc_val )
@@ -680,7 +687,8 @@ class LibrerRecord:
                 except Exception as e:
                     self.log.error('tupelize_rec error::%s',e )
                     print('tupelize_rec error:',e,' entry_name:',entry_name,' items_list:',items_list)
-
+        
+        
         return tuple(sorted(sub_list,key = lambda x : x[1:4]))
     #############################################################
 
@@ -694,10 +702,16 @@ class LibrerRecord:
         has_files = True
         cd_ok = False
         has_crc = False
-
+                
+        self.header.references_names=0
+        self.header.references_cd=0
+        
         code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc) ]
         self.filestructure = ('',code,size,mtime,self.tupelize_rec(self.scan_data))
-
+                
+        self.header.items_names=len(self.filenames)
+        self.header.items_cd=len(self.customdata)
+        
         del self.filenames_helper
         del self.scan_data
 
@@ -929,7 +943,7 @@ class LibrerRecord:
         else:
             self_header = self.header
 
-            local_time = strftime('%Y/%m/%d %H:%M:%S',localtime(self.header.creation_time))
+            local_time = strftime('%Y/%m/%d %H:%M:%S',localtime(self_header.creation_time))
             info_list.append(f'record label    : {self_header.label}')
             info_list.append('')
             info_list.append(f'scanned path    : {self_header.scan_path}')
@@ -945,21 +959,25 @@ class LibrerRecord:
             info_list.append('')
             info_list.append(f'record file     : {self.FILE_NAME} ({bytes_to_str(self.FILE_SIZE)})')
             info_list.append('')
-            info_list.append( 'internal sizes  :  compressed  serialized    original    #unique      #entry')
+            info_list.append( 'internal sizes  :  compressed  serialized    original       items  references')
             info_list.append('')
             
             h_data = self.header_sizes
-            fs_data = self.header.zipinfo["filestructure"]
-            fn_data = self.header.zipinfo["filenames"]
-            cd_data = self.header.zipinfo["customdata"]
-            
+            fs_data = self_header.zipinfo["filestructure"]
+            fn_data = self_header.zipinfo["filenames"]
+            cd_data = self_header.zipinfo["customdata"]
+
             info_list.append(f'header          :{bytes_to_str_mod(h_data[0]).rjust(12)          }{bytes_to_str_mod(h_data[1]).rjust(12)     }{bytes_to_str_mod(h_data[2]).rjust(12)    }')
             info_list.append(f'filestructure   :{bytes_to_str_mod(fs_data[0]).rjust(12)         }{bytes_to_str_mod(fs_data[1]).rjust(12)    }{bytes_to_str_mod(fs_data[2]).rjust(12)   }')
-            info_list.append(f'file names      :{bytes_to_str_mod(fn_data[0]).rjust(12)         }{bytes_to_str_mod(fn_data[1]).rjust(12)    }{bytes_to_str_mod(fn_data[2]).rjust(12)   }{str(len(self.filenames)).rjust(12)}')
-
+            info_list.append(f'file names      :{bytes_to_str_mod(fn_data[0]).rjust(12)         }{bytes_to_str_mod(fn_data[1]).rjust(12)    }{bytes_to_str_mod(fn_data[2]).rjust(12)   }{str(fnumber(self_header.items_names)).rjust(12)    }{str(fnumber(self_header.references_names)).rjust(12)}')
+            
             if cd_data[0]:
-                info_list.append(f'custom data     :{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{str(len(self.customdata)).rjust(12)}')
-
+                info_list.append(f'custom data     :{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{str(fnumber(self_header.items_cd)).rjust(12)       }{str(fnumber(self_header.references_cd)).rjust(12)}')
+            
+            info_list.append('')
+            info_list.append('filesystem  - ' + ('loaded' if self.decompressed_filestructure else 'not loaded yet') )
+            info_list.append('custom data - ' + ('not present' if not bool(cd_data[0]) else 'loaded' if self.decompressed_customdata else 'not loaded yet') )
+            
             try:
                 if self_header.cde_list:
                     info_list.append('\nCDE rules (draft):')
@@ -969,7 +987,10 @@ class LibrerRecord:
                 pass
 
         self.txtinfo = '\n'.join(info_list)
-
+    
+    def has_cd(self):
+        return bool(self.header.zipinfo["customdata"][0])
+        
     def save(self,file_path=None,compression_level=16):
         if file_path:
             filename = basename(normpath(file_path))
@@ -980,39 +1001,40 @@ class LibrerRecord:
         self.info_line = f'saving {filename}'
 
         self.log.info('saving %s' % file_path)
-
+        
+        self_header = self.header
+        
         with ZipFile(file_path, "w") as zip_file:
             compressor = ZstdCompressor(level=compression_level,threads=-1)
-
-            #self.header.zipinfo = {}
+            compressor_compress = compressor.compress
             
             self.info_line = f'serializing File stucture'
             filestructure_ser = dumps(self.filestructure)
             self.info_line = f'compressing File stucture'
-            filestructure_ser_compr = compressor.compress(filestructure_ser)
-            self.header.zipinfo['filestructure'] = (asizeof.asizeof(filestructure_ser_compr),asizeof.asizeof(filestructure_ser),asizeof.asizeof(self.filestructure))
-                        
+            filestructure_ser_compr = compressor_compress(filestructure_ser)
+            self_header.zipinfo['filestructure'] = (asizeof(filestructure_ser_compr),asizeof(filestructure_ser),asizeof(self.filestructure))
+
             self.info_line = f'serializing file names'
             filenames_ser = dumps(self.filenames)
             self.info_line = f'compressing file names'
-            filenames_ser_comp = compressor.compress(filenames_ser)
-            self.header.zipinfo['filenames'] = (asizeof.asizeof(filenames_ser_comp),asizeof.asizeof(filenames_ser),asizeof.asizeof(self.filenames))
+            filenames_ser_comp = compressor_compress(filenames_ser)
+            self_header.zipinfo['filenames'] = (asizeof(filenames_ser_comp),asizeof(filenames_ser),asizeof(self.filenames))
             
             if self.customdata:
                 self.info_line = f'serializing custom data'
                 customdata_ser = dumps(self.customdata)
                 self.info_line = f'compressing custom data'
-                customdata_ser_compr = compressor.compress(customdata_ser)
-                self.header.zipinfo['customdata'] = (asizeof.asizeof(customdata_ser_compr),asizeof.asizeof(customdata_ser),asizeof.asizeof(self.customdata))
+                customdata_ser_compr = compressor_compress(customdata_ser)
+                self_header.zipinfo['customdata'] = (asizeof(customdata_ser_compr),asizeof(customdata_ser),asizeof(self.customdata))
             else:
-                self.header.zipinfo['customdata'] = (0,0,0)
+                self_header.zipinfo['customdata'] = (0,0,0)
 
             ###########
-            header_ser = dumps(self.header)
-            header_ser_compr = compressor.compress(header_ser)
-            self.header_sizes=(asizeof.asizeof(header_ser_compr),asizeof.asizeof(header_ser),asizeof.asizeof(self.header))
+            header_ser = dumps(self_header)
+            header_ser_compr = compressor_compress(header_ser)
+            self.header_sizes=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self_header))
             
-            zip_file.writestr('header',compressor.compress(header_ser))
+            zip_file.writestr('header',header_ser_compr)
             ###########
             self.info_line = f'saving {filename} (File stucture)'
             zip_file.writestr('filestructure',filestructure_ser_compr)
@@ -1037,6 +1059,7 @@ class LibrerRecord:
     def load(self,file_path):
         self.file_path = file_path
         file_name = basename(normpath(file_path))
+        
         #self.log.info('loading %s' % file_name)
         #TODO - problem w podprocesie
 
@@ -1045,18 +1068,19 @@ class LibrerRecord:
                 header_ser_compr = zip_file.read('header')
                 header_ser = ZstdDecompressor().decompress(header_ser_compr)
                 self.header = loads( header_ser )
-
-                self.header_sizes=(asizeof.asizeof(header_ser_compr),asizeof.asizeof(header_ser),asizeof.asizeof(self.header))
-
-            self.prepare_info()
+                self.header_sizes=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self.header))
 
             if self.header.data_format_version != data_format_version:
-                self.log.error(f'incompatible data format version error: {self.header.data_format_version} vs {data_format_version}')
-                return True
+                message = f'loading "{file_path}" error: incompatible data format version: {self.header.data_format_version} vs {data_format_version}'
+                self.log.error(message)
+                return message
+            
+            self.prepare_info()
 
         except Exception as e:
-            print('loading error:file:%s error:%s' % (file_path,e) )
-            return True
+            message = f'loading "{file_path}" error: "{e}"'
+            #self.log.error(message)
+            return message
 
         return False
 
@@ -1073,7 +1097,6 @@ class LibrerRecord:
                 self.filenames = loads(filenames_ser)
 
             self.decompressed_filestructure = True
-
             self.prepare_info()
 
             return True
@@ -1092,8 +1115,8 @@ class LibrerRecord:
                     self.customdata = []
 
             self.decompressed_customdata = True
-
             self.prepare_info()
+            
             return True
 
         return False
@@ -1158,7 +1181,7 @@ class LibrerCore:
         #print('core abort')
         self.abort_action = True
 
-    def read_records(self):
+    def threaded_read_records(self,load_errors):
         self.log.info('read_records: %s',self.db_dir)
         self.records_to_show=[]
 
@@ -1176,10 +1199,12 @@ class LibrerCore:
 
             info_curr_quant+=1
             info_curr_size+=size
-
-            if new_record.load_wrap(self.db_dir,filename) :
+            
+            
+            if res:=new_record.load_wrap(self.db_dir,filename) :
                 self.log.warning('removing:%s',filename)
                 self.records.remove(new_record)
+                load_errors.append(res)
             else:
                 self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
         self.update_sorted()

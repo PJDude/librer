@@ -249,7 +249,11 @@ class Gui:
         #self_hg_ico = self.hg_ico
         self.hg_ico_len = len(self.hg_ico)
 
+        self.ico_record_raw = self_ico['record_raw']
+        self.ico_record_raw_cd = self_ico['record_raw_cd']
         self.ico_record = self_ico['record']
+        self.ico_record_cd = self_ico['record_cd']
+        self.ico_record_cd_loaded = self_ico['record_cd_loaded']
         self.ico_cd_ok = self_ico['cd_ok']
         self.ico_cd_ok_crc = self_ico['cd_ok_crc']
         self.ico_cd_error = self_ico['cd_error']
@@ -271,6 +275,7 @@ class Gui:
 
         self_main.iconphoto(True, self_ico_librer,self.ico_record)
 
+        self.RECORD_RAW='r'
         self.RECORD='R'
         self.DIR='D'
         self.DIRLINK='L'
@@ -451,6 +456,7 @@ class Gui:
 
         tree_tag_configure = tree.tag_configure
 
+        tree_tag_configure(self.RECORD_RAW, foreground='gray')
         tree_tag_configure(self.RECORD, foreground='green')
         tree_tag_configure(self.SYMLINK, foreground='gray')
         tree_tag_configure(self.FOUND, foreground='red')
@@ -608,11 +614,12 @@ class Gui:
 
         self.status_info.configure(image='',text = 'Checking records to load ...')
         records_quant,records_size = librer_core.read_records_pre()
-
+        
+        load_errors = []
         if records_quant:
             self.status_info.configure(image='',text = 'Loading records ...')
 
-            read_thread=Thread(target=lambda : librer_core.read_records(),daemon=True)
+            read_thread=Thread(target=lambda : librer_core.threaded_read_records(load_errors),daemon=True)
             read_thread_is_alive = read_thread.is_alive
 
             self_progress_dialog_on_load.lab_l1.configure(text='Records space:')
@@ -674,7 +681,10 @@ class Gui:
 
             if self.action_abort:
                 self.info_dialog_on_main.show('Records loading aborted','Restart Librer to gain full access to the recordset.')
-
+        
+        if load_errors:
+            self.get_text_info_dialog().show('Loading errors','\n\n'.join(load_errors) )
+        
         self.menu_enable()
         self.menubar_config(cursor='')
         self.main_config(cursor='')
@@ -1580,11 +1590,11 @@ class Gui:
             Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
             Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
                         
-            (find_modtime_frame := LabelFrame(sfdma,text='File mod time',bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
+            (find_modtime_frame := LabelFrame(sfdma,text='File last modification time',bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
             find_modtime_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
-            Label(find_modtime_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
-            Label(find_modtime_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
+            Label(find_modtime_frame,text='after: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
+            Label(find_modtime_frame,text='before: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
 
             Entry(find_modtime_frame,textvariable=self.find_modtime_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
             Entry(find_modtime_frame,textvariable=self.find_modtime_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
@@ -1726,17 +1736,21 @@ class Gui:
             self.status('importing record  ...')
 
             new_record = librer_core.create()
-            if new_record.load(self.import_dialog_file):
-                self.log.error('import failed :%s',self.import_dialog_file)
+            if res:=new_record.load(self.import_dialog_file):
+                self.log.error(f'import failed :{self.import_dialog_file} error: {res}')
+                #TODO - fialog z informacja
                 return
 
             local_file_name = 'imported.'+ str(time()) + '.dat'
             local_file = sep.join([DATA_DIR,local_file_name])
             new_record.clone_record(local_file,keep_cd,keep_crc,self.import_compr_var_int.get())
 
-            new_record.load_wrap(DATA_DIR,local_file_name)
-            self.single_record_show(new_record)
-            self.last_dir = dirname(self.import_dialog_file)
+            if res:=new_record.load_wrap(DATA_DIR,local_file_name):
+                print(f'record_import:{res}')
+                #TODO wtorny load
+            else:
+                self.single_record_show(new_record)
+                self.last_dir = dirname(self.import_dialog_file)
 
     def focusin(self):
         #print('focusin')
@@ -3517,6 +3531,10 @@ class Gui:
         self.status('loading custom data ...')
         self.main.update()
         record.decompress_customdata()
+        
+        item = self.record_to_item[record]
+        self.tree.item(item,image=self.ico_record_cd_loaded)
+        #tags=self.RECORD
 
     @block_actions_processing
     @gui_block
@@ -3557,13 +3575,15 @@ class Gui:
             #    print(record.find_results[0])
             #except Exception as e:
             #    print('totu:',e)
+            
+            self_item_to_data = self.item_to_data
 
-
-            if tree.tag_has(self.RECORD,item):
+            if tree.tag_has(self.RECORD_RAW,item):
                 self.access_filestructure(record)
-                self.item_to_data[item] = record.filestructure
+                self_item_to_data[item] = record.filestructure
+                self.tree.item(item,tags=self.RECORD, image=self.ico_record_cd if record.has_cd() else self.ico_record)
 
-            top_data_tuple = self.item_to_data[item]
+            top_data_tuple = self_item_to_data[item]
 
             (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple[0:4]
 
@@ -3609,16 +3629,9 @@ class Gui:
                         tags=''
                         if record.find_results:
                             for find_result in record.find_results:
-                                #print(f'compare:{find_result[0]} vs {entry_subpath_tuple}')
                                 if find_result[0]==entry_subpath_tuple:
-                                    #print('   czad!')
                                     tags=self.FOUND
                                     break
-                                #else:
-                                #    print('lipa')
-
-                    #self.tree.item(current_item,tags=self.FOUND)
-                    #items_names_tuple,res_size,res_mtime=record.find_results[self.find_result_index]
 
                     #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
                     values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime(mtime)),kind)
@@ -3629,7 +3642,7 @@ class Gui:
                 tree_insert = tree.insert
                 for (sort_index,values,entry_name,image,sub_dictionary_bool),(has_files,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
                     new_item=tree_insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
-                    self.item_to_data[new_item] = data_tuple
+                    self_item_to_data[new_item] = data_tuple
                     if sub_dictionary_bool:
                         tree_insert(new_item,'end') #dummy_sub_item
                         #if to_the_bottom:
@@ -3648,7 +3661,7 @@ class Gui:
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         values = (record.header.label,record.header.label,0,record.header.scan_path,size,bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime(record.header.creation_time)),self.RECORD)
 
-        record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.ico_record,tags=self.RECORD)
+        record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.ico_record_raw_cd if record.has_cd() else self.ico_record_raw,tags=self.RECORD_RAW)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
         self.tree_sort_item(None)
