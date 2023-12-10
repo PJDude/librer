@@ -43,9 +43,9 @@ from fnmatch import fnmatch,translate
 from re import search,IGNORECASE
 from difflib import SequenceMatcher
 
-from pickle import dumps,loads,dump,load
+from pickle import load
 
-from multiprocessing import Process, Queue
+#from multiprocessing import Process, Queue
 from queue import Empty
 
 import base64
@@ -84,13 +84,13 @@ def parse_args(ver):
 
     file_group.add_argument('-fre'  ,'--file_regexp',type=str,help='serch files by regular expression')
 
-    #file_glob_group = file_group.add_argument_group('file name glob matching')
-    file_group.add_argument('-fg'   ,'--file_glob',type=str,help='serch files by glob expression')
-    file_group.add_argument('-fgcs' ,'--file_case_sensitive',action='store_true',help='serch files by case sensitive glob expression')
+    file_glob_group = file_group.add_argument_group('file name glob matching')
+    file_glob_group.add_argument('-fg'   ,'--file_glob',type=str,help='serch files by glob expression')
+    file_glob_group.add_argument('-fgcs' ,'--file_case_sensitive',action='store_true',help='serch files by case sensitive glob expression')
 
-    #file_fuzzy_group = file_group.add_argument_group('file name fuzzy matching')
-    file_group.add_argument('-ff'   ,'--file_fuzzy',type=str,help='serch files by fuzzy match with threshold')
-    file_group.add_argument('-fft'  ,'--file_fuzzy_threshold', type=float,help='threshold value')
+    file_fuzzy_group = file_group.add_argument_group('file name fuzzy matching')
+    file_fuzzy_group.add_argument('-ff'   ,'--file_fuzzy',type=str,help='serch files by fuzzy match with threshold')
+    file_fuzzy_group.add_argument('-fft'  ,'--file_fuzzy_threshold', type=float,help='threshold value')
 
     cd_group = parser.add_mutually_exclusive_group()
     cd_group.add_argument('-cdw','--cd_without',action='store_true',help='serch for riles without custom data')
@@ -99,13 +99,13 @@ def parse_args(ver):
 
     cd_group.add_argument('-cdre'   ,'--cd_regexp',type=str,help='serch by regular expression on custom data')
 
-    #cd_glob_group = file_group.add_argument_group('Custom data glob matching')
-    cd_group.add_argument('-cdg'    ,'--cd_glob',type=str,help='serch by glob expression on custom data')
-    cd_group.add_argument('-cdgcs'  ,'--cd_case_sensitive',action='store_true',help='serch by case sensitive glob expression on custom data')
+    cd_glob_group = file_group.add_argument_group('Custom data glob matching')
+    cd_glob_group.add_argument('-cdg'    ,'--cd_glob',type=str,help='serch by glob expression on custom data')
+    cd_glob_group.add_argument('-cdgcs'  ,'--cd_case_sensitive',action='store_true',help='serch by case sensitive glob expression on custom data')
 
-    #cd_fuzzy_group = cd_group.add_argument_group('Custom data fuzzy matching')
-    cd_group.add_argument('-cdf'    ,'--cd_fuzzy',type=str,help='serch by fuzzy match with threshold on custom data')
-    cd_group.add_argument('-cdft'   ,'--cd_fuzzy_threshold',type=float,help='threshold value on custom data')
+    cd_fuzzy_group = cd_group.add_argument_group('Custom data fuzzy matching')
+    cd_fuzzy_group.add_argument('-cdf'    ,'--cd_fuzzy',type=str,help='serch by fuzzy match with threshold on custom data')
+    cd_fuzzy_group.add_argument('-cdft'   ,'--cd_fuzzy_threshold',type=float,help='threshold value on custom data')
 
     parser.add_argument('-min','--size_min',type=str,help='minimum size')
     parser.add_argument('-max','--size_max',type=str,help='maximum size')
@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
     name_case_sens=args.file_case_sensitive
     cd_case_sens=args.cd_case_sensitive
-
+    
     name_regexp=args.file_regexp
     name_glob=args.file_glob
     name_fuzzy=args.file_fuzzy
