@@ -82,7 +82,7 @@ windows = bool(os_name=='nt')
 
 PARAM_INDICATOR_SIGN = '%'
 
-data_format_version='1.0012'
+data_format_version='0017'
 
 VERSION_FILE='version.txt'
 
@@ -236,7 +236,6 @@ class LibrerRecordHeader :
         self.files_cde_quant_sum = 0
 
         self.files_cde_size_extracted = 0
-        self.files_cde_errors_quant = 0
 
         self.items_names=0
         self.items_cd=0
@@ -245,6 +244,8 @@ class LibrerRecordHeader :
         self.references_cd = 0
         
         self.cde_list = []
+        self.files_cde_errors_quant = {}
+        self.files_cde_errors_quant_all = 0
         
         self.zipinfo = {}
         
@@ -392,9 +393,13 @@ class LibrerRecord:
         self.scan_data={}
 
         #########################
+        time_start = perf_counter()
         filenames_set=set()
         self.scan_rec(self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev)
-
+        time_end = perf_counter()
+        
+        self.header.scanning_time = time_end-time_start
+        
         self.filenames = tuple(sorted(list(filenames_set)))
         #########################
         self.info_line = 'indexing filesystem names'
@@ -486,22 +491,32 @@ class LibrerRecord:
         self_header.files_cde_quant = 0
         self_header.files_cde_size = 0
         self_header.files_cde_size_extracted = 0
-        self_header.files_cde_errors_quant = 0
+        self_header.files_cde_errors_quant = defaultdict(int)
+        self_header.files_cde_errors_quant_all = 0
         self_header.files_cde_quant_sum = len(self.customdata_pool)
 
         cde_list = self.header.cde_list
-
+    
         customdata_helper={}
-
+        
+        customdata_stats_size=defaultdict(int)
+        customdata_stats_uniq=defaultdict(int)
+        customdata_stats_refs=defaultdict(int)
+        customdata_stats_time=defaultdict(float)
+        
+        customdata_stats_time_all=[0]
         #############################################################
         def threaded_cde(timeout_semi_list):
             cd_index=0
             self_customdata_append = self.customdata.append
+            
+            time_start_all = perf_counter()
             for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
                 decoding_error=False
                 self.killed=False
                 self.abort_single_file_cde=False
 
+                time_start = perf_counter()
                 if self.abort_action:
                     returncode=200
                     output = 'Custom data extraction was aborted.'
@@ -520,7 +535,7 @@ class LibrerRecord:
 
                     timeout_val=time()+timeout if timeout else None
                     #####################################
-
+                    
                     try:
                         subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,shell=shell,text=True)
                         timeout_semi_list[0]=(timeout_val,subprocess)
@@ -557,11 +572,15 @@ class LibrerRecord:
                             output_list.append('Killed.')
 
                         output = '\n'.join(output_list)
-
+                    
                     #####################################
 
+                time_end = perf_counter()
+                customdata_stats_time[rule_nr]+=time_end-time_start
+                
                 if returncode or decoding_error or self.killed or aborted:
-                    self_header.files_cde_errors_quant+=1
+                    self_header.files_cde_errors_quant[rule_nr]+=1
+                    self_header.files_cde_errors_quant_all+=1
 
                 if not aborted:
                     self_header.files_cde_quant += 1
@@ -570,21 +589,29 @@ class LibrerRecord:
 
                 new_elem={}
                 new_elem['cd_ok']= bool(returncode==0 and not decoding_error and not self.killed and not aborted)
-
-                if output not in customdata_helper:
-                    customdata_helper[output]=cd_index
+                
+                cd_field=(rule_nr,returncode,output)
+                if cd_field not in customdata_helper:
+                    customdata_helper[cd_field]=cd_index
                     new_elem['cd_index']=cd_index
                     cd_index+=1
 
-                    self_customdata_append(output)
+                    self_customdata_append(cd_field)
+                    
+                    customdata_stats_size[rule_nr]+=asizeof(cd_field)
+                    customdata_stats_uniq[rule_nr]+=1
+                    customdata_stats_refs[rule_nr]+=1
                 else:
-                    new_elem['cd_index']=customdata_helper[output]
+                    new_elem['cd_index']=customdata_helper[cd_field]
+                    customdata_stats_refs[rule_nr]+=1
 
                 #if do_crc:
                 #    new_elem['crc_val']=crc_val
                 scan_like_list.append(new_elem)
-
-            print('cd thread done.')
+            
+            time_end_all = perf_counter()
+            
+            customdata_stats_time_all[0]=time_end_all-time_start_all
             sys.exit() #thread
 
         timeout_semi_list = [None]
@@ -629,14 +656,20 @@ class LibrerRecord:
 
         del self.customdata_pool
         del customdata_helper
-
+        
+        self.header.cde_stats_size=customdata_stats_size
+        self.header.cde_stats_uniq=customdata_stats_uniq
+        self.header.cde_stats_refs=customdata_stats_refs
+        self.header.cde_stats_time=customdata_stats_time
+        self.header.cde_stats_time_all=customdata_stats_time_all[0]
+        
     #############################################################
     def tupelize_rec(self,scan_like_data):
         LUT_encode_loc = LUT_encode
 
         self_tupelize_rec = self.tupelize_rec
 
-        self_customdata = self.customdata
+        #self_customdata = self.customdata
         sub_list = []
         for entry_name,items_list in scan_like_data.items():
             try:
@@ -892,7 +925,7 @@ class LibrerRecord:
                             continue
                     elif cd_search_kind_is_regezp_glob_or_fuzzy:
                         if has_cd and cd_ok:
-                            cd_data = self_customdata[cd_nr]
+                            cd_data = self_customdata[cd_nr][2]
                         else:
                             continue
 
@@ -964,7 +997,19 @@ class LibrerRecord:
             info_list.append('')
             info_list.append(f'record file     : {self.FILE_NAME} ({bytes_to_str(self.FILE_SIZE)})')
             info_list.append('')
-            info_list.append( 'internal sizes  :  compressed  serialized    original       items  references')
+            info_list.append( 'data collection times:')
+            info_list.append(f'filesystem      : {str(round(self_header.scanning_time,2))}s')
+            info_list.append(f'custom data     : {str(round(self_header.cde_stats_time_all,2))}s')
+            info_list.append('')
+            info_list.append( 'serializing and compression times:')
+            info_list.append(f'file structure  : {str(round(self_header.filestructure_time,2))}s')
+            info_list.append(f'file names      : {str(round(self_header.filenames_time,2))}s')
+            info_list.append(f'custom data     : {str(round(self_header.customdata_time,2))}s')
+            info_list.append('')
+            info_list.append(f'custom data extraction errors : {fnumber(self_header.files_cde_errors_quant_all)}')
+                
+            info_list.append('')
+            info_list.append( 'internal sizes  :  compressed  serialized    original       items  references        time     errors')
             info_list.append('')
             
             h_data = self.header_sizes
@@ -974,11 +1019,35 @@ class LibrerRecord:
 
             info_list.append(f'header          :{bytes_to_str_mod(h_data[0]).rjust(12)          }{bytes_to_str_mod(h_data[1]).rjust(12)     }{bytes_to_str_mod(h_data[2]).rjust(12)    }')
             info_list.append(f'filestructure   :{bytes_to_str_mod(fs_data[0]).rjust(12)         }{bytes_to_str_mod(fs_data[1]).rjust(12)    }{bytes_to_str_mod(fs_data[2]).rjust(12)   }')
-            info_list.append(f'file names      :{bytes_to_str_mod(fn_data[0]).rjust(12)         }{bytes_to_str_mod(fn_data[1]).rjust(12)    }{bytes_to_str_mod(fn_data[2]).rjust(12)   }{str(fnumber(self_header.items_names)).rjust(12)    }{str(fnumber(self_header.references_names)).rjust(12)}')
+            info_list.append(f'file names      :{bytes_to_str_mod(fn_data[0]).rjust(12)         }{bytes_to_str_mod(fn_data[1]).rjust(12)    }{bytes_to_str_mod(fn_data[2]).rjust(12)   }{fnumber(self_header.items_names).rjust(12)    }{fnumber(self_header.references_names).rjust(12)}')
             
             if cd_data[0]:
-                info_list.append(f'custom data     :{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{str(fnumber(self_header.items_cd)).rjust(12)       }{str(fnumber(self_header.references_cd)).rjust(12)}')
+                info_list.append(f'custom data     :{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{fnumber(self_header.items_cd).rjust(12)       }{fnumber(self_header.references_cd).rjust(12)}')
             
+            info_list.append('')
+            
+            try:
+                if self_header.cde_list:
+                    info_list.append('\nCustom data with details about the rules:')
+                    for nr,(expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc) in enumerate(self_header.cde_list):
+                        info_list.append(f'\nrule nr    : {nr}                           {bytes_to_str(self_header.cde_stats_size[nr]).rjust(12)}{fnumber(self_header.cde_stats_uniq[nr]).rjust(12)}{fnumber(self_header.cde_stats_refs[nr]).rjust(12)}{str(round(self_header.cde_stats_time[nr],2)).rjust(12)}s{fnumber(self_header.files_cde_errors_quant[nr]).rjust(11)}')
+                        
+                        info_list.append(f'files      : {expressions}')
+                        if use_smin:
+                            info_list.append(f'min size   : {bytes_to_str(smin_int)}')
+                        if use_smax:
+                            info_list.append(f'max size   : {bytes_to_str(smax_int)}')
+                        
+                        in_shell_string = '(in shell)' if shell else ''
+                        info_list.append(f'command    : {executable} {parameters} {in_shell_string}')
+                        if timeout:
+                            info_list.append(f'timeout    : {timeout}s')
+                        
+
+            except Exception as EE:
+                print(EE)
+                pass
+
             info_list.append('')
             
             loaded_fs_info = 'filesystem  - ' + ('loaded' if self.decompressed_filestructure else 'not loaded yet')
@@ -987,14 +1056,6 @@ class LibrerRecord:
             info_list.append(loaded_cd_info)
             
             self.txtinfo_basic = self.txtinfo_basic + f'\n\n{loaded_fs_info}\n{loaded_cd_info}'
-            
-            try:
-                if self_header.cde_list:
-                    info_list.append('\nCDE rules (draft):')
-                    for nr,single_cde in enumerate(self_header.cde_list):
-                        info_list.append(str(nr) + ':' + str(single_cde))
-            except:
-                pass
 
         self.txtinfo = '\n'.join(info_list)
     
@@ -1018,18 +1079,21 @@ class LibrerRecord:
             compressor = ZstdCompressor(level=compression_level,threads=-1)
             compressor_compress = compressor.compress
             
+            t0 = perf_counter()
             self.info_line = f'serializing file stucture'
             filestructure_ser = dumps(self.filestructure)
             self.info_line = f'compressing file stucture'
             filestructure_ser_compr = compressor_compress(filestructure_ser)
             self_header.zipinfo['filestructure'] = (asizeof(filestructure_ser_compr),asizeof(filestructure_ser),asizeof(self.filestructure))
 
+            t1 = perf_counter()
             self.info_line = f'serializing file names'
             filenames_ser = dumps(self.filenames)
             self.info_line = f'compressing file names'
             filenames_ser_comp = compressor_compress(filenames_ser)
             self_header.zipinfo['filenames'] = (asizeof(filenames_ser_comp),asizeof(filenames_ser),asizeof(self.filenames))
             
+            t2 = perf_counter()
             if self.customdata:
                 self.info_line = f'serializing custom data'
                 customdata_ser = dumps(self.customdata)
@@ -1038,7 +1102,13 @@ class LibrerRecord:
                 self_header.zipinfo['customdata'] = (asizeof(customdata_ser_compr),asizeof(customdata_ser),asizeof(self.customdata))
             else:
                 self_header.zipinfo['customdata'] = (0,0,0)
-
+            
+            t3 = perf_counter()
+        
+            self.header.filestructure_time = t1-t0
+            self.header.filenames_time = t2-t1
+            self.header.customdata_time = t3-t2
+        
             ###########
             header_ser = dumps(self_header)
             header_ser_compr = compressor_compress(header_ser)

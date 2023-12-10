@@ -3116,7 +3116,7 @@ class Gui:
             while cd_thread_is_alive():
                 change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
                 change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(new_record.header.files_cde_size_extracted) )
-                change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record.header.files_cde_errors_quant) )
+                change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record.header.files_cde_errors_quant_all) )
 
                 files_q = new_record.header.files_cde_quant
                 files_perc = files_q * 100.0 / new_record.header.files_cde_quant_sum if new_record.header.files_cde_quant_sum else 0
@@ -3737,7 +3737,7 @@ class Gui:
 
                             self.access_customdata(record)
 
-                            if cd_data := record.customdata[cd_index]:
+                            if cd_data := record.customdata[cd_index][2]:
                                 cd_txt = cd_data
 
                                 self.get_text_info_dialog().show('Custom Data',cd_txt)
