@@ -980,8 +980,13 @@ class LibrerRecord:
                 info_list.append(f'custom data     :{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{str(fnumber(self_header.items_cd)).rjust(12)       }{str(fnumber(self_header.references_cd)).rjust(12)}')
             
             info_list.append('')
-            info_list.append('filesystem  - ' + ('loaded' if self.decompressed_filestructure else 'not loaded yet') )
-            info_list.append('custom data - ' + ('not present' if not bool(cd_data[0]) else 'loaded' if self.decompressed_customdata else 'not loaded yet') )
+            
+            loaded_fs_info = 'filesystem  - ' + ('loaded' if self.decompressed_filestructure else 'not loaded yet')
+            loaded_cd_info = 'custom data - ' + ('not present' if not bool(cd_data[0]) else 'loaded' if self.decompressed_customdata else 'not loaded yet')
+            info_list.append(loaded_fs_info)
+            info_list.append(loaded_cd_info)
+            
+            self.txtinfo_basic = self.txtinfo_basic + f'\n\n{loaded_fs_info}\n{loaded_cd_info}'
             
             try:
                 if self_header.cde_list:

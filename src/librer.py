@@ -252,6 +252,7 @@ class Gui:
         self.ico_record_raw = self_ico['record_raw']
         self.ico_record_raw_cd = self_ico['record_raw_cd']
         self.ico_record = self_ico['record']
+        self.ico_records_all = self_ico['records_all']
         self.ico_record_cd = self_ico['record_cd']
         self.ico_record_cd_loaded = self_ico['record_cd_loaded']
         self.ico_cd_ok = self_ico['cd_ok']
@@ -267,6 +268,8 @@ class Gui:
         self.ico_folder_error = self_ico['folder_error']
         self.ico_warning = self_ico['warning']
         self.ico_empty = self_ico['empty']
+        self.ico_cancel = self_ico['cancel']
+        self.ico_open = self_ico['open']
 
         #self.ico_delete = self_ico['delete']
 
@@ -376,26 +379,18 @@ class Gui:
         self.menubar_disable = lambda x : self.menubar_entryconfig(x, state="disabled")
 
         (status_frame := Frame(self_main,bg=self.bg_color)).pack(side='bottom', fill='both')
-
-        self.status_record=Label(status_frame,image=self.ico_record,text='--',width=100,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self.status_record.pack(fill='x',expand=1,side='left')
+        
+        self.status_records_all=Label(status_frame,image=self.ico_record,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_records_all.pack(fill='x',expand=0,side='left')
+        self.status_records_all_configure = lambda x : self.status_records_all.configure(image = self.ico_records_all, text = x,compound='left')
+        self.widget_tooltip(self.status_records_all,'All records in repository')
+        
+        self.status_record=Label(status_frame,image=self.ico_record,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_record.pack(fill='x',expand=0,side='left')
         self.status_record_configure = lambda x : self.status_record.configure(image = self.ico_record, text = x,compound='left')
 
-        self.widget_tooltip_cget(self.status_record,'Selected record (user label):')
-
-        self_status_record_path = self.status_record_path=Label(status_frame,text='--',width=20,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self_status_record_path.pack(fill='x',expand=1,side='left')
-        self_status_record_path_configure = self_status_record_path.configure
-        self.status_record_path_configure = lambda x : self_status_record_path_configure(text = x,compound='left')
-
-        self.widget_tooltip_cget(self_status_record_path,'Scanpath of selected record')
-
-        self_status_record_subpath = self.status_record_subpath=Label(status_frame,text='--',width=60,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
-        self_status_record_subpath.pack(fill='x',expand=1,side='left')
-        self_status_record_subpath_configure = self_status_record_subpath.configure
-        self.status_record_subpath_configure = lambda x : self_status_record_subpath_configure(text = x,compound='left')
-
-        self.widget_tooltip_cget(self_status_record_subpath,'subpath of selected item')
+        self.widget_tooltip(self.status_record,'Selected record')
+        self.status_record.bind("<Double-Button-1>", lambda event : self.record_info() )
 
         self.status_info = Label(status_frame,text='Initializing...',relief='sunken',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_info.pack(fill='x',expand=1,side='left')
@@ -448,12 +443,6 @@ class Gui:
         vsb1.pack(side='right',fill='y',expand=0)
         tree.pack(fill='both',expand=1, side='left')
 
-        #tree_heading = tree.heading
-
-        #for col in self.real_display_columns:
-        #    if col in self_org_label:
-        #        tree_heading(col,text=self_org_label[col])
-
         tree_tag_configure = tree.tag_configure
 
         tree_tag_configure(self.RECORD_RAW, foreground='gray')
@@ -482,7 +471,7 @@ class Gui:
         self.widget_tooltip(self.progress_dialog_on_load.abort_button,'')
 
         #######################################################################
-
+        
         def file_cascade_post():
             item_actions_state=('disabled','normal')[self.sel_item is not None]
 
@@ -491,7 +480,9 @@ class Gui:
                 self_file_cascade_add_command = self.file_cascade.add_command
                 self_file_cascade_add_separator = self.file_cascade.add_separator
                 state_on_records = 'normal' if librer_core.records else 'disabled'
-
+                
+                state_has_cd = ('disabled','normal')[self.item_has_cd(self.tree.focus())]
+                
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
                 self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record,compound='left')
 
@@ -499,16 +490,10 @@ class Gui:
                 self_file_cascade_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
                 self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_empty,compound='left',state=state_on_records)
-                self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata, image = self.ico_empty,compound='left',state=state_on_records)
-                self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_find_result else 'disabled')
                 self_file_cascade_add_separator()
-                #self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self_ico['empty'],compound='left')
-                #self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
 
         self.file_cascade= Menu(menubar,tearoff=0,bg=self.bg_color,postcommand=file_cascade_post)
@@ -606,7 +591,7 @@ class Gui:
         #############################
 
         self.tooltip_message[str_self_progress_dialog_on_load_abort_button]='Abort loading.'
-        self_progress_dialog_on_load.abort_button.configure(image=self.ico['cancel'],text='Abort',compound='left')
+        self_progress_dialog_on_load.abort_button.configure(image=self.ico_cancel,text='Abort',compound='left')
         self_progress_dialog_on_load.abort_button.pack( anchor='center',padx=5,pady=5)
 
         self.action_abort=False
@@ -705,7 +690,7 @@ class Gui:
         tree_bind('<<TreeviewOpen>>', lambda event : self.open_item())
         tree_bind('<ButtonPress-3>', self.context_menu_show)
 
-        tree_bind("<<TreeviewSelect>>", self.tree_select)
+        tree_bind("<<TreeviewSelect>>", lambda event : self.tree_select())
 
         self_main_bind = self_main.bind
 
@@ -724,6 +709,9 @@ class Gui:
 
         self_main_bind('<Control-i>', lambda event : self.record_import())
         self_main_bind('<Control-I>', lambda event : self.record_import())
+        
+        self_main_bind('<Control-c>', lambda event : self.clip_copy_full_path_with_file())
+        self_main_bind('<Control-C>', lambda event : self.clip_copy_full_path_with_file())
 
         self_main_bind('<Alt-Return>', lambda event : self.record_info())
         self_main_bind('<Return>', lambda event : self.show_customdata())
@@ -733,7 +721,15 @@ class Gui:
         self_main_bind('<Shift-F3>', lambda event : self.find_prev())
 
         self_main.mainloop()
+    
+    def item_has_cd(self,item):
+        has_cd=False
+        if item in self.item_to_data:
+            data_tuple = self.item_to_data[item]
+            code = data_tuple[1]
 
+            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
+        return has_cd
 
     def block_actions_processing(func):
         def block_actions_processing_wrapp(self,*args,**kwargs):
@@ -994,7 +990,7 @@ class Gui:
             path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
             path_to_scan_entry.grid(row=0, column=3, sticky='news',padx=4,pady=4)
 
-            self.add_path_button = Button(temp_frame,width=18,image = self_ico['open'], command=self.set_path_to_scan,underline=0)
+            self.add_path_button = Button(temp_frame,width=18,image = self.ico_open, command=self.set_path_to_scan,underline=0)
             self.add_path_button.grid(row=0, column=4, sticky='news',padx=4,pady=4)
 
             self.widget_tooltip(self.add_path_button,"Set path to scan.")
@@ -1016,7 +1012,7 @@ class Gui:
             buttons_fr2 = Frame(temp_frame2,bg=self.bg_color,takefocus=False)
             buttons_fr2.pack(fill='x',expand=False,side='bottom')
 
-            self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
+            self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self.ico_open,command=self.exclude_mask_add_dir)
             self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
 
             self.widget_tooltip(self.add_exclude_button_dir,"Add path as exclude expression ...")
@@ -1043,7 +1039,7 @@ class Gui:
 
             Button(dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0).pack(side='right',padx=4,pady=4)
 
-            self.scan_cancel_button = Button(dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
+            self.scan_cancel_button = Button(dialog.area_buttons,width=12,text="Cancel",image=self.ico_cancel,compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
             self.scan_cancel_button.pack(side='left',padx=4,pady=4)
 
             (scan_options_frame := Frame(dialog.area_buttons,bg=self.bg_color)).pack(side='right',padx=4,pady=4)
@@ -1738,7 +1734,7 @@ class Gui:
             new_record = librer_core.create()
             if res:=new_record.load(self.import_dialog_file):
                 self.log.error(f'import failed :{self.import_dialog_file} error: {res}')
-                #TODO - fialog z informacja
+                #TODO - dialog z informacja
                 return
 
             local_file_name = 'imported.'+ str(time()) + '.dat'
@@ -1838,40 +1834,29 @@ class Gui:
                 if col=="#0" :
                     record_item,record_name,subpath_list = self.get_item_record(item)
                     record = self.item_to_record[record_item]
-
-                    node_cd = ''
-                    #node_crc = None
-                    if item in self.item_to_data:
-                        try:
-                            data = self.item_to_data[item]
-                            #print('data:',data)
-
+                    
+                    raw_record_it_is = tree.tag_has(self.RECORD_RAW,item) 
+                    record_it_is = tree.tag_has(self.RECORD,item)
+                        
+                    if raw_record_it_is or record_it_is:
+                        self.tooltip_lab_configure(text=record.txtinfo_basic + '\n\n(Double click to show full record info)')
+                    else:
+                        scan_path = record.header.scan_path
+                        subpath = sep + sep.join(subpath_list)
+                        
+                        tooltip_list = [f'scan path : {scan_path}']
+                        tooltip_list.append(f'subpath   : {subpath}')
+                        
+                        if item in self.item_to_data:
                             data_tuple = self.item_to_data[item]
-
-                            (entry_name_nr,code,size,mtime) =  data_tuple[0:4]
-
+                            code = data_tuple[1]
                             is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
-
-                            elem_index = 4
-                            if has_files:
-                                sub_dictionary = True
-                                elem_index+=1
-
+                            
                             if has_cd:
-                                elem_index+=1
-                                node_cd = '\n\nDouble click to open custom data for file.'
-
-                            #if has_crc:
-                            #    node_crc = data_tuple[elem_index]
-
-                        except Exception as exc:
-                            print('show_tooltips_tree',exc)
-
-                    record_path = record.header.scan_path
-                    size = bytes_to_str(record.header.sum_size)
-                    time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(record.header.creation_time))
-                    self.tooltip_lab_configure(text=record.txtinfo_basic + node_cd)
-                    # + (f'\n\n=====================================================\n{node_cd}\n=====================================================' if node_cd else '') + (f'\n\n=====================================================\n{node_crc}\n=====================================================' if node_crc else '')
+                                tooltip_list.append('')
+                                tooltip_list.append('(Double click to show custom data.)')
+                        
+                        self.tooltip_lab_configure(text='\n'.join(tooltip_list))
 
                     self.tooltip_deiconify()
 
@@ -1943,7 +1928,7 @@ class Gui:
         self.sel_path = None
         self.sel_item = None
 
-        self.sel_kind = None
+        #self.sel_kind = None
 
     def delete_window_wrapper(self):
         if self.actions_processing:
@@ -2544,29 +2529,23 @@ class Gui:
                 self.select_and_focus(next_item)
 
     current_record=None
-    def tree_select(self,event):
-        #print('tree_select',event)
+    def tree_select(self):
 
         item=self.tree.focus()
         parent = self.tree.parent(item)
 
         if item:
-            if not parent:
-                record_name = self.tree.item(item,'text')
-                self.status_record_configure(record_name)
-                self.current_record = record = self.item_to_record[item]
-                self.status_record_path_configure(record.header.scan_path)
-                self.status_record_subpath_configure('')
-            else:
-                record_item,record_name,subpath_list = self.get_item_record(item)
-
-                subpath = sep + sep.join(subpath_list)
-                self.status_record_subpath_configure(subpath)
+            record_item,record_name,subpath_list = self.get_item_record(item)
+            self.current_record = record = self.item_to_record[record_item]
+            
+            record_name = self.tree.item(record_item,'text')
+            image=self.tree.item(record_item,'image')
+            
+            self.status_record.configure(image = image, text = record_name,compound='left')
+            self.widget_tooltip(self.status_record,record.txtinfo_basic + '\n\n(Double click to show full record info)')
         else:
             self.current_record = None
             self.status_record_configure('---')
-            self.status_record_path_configure('---')
-            self.status_record_subpath_configure('---')
 
     def key_press(self,event):
         #print('key_press',event.keysym)
@@ -2592,20 +2571,6 @@ class Gui:
                     ctrl_pressed = 'Control' in event_str
                     shift_pressed = 'Shift' in event_str
 
-                    if key=='BackSpace':
-                        pass
-                    elif key in ('c','C'):
-                        if ctrl_pressed:
-                            if shift_pressed:
-                                self.clip_copy_file()
-                            else:
-                                self.clip_copy_full_path_with_file()
-                        else:
-                            self.clip_copy_full()
-                    #else:
-                    #    print(key)
-                    #    print(event_str)
-
             except Exception as e:
                 l_error(e)
                 self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
@@ -2615,8 +2580,6 @@ class Gui:
 
 #################################################
     def select_and_focus(self,item):
-        self.status_record_subpath_configure(item)
-
         self.tree_see(item)
         self.tree_focus(item)
 
@@ -2702,9 +2665,10 @@ class Gui:
 
         self_tree_set_item=lambda x : self.tree_set(item,x)
 
-        path=self_tree_set_item('path')
+        #path=self_tree_set_item('path')
 
-        self.sel_kind = self_tree_set_item('kind')
+        #self.sel_kind = self_tree_set_item('kind')
+        self.tree_select()
 
     def menubar_unpost(self):
         try:
@@ -2737,6 +2701,8 @@ class Gui:
             pop_add_command = pop.add_command
             self_ico = self.ico
             state_on_records = 'normal' if librer_core.records else 'disabled'
+            #state_has_cd = 
+            #print(state_has_cd)
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
@@ -2750,7 +2716,6 @@ class Gui:
 
             pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self_ico['record'],compound='left')
             pop_add_separator()
-            pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=state_on_records)
             pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
             pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
             pop_add_separator()
@@ -2758,11 +2723,9 @@ class Gui:
             pop_add_separator()
             pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left',state=state_on_records)
             pop_add_separator()
-            pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=state_on_records)
+            pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=('disabled','normal')[self.item_has_cd(self.tree.focus())])
             pop_add_separator()
-
-            pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.RECORD) else 'disabled', image = self.ico_empty,compound='left')
-            #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
+            pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_empty,compound='left')
             pop_add_separator()
             pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_find,compound='left')
             pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
@@ -2966,14 +2929,14 @@ class Gui:
 
         str_self_progress_dialog_on_scan_abort_button = str(self_progress_dialog_on_scan.abort_button)
         
-        self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico['cancel'],text='Abort single file',compound='left',width=15,command=lambda : self.abort_single_file(new_record))
+        self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_cancel,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single_file(new_record))
                 
         self_progress_dialog_on_scan.abort_single_button.pack_forget()
         #############################
 
         self.scan_dialog.widget.update()
         self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
-        self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text='Cancel',compound='left',width=15)
+        self_progress_dialog_on_scan.abort_button.configure(image=self.ico_cancel,text='Cancel',compound='left',width=15)
 
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
@@ -3137,7 +3100,7 @@ class Gui:
         if any_cde_enabled:
             self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
             self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
-            self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text='Abort',compound='left',width=15)
+            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_cancel,text='Abort',compound='left',width=15)
 
             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomplete.'
 
@@ -3250,8 +3213,6 @@ class Gui:
                     self.tree.delete(record_item)
 
                     self.status_record_configure('')
-                    self.status_record_path_configure('')
-                    self.status_record_subpath_configure('')
                     if remaining_records := self.tree.get_children():
                         if new_sel_record := remaining_records[0]:
                             self.tree.selection_set(new_sel_record)
@@ -3581,6 +3542,7 @@ class Gui:
                 self.access_filestructure(record)
                 self_item_to_data[item] = record.filestructure
                 self.tree.item(item,tags=self.RECORD, image=self.ico_record_cd if record.has_cd() else self.ico_record)
+                self.tree_select() #tylko dla aktualizacja ikony
 
             top_data_tuple = self_item_to_data[item]
 
@@ -3671,14 +3633,24 @@ class Gui:
         self.tree.focus(record_item)
         self.tree.selection_set(record_item)
         self.tree.see(record_item)
+        
+        records_len=len(librer_core.records)
+        self.status_records_all_configure(f'Records:{records_len}')
+        
+        sum_size=0
+        quant_files=0
+        for record in librer_core.records:
+            sum_size+=record.header.sum_size
+            quant_files+=record.header.quant_files
+        
+        self.widget_tooltip(self.status_records_all,f'All records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}')
+        
         self.main_update()
 
     @block_actions_processing
     @gui_block
     @logwrapper
     def records_show(self):
-        #print('records_show...')
-
         self.menu_disable()
 
         self_tree = self.tree
@@ -3715,41 +3687,17 @@ class Gui:
     folder_items_clear=folder_items.clear
     folder_items_add=folder_items.add
 
-    #@logwrapper
-    #def csv_save(self):
-    #    if csv_file := asksaveasfilename(initialfile = 'librer_scan.csv',defaultextension=".csv",filetypes=[("All Files","*.*"),("CSV Files","*.csv")]):
-
-    #        self.status('saving CSV file "%s" ...' % str(csv_file))
-    #        librer_core.write_csv(str(csv_file))
-    #        self.status('CSV file saved: "%s"' % str(csv_file))
-
     @logwrapper
     def clip_copy_full_path_with_file(self):
-        print('TODO clip_copy_full_path_with_file')
-
-        #if self.sel_path_full and self.sel_file:
-        #    self.clip_copy(path_join(self.sel_path_full,self.sel_file))
-        #elif self.sel_crc:
-        #    self.clip_copy(self.sel_crc)
-
-    @logwrapper
-    def clip_copy_full(self):
-        print('TODO clip_copy_full')
-
-        #if self.sel_path_full:
-        #    self.clip_copy(self.sel_path_full)
-        #elif self.sel_crc:
-        #    self.clip_copy(self.sel_crc)
-
-    @logwrapper
-    def clip_copy_file(self):
-        print('clip_copy_file')
-        return
-
-        if self.sel_file:
-            self.clip_copy(self.sel_file)
-        elif self.sel_crc:
-            self.clip_copy(self.sel_crc)
+        item=self.tree.focus()
+        if item:
+            record_item,record_name,subpath_list = self.get_item_record(item)
+            record = self.item_to_record[record_item]
+            
+            self.main.clipboard_clear()
+            self.main.clipboard_append(record.header.scan_path + sep + sep.join(subpath_list))
+        
+            self.status('Full path copied to clipboard')
 
     @logwrapper
     def clip_copy(self,what):
@@ -3762,7 +3710,10 @@ class Gui:
             tree=event.widget
             if tree.identify("region", event.x, event.y) != 'heading':
                 if item:=tree.identify('item',event.x,event.y):
-                    self.main.after_idle(self.show_customdata)
+                    if self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
+                        self.record_info()
+                    else:
+                        self.main.after_idle(self.show_customdata)
 
         return "break"
 
@@ -3774,9 +3725,8 @@ class Gui:
                     record_item,record_name,subpath_list = self.get_item_record(item)
                     record = self.item_to_record[record_item]
 
-                    if self.tree.tag_has(self.RECORD,item):
-                        self.record_info()
-                    elif item in self.item_to_data: #dla rekordu nie spelnione
+                    
+                    if item in self.item_to_data: #dla rekordu nie spelnione
                         data_tuple = self.item_to_data[item]
                         (entry_name,code,size,mtime) = data_tuple[0:4]
 
@@ -3912,7 +3862,7 @@ if __name__ == "__main__":
         #l_debug('DEBUG LEVEL ENABLED')
 
         try:
-            distro_info=Path(path_join(LIBRER_DIR,'distro.info.txt')).read_text(encoding='ASCII')
+            distro_info=Path(path_join(LIBRER_DIR,'distro.info.txt')).read_text(encoding='ASCII') + f'\nrecord file format version: {data_format_version}'
         except Exception as exception_1:
             l_error(exception_1)
             distro_info = 'Error. No distro.info.txt file.'

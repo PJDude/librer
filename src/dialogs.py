@@ -230,7 +230,7 @@ class LabelDialogQuestion(LabelDialog):
         self.cancel_button.configure(text='Cancel')
         self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
 
-        self.ok_button=Button(self.area_buttons, text='OK', width=13, command=self.ok,image=image, compound='right' )
+        self.ok_button=Button(self.area_buttons, text='OK', width=13, command=self.ok,image=image, compound='left' )
         self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
 
         self.focus=self.cancel_button
@@ -379,7 +379,7 @@ class TextDialogQuestion(TextDialogInfo):
         self.cancel_button.configure(text='Cancel')
         self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
 
-        self.ok_button=Button(self.area_buttons, text='OK', width=14, command=self.ok,image=image, compound='right' )
+        self.ok_button=Button(self.area_buttons, text='OK', width=14, command=self.ok,image=image, compound='left' )
         self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
 
         self.focus=self.cancel_button
