@@ -32,11 +32,12 @@ from os.path import isfile as path_isfile
 
 from pathlib import Path
 
-from time import strftime,localtime,time
+from time import strftime,time
+#localtime
 
-from os import sep,rmdir,system,getcwd
+from os import sep,system,getcwd
+#rmdir
 from os import name as os_name
-
 
 from signal import signal,SIGINT
 
@@ -1419,7 +1420,7 @@ class Gui:
             self.status("Creating dialog ...")
 
             ###################################
-            self.find_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Search database',pre_show=self.pre_show,post_close=self.post_close)
+            self.find_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Search records',pre_show=self.pre_show,post_close=self.post_close)
 
             #self.find_size_use_var = BooleanVar()
             self.find_filename_search_kind_var = StringVar()
@@ -1602,10 +1603,6 @@ class Gui:
             self.search_save_butt = Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results )
             self.search_save_butt.pack(side='left', anchor='n',padx=5,pady=5)
 
-            #self.search_prev_butt = Button(self.find_dialog.area_buttons, text='prev (Shift+F3)', width=14, command=self.find_prev_from_dialog )
-            #self.search_prev_butt.pack(side='left', anchor='n',padx=5,pady=5)
-            #self.search_next_butt = Button(self.find_dialog.area_buttons, text='next (F3)', width=14, command=self.find_next_from_dialog )
-            #self.search_next_butt.pack(side='left', anchor='n',padx=5,pady=5)
             Button(self.find_dialog.area_buttons, text='Close', width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
 
             sfdma.grid_rowconfigure(5, weight=1)
@@ -1613,7 +1610,12 @@ class Gui:
 
             self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
-
+            
+            self.results_on_find = dialogs.LabelDialogQuestion(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            
+            self.results_on_find.cancel_button.configure(text='Continue search.',width=20)
+            self.results_on_find.ok_button.configure(text='OK. Close Search dialog',width=20)
+            
             self.find_dialog_created = True
 
         return self.find_dialog
@@ -1791,9 +1793,10 @@ class Gui:
         self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
 
     def get_item_record(self,item):
-        current_record_name=None
-
         tree = self.tree
+        
+        current_record_name=tree.set(item,'record')
+        
         subpath_list=[]
 
         while not current_record_name:
@@ -1804,9 +1807,13 @@ class Gui:
                 break
 
             values = tree.item(item,'values')
-            data=values[0]
-
-            subpath_list.append(data)
+            if values:
+                data=values[0]
+                subpath_list.append(data)
+            #else:
+                #print(f'get_item_record no values: {item=},{values=}')
+                #dummy item
+                
             item=tree.parent(item)
 
         subpath_list.reverse()
@@ -2000,8 +2007,34 @@ class Gui:
         self.status_find_tooltip(self.status_find_tooltip_default)
 
         self.any_find_result = False
+    
+    def set_found(self):
+        self_tree_get_children = self.tree.get_children
+        self_tree_item = self.tree.item
+        
+        self_FOUND = self.FOUND
+        
+        for record in librer_core.records:
+            record_item = self.record_to_item[record]
+            
+            nodes_set = set(self_tree_get_children(record_item))
+            
+            nodes_set_pop = nodes_set.pop
+            nodes_set_add = nodes_set.add
+            
+            res_items = [ res_item for res_item,res_size,res_mtime in record.find_results ]
+                
+            while nodes_set:
+                item=nodes_set_pop()
+                
+                if tuple(self.get_item_record(item)[2]) in res_items:
+                    tags=self_tree_item(item,'tags')
+                    
+                    self_tree_item(item,tags=list(tags) + [self_FOUND])
 
-    @restore_status_line
+                _ = {nodes_set_add(child) for child in self_tree_get_children(item)}
+
+    #@restore_status_line
     @block_actions_processing
     @gui_block
     def find_prev(self):
@@ -2010,7 +2043,7 @@ class Gui:
         else:
             self.select_find_result(-1)
 
-    @restore_status_line
+    #@restore_status_line
     @block_actions_processing
     @gui_block
     def find_next(self):
@@ -2154,9 +2187,6 @@ class Gui:
                 self.search_show_butt.configure(state='disabled')
                 self.search_save_butt.configure(state='disabled')
 
-                #self.search_next_butt.configure(state='disabled')
-                #self.search_prev_butt.configure(state='disabled')
-
         except Exception as e:
             self.find_result_record_index=0
             self.find_result_index=0
@@ -2168,6 +2198,9 @@ class Gui:
     #@restore_status_line
     def find_items(self):
         if self.find_params_changed:
+            
+            self.find_clear()
+            
             self.searching_aborted = False
 
             self.action_abort = False
@@ -2202,7 +2235,7 @@ class Gui:
                 min_num = str_to_bytes(find_size_min)
                 if min_num == -1:
                     self.info_dialog_on_find.show('min size value error',f'fix "{find_size_min}"')
-                    return
+                    return 
             else:
                 min_num = ''
 
@@ -2210,14 +2243,14 @@ class Gui:
                 max_num = str_to_bytes(find_size_max)
                 if max_num == -1:
                     self.info_dialog_on_find.show('max size value error',f'fix "{find_size_max}"')
-                    return
+                    return 
             else:
                 max_num = ''
 
             if find_size_min and find_size_max:
                 if max_num<min_num:
                     self.info_dialog_on_find.show('error','max size < min size')
-                    return
+                    return 
             
             if find_modtime_min:
                 pass
@@ -2237,7 +2270,7 @@ class Gui:
                 find_cd_search_kind,find_cd,find_cd_case_sens,
                 filename_fuzzy_threshold,cd_fuzzy_threshold):
                 self.info_dialog_on_find.show('regular expression error',check_res)
-                return
+                return 
 
             self.cfg.set(CFG_KEY_find_range_all,find_range_all)
             self.cfg.set(CFG_KEY_find_cd_search_kind,find_cd_search_kind)
@@ -2277,7 +2310,6 @@ class Gui:
             wait_var.set(False)
 
             self_hg_ico = self.hg_ico
-            len_self_hg_ico = len(self_hg_ico)
 
             #############################
 
@@ -2380,9 +2412,12 @@ class Gui:
             abort_info = '\nSearching aborted. Resuls may be incomplete.' if self.action_abort else ''
 
             find_results_quant_sum_format = fnumber(find_results_quant_sum)
-            self.info_dialog_on_find.show('Search results',f'found: {find_results_quant_sum_format} items.' + abort_info)
+            
+            self.set_found()
+            
+            self.results_on_find.show('Search results',f"found: {find_results_quant_sum_format} items.\n\nNavigate through search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
             self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
-
+        
             if self.action_abort:
                 self.searching_aborted = True
             else:
@@ -2392,11 +2427,16 @@ class Gui:
             if not self.searching_aborted and self.any_find_result:
                 self.search_show_butt.configure(state='normal')
                 self.search_save_butt.configure(state='normal')
-
-            #if self.any_find_result:
-                #self.search_next_butt.configure(state='normal')
-                #self.search_prev_butt.configure(state='normal')
-
+                
+            if self.results_on_find.res_bool:
+                self.find_dialog.hide()
+                
+                if find_results_quant_sum_format:
+                    self.find_result_index=-1
+                    self.find_next()
+        
+        
+            
     def get_child_of_name(self,item,child_name):
         self_tree = self.tree
         for child in self_tree.get_children(item):
@@ -2407,15 +2447,14 @@ class Gui:
         return None
 
     def select_find_result(self,mod):
-        #print('select_find_result')
-
+        status_to_set=None
         self_tree = self.tree
         if self.any_find_result:
             settled = False
 
             records_quant = len(librer_core.records_sorted)
             find_result_index_reset=False
-
+            
             while not settled:
                 #print('self.find_result_record_index:',self.find_result_record_index)
                 #print('self.find_result_index:',self.find_result_index)
@@ -2423,6 +2462,7 @@ class Gui:
                 record = librer_core.records_sorted[self.find_result_record_index]
                 #print('\n'.join([sep.join(x[0]) for x in record.find_results]))
                 items_len=len(record.find_results)
+                
 
                 if find_result_index_reset:
                     find_result_index_reset=False
@@ -2448,17 +2488,18 @@ class Gui:
                     continue
                 else:
                     settled=True
+                    status_to_set=f'record find result: {self.find_result_index+1 if self.find_result_index>=0 else items_len+self.find_result_index+1}/{items_len}'
 
             #print(record_result)
 
             record_item = self.record_to_item[record]
-
+            
             #record = self.item_to_record[record_item]
 
             current_item = record_item
 
             self.open_item(current_item)
-
+            
             for item_name in items_names_tuple:
                 #print('item_name:',item_name)
                 child_item = self.get_child_of_name(current_item,item_name)
@@ -2472,9 +2513,7 @@ class Gui:
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
-
-            #self.tree.item(current_item,tags=self.FOUND)
-
+            
             self.tree.see(current_item)
             self.tree.update()
 
@@ -2484,16 +2523,14 @@ class Gui:
 
             self.tree_semi_focus()
 
-            self.tree_sel_change(current_item)
-
-            if mod>0:
-                self.status('Find next')
-            else:
-                self.status('Find Previous')
+            self.tree_sel_change(current_item,change_status_line=False)
 
             self.tree.see(current_item)
             self.tree.update()
 
+        if status_to_set:
+            self.status(status_to_set)
+        
     KEY_DIRECTION={}
     KEY_DIRECTION['Prior']=-1
     KEY_DIRECTION['Next']=1
@@ -2864,8 +2901,6 @@ class Gui:
     @restore_status_line
     @logwrapper
     def scan(self,compression_level):
-        #self.cfg.write()
-
         #self.status('Scanning...')
 
         #librer_core.reset()
@@ -2957,8 +2992,7 @@ class Gui:
         time_without_busy_sign=0
 
         self_hg_ico = self.hg_ico
-        len_self_hg_ico = len(self_hg_ico)
-
+        
         local_bytes_to_str = bytes_to_str
 
         self_progress_dialog_on_scan_progr1var.set(0)
@@ -3026,7 +3060,7 @@ class Gui:
 
         self.cfg.set(CFG_KEY_CDE_SETTINGS,'\n'.join(cde_sklejka_list))
 
-        check_dev = self.cfg_get(CFG_KEY_SINGLE_DEVICE)
+        check_dev = self.single_device.get()
 
         #############################
         scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
@@ -3046,6 +3080,11 @@ class Gui:
         self_progress_dialog_on_scan_update_lab_text = self_progress_dialog_on_scan.update_lab_text
         self_progress_dialog_on_scan_update_lab_image = self_progress_dialog_on_scan.update_lab_image
 
+        #############################
+        
+        self.cfg.set(CFG_KEY_SINGLE_DEVICE,check_dev)
+        self.cfg.write()
+        
         #############################
         while scan_thread_is_alive():
             change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
@@ -3089,8 +3128,6 @@ class Gui:
 
         scan_thread.join()
 
-        self.cfg.set(CFG_KEY_SINGLE_DEVICE,check_dev)
-
         if self.action_abort:
             self_progress_dialog_on_scan.hide(True)
             del new_record
@@ -3100,7 +3137,8 @@ class Gui:
         if any_cde_enabled:
             self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
             self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
-            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_cancel,text='Abort',compound='left',width=15)
+            self_progress_dialog_on_scan.abort_single_button.configure(state='normal')
+            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_cancel,text='Abort',compound='left',width=15,state='normal')
 
             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomplete.'
 
@@ -3164,7 +3202,10 @@ class Gui:
         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
         self_progress_dialog_on_scan_update_lab_text(3,'')
         self_progress_dialog_on_scan_update_lab_text(4,'')
-
+        
+        #self_progress_dialog_on_scan.abort_single_button.configure(state='disabled')
+        #self_progress_dialog_on_scan.abort_button.configure(state='disabled')
+            
         ##################################
         pack_thread=Thread(target=new_record.pack_data,daemon=True)
         pack_thread.start()

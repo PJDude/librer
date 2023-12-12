@@ -30,21 +30,22 @@ from pympler.asizeof import asizeof
  
 from json import loads as json_loads
 
-from subprocess import Popen, STDOUT, PIPE,TimeoutExpired
-from subprocess import call as subprocess_call
+from subprocess import Popen, STDOUT, PIPE
+#TimeoutExpired
+#from subprocess import call as subprocess_call
 
 from time import sleep, perf_counter,time,strftime,localtime
 
 from threading import Thread
 
-from multiprocessing import Queue
-from queue import Empty
+#from multiprocessing import Queue
+#from queue import Empty
 
 from os import scandir,stat,sep
 from os import name as os_name
 from os import remove as os_remove
 from os import cpu_count
-from os import kill as os_kill
+#from os import kill as os_kill
 
 from os.path import abspath,normpath,basename,dirname
 from os.path import join as path_join
@@ -55,10 +56,12 @@ from platform import system as platform_system
 from platform import release as platform_release
 from platform import node as platform_node
 
-from fnmatch import fnmatch,translate
+from fnmatch import fnmatch
+#translate
 
-from re import compile as re_compile
-from re import search,IGNORECASE
+#from re import compile as re_compile
+from re import search
+#IGNORECASE
 
 from sys import getsizeof
 import sys
@@ -70,11 +73,11 @@ from pathlib import Path as pathlib_Path
 from zstandard import ZstdCompressor,ZstdDecompressor
 
 from signal import SIGTERM
-from hashlib import sha1
+#from hashlib import sha1
 
 from psutil import Process
 
-from difflib import SequenceMatcher
+#from difflib import SequenceMatcher
 
 from pickle import dumps,loads
 
@@ -246,8 +249,11 @@ class LibrerRecordHeader :
         self.cde_list = []
         self.files_cde_errors_quant = {}
         self.files_cde_errors_quant_all = 0
+        self.cde_stats_time_all = 0
         
         self.zipinfo = {}
+        
+        self.compression_level=0
         
         self.creation_os,self.creation_host = f'{platform_system()} {platform_release()}',platform_node()
 
@@ -991,15 +997,17 @@ class LibrerRecord:
             info_list.append('')
             info_list.append(f'creation host   : {self_header.creation_host} ({self_header.creation_os})')
             info_list.append(f'creation time   : {local_time}')
-
+            
             self.txtinfo_basic = '\n'.join(info_list)
 
             info_list.append('')
-            info_list.append(f'record file     : {self.FILE_NAME} ({bytes_to_str(self.FILE_SIZE)})')
+            info_list.append(f'record file     : {self.FILE_NAME} ({bytes_to_str(self.FILE_SIZE)}, compression level:{self.header.compression_level})')
             info_list.append('')
             info_list.append( 'data collection times:')
             info_list.append(f'filesystem      : {str(round(self_header.scanning_time,2))}s')
-            info_list.append(f'custom data     : {str(round(self_header.cde_stats_time_all,2))}s')
+            if self_header.cde_stats_time_all:
+                info_list.append(f'custom data     : {str(round(self_header.cde_stats_time_all,2))}s')
+                
             info_list.append('')
             info_list.append( 'serializing and compression times:')
             info_list.append(f'file structure  : {str(round(self_header.filestructure_time,2))}s')
@@ -1105,6 +1113,8 @@ class LibrerRecord:
             
             t3 = perf_counter()
         
+            self.header.compression_level = compression_level
+            
             self.header.filestructure_time = t1-t0
             self.header.filenames_time = t2-t1
             self.header.customdata_time = t3-t2
