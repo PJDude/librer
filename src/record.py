@@ -110,6 +110,9 @@ def parse_args(ver):
 
     parser.add_argument('-min','--size_min',type=str,help='minimum size')
     parser.add_argument('-max','--size_max',type=str,help='maximum size')
+    
+    parser.add_argument('-tmin','--timestamp_min',type=str,help='minimum modification timestamp')
+    parser.add_argument('-tmax','--timestamp_max',type=str,help='maximum modification timestamp')
 
     return parser.parse_args()
 
@@ -267,6 +270,9 @@ if __name__ == "__main__":
     size_min=str_to_bytes(args.size_min) if args.size_min else None
     size_max=str_to_bytes(args.size_max) if args.size_max else None
 
+    timestamp_min=int(args.timestamp_min) if args.timestamp_min else None
+    timestamp_max=int(args.timestamp_max) if args.timestamp_max else None
+    
     print_info(f'args:{args}')
 
     thread = Thread(target=printer,daemon=True)
@@ -274,6 +280,7 @@ if __name__ == "__main__":
 
     record.find_items(results_queue,
             size_min,size_max,
+            timestamp_min,timestamp_max,
             name_func_to_call,
             cd_search_kind,cd_func_to_call)
 

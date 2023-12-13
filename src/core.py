@@ -821,6 +821,7 @@ class LibrerRecord:
     def find_items(self,
             results_queue,
             size_min,size_max,
+            timestamp_min,timestamp_max,
             name_func_to_call,cd_search_kind,cd_func_to_call):
 
         self.find_results = []
@@ -839,6 +840,7 @@ class LibrerRecord:
         LUT_decode_loc = LUT_decode
 
         use_size = bool(size_min or size_max)
+        use_timestamp = bool(timestamp_min or timestamp_max)
 
         search_list = [ (filestructure[4],[]) ]
         search_list_pop = search_list.pop
@@ -847,7 +849,7 @@ class LibrerRecord:
         cd_search_kind_is_regezp_glob_or_fuzzy = bool(cd_search_kind in ('regexp','glob','fuzzy'))
         cd_search_kind_is_dont_or_without = bool(cd_search_kind in ('dont','without'))
 
-        when_folder_may_apply = bool(cd_search_kind_is_dont_or_without and not use_size)
+        when_folder_may_apply = bool(cd_search_kind_is_dont_or_without and not use_size and not use_timestamp)
         cd_search_kind_is_any = bool(cd_search_kind=='any')
         cd_search_kind_is_without = bool(cd_search_kind=='without')
         cd_search_kind_is_error = bool(cd_search_kind=='error')
@@ -913,7 +915,14 @@ class LibrerRecord:
                         if size_max:
                             if size>size_max:
                                 continue
-
+                    if use_timestamp:
+                        if timestamp_min:
+                            if mtime<timestamp_min:
+                                continue
+                        if timestamp_max:
+                            if mtime>timestamp_max:
+                                continue
+                            
                     if name_func_to_call:
                         try:
                             if not name_func_to_call(name):
@@ -1350,6 +1359,7 @@ class LibrerCore:
     def find_items_in_records(self,
             range_par,
             size_min,size_max,
+            t_min,t_max,
             find_filename_search_kind,name_expr,name_case_sens,
             find_cd_search_kind,cd_expr,cd_case_sens,
             filename_fuzzy_threshold,cd_fuzzy_threshold):
@@ -1377,7 +1387,13 @@ class LibrerCore:
                     curr_command_list = record_commnad_list[record_nr] = ['./record', 'load',record.file_path]
                 else:
                     curr_command_list = record_commnad_list[record_nr] = ['python3','./src/record.py', 'load',record.file_path]
-
+            
+            if t_min:
+                curr_command_list.extend( ['--timestamp_min',str(t_min) ] )
+                
+            if t_max:
+                curr_command_list.extend( ['--timestamp_max',str(t_max)] )
+            
             if size_min:
                 curr_command_list.extend( ['--size_min',str(size_min).replace(' ','') ] )
 

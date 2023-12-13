@@ -30,9 +30,13 @@ from os.path import abspath,normpath,dirname
 from os.path import join as path_join
 from os.path import isfile as path_isfile
 
+from datetime import datetime
+from ciso8601 import parse_datetime
+#from datetime.datetime import timestamp
+
 from pathlib import Path
 
-from time import strftime,time
+from time import strftime,time,mktime
 #localtime
 
 from os import sep,system,getcwd
@@ -1468,8 +1472,8 @@ class Gui:
             self.find_size_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_min)))
             self.find_size_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_size_max)))
             
-            self.find_modtime_min_var.set(ver_number(self.cfg.get(CFG_KEY_find_modtime_min)))
-            self.find_modtime_max_var.set(ver_number(self.cfg.get(CFG_KEY_find_modtime_max)))
+            self.find_modtime_min_var.set(self.cfg.get(CFG_KEY_find_modtime_min))
+            self.find_modtime_max_var.set(self.cfg.get(CFG_KEY_find_modtime_max))
 
             self.find_name_regexp_var.set(self.cfg.get(CFG_KEY_find_name_regexp))
             self.find_name_glob_var.set(self.cfg.get(CFG_KEY_find_name_glob))
@@ -1584,19 +1588,30 @@ class Gui:
 
             #entry_validator = self.main.register(validate_size_str)
             #,validate="key",validatecommand=(entry_validator,"%P")
-            Entry(find_size_frame,textvariable=self.find_size_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
-            Entry(find_size_frame,textvariable=self.find_size_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
+            find_size_min_entry=Entry(find_size_frame,textvariable=self.find_size_min_var)
+            find_size_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
+            find_size_max_entry=Entry(find_size_frame,textvariable=self.find_size_max_var)
+            find_size_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
                         
+            size_tooltip = 'integer or empty value.\nMay have postfix B,kB,MB etc.\ne.g. 511,125kB,10MB'
+            self.widget_tooltip(find_size_min_entry,size_tooltip)
+            self.widget_tooltip(find_size_max_entry,size_tooltip)
+            
             (find_modtime_frame := LabelFrame(sfdma,text='File last modification time',bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
             find_modtime_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
-            Label(find_modtime_frame,text='after: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
-            Label(find_modtime_frame,text='before: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
+            Label(find_modtime_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
+            Label(find_modtime_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
 
-            Entry(find_modtime_frame,textvariable=self.find_modtime_min_var).grid(row=0, column=1, sticky='we',padx=4,pady=4)
-            Entry(find_modtime_frame,textvariable=self.find_modtime_max_var).grid(row=0, column=3, sticky='we',padx=4,pady=4)
-
-
+            find_modtime_min_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_min_var)
+            find_modtime_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
+            find_modtime_max_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_max_var)
+            find_modtime_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
+            
+            time_toltip = 'Date and time in format\naccepted by ciso8601 package\n\ne.g. 2023-12-14 22:21:20\nor empty value'
+            self.widget_tooltip(find_modtime_min_entry,time_toltip)
+            self.widget_tooltip(find_modtime_max_entry,time_toltip)
+            
             Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_items ).pack(side='left', anchor='n',padx=5,pady=5)
             self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
             self.search_show_butt.pack(side='left', anchor='n',padx=5,pady=5)
@@ -2252,15 +2267,22 @@ class Gui:
                     self.info_dialog_on_find.show('error','max size < min size')
                     return 
             
+            t_min=None
             if find_modtime_min:
-                pass
-                #TODO
+                try:
+                    t_min = int(mktime(parse_datetime(find_modtime_min).timetuple()))
+                except Exception as te:
+                    self.info_dialog_on_find.show('file modification time min error ',f'{find_modtime_min}\n{te}')
+                    return
             
+            t_max=None
             if find_modtime_max:
-                pass
-                #TODO
-                
-                    
+                try:
+                    t_max = int(mktime(parse_datetime(find_modtime_max).timetuple()))
+                except Exception as te:
+                    self.info_dialog_on_find.show('file modification time max error ',f'{find_modtime_max}\n{te}')
+                    return
+
             range_par = self.current_record if not find_range_all else None
 
             if check_res := librer_core.find_items_in_records_check(
@@ -2278,7 +2300,7 @@ class Gui:
 
             self.cfg.set(CFG_KEY_find_size_min,find_size_min)
             self.cfg.set(CFG_KEY_find_size_max,find_size_max)
-            
+                    
             self.cfg.set(CFG_KEY_find_modtime_min,find_modtime_min)
             self.cfg.set(CFG_KEY_find_modtime_max,find_modtime_max)
 
@@ -2299,6 +2321,7 @@ class Gui:
 
             search_thread=Thread(target=lambda : librer_core.find_items_in_records(range_par,
                 min_num,max_num,
+                t_min,t_max,
                 find_filename_search_kind,find_name,find_name_case_sens,
                 find_cd_search_kind,find_cd,find_cd_case_sens,
                 filename_fuzzy_threshold,cd_fuzzy_threshold),daemon=True)
@@ -2410,12 +2433,13 @@ class Gui:
             self.any_find_result=bool(find_results_quant_sum>0)
 
             abort_info = '\nSearching aborted. Resuls may be incomplete.' if self.action_abort else ''
-
+            
+            self.all_records_find_results_len = find_results_quant_sum
             find_results_quant_sum_format = fnumber(find_results_quant_sum)
             
             self.set_found()
             
-            self.results_on_find.show('Search results',f"found: {find_results_quant_sum_format} items.\n\nNavigate through search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
+            self.results_on_find.show('Search results',f"found: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
             self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
         
             if self.action_abort:
@@ -2461,7 +2485,7 @@ class Gui:
 
                 record = librer_core.records_sorted[self.find_result_record_index]
                 #print('\n'.join([sep.join(x[0]) for x in record.find_results]))
-                items_len=len(record.find_results)
+                record_find_results_len=len(record.find_results)
                 
 
                 if find_result_index_reset:
@@ -2469,11 +2493,11 @@ class Gui:
                     if mod>0:
                         self.find_result_index = 0
                     else:
-                        self.find_result_index = items_len-1
+                        self.find_result_index = record_find_results_len-1
                 else:
                     self.find_result_index += mod
 
-                if self.find_result_index>=items_len:
+                if self.find_result_index>=record_find_results_len:
                     find_result_index_reset=True
                     self.find_result_record_index += mod
                     self.find_result_record_index %= records_quant
@@ -2488,7 +2512,7 @@ class Gui:
                     continue
                 else:
                     settled=True
-                    status_to_set=f'record find result: {self.find_result_index+1 if self.find_result_index>=0 else items_len+self.find_result_index+1}/{items_len}'
+                    status_to_set=f'record find result: {self.find_result_index+1 if self.find_result_index>=0 else record_find_results_len+self.find_result_index+1} / {fnumber(record_find_results_len)} / {fnumber(self.all_records_find_results_len)}'
 
             #print(record_result)
 
