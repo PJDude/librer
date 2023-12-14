@@ -32,15 +32,12 @@ from os.path import isfile as path_isfile
 
 from datetime import datetime
 from ciso8601 import parse_datetime
-#from datetime.datetime import timestamp
 
 from pathlib import Path
 
 from time import strftime,time,mktime
-#localtime
 
 from os import sep,system,getcwd
-#rmdir
 from os import name as os_name
 
 from signal import signal,SIGINT
@@ -279,9 +276,11 @@ class Gui:
         #self.ico_delete = self_ico['delete']
 
         self_ico_librer = self.ico_librer = self_ico['librer']
+        self.ico_librer_small = self_ico['librer_small']
         self.ico_test = self_ico['test']
 
-        self_main.iconphoto(True, self_ico_librer,self.ico_record)
+        #self_main.iconphoto(True, self_ico_librer,self.ico_record)
+        self_main.iconphoto(True, self_ico_librer,self.ico_librer_small)
 
         self.RECORD_RAW='r'
         self.RECORD='R'
@@ -389,13 +388,15 @@ class Gui:
         self.status_records_all.pack(fill='x',expand=0,side='left')
         self.status_records_all_configure = lambda x : self.status_records_all.configure(image = self.ico_records_all, text = x,compound='left')
         self.widget_tooltip(self.status_records_all,'All records in repository')
+        self.status_records_all.bind("<ButtonPress-1>", lambda event : self.unload_recod() )
+        self.status_records_all.bind("<Double-Button-1>", lambda event : self.unload_all_recods() )
         
         self.status_record=Label(status_frame,image=self.ico_record,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_record.pack(fill='x',expand=0,side='left')
         self.status_record_configure = lambda x : self.status_record.configure(image = self.ico_record, text = x,compound='left')
-
+        
         self.widget_tooltip(self.status_record,'Selected record')
-        self.status_record.bind("<Double-Button-1>", lambda event : self.record_info() )
+        self.status_record.bind("<ButtonPress-1>", lambda event : self.record_info() )
 
         self.status_info = Label(status_frame,text='Initializing...',relief='sunken',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_info.pack(fill='x',expand=1,side='left')
@@ -492,7 +493,7 @@ class Gui:
                 self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record,compound='left')
 
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
+                #self_file_cascade_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
                 self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
@@ -727,6 +728,21 @@ class Gui:
 
         self_main.mainloop()
     
+    def unload_recod(self,record=None):
+        if not record:
+            record = self.current_record
+        
+        if record:
+            record_item = self.record_to_item[record]
+            self.tree.delete(record_item)
+            record.unload_filestructure()
+            record.unload_customdata()
+            self.single_record_show(record)
+            
+    def unload_all_recods(self):
+        for record in librer_core.records:
+            self.unload_recod(record)
+            
     def item_has_cd(self,item):
         has_cd=False
         if item in self.item_to_data:
@@ -1024,7 +1040,7 @@ class Gui:
 
             self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
 
-            tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
+            tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.:' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
 
             self.widget_tooltip(self.add_exclude_button,tooltip_string)
 
@@ -1092,18 +1108,14 @@ class Gui:
             #(lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
 
             use_tooltip = "Mark to use CD Extractor"
-            mask_tooltip = "glob expresions separated by comma ','\ne.g. '*.7z, *.zip, *.gz'"
-            #min_tooltip = "Minimum size of file\nto aplly CD extraction or crc\nmay be empty e.g. 10k"
-            min_tooltip = "Minimum size of file\nto aplly CD extraction or crc\nmay be empty e.g. 10k"
-            #max_tooltip = "Maximum size of file\nto aplly CD extraction or crc\nmay be empty e.g. '100MB'"
-            max_tooltip = "Maximum size of file\nto aplly CD extraction\nmay be empty e.g. '100MB'"
-            exec_tooltip = "Executable or batch script that will be run\nwith the file for extraction as last parameter.\nMay have other fixed parameters\nWill be executed with the full path of the scanned file\ne.g. '7z l', 'cat', 'my_extractor.sh', 'my_extractor.bat'"
-            pars_tooltip = f"parameters of the CDE executable.\nUse '{PARAM_INDICATOR_SIGN}' sign to indicate 'file path'\nlocation, or leave it empty."
+            mask_tooltip = "glob expresions separated by comma (',')\ne.g.: '*.7z, *.zip, *.gz'\n\nthe given executable will run\nwith every file matching the expression\n(and size citeria if provided)"
+            max_tooltip = min_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
+            exec_tooltip = "A binary executable or batch script that will run\nwith the full path to the file to be extracted as a parameter.\nThe executable may have a full path, be located in a PATH\nenvironment variable, or be interpreted by the system shell"
+            pars_tooltip = f"The executable will run with the full path to the file to extract as a parameter.\nIf other constant parameters are necessary, they should be placed here\nand the scanned file should be indicated with the '{PARAM_INDICATOR_SIGN}' sign.\nThe absence of the '{PARAM_INDICATOR_SIGN}' sign means that the file will be passed as the last parameter.\ne.g.:const_param % other_const_param"
             shell_tooltip = "Execute in system shell\nUse only when necessary."
-            open_tooltip = "Set executable file as Custom Data Extractor..."
-            timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or no value means no timeout"
-            test_tooltip = "Test Custom Data Extractor\non single manually selected file ..."
-            #crc_tooltip = "Calculate CRC (SHA1) for all\nfiles matching glob and size cryteria\nIt may take a long time."
+            open_tooltip = "Point executable as custom data extractor..."
+            timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or empty field means no timeout"
+            test_tooltip = "Test your custom data extractor\non a single, manually selected file.\nCheck whether it obtains the data you expect\nPoint to the file to be tested on..."
 
             self_widget_tooltip = self.widget_tooltip
 
@@ -1517,12 +1529,24 @@ class Gui:
 
             (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
-            Radiobutton(find_filename_frame,text="Don't use this cryteria",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_filename_frame,text="Don't use this criterion",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
             Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
-
+            (regexp_radio_name:=Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            (glob_radio_name:=Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)).grid(row=3, column=0, sticky='news',padx=4,pady=4)
+            (fuzzy_radio_name:=Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            
+            regexp_tooltip = "Regular expression\n"
+            regexp_tooltip_name = "checked on the file\nor folder name."
+            regexp_tooltip_cd = "checked on the entire\ncustom data of a file."
+            
+            glob_tooltip = "An expression containing wildcard characters\nsuch as '*','?' or character range '[a-c]'.\n"
+            glob_tooltip_name = 'checked on the file or folder name.'
+            glob_tooltip_cd = 'checked on the entire custom data of a file.'
+            
+            fuzzy_tooltip = 'Fuzzy matching is implemented using SequenceMatcher\nfrom the difflib module. Any file whose similarity\nscore exceeds the threshold will be classified as found.\nThe similarity score is calculated\n'
+            fuzzy_tooltip_name = 'based on the file or folder name.'
+            fuzzy_tooltip_cd = 'based on the entire custom data of a file.'
+            
             self.find_filename_regexp_entry = Entry(find_filename_frame,textvariable=self.find_name_regexp_var,validate="key")
             self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
             self.find_filename_fuzz_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzz_var,validate="key")
@@ -1542,19 +1566,28 @@ class Gui:
             self.find_filename_fuzzy_threshold_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzzy_threshold)
             self.find_filename_fuzzy_threshold_lab.grid(row=4, column=2, sticky='wens',padx=4,pady=4)
             self.find_filename_fuzzy_threshold_entry.grid(row=4, column=3, sticky='wens',padx=4,pady=4)
-
+                
+            self.widget_tooltip(regexp_radio_name,regexp_tooltip + regexp_tooltip_name)
+            self.widget_tooltip(self.find_filename_regexp_entry,regexp_tooltip + regexp_tooltip_name)
+            self.widget_tooltip(glob_radio_name,glob_tooltip + glob_tooltip_name)
+            self.widget_tooltip(self.find_filename_glob_entry,glob_tooltip + glob_tooltip_name)
+            
+            self.widget_tooltip(fuzzy_radio_name,fuzzy_tooltip + fuzzy_tooltip_name)
+            self.widget_tooltip(self.find_filename_fuzz_entry,fuzzy_tooltip + fuzzy_tooltip_name)
+            self.widget_tooltip(self.find_filename_fuzzy_threshold_entry,fuzzy_tooltip + fuzzy_tooltip_name)
+                
             find_filename_frame.grid_columnconfigure( 1, weight=1)
 
             (find_cd_frame := LabelFrame(sfdma,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
 
-            Radiobutton(find_cd_frame,text="Don't use this cryteria",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="Don't use this criterion",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
             Radiobutton(find_cd_frame,text="files without custom data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
             Radiobutton(find_cd_frame,text="files with any correct custom data ",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
             Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod).grid(row=4, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod).grid(row=5, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod).grid(row=6, column=0, sticky='news',padx=4,pady=4)
-
+            (regexp_radio_cd:=Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            (glob_radio_cd:=Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)).grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            (fuzzy_radio_cd:=Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod)).grid(row=6, column=0, sticky='news',padx=4,pady=4)
+            
             self.find_cd_regexp_entry = Entry(find_cd_frame,textvariable=self.find_cd_regexp_var,validate="key")
             self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
             self.find_cd_fuzz_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzz_var,validate="key")
@@ -1574,14 +1607,23 @@ class Gui:
             self.find_cd_fuzzy_threshold_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzzy_threshold)
             self.find_cd_fuzzy_threshold_lab.grid(row=6, column=2, sticky='wens',padx=4,pady=4)
             self.find_cd_fuzzy_threshold_entry.grid(row=6, column=3, sticky='wens',padx=4,pady=4)
-
+            
+            self.widget_tooltip(regexp_radio_cd,regexp_tooltip + regexp_tooltip_cd)
+            self.widget_tooltip(self.find_cd_regexp_entry,regexp_tooltip + regexp_tooltip_cd)
+            self.widget_tooltip(glob_radio_cd,glob_tooltip + glob_tooltip_cd)
+            self.widget_tooltip(self.find_cd_glob_entry,glob_tooltip + glob_tooltip_cd)
+            
+            self.widget_tooltip(fuzzy_radio_cd,fuzzy_tooltip + fuzzy_tooltip_cd)
+            self.widget_tooltip(self.find_cd_fuzz_entry,fuzzy_tooltip + fuzzy_tooltip_cd)
+            self.widget_tooltip(self.find_cd_fuzzy_threshold_entry,fuzzy_tooltip + fuzzy_tooltip_cd)
+            
             find_cd_frame.grid_columnconfigure(1, weight=1)
 
             (find_size_frame := LabelFrame(sfdma,text='File size',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
             find_size_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
-            Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
-            Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
+            (find_size_min_label:=Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=0, sticky='we',padx=4,pady=4)
+            (find_size_max_label:=Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=2, sticky='we',padx=4,pady=4)
             
             def validate_size_str(val):
                 return bool(val == "" or val.isdigit())
@@ -1593,24 +1635,28 @@ class Gui:
             find_size_max_entry=Entry(find_size_frame,textvariable=self.find_size_max_var)
             find_size_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
                         
-            size_tooltip = 'integer or empty value.\nMay have postfix B,kB,MB etc.\ne.g. 511,125kB,10MB'
+            size_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
             self.widget_tooltip(find_size_min_entry,size_tooltip)
+            self.widget_tooltip(find_size_min_label,size_tooltip)
             self.widget_tooltip(find_size_max_entry,size_tooltip)
+            self.widget_tooltip(find_size_max_label,size_tooltip)
             
             (find_modtime_frame := LabelFrame(sfdma,text='File last modification time',bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
             find_modtime_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
-            Label(find_modtime_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=0, sticky='we',padx=4,pady=4)
-            Label(find_modtime_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2).grid(row=0, column=2, sticky='we',padx=4,pady=4)
+            (find_modtime_min_label:=Label(find_modtime_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=0, sticky='we',padx=4,pady=4)
+            (find_modtime_max_label:=Label(find_modtime_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=2, sticky='we',padx=4,pady=4)
 
             find_modtime_min_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_min_var)
             find_modtime_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
             find_modtime_max_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_max_var)
             find_modtime_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
             
-            time_toltip = 'Date and time in format\naccepted by ciso8601 package\n\ne.g. 2023-12-14 22:21:20\nor empty value'
+            time_toltip = 'Date and time in the format below.\nLeave the value blank to ignore this criterion.\n\nexamples:\n2023-12-14 22:21:20\n2023-12-14 22:21\n2023-12-14\n2023-12'
             self.widget_tooltip(find_modtime_min_entry,time_toltip)
+            self.widget_tooltip(find_modtime_min_label,time_toltip)
             self.widget_tooltip(find_modtime_max_entry,time_toltip)
+            self.widget_tooltip(find_modtime_max_label,time_toltip)
             
             Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_items ).pack(side='left', anchor='n',padx=5,pady=5)
             self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
@@ -2336,10 +2382,12 @@ class Gui:
 
             #############################
 
-            self_progress_dialog_on_find.show('Search progress')
 
             self_progress_dialog_on_find.lab_l1.configure(text='Records:')
             self_progress_dialog_on_find.lab_l2.configure(text='Files:' )
+            self_progress_dialog_on_find.lab_r1.configure(text='--')
+            self_progress_dialog_on_find.lab_r2.configure(text='--' )
+            self_progress_dialog_on_find.show('Search progress')
 
             records_len = len(librer_core.records)
             if records_len==0:
@@ -2603,7 +2651,8 @@ class Gui:
             image=self.tree.item(record_item,'image')
             
             self.status_record.configure(image = image, text = record_name,compound='left')
-            self.widget_tooltip(self.status_record,record.txtinfo_basic + '\n\n(Double click to show full record info)')
+            self.widget_tooltip(self.status_record,record.txtinfo_basic + '\n\n(Click to show full record info)')
+            #\nsingle click to unload data of current record.\n
         else:
             self.current_record = None
             self.status_record_configure('---')
@@ -3164,7 +3213,7 @@ class Gui:
             self_progress_dialog_on_scan.abort_single_button.configure(state='normal')
             self_progress_dialog_on_scan.abort_button.configure(image=self.ico_cancel,text='Abort',compound='left',width=15,state='normal')
 
-            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom data will be incomplete.'
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\ncustom data will be incomplete.'
 
             #########################################################################################
             cd_thread=Thread(target=new_record.extract_customdata_threaded,daemon=True)
@@ -3392,10 +3441,9 @@ class Gui:
                 try:
                     line = subprocess_stdout_readline()
                 except Exception as le:
-                    print(command_list,le,flush = True)
+                    #print(command_list,le,flush = True)
                     line = f'{le}'
-                    print('t',type(line))
-                    decoding_error = True
+                    self.test_decoding_error = True
 
                 output_list_append(line.rstrip('\n\r'))
 
@@ -3460,7 +3508,7 @@ class Gui:
                 self.action_abort=False
                 crc = False
 
-                decoding_error = False
+                self.test_decoding_error = False
 
                 self.subprocess = None
 
@@ -3499,7 +3547,7 @@ class Gui:
 
                 output = '\n'.join(self.output_list)
 
-                self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if self.returncode[0]==0 else "with Error"}',output)
+                self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if self.returncode[0]==0 and not self.test_decoding_error else "with Error"}',output)
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -3556,6 +3604,7 @@ class Gui:
         self.popup_unpost()
         self.status('loading custom data ...')
         self.main.update()
+        record.decompress_filestructure()
         record.decompress_customdata()
         
         item = self.record_to_item[record]
@@ -3708,7 +3757,7 @@ class Gui:
             sum_size+=record.header.sum_size
             quant_files+=record.header.quant_files
         
-        self.widget_tooltip(self.status_records_all,f'All records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}')
+        self.widget_tooltip(self.status_records_all,f'All records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}\n\nClick to unload (free memory) data of selected record\nDouble click to unload data of all records.')
         
         self.main_update()
 
@@ -3789,31 +3838,28 @@ class Gui:
                 try:
                     record_item,record_name,subpath_list = self.get_item_record(item)
                     record = self.item_to_record[record_item]
-
                     
                     if item in self.item_to_data: #dla rekordu nie spelnione
                         data_tuple = self.item_to_data[item]
                         (entry_name,code,size,mtime) = data_tuple[0:4]
-
+                        
                         is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
 
                         if has_cd: #wiec nie has_files
                             cd_index = data_tuple[4]
-
+                            
                             self.access_customdata(record)
-
+                            
                             if cd_data := record.customdata[cd_index][2]:
                                 cd_txt = cd_data
-
                                 self.get_text_info_dialog().show('Custom Data',cd_txt)
                                 return
 
                         self.info_dialog_on_main.show('Information','No Custom data.')
 
-
                 except Exception as e:
                     self.info_dialog_on_main.show(e)
-
+        
     def record_info(self):
         if self.actions_processing:
             if self.current_record:

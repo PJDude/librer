@@ -188,10 +188,13 @@ def get_command_list(executable,parameters,full_file_path,shell=False):
             
         if ' ' in full_file_path:
             full_file_path = f'"{full_file_path}"'
-
+    
+    parameters = parameters.strip()
+    
     if parameters:
         if PARAM_INDICATOR_SIGN not in parameters:
-            return None
+            parameters = parameters + ' ' + PARAM_INDICATOR_SIGN
+            
         parameters = parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN)
     else:
         parameters=PARAM_INDICATOR_SIGN
@@ -822,7 +825,8 @@ class LibrerRecord:
             results_queue,
             size_min,size_max,
             timestamp_min,timestamp_max,
-            name_func_to_call,cd_search_kind,cd_func_to_call):
+            name_search_kind,name_func_to_call,
+            cd_search_kind,cd_func_to_call):
 
         self.find_results = []
 
@@ -853,7 +857,9 @@ class LibrerRecord:
         cd_search_kind_is_any = bool(cd_search_kind=='any')
         cd_search_kind_is_without = bool(cd_search_kind=='without')
         cd_search_kind_is_error = bool(cd_search_kind=='error')
-
+            
+        name_search_kind_is_error = bool(name_search_kind=='error')
+        
         self_customdata = self.customdata
 
         results_queue_put = results_queue.append
@@ -893,6 +899,10 @@ class LibrerRecord:
                 #    crc = data_entry[elem_index]
 
                 next_level = parent_path_components + [name]
+                if name_search_kind_is_error:
+                    if size>-1:
+                        continue
+                    
                 if is_dir :
                     if when_folder_may_apply:
                         #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
@@ -905,6 +915,7 @@ class LibrerRecord:
                         search_list_append( (sub_data,next_level) )
 
                 elif is_file:
+                    
                     if use_size:
                         if size<0:
                             continue
@@ -1201,7 +1212,12 @@ class LibrerRecord:
             return True
 
         return False
-
+    
+    def unload_filestructure(self):
+        self.decompressed_filestructure = False
+        self.filestructure = ()
+        self.prepare_info()
+            
     decompressed_customdata = False
     def decompress_customdata(self):
         if not self.decompressed_customdata:
@@ -1219,7 +1235,12 @@ class LibrerRecord:
             return True
 
         return False
-
+    
+    def unload_customdata(self):
+        self.decompressed_customdata = False
+        self.customdata = []
+        self.prepare_info()
+        
 
 #######################################################################
 class LibrerCore:
@@ -1400,8 +1421,6 @@ class LibrerCore:
             if size_max:
                 curr_command_list.extend( ['--size_max',str(size_max).replace(' ','')] )
 
-            find_filename_search_kind
-
             if name_expr:
                 if find_filename_search_kind == 'regexp':
                     curr_command_list.extend(['--file_regexp',name_expr])
@@ -1411,6 +1430,8 @@ class LibrerCore:
                         curr_command_list.append('--file_case_sensitive')
                 elif find_filename_search_kind == 'fuzzy':
                     curr_command_list.extend(['--file_fuzzy',name_expr,'--file_fuzzy_threshold',filename_fuzzy_threshold])
+            elif find_filename_search_kind == 'error':
+                    curr_command_list.append('--file_error')
 
             if cd_expr:
                 if find_cd_search_kind == 'regexp':

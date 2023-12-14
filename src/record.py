@@ -92,6 +92,8 @@ def parse_args(ver):
     #file_fuzzy_group = file_group.add_argument_group('file name fuzzy matching')
     file_group.add_argument('-ff'   ,'--file_fuzzy',type=str,help='serch files by fuzzy match with threshold')
     file_group.add_argument('-fft'  ,'--file_fuzzy_threshold', type=float,help='threshold value')
+    
+    file_group.add_argument('-fe'   ,'--file_error',action='store_true',help='serch files with error on access')
 
     cd_group = parser.add_argument_group()
     cd_group.add_argument('-cdw','--cd_without',action='store_true',help='serch for riles without custom data')
@@ -196,7 +198,8 @@ if __name__ == "__main__":
     name_regexp=args.file_regexp
     name_glob=args.file_glob
     name_fuzzy=args.file_fuzzy
-
+    file_error=args.file_error
+    
     file_fuzzy_threshold = args.file_fuzzy_threshold
     cd_fuzzy_threshold = args.cd_fuzzy_threshold
 
@@ -205,15 +208,23 @@ if __name__ == "__main__":
             exit(res)
 
         name_func_to_call = lambda x : search(name_regexp,x)
+        name_search_kind='regexp'
     elif name_glob:
         if name_case_sens:
             name_func_to_call = lambda x : re_compile(translate(name_glob)).match(x)
         else:
             name_func_to_call = lambda x : re_compile(translate(name_glob), IGNORECASE).match(x)
+        name_search_kind='glob'
     elif name_fuzzy:
         name_func_to_call = lambda x : bool(SequenceMatcher(None, name_fuzzy, x).ratio()>file_fuzzy_threshold)
+        name_search_kind='fuzzy'
+    elif file_error:
+        name_func_to_call = None
+        name_search_kind='error'
+        
     else:
         name_func_to_call = None
+        name_search_kind='dont'
 
     custom_data_needed=False
 
@@ -281,7 +292,7 @@ if __name__ == "__main__":
     record.find_items(results_queue,
             size_min,size_max,
             timestamp_min,timestamp_max,
-            name_func_to_call,
+            name_search_kind,name_func_to_call,
             cd_search_kind,cd_func_to_call)
 
     thread.join()
