@@ -262,6 +262,7 @@ class Gui:
         self.ico_cd_error = self_ico['cd_error']
         self.ico_cd_error_crc = self_ico['cd_error_crc']
         self.ico_crc = self_ico['crc']
+        self.ico_license = self_ico['license']
 
         self.ico_find = self_ico['find']
 
@@ -467,11 +468,11 @@ class Gui:
 
         #######################################################################
 
-        self.info_dialog_on_main = dialogs.LabelDialog(self_main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+        self.info_dialog_on_main = dialogs.LabelDialog(self_main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
         #self.text_ask_dialog_on_main = dialogs.TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
 
-        self.progress_dialog_on_load = dialogs.ProgressDialog(self_main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+        self.progress_dialog_on_load = dialogs.ProgressDialog(self_main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
         self.widget_tooltip(self.progress_dialog_on_load.abort_button,'')
@@ -513,7 +514,7 @@ class Gui:
                 self_help_cascade_add_separator = self.help_cascade.add_separator
 
                 self_help_cascade_add_command(label = 'About',command=lambda : self.get_about_dialog().show(),accelerator="F1", image = self_ico['about'],compound='left')
-                self_help_cascade_add_command(label = 'License',command=lambda : self.get_license_dialog().show(), image = self_ico['license'],compound='left')
+                self_help_cascade_add_command(label = 'License',command=lambda : self.get_license_dialog().show(), image = self.ico_license,compound='left')
                 self_help_cascade_add_separator()
                 self_help_cascade_add_command(label = 'Open current Log',command=self.show_log, image = self_ico['log'],compound='left')
                 self_help_cascade_add_command(label = 'Open logs directory',command=self.show_logs_dir, image = self_ico['logs'],compound='left')
@@ -910,7 +911,7 @@ class Gui:
         if not self.text_info_dialog_created:
             self.status("Creating dialog ...")
 
-            self.text_info_dialog = dialogs.TextDialogInfo(self.main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.text_info_dialog = dialogs.TextDialogInfo(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.text_info_dialog_created = True
 
@@ -925,7 +926,7 @@ class Gui:
         if not self.ask_dialog_on_main_created:
             self.status("Creating dialog ...")
 
-            self.ask_dialog_on_main = dialogs.LabelDialogQuestion(self.main,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
+            self.ask_dialog_on_main = dialogs.LabelDialogQuestion(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
 
             self.ask_dialog_on_main_created = True
 
@@ -972,7 +973,7 @@ class Gui:
 
             self_ico_librer = self.ico_librer
 
-            self.scan_dialog=dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
+            self.scan_dialog=dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
 
             self_ico = self.ico
 
@@ -1221,7 +1222,7 @@ class Gui:
 
             ###########################################
 
-            #self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            #self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.exclude_regexp_scan.set(self.cfg_get(CFG_KEY_EXCLUDE_REGEXP))
 
@@ -1235,7 +1236,7 @@ class Gui:
         if not self.progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
             self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
@@ -1252,7 +1253,7 @@ class Gui:
         if not self.simple_progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.simple_progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),ShowProgress=False,min_width=400,min_height=200)
+            self.simple_progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),ShowProgress=False,min_width=400,min_height=200)
 
             self.simple_progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
@@ -1273,7 +1274,7 @@ class Gui:
         if not self.info_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.info_dialog_on_scan_created = True
 
         return self.info_dialog_on_scan
@@ -1286,7 +1287,7 @@ class Gui:
         if not self.text_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.text_dialog_on_scan = dialogs.TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.text_dialog_on_scan_created = True
 
         return self.text_dialog_on_scan
@@ -1299,7 +1300,7 @@ class Gui:
         if not self.text_ask_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
+            self.text_ask_dialog_on_scan = dialogs.TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
             self.text_ask_dialog_on_scan_created = True
 
         return self.text_ask_dialog_on_scan
@@ -1312,7 +1313,7 @@ class Gui:
         if not self.progress_dialog_on_find_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.progress_dialog_on_find = dialogs.ProgressDialog(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
             self.widget_tooltip(self.progress_dialog_on_find.abort_button,'Abort searching.')
 
@@ -1334,7 +1335,7 @@ class Gui:
     def get_export_dialog(self):
         if not self.export_dialog_created:
 
-            self.export_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Export record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.export_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Export record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.export_cd_var = BooleanVar()
             #self.export_crc_var = BooleanVar()
             self.export_compr_var = IntVar()
@@ -1387,7 +1388,7 @@ class Gui:
     def get_import_dialog(self):
         if not self.import_dialog_created:
 
-            self.import_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Import record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.import_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Import record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.import_cd_var = BooleanVar()
             #self.import_crc_var = BooleanVar()
             self.import_compr_var = IntVar()
@@ -1436,7 +1437,7 @@ class Gui:
             self.status("Creating dialog ...")
 
             ###################################
-            self.find_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'Search records',pre_show=self.pre_show,post_close=self.post_close)
+            self.find_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Search records',pre_show=self.pre_show,post_close=self.post_close)
 
             #self.find_size_use_var = BooleanVar()
             self.find_filename_search_kind_var = StringVar()
@@ -1669,10 +1670,10 @@ class Gui:
             sfdma.grid_rowconfigure(5, weight=1)
             sfdma.grid_columnconfigure(0, weight=1)
 
-            self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
-            self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.text_dialog_on_find = dialogs.TextDialogInfo(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             
-            self.results_on_find = dialogs.LabelDialogQuestion(self.find_dialog.widget,(self.ico_librer,self.ico_record),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.results_on_find = dialogs.LabelDialogQuestion(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             
             self.results_on_find.cancel_button.configure(text='Continue search.',width=20)
             self.results_on_find.ok_button.configure(text='OK. Close Search dialog',width=20)
@@ -1689,7 +1690,7 @@ class Gui:
         if not self.about_dialog_created:
             self.status("Creating dialog ...")
 
-            self.aboout_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_record),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
+            self.aboout_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
 
             frame1 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
@@ -1737,7 +1738,7 @@ class Gui:
                     l_error(exception_2)
                     self.exit()
 
-            self.license_dialog=dialogs.GenericDialog(self.main,(self.ico['license'],self.ico['license']),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
+            self.license_dialog=dialogs.GenericDialog(self.main,(self.ico_license,self.ico_license),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
 
             frame1 = LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
