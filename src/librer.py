@@ -26,6 +26,8 @@
 #
 ####################################################################################
 
+from psutil import disk_partitions,disk_usage
+
 from os.path import abspath,normpath,dirname
 from os.path import join as path_join
 from os.path import isfile as path_isfile
@@ -43,7 +45,7 @@ from os import name as os_name
 from signal import signal,SIGINT
 
 from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
-from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Entry,Scale,Style
+from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename
 
 from threading import Thread
@@ -273,6 +275,8 @@ class Gui:
         self.ico_empty = self_ico['empty']
         self.ico_cancel = self_ico['cancel']
         self.ico_open = self_ico['open']
+        self.ico_drive = self_ico['drive']
+        self.ico_up = self_ico['up']
 
         #self.ico_delete = self_ico['delete']
 
@@ -341,7 +345,7 @@ class Gui:
         style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],relief=[('disabled',"flat"),('',"sunken")],foreground=[('disabled',"gray"),('',"black")])
 
         style_configure('TRadiobutton', background=self.bg_color)
-
+        style_configure('TMenubutton', background=self.bg_color)
 
         style_map("TButton", relief=[('disabled',"flat"),('',"raised")],foreground=[('disabled',"gray"),('',"black")] )
 
@@ -973,7 +977,7 @@ class Gui:
 
             self_ico_librer = self.ico_librer
 
-            self.scan_dialog=dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
+            self.scan_dialog=dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=550)
 
             self_ico = self.ico
 
@@ -1014,9 +1018,15 @@ class Gui:
 
             self.add_path_button = Button(temp_frame,width=18,image = self.ico_open, command=self.set_path_to_scan,underline=0)
             self.add_path_button.grid(row=0, column=4, sticky='news',padx=4,pady=4)
-
             self.widget_tooltip(self.add_path_button,"Set path to scan.")
 
+            self.add_dev_button = Menubutton(temp_frame,width=18,image = self.ico_drive,underline=0)
+            self.add_dev_button.grid(row=0, column=5, sticky='news',padx=4,pady=4)
+            self.widget_tooltip(self.add_dev_button,"Select device to scan.")
+            
+            self.drives_menu = Menu(self.add_dev_button, tearoff=0,postcommand=self.set_dev_to_scan_menu)
+            self.add_dev_button["menu"] = self.drives_menu
+            
             temp_frame.grid_columnconfigure(3, weight=1)
 
             ##############
@@ -1028,7 +1038,7 @@ class Gui:
             #temp_frame2.grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
             self.exclude_scroll_frame=dialogs.SFrame(temp_frame2,bg=self.bg_color)
-            self.exclude_scroll_frame.pack(fill='both',expand=True,side='top')
+            self.exclude_scroll_frame.pack(fill='both',expand=True,side='top',ipadx=4,ipady=4)
             self.exclude_frame=self.exclude_scroll_frame.frame()
 
             buttons_fr2 = Frame(temp_frame2,bg=self.bg_color,takefocus=False)
@@ -1090,24 +1100,25 @@ class Gui:
 
             ############
             temp_frame3 = LabelFrame(dialog.area_main,text='Custom Data Extractors:',borderwidth=2,bg=self.bg_color,takefocus=False)
-            temp_frame3.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3)
+            temp_frame3.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3,ipadx=4,ipady=4)
 
             sf_par3 = dialogs.SFrame(temp_frame3,bg=self.bg_color)
             sf_par3.pack(fill='both',expand=True,side='top')
             self.cde_frame = cde_frame = sf_par3.frame()
 
-            (lab_use := Label(cde_frame,text='Use',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=0,sticky='news')
-            (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=1,sticky='news')
-            (lab_min := Label(cde_frame,text='Min\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=2,sticky='news')
-            (lab_max := Label(cde_frame,text='Max\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=3,sticky='news')
-            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=4,sticky='news')
-            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=5,sticky='news')
-            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=6,sticky='news')
-            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
-            (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=8,sticky='news')
-            (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
+            (lab_use := Label(cde_frame,text='Use',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=1,sticky='news')
+            (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=2,sticky='news')
+            (lab_min := Label(cde_frame,text='Min\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=3,sticky='news')
+            (lab_max := Label(cde_frame,text='Max\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=4,sticky='news')
+            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news')
+            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=6,sticky='news')
+            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
+            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
+            (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=9,sticky='news')
+            (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=10,sticky='news')
             #(lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
-
+            
+            up_tooltip = "Use the arrow to change the order\nin which CDE criteria are checked.\n\nIf a file meets several CDE criteria\n(mask & size), only the first one is executed.\nThe first one has the highest priority,\nthe next ones have lower and lower priority."
             use_tooltip = "Mark to use CD Extractor"
             mask_tooltip = "glob expresions separated by comma (',')\ne.g.: '*.7z, *.zip, *.gz'\n\nthe given executable will run\nwith every file matching the expression\n(and size citeria if provided)"
             max_tooltip = min_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
@@ -1144,6 +1155,7 @@ class Gui:
             self.CDE_timeout_var_list=[]
             self.CDE_crc_var_list=[]
 
+            self.up_button={}
             self.mask_entry={}
             self.size_min_entry={}
             self.size_max_entry={}
@@ -1168,40 +1180,46 @@ class Gui:
                 self.CDE_crc_var_list.append(BooleanVar())
 
                 row = e+1
-
+                    
+                self.up_button[e] = Button(cde_frame,image=self.ico_up,command = lambda x=e : self.cde_up(x) )
+                
+                if row>1:
+                    self.up_button[e].grid(row=row,column=0,sticky='news')
+                
                 self.use_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
-                self.use_checkbutton[e].grid(row=row,column=0,sticky='news')
+                self.use_checkbutton[e].grid(row=row,column=1,sticky='news')
 
                 self.mask_entry[e] = Entry(cde_frame,textvariable=self.CDE_mask_var_list[e])
-                self.mask_entry[e].grid(row=row, column=1,sticky='news')
+                self.mask_entry[e].grid(row=row, column=2,sticky='news')
 
                 self.size_min_entry[e] = Entry(cde_frame,textvariable=self.CDE_size_min_var_list[e],width=6)
-                self.size_min_entry[e].grid(row=row, column=2,sticky ='news')
+                self.size_min_entry[e].grid(row=row, column=3,sticky ='news')
 
                 self.size_max_entry[e] = Entry(cde_frame,textvariable=self.CDE_size_max_var_list[e],width=6)
-                self.size_max_entry[e].grid(row=row, column=3,sticky ='news')
+                self.size_max_entry[e].grid(row=row, column=4,sticky ='news')
 
                 self.executable_entry[e] = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e],style='TEntry')
-                self.executable_entry[e].grid(row=row, column=4,sticky='news')
+                self.executable_entry[e].grid(row=row, column=5,sticky='news')
 
                 self.open_button[e] = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
-                self.open_button[e].grid(row=row,column=5,sticky='news')
+                self.open_button[e].grid(row=row,column=6,sticky='news')
 
                 self.parameters_entry[e] = Entry(cde_frame,textvariable=self.CDE_parameters_var_list[e],style='TEntry')
-                self.parameters_entry[e].grid(row=row, column=6,sticky='news')
+                self.parameters_entry[e].grid(row=row, column=7,sticky='news')
 
                 self.shell_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_shell_var_list[e])
-                self.shell_checkbutton[e].grid(row=row, column=7,sticky='news')
+                self.shell_checkbutton[e].grid(row=row, column=8,sticky='news')
 
                 self.timeout_entry[e] = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e],width=3,style='TEntry')
-                self.timeout_entry[e].grid(row=row, column=8,sticky='news')
+                self.timeout_entry[e].grid(row=row, column=9,sticky='news')
 
                 self.test_button[e] = Button(cde_frame,image=self.ico_test,command = lambda x=e : self.cde_test(x) )
-                self.test_button[e].grid(row=row,column=9,sticky='news')
+                self.test_button[e].grid(row=row,column=10,sticky='news')
 
                 #self.crc_entry[e] = Checkbutton(cde_frame,variable=self.CDE_crc_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
                 #self.crc_entry[e].grid(row=row, column=9,sticky='news')
 
+                self.widget_tooltip(self.up_button[e],up_tooltip)
                 self.widget_tooltip(self.mask_entry[e],mask_tooltip)
                 self.widget_tooltip(self.size_min_entry[e],min_tooltip)
                 self.widget_tooltip(self.size_max_entry[e],max_tooltip)
@@ -1214,8 +1232,8 @@ class Gui:
                 self.widget_tooltip(self.test_button[e],test_tooltip)
                 #self.widget_tooltip(self.crc_entry[e],crc_tooltip)
 
-            cde_frame.grid_columnconfigure(1, weight=2)
-            cde_frame.grid_columnconfigure(4, weight=2)
+            cde_frame.grid_columnconfigure(2, weight=2)
+            cde_frame.grid_columnconfigure(5, weight=2)
             cde_frame.grid_columnconfigure(6, weight=1)
 
             self.scan_dialog_created = True
@@ -3421,6 +3439,35 @@ class Gui:
         else:
             self.exclude_scroll_frame.pack_forget()
 
+    def set_dev_to_scan_menu(self):
+        self.drives_menu.delete(0,'end')
+        
+        templ = "%-17s %8s %8s %8s %5s%% %9s  %s"
+        #print(templ % ("Device", "Total", "Used", "Free", "Use ", "Type","Mount"))
+        for part in disk_partitions(all=False):
+            if windows:
+                if 'cdrom' in part.opts or part.fstype == '':
+                    # skip cd-rom drives with no disk in it; they may raise
+                    # ENOENT, pop-up a Windows GUI error for a non-ready
+                    # partition or just hang.
+                    continue
+            usage = disk_usage(part.mountpoint)
+            if part.fstype != 'squashfs':
+                #print(templ % (
+                #    part.device,
+                #    bytes_to_str(usage.total),
+                #    bytes_to_str(usage.used),
+                #    bytes_to_str(usage.free),
+                #    int(usage.percent),
+                #    part.fstype,
+                #    part.mountpoint))
+        
+                self.drives_menu.add_command(label=part.mountpoint,command = lambda dev=part.mountpoint : self.set_dev_to_scan(dev) )
+
+    def set_dev_to_scan(self,dev):
+        self.path_to_scan_entry_var.set(dev)
+        self.scan_label_entry_var.set(dev)
+        
     def set_path_to_scan(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
@@ -3550,6 +3597,19 @@ class Gui:
 
                 self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if self.returncode[0]==0 and not self.test_decoding_error else "with Error"}',output)
 
+    def cde_up(self,e):
+        e_up=e-1
+            
+        for n_list in [self.CDE_use_var_list,self.CDE_mask_var_list,self.CDE_size_min_var_list,self.CDE_size_max_var_list,self.CDE_executable_var_list,self.CDE_parameters_var_list,self.CDE_shell_var_list,self.CDE_timeout_var_list]:
+            ve = n_list[e].get()
+            v_e_up = n_list[e_up].get()
+            
+            n_list[e].set(v_e_up)
+            n_list[e_up].set(ve)
+            
+            self.use_checkbutton_mod(e)
+            self.use_checkbutton_mod(e_up)
+        
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Bat Files","*.bat"),("Executable Files","*.exe"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
