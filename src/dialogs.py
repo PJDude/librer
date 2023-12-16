@@ -327,6 +327,9 @@ class TextDialogInfo(GenericDialog):
 
         self.message = ''
 
+        
+        self.uplabel = Label(self.area_main,bg=self.bg_color,relief='groove', bd=2,anchor='w')
+        
         textwidth=80
         self.text = scrolledtext.ScrolledText(self.area_main,relief='groove' , bd=2,bg='white',width = textwidth,takefocus=True)
         self.text.frame.config(takefocus=False)
@@ -335,9 +338,9 @@ class TextDialogInfo(GenericDialog):
         self.text.tag_configure('RED', foreground='red')
         self.text.tag_configure('GRAY', foreground='gray')
 
-        self.text.grid(row=0,column=0,padx=5,pady=5)
+        self.text.grid(row=1,column=0,padx=5,pady=5)
 
-        self.area_main.grid_rowconfigure(0, weight=1)
+        self.area_main.grid_rowconfigure(1, weight=1)
 
         self.cancel_button=Button(self.area_buttons, text='Close', width=14, command=super().hide )
         self.cancel_button.pack(side='left', anchor='e',padx=5,pady=5)
@@ -351,9 +354,15 @@ class TextDialogInfo(GenericDialog):
         self.clip_copy(self.message)
         self.copy_button.configure(state='disabled')
 
-    def show(self,title='',message=''):
+    def show(self,title='',message='',uplabel_text=''):
         self.widget.title(title)
-
+        
+        if uplabel_text:
+            self.uplabel.grid(row=0,column=0,sticky='we')
+            self.uplabel.configure(text=uplabel_text)
+        else:
+            self.uplabel.grid_remove()
+        
         self.text.configure(state='normal')
         self.text.delete('1.0', 'end')
 
@@ -366,15 +375,15 @@ class TextDialogInfo(GenericDialog):
             self.text.insert('end', line_splitted[0] + "\n", tag)
 
         self.text.configure(state='disabled')
-        self.text.grid(row=0,column=0,sticky='news',padx=5,pady=5)
+        self.text.grid(row=1,column=0,sticky='news',padx=5,pady=5)
 
         self.copy_button.configure(state='normal')
 
         super().show()
 
 class TextDialogQuestion(TextDialogInfo):
-    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=800,min_height=400,image=''):
-        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=800,min_height=400,image='',show_uplabel=False):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height,show_uplabel)
 
         self.cancel_button.configure(text='Cancel')
         self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
@@ -389,8 +398,8 @@ class TextDialogQuestion(TextDialogInfo):
         self.wait_var.set(True)
         super().hide()
 
-    def show(self,title='',message=''):
-        super().show(title,message)
+    def show(self,title='',message='',uplabel_text=''):
+        super().show(title,message,uplabel_text)
 
 class EntryDialogQuestion(LabelDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):

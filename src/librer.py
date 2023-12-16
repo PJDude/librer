@@ -939,8 +939,12 @@ class Gui:
 
         return self.delete_record_dialog
 
-    def use_checkbutton_mod(self,e):
-        do_crc = bool( self.CDE_crc_var_list[e].get() )
+    def configure_scan_button(self):
+        self.scan_button.configure(image=self.ico_start if all(bool(self.CDE_use_var_list[e_local].get())==False for e_local in range(self.CDE_ENTRIES_MAX) ) else self.ico_warning)
+
+    def use_checkbutton_mod(self,e,do_configure_scan_button=True):
+        #do_crc = bool( self.CDE_crc_var_list[e].get() )
+        do_crc = False
         do_cd = bool( self.CDE_use_var_list[e].get() )
 
         if self.CDE_use_var_list[e].get():
@@ -950,6 +954,8 @@ class Gui:
             self.open_button[e].configure(state='normal')
             self.timeout_entry[e].configure(state='normal')
             self.test_button[e].configure(state='normal')
+            
+            self.scan_button.configure(image=self.ico_warning)
         else:
             self.executable_entry[e].configure(state='disabled')
             self.parameters_entry[e].configure(state='disabled')
@@ -966,7 +972,10 @@ class Gui:
             self.mask_entry[e].configure(state='disabled')
             self.size_min_entry[e].configure(state='disabled')
             self.size_max_entry[e].configure(state='disabled')
-
+        
+        if do_configure_scan_button:
+            self.configure_scan_button()
+        
     def scan_comp_set(self):
         self.scan_compr_var_int.set(int(self.scan_compr_var.get()))
 
@@ -1072,9 +1081,10 @@ class Gui:
 
             self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
 
-            (scan_button := Button(dialog.area_buttons,width=12,text="Scan",image=self.ico_warning,compound='left',command=self.scan_wrapper,underline=0)).pack(side='right',padx=4,pady=4)
-            self.widget_tooltip(scan_button,'Start scanning.\n\nIf any Custom Data Extractor is enabled it will be executed\nwith every file that meets its criteria (mask & size).')
-
+            self.scan_button = Button(dialog.area_buttons,width=12,text="Scan",compound='left',command=self.scan_wrapper,underline=0)
+            self.scan_button.pack(side='right',padx=4,pady=4)
+            self.widget_tooltip(self.scan_button,'Start scanning.\n\nIf any Custom Data Extractor is enabled it will be executed\nwith every file that meets its criteria (mask & size).')
+            
             self.scan_cancel_button = Button(dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog_hide_wrapper)
             #,image=self.ico_stop
             #,compound='left'
@@ -3476,9 +3486,11 @@ class Gui:
                 self.CDE_crc_var_list[e].set(False)
             self.cfg.set(CFG_KEY_CDE_SETTINGS,'')
             self.cfg.write()
-
+        
         for e in range(self.CDE_ENTRIES_MAX):
-            self.use_checkbutton_mod(e)
+            self.use_checkbutton_mod(e,False)
+            
+        self.configure_scan_button()
 
         dialog.do_command_after_show=lambda : self.status("")
         dialog.show()
@@ -3990,9 +4002,17 @@ class Gui:
                                 
                                 self.access_customdata(record)
                                 
-                                if cd_data := record.customdata[cd_index][2]:
+                                cd_field = record.customdata[cd_index]
+                                if cd_data := cd_field[2]:
+                                    rule_nr=cd_field[0]
+                                    returncode=cd_field[1]
+                                                    
+                                    expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc = record.header.cde_list[rule_nr]
+                                    
+                                    file_path = record.header.scan_path + sep + sep.join(subpath_list)
+                                    
                                     cd_txt = cd_data
-                                    self.get_text_info_dialog().show('Custom Data',cd_txt)
+                                    self.get_text_info_dialog().show(f'Custom Data of: {file_path}',cd_txt,uplabel_text=f"CDE command:'{executable} {parameters}' | shell:{shell} {timeout if timeout else ''} returncode:{returncode}")
                                     return
 
                             self.info_dialog_on_main.show('Information','No Custom data.')
