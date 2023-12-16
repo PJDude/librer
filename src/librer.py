@@ -253,7 +253,12 @@ class Gui:
         #self_hg_ico = self.hg_ico
         self.hg_ico_len = len(self.hg_ico)
 
+        self.ico_record_new = self_ico['record_new']
+        self.ico_record_delete = self_ico['record_delete']
         self.ico_record_raw = self_ico['record_raw']
+        self.ico_record_pure = self_ico['record_pure']
+        self.ico_record_import = self_ico['record_import']
+        self.ico_record_export = self_ico['record_export']
         self.ico_record_raw_cd = self_ico['record_raw_cd']
         self.ico_record = self_ico['record']
         self.ico_records_all = self_ico['records_all']
@@ -267,6 +272,9 @@ class Gui:
         self.ico_license = self_ico['license']
 
         self.ico_find = self_ico['find']
+        self.ico_start = self_ico['start']
+        self.ico_stop = self_ico['stop']
+        self.ico_abort = self_ico['abort']
 
         self.ico_folder = self_ico['folder']
         self.ico_folder_link = self_ico['folder_link']
@@ -277,6 +285,7 @@ class Gui:
         self.ico_open = self_ico['open']
         self.ico_drive = self_ico['drive']
         self.ico_up = self_ico['up']
+        self.ico_info = self_ico['info']
 
         #self.ico_delete = self_ico['delete']
 
@@ -495,11 +504,10 @@ class Gui:
                 state_has_cd = ('disabled','normal')[self.item_has_cd(self.tree.focus())]
                 
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
-                self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record,compound='left')
+                self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record_new,compound='left')
 
                 self_file_cascade_add_separator()
-                #self_file_cascade_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
-                self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
@@ -733,20 +741,6 @@ class Gui:
 
         self_main.mainloop()
     
-    def unload_recod(self,record=None):
-        if not record:
-            record = self.current_record
-        
-        if record:
-            record_item = self.record_to_item[record]
-            self.tree.delete(record_item)
-            record.unload_filestructure()
-            record.unload_customdata()
-            self.single_record_show(record)
-            
-    def unload_all_recods(self):
-        for record in librer_core.records:
-            self.unload_recod(record)
             
     def item_has_cd(self,item):
         has_cd=False
@@ -831,7 +825,7 @@ class Gui:
             l_info("logwrapper '%s' end. BENCHMARK TIME:%s",func.__name__,time()-start)
             return res
         return logwrapper_wrapp
-
+    
     def restore_status_line(func):
         def restore_status_line_wrapp(self,*args,**kwargs):
 
@@ -977,7 +971,7 @@ class Gui:
 
             self_ico_librer = self.ico_librer
 
-            self.scan_dialog=dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=550)
+            self.scan_dialog=dialog=dialogs.GenericDialog(self.main,(self.ico_record_new,self.ico_record_new),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=550)
 
             self_ico = self.ico
 
@@ -1069,9 +1063,12 @@ class Gui:
 
             self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
 
-            Button(dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0).pack(side='right',padx=4,pady=4)
+            (scan_button := Button(dialog.area_buttons,width=12,text="Scan",image=self.ico_warning,compound='left',command=self.scan_wrapper,underline=0)).pack(side='right',padx=4,pady=4)
+            self.widget_tooltip(scan_button,'Start scanning.\n\nIf any Custom Data Extractor is enabled it will be executed\nwith every file that meets its criteria (mask & size).')
 
-            self.scan_cancel_button = Button(dialog.area_buttons,width=12,text="Cancel",image=self.ico_cancel,compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
+            self.scan_cancel_button = Button(dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog_hide_wrapper)
+            #,image=self.ico_stop
+            #,compound='left'
             self.scan_cancel_button.pack(side='left',padx=4,pady=4)
 
             (scan_options_frame := Frame(dialog.area_buttons,bg=self.bg_color)).pack(side='right',padx=4,pady=4)
@@ -1118,7 +1115,7 @@ class Gui:
             (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=10,sticky='news')
             #(lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
             
-            up_tooltip = "Use the arrow to change the order\nin which CDE criteria are checked.\n\nIf a file meets several CDE criteria\n(mask & size), only the first one is executed.\nThe first one has the highest priority,\nthe next ones have lower and lower priority."
+            up_tooltip = "Use the arrow to change the order\nin which CDE criteria are checked.\n\nIf a file meets several CDE criteria\n(mask & size), the one with higher priority\nwill be executed. In this table, the first\none from the top has the highest priority,\nthe next ones have lower and lower priority."
             use_tooltip = "Mark to use CD Extractor"
             mask_tooltip = "glob expresions separated by comma (',')\ne.g.: '*.7z, *.zip, *.gz'\n\nthe given executable will run\nwith every file matching the expression\n(and size citeria if provided)"
             max_tooltip = min_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
@@ -1126,8 +1123,8 @@ class Gui:
             pars_tooltip = f"The executable will run with the full path to the file to extract as a parameter.\nIf other constant parameters are necessary, they should be placed here\nand the scanned file should be indicated with the '{PARAM_INDICATOR_SIGN}' sign.\nThe absence of the '{PARAM_INDICATOR_SIGN}' sign means that the file will be passed as the last parameter.\ne.g.:const_param % other_const_param"
             shell_tooltip = "Execute in system shell\nUse only when necessary."
             open_tooltip = "Point executable as custom data extractor..."
-            timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or empty field means no timeout"
-            test_tooltip = "Test your custom data extractor\non a single, manually selected file.\nCheck whether it obtains the data you expect\nPoint to the file to be tested on..."
+            timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or empty field means no timeout."
+            test_tooltip = "Select a file and test your Custom Data Extractor.\n\nBefore you run scan, and therefore run your CDE on all\nfiles that will match on the scan path,\ntest your Custom Data Extractor\non a single, manually selected file.\nCheck if it's getting the expected data\nand has no unexpected side-effects."
 
             self_widget_tooltip = self.widget_tooltip
 
@@ -1563,22 +1560,23 @@ class Gui:
             (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
             Radiobutton(find_filename_frame,text="Don't use this criterion",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod)
+            #.grid(row=1, column=0, sticky='news',padx=4,pady=4)
             (regexp_radio_name:=Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
             (glob_radio_name:=Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)).grid(row=3, column=0, sticky='news',padx=4,pady=4)
             (fuzzy_radio_name:=Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
             
             regexp_tooltip = "Regular expression\n"
             regexp_tooltip_name = "checked on the file\nor folder name."
-            regexp_tooltip_cd = "checked on the entire\ncustom data of a file."
+            regexp_tooltip_cd = "checked on the entire\nCustom Data of a file."
             
             glob_tooltip = "An expression containing wildcard characters\nsuch as '*','?' or character range '[a-c]'.\n"
             glob_tooltip_name = 'checked on the file or folder name.'
-            glob_tooltip_cd = 'checked on the entire custom data of a file.'
+            glob_tooltip_cd = 'checked on the entire Custom Data of a file.'
             
             fuzzy_tooltip = 'Fuzzy matching is implemented using SequenceMatcher\nfrom the difflib module. Any file whose similarity\nscore exceeds the threshold will be classified as found.\nThe similarity score is calculated\n'
             fuzzy_tooltip_name = 'based on the file or folder name.'
-            fuzzy_tooltip_cd = 'based on the entire custom data of a file.'
+            fuzzy_tooltip_cd = 'based on the entire Custom Data of a file.'
             
             self.find_filename_regexp_entry = Entry(find_filename_frame,textvariable=self.find_name_regexp_var,validate="key")
             self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
@@ -1611,11 +1609,11 @@ class Gui:
                 
             find_filename_frame.grid_columnconfigure( 1, weight=1)
 
-            (find_cd_frame := LabelFrame(sfdma,text='Custom data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
+            (find_cd_frame := LabelFrame(sfdma,text='Custom Data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
 
             Radiobutton(find_cd_frame,text="Don't use this criterion",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="files without custom data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="files with any correct custom data ",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="files without Custom Data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
+            Radiobutton(find_cd_frame,text="files with any correct Custom Data ",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
             Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
             (regexp_radio_cd:=Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
             (glob_radio_cd:=Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)).grid(row=5, column=0, sticky='news',padx=4,pady=4)
@@ -1818,8 +1816,11 @@ class Gui:
     def record_import(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         
-        filenames = askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose records to import', defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
+        filenames = askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose record file(s) to import', defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
         
+        if not filenames:
+            return
+            
         ok_counter=0
         messages_all=[]
         for dat_file in filenames:
@@ -1991,9 +1992,17 @@ class Gui:
                             code = data_tuple[1]
                             is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
                             
+                            if is_symlink:
+                                tooltip_list.append('')
+                                tooltip_list.append('Symlink')
+                            
+                            if is_bind:
+                                tooltip_list.append('')
+                                tooltip_list.append('Binding (another device)')
+                                
                             if has_cd:
                                 tooltip_list.append('')
-                                tooltip_list.append('(Double click to show custom data.)')
+                                tooltip_list.append('(Double click to show Custom Data.)')
                         
                         self.tooltip_lab_configure(text='\n'.join(tooltip_list))
 
@@ -2895,14 +2904,14 @@ class Gui:
             c_nav_add_command(label = 'Go to first record'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
             c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
-            pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self_ico['record'],compound='left')
+            pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico_record_new,compound='left')
             pop_add_separator()
-            pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_empty,compound='left',state=state_on_records)
-            pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_empty,compound='left')
+            pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_record_export,compound='left',state=state_on_records)
+            pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
             pop_add_separator()
-            pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_empty,compound='left',state=state_on_records)
+            pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_info,compound='left',state=state_on_records)
             pop_add_separator()
-            pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico['delete'],compound='left',state=state_on_records)
+            pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico_record_delete,compound='left',state=state_on_records)
             pop_add_separator()
             pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=('disabled','normal')[self.item_has_cd(self.tree.focus())])
             pop_add_separator()
@@ -3107,15 +3116,16 @@ class Gui:
         self_progress_dialog_on_scan_lab_r2_config = self_progress_dialog_on_scan.lab_r2.config
 
         str_self_progress_dialog_on_scan_abort_button = str(self_progress_dialog_on_scan.abort_button)
+        str_self_progress_dialog_on_scan_abort_single_button = str(self_progress_dialog_on_scan.abort_single_button)
         
-        self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_cancel,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single_file(new_record))
+        self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single_file(new_record))
                 
         self_progress_dialog_on_scan.abort_single_button.pack_forget()
         #############################
 
         self.scan_dialog.widget.update()
         self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
-        self_progress_dialog_on_scan.abort_button.configure(image=self.ico_cancel,text='Cancel',compound='left',width=15)
+        self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Cancel',compound='left',width=15)
 
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
@@ -3282,9 +3292,10 @@ class Gui:
             self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
             self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
             self_progress_dialog_on_scan.abort_single_button.configure(state='normal')
-            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_cancel,text='Abort',compound='left',width=15,state='normal')
+            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Abort',compound='left',width=15,state='normal')
 
-            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\ncustom data will be incomplete.'
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom Data will be incomplete.'
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]='Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.'
 
             #########################################################################################
             cd_thread=Thread(target=new_record.extract_customdata_threaded,daemon=True)
@@ -3715,7 +3726,7 @@ class Gui:
     def access_customdata(self,record):
         self.hide_tooltip()
         self.popup_unpost()
-        self.status('loading custom data ...')
+        self.status('loading Custom Data ...')
         self.main.update()
         record.decompress_filestructure()
         record.decompress_customdata()
@@ -3978,7 +3989,28 @@ class Gui:
             if self.current_record:
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
                 self.get_text_info_dialog().show('Record Info.',self.current_record.txtinfo)
-
+    
+    @block_actions_processing
+    @gui_block
+    @logwrapper
+    def unload_recod(self,record=None):
+        if not record:
+            record = self.current_record
+        
+        if record:
+            record_item = self.record_to_item[record]
+            self.tree.delete(record_item)
+            record.unload_filestructure()
+            record.unload_customdata()
+            self.single_record_show(record)
+    
+    @block_actions_processing
+    @gui_block
+    @logwrapper
+    def unload_all_recods(self):
+        for record in librer_core.records:
+            self.unload_recod(record)
+            
     #@logwrapper
     #def tree_action(self,item):
     #    tree=self.tree

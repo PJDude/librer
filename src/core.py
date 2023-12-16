@@ -562,7 +562,7 @@ class LibrerRecord:
                             try:
                                 line = subprocess_stdout_readline()
                             except Exception as le:
-                                print(command,le)
+                                #print(command,le)
                                 line = str(le)
                                 decoding_error = True
 
