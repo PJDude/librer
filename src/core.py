@@ -73,11 +73,8 @@ from pathlib import Path as pathlib_Path
 from zstandard import ZstdCompressor,ZstdDecompressor
 
 from signal import SIGTERM
-#from hashlib import sha1
 
 from psutil import Process
-
-#from difflib import SequenceMatcher
 
 from pickle import dumps,loads
 
@@ -103,7 +100,6 @@ def get_ver_timestamp():
         print(e_ver)
         timestamp=''
     return timestamp
-
 
 def bytes_to_str(num):
     if num < 1024:

@@ -4053,38 +4053,21 @@ if __name__ == "__main__":
         #######################################################################
 
         VER_TIMESTAMP = get_ver_timestamp()
-        #p_args = parse_args(VER_TIMESTAMP)
-
-        use_appdir=False
-        #bool(p_args.appdirs)
-
-        #if not use_appdir:
-
-        #try:
-        #    DB_DIR_TEST = sep.join([DB_DIR,'access.test'])
-        #    Path(DB_DIR_TEST).mkdir(parents=True,exist_ok=False)
-        #    rmdir(DB_DIR_TEST)
-        #except Exception as e_portable:
-        #    print('Cannot store files in portable mode:',e_portable)
-        #    use_appdir=True
 
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,"logs"])
 
-        #p_args.log[0]) if p_args.log else
         log_file = strftime('%Y_%m_%d_%H_%M_%S',localtime_catched(time())) +'.txt'
         log=abspath(LOG_DIR + sep + log_file)
 
         Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
 
-        #print('LIBRER_EXECUTABLE_FILE:',LIBRER_EXECUTABLE_FILE,'\nLIBRER_EXECUTABLE_DIR:',LIBRER_EXECUTABLE_DIR,'\nDB_DIR:',DB_DIR)
         print('log:',log)
 
         logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
 
         l_info('LIBRER %s',VER_TIMESTAMP)
         l_info('executable: %s',LIBRER_EXECUTABLE_FILE)
-        #l_debug('DEBUG LEVEL ENABLED')
-
+        
         try:
             distro_info=Path(path_join(LIBRER_DIR,'distro.info.txt')).read_text(encoding='ASCII') + f'\nrecord file format version: {data_format_version}'
         except Exception as exception_1:

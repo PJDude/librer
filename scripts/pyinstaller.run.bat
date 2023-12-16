@@ -6,7 +6,7 @@
 @SET VERSION=%VERSION:~1,10%
 @echo VERSION=%VERSION%
 
-@SET OUTDIR=..\build-pyinstaller%VENVNAME%
+@SET OUTDIR=..\build-pyinstaller
 
 @if exist %OUTDIR% rmdir /s /q %OUTDIR%
 @mkdir %OUTDIR%
