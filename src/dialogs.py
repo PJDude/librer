@@ -326,7 +326,6 @@ class TextDialogInfo(GenericDialog):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
         self.message = ''
-
         
         self.uplabel = Label(self.area_main,bg=self.bg_color,relief='groove', bd=2,anchor='w')
         
@@ -382,8 +381,8 @@ class TextDialogInfo(GenericDialog):
         super().show()
 
 class TextDialogQuestion(TextDialogInfo):
-    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=800,min_height=400,image='',show_uplabel=False):
-        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height,show_uplabel)
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=800,min_height=400,image=''):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
 
         self.cancel_button.configure(text='Cancel')
         self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
