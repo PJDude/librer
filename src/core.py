@@ -299,16 +299,19 @@ class LibrerRecord:
 
         local_folder_size_with_subtree=0
         local_folder_size = 0
+        subitems=0
 
         self_scan_rec = self.scan_rec
 
         filenames_set_add = filenames_set.add
         try:
             with scandir(path) as res:
+                
                 local_folder_files_count = 0
                 local_folder_folders_count = 0
 
                 for entry in res:
+                    subitems+=1
                     if self.abort_action:
                         break
 
@@ -320,9 +323,9 @@ class LibrerRecord:
                     self.ext_statistics[pathlib_Path(entry).suffix]+=1
 
                     self.info_line_current = entry_name
+                    
                     try:
                         stat_res = stat(entry)
-
                         mtime = int(stat_res.st_mtime)
                         dev=stat_res.st_dev
                     except Exception as e:
@@ -352,8 +355,8 @@ class LibrerRecord:
                                 has_files = False
                                 size = 0
                             else:
-                                size = self_scan_rec(path_join_loc(path,entry_name),dict_entry,filenames_set,check_dev,dev)
-                                has_files = bool(size)
+                                size,sub_sub_items = self_scan_rec(path_join_loc(path,entry_name),dict_entry,filenames_set,check_dev,dev)
+                                has_files = bool(sub_sub_items)
 
                                 local_folder_size_with_subtree += size
 
@@ -371,7 +374,8 @@ class LibrerRecord:
                             local_folder_files_count += 1
 
                         temp_list_ref = scan_like_data[entry_name]=[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
-                        if has_files:
+                        
+                        if dict_entry:
                             temp_list_ref.append(dict_entry)
 
                 self_header = self.header
@@ -384,7 +388,7 @@ class LibrerRecord:
 
         self.info_line_current = ''
 
-        return local_folder_size_with_subtree+local_folder_size
+        return (local_folder_size_with_subtree+local_folder_size,subitems)
 
     def get_file_name(self,nr):
         return self.filenames[nr]
@@ -686,7 +690,7 @@ class LibrerRecord:
             else:
                 try:
                     (size,is_dir,is_file,is_symlink,is_bind,has_files,mtime) = items_list[0:7]
-
+                    
                     elem_index = 7
                     if has_files:
                         sub_dict = items_list[elem_index]
@@ -712,26 +716,25 @@ class LibrerRecord:
                             has_crc = True
                         else:
                             has_crc = False
-
+                    
                     code_new = LUT_encode_loc[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc) ]
 
                     sub_list_elem=[entry_name_index,code_new,size,mtime]
-
+                    
                     if has_files:
                         sub_list_elem.append(self_tupelize_rec(sub_dict))
-                    else:
-                        if has_cd: #only files
-                            self.header.references_cd+=1
-                            sub_list_elem.append( cd_index )
-                        if has_crc: #only files
-                            sub_list_elem.append( crc_val )
-
+                    
+                    if has_cd: #only files
+                        self.header.references_cd+=1
+                        sub_list_elem.append( cd_index )
+                    if has_crc: #only files
+                        sub_list_elem.append( crc_val )
+                    
                     sub_list.append( tuple(sub_list_elem) )
 
                 except Exception as e:
-                    self.log.error('tupelize_rec error::%s',e )
-                    print('tupelize_rec error:',e,' entry_name:',entry_name,' items_list:',items_list)
-        
+                    self.log.error('tupelize_rec error:%s',e )
+                    print('tupelize_rec error:',e,' entry_name:',entry_name)
         
         return tuple(sorted(sub_list,key = lambda x : x[1:4]))
     #############################################################
