@@ -46,7 +46,7 @@ from signal import signal,SIGINT
 
 from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style
-from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename
+from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
 
 from threading import Thread
 
@@ -1234,7 +1234,7 @@ class Gui:
 
             cde_frame.grid_columnconfigure(2, weight=2)
             cde_frame.grid_columnconfigure(5, weight=2)
-            cde_frame.grid_columnconfigure(6, weight=1)
+            cde_frame.grid_columnconfigure(7, weight=1)
 
             self.scan_dialog_created = True
 
@@ -1323,6 +1323,20 @@ class Gui:
 
         return self.text_ask_dialog_on_scan
 
+    text_ask_dialog_on_main_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_text_ask_dialog_on_main(self):
+        if not self.text_ask_dialog_on_main_created:
+            self.status("Creating dialog ...")
+
+            self.text_ask_dialog_on_main = dialogs.TextDialogQuestion(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            #,image=self.ico_warning
+            self.text_ask_dialog_on_main_created = True
+
+        return self.text_ask_dialog_on_main
+
     progress_dialog_on_find_created = False
     @restore_status_line
     @block_actions_processing
@@ -1392,10 +1406,10 @@ class Gui:
             self.export_dialog_created = True
         return self.export_dialog
 
-    def import_from_file(self):
-        self.import_dialog_file = askopenfilename(initialdir=self.last_dir,parent = self.import_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
+    def import_files_confirm(self):
+        self.do_import=True
         self.import_dialog.hide()
-
+        
     def import_comp_set(self):
         self.import_compr_var_int.set(int(self.import_compr_var.get()))
 
@@ -1404,9 +1418,10 @@ class Gui:
     @block_actions_processing
     @gui_block
     def get_import_dialog(self):
+        self.do_import=False
         if not self.import_dialog_created:
 
-            self.import_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Import record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.import_dialog=dialogs.GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Import record(s)',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.import_cd_var = BooleanVar()
             #self.import_crc_var = BooleanVar()
             self.import_compr_var = IntVar()
@@ -1436,11 +1451,10 @@ class Gui:
 
             Scale(import_frame_compr, variable=self.import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.import_comp_set()).pack(fill='x',side='left',expand=1,padx=2)
             Label(import_frame_compr, textvariable=self.import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
-
+            
             self.import_dialog_file=None
-
-            Button(self.import_dialog.area_buttons, text='Select File ...', width=14, command= self.import_from_file ).pack(side='left', anchor='n',padx=5,pady=5)
-            Button(self.import_dialog.area_buttons, text='Close', width=14, command=self.import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+            Button(self.import_dialog.area_buttons, text='OK', width=14, command= self.import_files_confirm ).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.import_dialog.area_buttons, text='Cancel', width=14, command=self.import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
 
             self.import_dialog_created = True
         return self.import_dialog
@@ -1790,46 +1804,84 @@ class Gui:
                 #keep_crc = self.cfg.set(CFG_KEY_export_crc,self.export_crc_var.get())
                 keep_crc = False
 
-                self.status('saving file "%s" ...' % str(self.export_dialog_file))
+                self.status('exporting "%s" ...' % str(self.export_dialog_file))
+                self.main_update()
 
                 self.current_record.clone_record(self.export_dialog_file,keep_cd,keep_crc,self.export_compr_var_int.get())
 
                 self.last_dir = dirname(self.export_dialog_file)
                 #self.current_record.save(self.export_dialog_file)
 
-    @restore_status_line
+    #@restore_status_line
     @block_actions_processing
     @gui_block
     def record_import(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
-
-        dialog = self.get_import_dialog()
-        dialog.show()
-
-        if self.import_dialog_file:
-            keep_cd = self.cfg.set(CFG_KEY_import_cd,self.import_cd_var.get())
-            #keep_crc = self.cfg.set(CFG_KEY_import_crc,self.import_crc_var.get())
-            keep_crc = False
-
-            self.status('importing record  ...')
-
-            new_record = librer_core.create()
-            if res:=new_record.load(self.import_dialog_file):
-                self.log.error(f'import failed :{self.import_dialog_file} error: {res}')
-                #TODO - dialog z informacja
-                return
-
-            local_file_name = 'imported.'+ str(time()) + '.dat'
-            local_file = sep.join([DATA_DIR,local_file_name])
-            new_record.clone_record(local_file,keep_cd,keep_crc,self.import_compr_var_int.get())
-
-            if res:=new_record.load_wrap(DATA_DIR,local_file_name):
-                print(f'record_import:{res}')
-                #TODO wtorny load
+        
+        filenames = askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose records to import', defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
+        
+        ok_counter=0
+        messages_all=[]
+        for dat_file in filenames:
+            temp_record = librer_core.create()
+            
+            record_short_info=[]
+            record_short_info.append(f'file:{dat_file}')
+            if res:=temp_record.load(dat_file):
+                
+                record_short_info.append(res + '\n')
+                l_error(f'import failed :{dat_file} error: {res}')
             else:
-                self.single_record_show(new_record)
-                self.last_dir = dirname(self.import_dialog_file)
+                record_short_info.append('\n' + temp_record.txtinfo_short + '\n')
+                ok_counter+=1
+            
+            messages_all.append('\n'.join(record_short_info))
+            del temp_record
+            self.last_dir = dirname(dat_file)
+           
+        ask_dialog = self.get_text_ask_dialog_on_main()
+            
+        ask_dialog.show('Continue importing selected record(s) ?',('-'*84 + '\n').join(messages_all))
+        
+        if ask_dialog.res_bool:
+            
+            if ok_counter:
+                dialog = self.get_import_dialog()
+                dialog.show()
+                
+                if self.do_import:
+                    keep_cd = self.cfg.set(CFG_KEY_import_cd,self.import_cd_var.get())
+                    #keep_crc = self.cfg.set(CFG_KEY_import_crc,self.import_crc_var.get())
+                    keep_crc = False
+                    
+                    counter=0
+                    for dat_file in filenames:
+                        counter+=1
+                        self.status(f'importing {dat_file} ({counter}/{ok_counter})...')
+                        self.main_update()
+                        
+                        new_record = librer_core.create()
+                        if res:=new_record.load(dat_file):
+                            l_error(f'import failed :{dat_file} error: {res}')
+                            self.info_dialog_on_main.show('Import failed',f'import failed :{dat_file}\nerror: {res}')
+                            
+                            continue
 
+                        local_file_name = 'imported.'+ str(time()) + '.dat'
+                        local_file = sep.join([DATA_DIR,local_file_name])
+                        
+                        new_record.clone_record(local_file,keep_cd,keep_crc,self.import_compr_var_int.get())
+                        
+                        if res:=new_record.load_wrap(DATA_DIR,local_file_name):
+                            #print(f'record_import:{res}')
+                            self.info_dialog_on_main.show('Import failed (2)',f'local load failed :{local_file_name}\nerror: {res}')
+                        else:
+                            self.single_record_show(new_record)
+                        
+                    self.status(f'records import finished.')
+            else:
+                self.info_dialog_on_main.show('Import failed','No valid record files to import.')
+        
     def focusin(self):
         #print('focusin')
         if self.main_locked_by_child:
@@ -1977,6 +2029,7 @@ class Gui:
         if text != self.status_curr_text or image!=self.status_curr_image:
             self.status_curr_text=text
             self.status_curr_image=image
+            
             self.status_info.configure(text=text,image=image,compound='left')
             self.status_info.update()
 
@@ -2400,7 +2453,6 @@ class Gui:
             self_hg_ico = self.hg_ico
 
             #############################
-
 
             self_progress_dialog_on_find.lab_l1.configure(text='Records:')
             self_progress_dialog_on_find.lab_l2.configure(text='Files:' )

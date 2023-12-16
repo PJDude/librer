@@ -814,6 +814,7 @@ class LibrerRecord:
 
         new_record.header = self.header
         new_record.filenames = self.filenames
+        
         if keep_cd:
             new_record.customdata = self.customdata
 
@@ -999,6 +1000,7 @@ class LibrerRecord:
 
         self.txtinfo = 'init'
         self.txtinfo_basic = 'init-basic'
+        self.txtinfo_short = 'init-short'
 
         try:
             self.FILE_SIZE = stat(self.file_path).st_size
@@ -1014,10 +1016,12 @@ class LibrerRecord:
             info_list.append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
             info_list.append(f'scanned files   : {fnumber(self_header.quant_files)}')
             info_list.append(f'scanned folders : {fnumber(self_header.quant_folders)}')
+            
             info_list.append('')
             info_list.append(f'creation host   : {self_header.creation_host} ({self_header.creation_os})')
             info_list.append(f'creation time   : {local_time}')
             
+            self.txtinfo_short = '\n'.join(info_list)
             self.txtinfo_basic = '\n'.join(info_list)
 
             info_list.append('')
@@ -1037,7 +1041,7 @@ class LibrerRecord:
             info_list.append(f'custom data extraction errors : {fnumber(self_header.files_cde_errors_quant_all)}')
                 
             info_list.append('')
-            info_list.append( 'internal sizes  :  compressed  serialized    original       items  references        time     errors')
+            info_list.append( 'internal sizes  :  compressed  serialized    original       items  references    CDE time  CDE errors')
             info_list.append('')
             
             h_data = self.header_sizes
@@ -1095,8 +1099,10 @@ class LibrerRecord:
             filename = basename(normpath(file_path))
         else:
             filename = self.FILE_NAME = self.new_file_name()
-            self.file_path = file_path = sep.join([self.db_dir,filename])
-
+            file_path = sep.join([self.db_dir,filename])
+        
+        self.file_path = file_path
+        
         self.info_line = f'saving {filename}'
 
         self.log.info('saving %s' % file_path)
