@@ -26,6 +26,7 @@
 #
 ####################################################################################
 
+from send2trash import send2trash as send2trash_delete
 from pympler.asizeof import asizeof
  
 from json import loads as json_loads
@@ -1242,8 +1243,7 @@ class LibrerRecord:
         self.decompressed_customdata = False
         self.customdata = []
         self.prepare_info()
-        
-
+    
 #######################################################################
 class LibrerCore:
     records = set()
@@ -1586,14 +1586,21 @@ class LibrerCore:
 
     ########################################################################################################################
 
-    def delete_record_by_id(self,rid):
-        for record in self.records:
-            if record.header.rid == rid:
-                file_path = sep.join([self.db_dir,record.FILE_NAME])
-                self.log.info('deleting file:%s',file_path)
-                try:
-                    os_remove(file_path)
-                except Exception as e:
-                    self.log.error(e)
-
+    def delete_record(self,record):
+        file_path = sep.join([self.db_dir,record.FILE_NAME])
+        
+        self.records.remove(record)
+        
+        self.log.info('removing file to trash:%s',file_path)
+        try:
+            send2trash_delete(file_path)
+        except Exception as e:
+            self.log.error(f'removing file to trash failed:{e}. Deleting permanently.')
+            try:
+                os_remove(file_path)
+            except Exception as e2:
+                self.log.error(f'deleting permanently failed:{e2}.')
+        
+        
+        del record
         self.update_sorted()

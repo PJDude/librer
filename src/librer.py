@@ -916,19 +916,28 @@ class Gui:
         return self.text_info_dialog
 
 
-    ask_dialog_on_main_created = False
+    delete_record_dialog_created = False
     @restore_status_line
     @block_actions_processing
     @gui_block
-    def get_ask_dialog_on_main(self):
-        if not self.ask_dialog_on_main_created:
+    def get_delete_record_dialog(self):
+        if not self.delete_record_dialog_created:
             self.status("Creating dialog ...")
 
-            self.ask_dialog_on_main = dialogs.LabelDialogQuestion(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
+            self.delete_record_dialog = dialogs.LabelDialogQuestion(self.main,(self.ico_record_delete,self.ico_record_delete),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
+            
+            self.delete_record_dialog.label.configure(justify='left')
+            try:
+                self.delete_record_dialog.label.configure(font=('Courier', 10))
+            except:
+                try:
+                    self.delete_record_dialog.label.configure(font=('TkFixedFont', 10))
+                except:
+                    pass
+                    
+            self.delete_record_dialog_created = True
 
-            self.ask_dialog_on_main_created = True
-
-        return self.ask_dialog_on_main
+        return self.delete_record_dialog
 
     def use_checkbutton_mod(self,e):
         do_crc = bool( self.CDE_crc_var_list[e].get() )
@@ -1706,7 +1715,7 @@ class Gui:
             self.results_on_find = dialogs.LabelDialogQuestion(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             
             self.results_on_find.cancel_button.configure(text='Continue search.',width=20)
-            self.results_on_find.ok_button.configure(text='OK. Close Search dialog',width=20)
+            self.results_on_find.ok_button.configure(text='Close Search dialog',width=20)
             
             self.find_dialog_created = True
 
@@ -3399,14 +3408,18 @@ class Gui:
                 path = self.current_record.header.scan_path
                 creation_time = self.current_record.header.creation_time
 
-                dialog = self.get_ask_dialog_on_main()
+                dialog = self.get_delete_record_dialog()
 
-                dialog.show('Delete selected data record ?',f'Data record label: {label}\n\nscan path:{path}\n\ndata file:{self.current_record.FILE_NAME}' )
+                dialog.show('Delete selected data record ?',self.current_record.txtinfo_short)
 
                 if dialog.res_bool:
-                    librer_core.delete_record_by_id(self.current_record.header.rid)
                     record_item = self.record_to_item[self.current_record]
                     self.tree.delete(record_item)
+                    
+                    del self.record_to_item[self.current_record]
+                    del self.item_to_record[record_item]
+                    
+                    librer_core.delete_record(self.current_record)
 
                     self.status_record_configure('')
                     if remaining_records := self.tree.get_children():
@@ -3960,26 +3973,29 @@ class Gui:
             item=self.tree.focus()
             if item:
                 try:
-                    record_item,record_name,subpath_list = self.get_item_record(item)
-                    record = self.item_to_record[record_item]
-                    
-                    if item in self.item_to_data: #dla rekordu nie spelnione
-                        data_tuple = self.item_to_data[item]
-                        (entry_name,code,size,mtime) = data_tuple[0:4]
+                    if self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
+                        self.record_info()
+                    else:
+                        record_item,record_name,subpath_list = self.get_item_record(item)
+                        record = self.item_to_record[record_item]
                         
-                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
-
-                        if has_cd: #wiec nie has_files
-                            cd_index = data_tuple[4]
+                        if item in self.item_to_data: #dla rekordu nie spelnione
+                            data_tuple = self.item_to_data[item]
+                            (entry_name,code,size,mtime) = data_tuple[0:4]
                             
-                            self.access_customdata(record)
-                            
-                            if cd_data := record.customdata[cd_index][2]:
-                                cd_txt = cd_data
-                                self.get_text_info_dialog().show('Custom Data',cd_txt)
-                                return
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
 
-                        self.info_dialog_on_main.show('Information','No Custom data.')
+                            if has_cd: #wiec nie has_files
+                                cd_index = data_tuple[4]
+                                
+                                self.access_customdata(record)
+                                
+                                if cd_data := record.customdata[cd_index][2]:
+                                    cd_txt = cd_data
+                                    self.get_text_info_dialog().show('Custom Data',cd_txt)
+                                    return
+
+                            self.info_dialog_on_main.show('Information','No Custom data.')
 
                 except Exception as e:
                     self.info_dialog_on_main.show(e)
