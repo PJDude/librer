@@ -1095,13 +1095,13 @@ class Gui:
             self.scan_compr_var = IntVar()
             self.scan_compr_var_int = IntVar()
 
-            self.scan_compr_var.set(16)
-            self.scan_compr_var_int.set(16)
+            self.scan_compr_var.set(9)
+            self.scan_compr_var_int.set(9)
 
             (compr_in_label := Label(scan_options_frame, textvariable=self.scan_compr_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='right',padx=2,pady=2)
             (compr_scale := Scale(scan_options_frame, variable=self.scan_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.scan_comp_set(),style="TScale",length=200)).pack(fill='x',side='right',expand=1,padx=2)
             (compr_label := Label(scan_options_frame, text='Compression:',bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
-            compr_tooltip = "Data record internal compression. A higher value\nmeans a smaller file and longer compression time.\nvalues above 20 may result in extremely long compression\nand memory consumption. The default value is 16."
+            compr_tooltip = "Data record internal compression. A higher value\nmeans a smaller file and longer compression time.\nvalues above 20 may result in extremely long compression\nand memory consumption. The default value is 9."
             self.widget_tooltip(compr_scale,compr_tooltip)
             self.widget_tooltip(compr_label,compr_tooltip)
             self.widget_tooltip(compr_in_label,compr_tooltip)
@@ -1369,8 +1369,12 @@ class Gui:
 
         return self.progress_dialog_on_find
 
+    def export_to_local(self):
+        self.export_dialog_file = sep.join([DATA_DIR,f'imp_{int(time())}.dat']),True
+        self.export_dialog.hide()
+        
     def export_to_file(self):
-        self.export_dialog_file = asksaveasfilename(initialdir=self.last_dir,parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
+        self.export_dialog_file = asksaveasfilename(initialdir=self.last_dir,parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]),False
         self.export_dialog.hide()
 
     def export_comp_set(self):
@@ -1388,14 +1392,19 @@ class Gui:
             #self.export_crc_var = BooleanVar()
             self.export_compr_var = IntVar()
             self.export_compr_var_int = IntVar()
+            self.export_label_var = StringVar()
 
             self.export_cd_var.set(self.cfg.get(CFG_KEY_export_cd))
             #self.export_crc_var.set(self.cfg.get(CFG_KEY_export_crc))
 
-            self.export_compr_var.set(16)
-            self.export_compr_var_int.set(16)
-
-            (export_frame := LabelFrame(self.export_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            self.export_compr_var.set(9)
+            self.export_compr_var_int.set(9)
+            self.export_label_var.set('')
+            
+            (label_frame := LabelFrame(self.export_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            Entry(label_frame,textvariable=self.export_label_var,style='TEntry').pack(expand='yes',fill='x',padx=2,pady=2)
+            
+            (export_frame := LabelFrame(self.export_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             self.export_dialog.area_main.grid_columnconfigure( 0, weight=1)
             self.export_dialog.area_main.grid_columnconfigure( 1, weight=1)
 
@@ -1409,13 +1418,14 @@ class Gui:
 
             export_frame.grid_columnconfigure( 0, weight=1)
 
-            (export_frame_compr := LabelFrame(self.export_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            (export_frame_compr := LabelFrame(self.export_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
 
             Scale(export_frame_compr, variable=self.export_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.export_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
             Label(export_frame_compr, textvariable=self.export_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
 
-            self.export_dialog_file=None
-
+            self.export_dialog_file=None,False
+            
+            Button(self.export_dialog.area_buttons, text='To Local Repo', width=14, command= self.export_to_local ).pack(side='left', anchor='n',padx=5,pady=5)
             Button(self.export_dialog.area_buttons, text='Select File ...', width=14, command= self.export_to_file ).pack(side='left', anchor='n',padx=5,pady=5)
             Button(self.export_dialog.area_buttons, text='Close', width=14, command=self.export_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
 
@@ -1446,8 +1456,8 @@ class Gui:
             self.import_cd_var.set(self.cfg.get(CFG_KEY_import_cd))
             #self.import_crc_var.set(self.cfg.get(CFG_KEY_import_crc))
 
-            self.import_compr_var.set(16)
-            self.import_compr_var_int.set(16)
+            self.import_compr_var.set(9)
+            self.import_compr_var_int.set(9)
 
             (import_frame := LabelFrame(self.import_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             self.import_dialog.area_main.grid_columnconfigure( 0, weight=1)
@@ -1814,20 +1824,42 @@ class Gui:
     def record_export(self):
         if self.current_record:
             dialog = self.get_export_dialog()
+            
+            self.export_compr_var.set(self.current_record.header.compression_level)
+            self.export_compr_var_int.set(self.current_record.header.compression_level)
+            self.export_label_var.set(self.current_record.header.label)
+            
+            self.export_dialog_file=None,False
+            
             dialog.show()
-
-            if self.export_dialog_file:
-                keep_cd = self.cfg.set(CFG_KEY_export_cd,self.export_cd_var.get())
-                #keep_crc = self.cfg.set(CFG_KEY_export_crc,self.export_crc_var.get())
-                keep_crc = False
-
-                self.status('exporting "%s" ...' % str(self.export_dialog_file))
-                self.main_update()
-
-                self.current_record.clone_record(self.export_dialog_file,keep_cd,keep_crc,self.export_compr_var_int.get())
-
-                self.last_dir = dirname(self.export_dialog_file)
-                #self.current_record.save(self.export_dialog_file)
+            
+            new_label = self.export_label_var.get()
+            new_compression = self.export_compr_var_int.get()
+            
+            new_file_path,is_local = self.export_dialog_file
+            if new_file_path:
+                self.record_export_do(new_file_path,is_local,new_label,new_compression)
+            
+    @block_actions_processing
+    @gui_block
+    def record_export_do(self,new_file_path,is_local,new_label,new_compression):
+    
+        keep_cd = self.cfg.set(CFG_KEY_export_cd,self.export_cd_var.get())
+        keep_crc = False
+        self.status('exporting "%s" ...' % str(new_file_path))
+        self.main_update()
+        
+        #print(f'{is_local=}')
+        cres=LibrerRecord.clone_record_file(self.current_record.file_path,new_file_path,new_label,new_compression)
+        #print('cloned',cres)
+        
+        if is_local:
+            new_record = librer_core.create()
+            if res:=new_record.load(new_file_path):
+                print(f'record_import:{res}')
+                self.info_dialog_on_main.show('Export-Import failed (3)',f'local load failed :{new_file_path}\nerror: {res}')
+            else:
+                self.single_record_show(new_record)
 
     #@restore_status_line
     @block_actions_processing
@@ -3429,8 +3461,9 @@ class Gui:
                     del self.record_to_item[self.current_record]
                     del self.item_to_record[record_item]
                     
-                    librer_core.delete_record(self.current_record)
-
+                    res=librer_core.delete_record(self.current_record)
+                    l_info(f'deleted file:{res}')
+                    
                     self.status_record_configure('')
                     if remaining_records := self.tree.get_children():
                         if new_sel_record := remaining_records[0]:
