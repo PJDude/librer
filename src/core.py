@@ -26,64 +26,41 @@
 #
 ####################################################################################
 
-from send2trash import send2trash as send2trash_delete
-from pympler.asizeof import asizeof
- 
 from json import loads as json_loads
-
 from subprocess import Popen, STDOUT, PIPE
-#TimeoutExpired
-#from subprocess import call as subprocess_call
-
 from time import sleep, perf_counter,time,strftime,localtime
-
 from threading import Thread
-
-#from multiprocessing import Queue
-#from queue import Empty
-
 from os import scandir,stat,sep
 from os import name as os_name
 from os import remove as os_remove
 from os import cpu_count
 #from os import kill as os_kill
-
 from os.path import abspath,normpath,basename,dirname
 from os.path import join as path_join
 
 from zipfile import ZipFile
-
 from platform import system as platform_system
 from platform import release as platform_release
 from platform import node as platform_node
 
 from fnmatch import fnmatch
-#translate
-
-#from re import compile as re_compile
 from re import search
-#IGNORECASE
-
 from sys import getsizeof
 import sys
-
 from collections import defaultdict
-
 from pathlib import Path as pathlib_Path
-
-from zstandard import ZstdCompressor,ZstdDecompressor
-
 from signal import SIGTERM
-
-from psutil import Process
-
 from pickle import dumps,loads
+from zstandard import ZstdCompressor,ZstdDecompressor
+from pympler.asizeof import asizeof
+from send2trash import send2trash as send2trash_delete
+from psutil import Process
 
 windows = bool(os_name=='nt')
 
 PARAM_INDICATOR_SIGN = '%'
 
-data_format_version='0017'
+DATA_FORMAT_VERSION='0017'
 
 VERSION_FILE='version.txt'
 
@@ -93,7 +70,7 @@ def localtime_catched(t):
         return localtime(t)
     except:
         return localtime(0)
-        
+
 def get_ver_timestamp():
     try:
         timestamp=pathlib_Path(path_join(dirname(__file__),VERSION_FILE)).read_text(encoding='ASCII').strip()
@@ -182,16 +159,16 @@ def get_command_list(executable,parameters,full_file_path,shell=False):
     if shell:
         if ' ' in executable:
             executable=f'"{executable}"'
-            
+
         if ' ' in full_file_path:
             full_file_path = f'"{full_file_path}"'
-    
+
     parameters = parameters.strip()
-    
+
     if parameters:
         if PARAM_INDICATOR_SIGN not in parameters:
             parameters = parameters + ' ' + PARAM_INDICATOR_SIGN
-            
+
         parameters = parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN)
     else:
         parameters=PARAM_INDICATOR_SIGN
@@ -231,7 +208,7 @@ class LibrerRecordHeader :
         self.quant_files = 0
         self.quant_folders = 0
         self.sum_size = 0
-        self.data_format_version=data_format_version
+        self.data_format_version=DATA_FORMAT_VERSION
 
         self.files_cde_size = 0
         self.files_cde_size_sum = 0
@@ -242,19 +219,19 @@ class LibrerRecordHeader :
 
         self.items_names=0
         self.items_cd=0
-        
+
         self.references_names = 0
         self.references_cd = 0
-        
+
         self.cde_list = []
         self.files_cde_errors_quant = {}
         self.files_cde_errors_quant_all = 0
         self.cde_stats_time_all = 0
-        
+
         self.zipinfo = {}
-        
+
         self.compression_level=0
-        
+
         self.creation_os,self.creation_host = f'{platform_system()} {platform_release()}',platform_node()
 
 #######################################################################
@@ -276,11 +253,11 @@ class LibrerRecord:
 
         #self.crc_progress_info=0
 
-        self.FILE_NAME = ''
+        self.file_name = ''
         self.file_path = ''
 
         #self.quantinfo={'header':'','filestructure':'','filenames':'?','customdata':'?'}
-        
+
     def find_results_clean(self):
         self.find_results = []
 
@@ -305,7 +282,7 @@ class LibrerRecord:
         filenames_set_add = filenames_set.add
         try:
             with scandir(path) as res:
-                
+
                 local_folder_files_count = 0
                 local_folder_folders_count = 0
 
@@ -322,7 +299,7 @@ class LibrerRecord:
                     self.ext_statistics[pathlib_Path(entry).suffix]+=1
 
                     self.info_line_current = entry_name
-                    
+
                     try:
                         stat_res = stat(entry)
                         mtime = int(stat_res.st_mtime)
@@ -373,7 +350,7 @@ class LibrerRecord:
                             local_folder_files_count += 1
 
                         temp_list_ref = scan_like_data[entry_name]=[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
-                        
+
                         if dict_entry:
                             temp_list_ref.append(dict_entry)
 
@@ -406,9 +383,9 @@ class LibrerRecord:
         filenames_set=set()
         self.scan_rec(self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev)
         time_end = perf_counter()
-        
+
         self.header.scanning_time = time_end-time_start
-        
+
         self.filenames = tuple(sorted(list(filenames_set)))
         #########################
         self.info_line = 'indexing filesystem names'
@@ -505,20 +482,20 @@ class LibrerRecord:
         self_header.files_cde_quant_sum = len(self.customdata_pool)
 
         cde_list = self.header.cde_list
-    
+
         customdata_helper={}
-        
+
         customdata_stats_size=defaultdict(int)
         customdata_stats_uniq=defaultdict(int)
         customdata_stats_refs=defaultdict(int)
         customdata_stats_time=defaultdict(float)
-        
+
         customdata_stats_time_all=[0]
         #############################################################
         def threaded_cde(timeout_semi_list):
             cd_index=0
             self_customdata_append = self.customdata.append
-            
+
             time_start_all = perf_counter()
             for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
                 decoding_error=False
@@ -544,7 +521,7 @@ class LibrerRecord:
 
                     timeout_val=time()+timeout if timeout else None
                     #####################################
-                    
+
                     try:
                         subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,shell=shell,text=True)
                         timeout_semi_list[0]=(timeout_val,subprocess)
@@ -581,12 +558,12 @@ class LibrerRecord:
                             output_list.append('Killed.')
 
                         output = '\n'.join(output_list)
-                    
+
                     #####################################
 
                 time_end = perf_counter()
                 customdata_stats_time[rule_nr]+=time_end-time_start
-                
+
                 if returncode or decoding_error or self.killed or aborted:
                     self_header.files_cde_errors_quant[rule_nr]+=1
                     self_header.files_cde_errors_quant_all+=1
@@ -598,7 +575,7 @@ class LibrerRecord:
 
                 new_elem={}
                 new_elem['cd_ok']= bool(returncode==0 and not decoding_error and not self.killed and not aborted)
-                
+
                 cd_field=(rule_nr,returncode,output)
                 if cd_field not in customdata_helper:
                     customdata_helper[cd_field]=cd_index
@@ -606,7 +583,7 @@ class LibrerRecord:
                     cd_index+=1
 
                     self_customdata_append(cd_field)
-                    
+
                     customdata_stats_size[rule_nr]+=asizeof(cd_field)
                     customdata_stats_uniq[rule_nr]+=1
                     customdata_stats_refs[rule_nr]+=1
@@ -617,9 +594,9 @@ class LibrerRecord:
                 #if do_crc:
                 #    new_elem['crc_val']=crc_val
                 scan_like_list.append(new_elem)
-            
+
             time_end_all = perf_counter()
-            
+
             customdata_stats_time_all[0]=time_end_all-time_start_all
             sys.exit() #thread
 
@@ -644,7 +621,7 @@ class LibrerRecord:
 
                     except Exception as ke:
                         print('killing error:',subprocess.pid,ke)
-                
+
                 if self.abort_single_file_cde:
                     try:
                         self.killed=True
@@ -665,13 +642,13 @@ class LibrerRecord:
 
         del self.customdata_pool
         del customdata_helper
-        
+
         self.header.cde_stats_size=customdata_stats_size
         self.header.cde_stats_uniq=customdata_stats_uniq
         self.header.cde_stats_refs=customdata_stats_refs
         self.header.cde_stats_time=customdata_stats_time
         self.header.cde_stats_time_all=customdata_stats_time_all[0]
-        
+
     #############################################################
     def tupelize_rec(self,scan_like_data):
         LUT_encode_loc = LUT_encode
@@ -689,7 +666,7 @@ class LibrerRecord:
             else:
                 try:
                     (size,is_dir,is_file,is_symlink,is_bind,has_files,mtime) = items_list[0:7]
-                    
+
                     elem_index = 7
                     if has_files:
                         sub_dict = items_list[elem_index]
@@ -715,26 +692,26 @@ class LibrerRecord:
                             has_crc = True
                         else:
                             has_crc = False
-                    
+
                     code_new = LUT_encode_loc[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc) ]
 
                     sub_list_elem=[entry_name_index,code_new,size,mtime]
-                    
+
                     if has_files:
                         sub_list_elem.append(self_tupelize_rec(sub_dict))
-                    
+
                     if has_cd: #only files
                         self.header.references_cd+=1
                         sub_list_elem.append( cd_index )
                     if has_crc: #only files
                         sub_list_elem.append( crc_val )
-                    
+
                     sub_list.append( tuple(sub_list_elem) )
 
                 except Exception as e:
                     self.log.error('tupelize_rec error:%s',e )
                     print('tupelize_rec error:',e,' entry_name:',entry_name)
-        
+
         return tuple(sorted(sub_list,key = lambda x : x[1:4]))
     #############################################################
 
@@ -748,16 +725,16 @@ class LibrerRecord:
         has_files = True
         cd_ok = False
         has_crc = False
-                
+
         self.header.references_names=0
         self.header.references_cd=0
-        
+
         code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc) ]
         self.filestructure = ('',code,size,mtime,self.tupelize_rec(self.scan_data))
-                
+
         self.header.items_names=len(self.filenames)
         self.header.items_cd=len(self.customdata)
-        
+
         del self.filenames_helper
         del self.scan_data
 
@@ -804,33 +781,33 @@ class LibrerRecord:
                 new_list.append(crc)
 
         return tuple(new_list)
-    
-    def clone_record(self,file_path,new_label=None,keep_cd=True,keep_crc=True,compression_level=9):
-        self.decompress_filestructure()
-        self.decompress_customdata()
-        
-        new_record = LibrerRecord(self.header.label,self.header.scan_path,self.log)
+
+    #def clone_record(self,file_path,new_label=None,keep_cd=True,keep_crc=True,compression_level=9):
+    #    self.decompress_filestructure()
+    #    self.decompress_customdata()
+
+    #    new_record = LibrerRecord(self.header.label,self.header.scan_path,self.log)
         #else:
         #    new_record = LibrerRecord(self.header.label,self.header.scan_path,self.log)
             #file_path
 
-        new_record.header = self.header
-        new_record.filenames = self.filenames
-        
-        if keep_cd:
-            new_record.customdata = self.customdata
+    #    new_record.header = self.header
+    #    new_record.filenames = self.filenames
 
-        new_record.filestructure = self.clone_record_rec(self.customdata,self.filenames,self.filestructure,keep_cd,keep_crc)
-        
-        if type(file_path) is bool:
-            new_record.db_dir = self.db_dir
-            new_record.header.label = new_label
-            new_record.save(file_path=None,compression_level=compression_level)
-            print(new_record.FILE_NAME)
-        else:
-            new_record.save(file_path,compression_level)
-        
-        return new_record.FILE_NAME
+    #    if keep_cd:
+    #        new_record.customdata = self.customdata
+
+    #    new_record.filestructure = self.clone_record_rec(self.customdata,self.filenames,self.filestructure,keep_cd,keep_crc)
+
+    #    if type(file_path) is bool:
+    #        new_record.db_dir = self.db_dir
+    #        new_record.header.label = new_label
+    #        new_record.save(file_path=None,compression_level=compression_level)
+    #        print(new_record.file_name)
+    #    else:
+    #        new_record.save(file_path,compression_level)
+
+    #    return new_record.file_name
 
     ########################################################################################
     def find_items(self,
@@ -869,9 +846,9 @@ class LibrerRecord:
         cd_search_kind_is_any = bool(cd_search_kind=='any')
         cd_search_kind_is_without = bool(cd_search_kind=='without')
         cd_search_kind_is_error = bool(cd_search_kind=='error')
-            
+
         name_search_kind_is_error = bool(name_search_kind=='error')
-        
+
         self_customdata = self.customdata
 
         results_queue_put = results_queue.append
@@ -914,7 +891,7 @@ class LibrerRecord:
                 if name_search_kind_is_error:
                     if size>-1:
                         continue
-                    
+
                 if is_dir :
                     if when_folder_may_apply:
                         #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
@@ -927,7 +904,7 @@ class LibrerRecord:
                         search_list_append( (sub_data,next_level) )
 
                 elif is_file:
-                    
+
                     if use_size:
                         if size<0:
                             continue
@@ -945,7 +922,7 @@ class LibrerRecord:
                         if timestamp_max:
                             if mtime>timestamp_max:
                                 continue
-                            
+
                     if name_func_to_call:
                         try:
                             if not name_func_to_call(name):
@@ -1027,22 +1004,22 @@ class LibrerRecord:
             info_list.append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
             info_list.append(f'scanned files   : {fnumber(self_header.quant_files)}')
             info_list.append(f'scanned folders : {fnumber(self_header.quant_folders)}')
-            
+
             info_list.append('')
             info_list.append(f'creation host   : {self_header.creation_host} ({self_header.creation_os})')
             info_list.append(f'creation time   : {local_time}')
-            
+
             self.txtinfo_short = '\n'.join(info_list)
             self.txtinfo_basic = '\n'.join(info_list)
 
             info_list.append('')
-            info_list.append(f'record file     : {self.FILE_NAME} ({bytes_to_str(file_size)}, compression level:{self.header.compression_level})')
+            info_list.append(f'record file     : {self.file_name} ({bytes_to_str(file_size)}, compression level:{self.header.compression_level})')
             info_list.append('')
             info_list.append( 'data collection times:')
             info_list.append(f'filesystem      : {str(round(self_header.scanning_time,2))}s')
             if self_header.cde_stats_time_all:
                 info_list.append(f'custom data     : {str(round(self_header.cde_stats_time_all,2))}s')
-                
+
             info_list.append('')
             info_list.append( 'serializing and compression times:')
             info_list.append(f'file structure  : {str(round(self_header.filestructure_time,2))}s')
@@ -1050,11 +1027,11 @@ class LibrerRecord:
             info_list.append(f'custom data     : {str(round(self_header.customdata_time,2))}s')
             info_list.append('')
             info_list.append(f'custom data extraction errors : {fnumber(self_header.files_cde_errors_quant_all)}')
-                
+
             info_list.append('')
             info_list.append( 'internal sizes  :  compressed  serialized    original       items  references    CDE time  CDE errors')
             info_list.append('')
-            
+
             h_data = self.header_sizes
             fs_data = self_header.zipinfo["filestructure"]
             fn_data = self_header.zipinfo["filenames"]
@@ -1063,104 +1040,103 @@ class LibrerRecord:
             info_list.append(f'header          :{bytes_to_str_mod(h_data[0]).rjust(12)          }{bytes_to_str_mod(h_data[1]).rjust(12)     }{bytes_to_str_mod(h_data[2]).rjust(12)    }')
             info_list.append(f'filestructure   :{bytes_to_str_mod(fs_data[0]).rjust(12)         }{bytes_to_str_mod(fs_data[1]).rjust(12)    }{bytes_to_str_mod(fs_data[2]).rjust(12)   }')
             info_list.append(f'file names      :{bytes_to_str_mod(fn_data[0]).rjust(12)         }{bytes_to_str_mod(fn_data[1]).rjust(12)    }{bytes_to_str_mod(fn_data[2]).rjust(12)   }{fnumber(self_header.items_names).rjust(12)    }{fnumber(self_header.references_names).rjust(12)}')
-            
+
             if cd_data[0]:
                 info_list.append(f'custom data     :{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{fnumber(self_header.items_cd).rjust(12)       }{fnumber(self_header.references_cd).rjust(12)}')
-            
+
             info_list.append('')
-            
+
             try:
                 if self_header.cde_list:
                     info_list.append('\nCustom data with details about the rules:')
                     for nr,(expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc) in enumerate(self_header.cde_list):
                         info_list.append(f'\nrule nr    : {nr}                           {bytes_to_str(self_header.cde_stats_size[nr]).rjust(12)}{fnumber(self_header.cde_stats_uniq[nr]).rjust(12)}{fnumber(self_header.cde_stats_refs[nr]).rjust(12)}{str(round(self_header.cde_stats_time[nr],2)).rjust(12)}s{fnumber(self_header.files_cde_errors_quant[nr]).rjust(11)}')
-                        
+
                         info_list.append(f'files      : {expressions}')
                         if use_smin:
                             info_list.append(f'min size   : {bytes_to_str(smin_int)}')
                         if use_smax:
                             info_list.append(f'max size   : {bytes_to_str(smax_int)}')
-                        
+
                         in_shell_string = '(in shell)' if shell else ''
                         info_list.append(f'command    : {executable} {parameters} {in_shell_string}')
                         if timeout:
                             info_list.append(f'timeout    : {timeout}s')
-                        
+
 
             except Exception as EE:
                 print(EE)
-                pass
 
             info_list.append('')
-            
+
             loaded_fs_info = 'filesystem  - ' + ('loaded' if self.decompressed_filestructure else 'not loaded yet')
             loaded_cd_info = 'custom data - ' + ('not present' if not bool(cd_data[0]) else 'loaded' if self.decompressed_customdata else 'not loaded yet')
             info_list.append(loaded_fs_info)
             info_list.append(loaded_cd_info)
-            
+
             self.txtinfo_basic = self.txtinfo_basic + f'\n\n{loaded_fs_info}\n{loaded_cd_info}'
 
         self.txtinfo = '\n'.join(info_list)
-    
+
     def has_cd(self):
         return bool(self.header.zipinfo["customdata"][0])
-        
+
     def save(self,file_path=None,compression_level=9):
         if file_path:
             filename = basename(normpath(file_path))
         else:
-            filename = self.FILE_NAME = self.new_file_name()
+            filename = self.file_name = self.new_file_name()
             file_path = sep.join([self.db_dir,filename])
-        
+
         self.file_path = file_path
-        
+
         self.info_line = f'saving {filename}'
 
         self.log.info('saving %s' % file_path)
-        
+
         self_header = self.header
-        
+
         with ZipFile(file_path, "w") as zip_file:
             compressor = ZstdCompressor(level=compression_level,threads=-1)
             compressor_compress = compressor.compress
-            
+
             t0 = perf_counter()
-            self.info_line = f'serializing file stucture'
+            self.info_line = 'serializing file stucture'
             filestructure_ser = dumps(self.filestructure)
-            self.info_line = f'compressing file stucture'
+            self.info_line = 'compressing file stucture'
             filestructure_ser_compr = compressor_compress(filestructure_ser)
             self_header.zipinfo['filestructure'] = (asizeof(filestructure_ser_compr),asizeof(filestructure_ser),asizeof(self.filestructure))
 
             t1 = perf_counter()
-            self.info_line = f'serializing file names'
+            self.info_line = 'serializing file names'
             filenames_ser = dumps(self.filenames)
-            self.info_line = f'compressing file names'
+            self.info_line = 'compressing file names'
             filenames_ser_comp = compressor_compress(filenames_ser)
             self_header.zipinfo['filenames'] = (asizeof(filenames_ser_comp),asizeof(filenames_ser),asizeof(self.filenames))
-            
+
             t2 = perf_counter()
             if self.customdata:
-                self.info_line = f'serializing custom data'
+                self.info_line = 'serializing custom data'
                 customdata_ser = dumps(self.customdata)
-                self.info_line = f'compressing custom data'
+                self.info_line = 'compressing custom data'
                 customdata_ser_compr = compressor_compress(customdata_ser)
                 self_header.zipinfo['customdata'] = (asizeof(customdata_ser_compr),asizeof(customdata_ser),asizeof(self.customdata))
             else:
                 self_header.zipinfo['customdata'] = (0,0,0)
-            
+
             t3 = perf_counter()
-        
+
             self.header.compression_level = compression_level
-            
+
             self.header.filestructure_time = t1-t0
             self.header.filenames_time = t2-t1
             self.header.customdata_time = t3-t2
-        
+
             ###########
             header_ser = dumps(self_header)
             header_ser_compr = compressor_compress(header_ser)
             self.header_sizes=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self_header))
-            
+
             zip_file.writestr('header',header_ser_compr)
             ###########
             self.info_line = f'saving {filename} (File stucture)'
@@ -1176,14 +1152,14 @@ class LibrerRecord:
         self.prepare_info()
 
         self.info_line = ''
-    
+
     @staticmethod
     def clone_record_file(src_file_path,dst_file_path,new_label=None,compression_level=9):
         #print('clone_record_file',src_file_path,dst_file_path,new_label,compression_level)
         #keep_cd=True,
-        
+
         decompressor = ZstdDecompressor()
-        
+
         try:
             with ZipFile(src_file_path, "r") as zip_file:
                 header_ser_compr = zip_file.read('header')
@@ -1192,7 +1168,7 @@ class LibrerRecord:
 
                 header.label=new_label
                 print(f'{new_label=}')
-                
+
                 filestructure_ser_comp = zip_file.read('filestructure')
                 filestructure_ser = decompressor.decompress(filestructure_ser_comp)
                 filestructure = loads( filestructure_ser )
@@ -1200,7 +1176,7 @@ class LibrerRecord:
                 filenames_ser_comp = zip_file.read('filenames')
                 filenames_ser = decompressor.decompress(filenames_ser_comp)
                 filenames = loads(filenames_ser)
-                
+
                 try:
                     customdata_ser_comp = zip_file.read('customdata')
                     customdata_ser = decompressor.decompress(customdata_ser_comp)
@@ -1208,7 +1184,7 @@ class LibrerRecord:
                 except:
                     customdata_ser_comp = None
                     customdata = []
-            
+
                 with ZipFile(dst_file_path, "w") as zip_file_dest:
                     compressor = ZstdCompressor(level=compression_level,threads=-1)
                     compressor_compress = compressor.compress
@@ -1226,7 +1202,7 @@ class LibrerRecord:
                     info_line = f'compressing file names'
                     filenames_ser_comp = compressor_compress(filenames_ser)
                     header.zipinfo['filenames'] = (asizeof(filenames_ser_comp),asizeof(filenames_ser),asizeof(filenames))
-                    
+
                     t2 = perf_counter()
                     if customdata:
                         info_line = f'serializing custom data'
@@ -1236,21 +1212,21 @@ class LibrerRecord:
                         header.zipinfo['customdata'] = (asizeof(customdata_ser_comp),asizeof(customdata_ser),asizeof(customdata))
                     else:
                         header.zipinfo['customdata'] = (0,0,0)
-                    
+
                     t3 = perf_counter()
-                
+
                     header.compression_level = compression_level
-                    
+
                     header.filestructure_time = t1-t0
                     header.filenames_time = t2-t1
                     header.customdata_time = t3-t2
-                    
+
                     #header.zipinfo['customdata'] = (asizeof(customdata_ser_comp),asizeof(customdata_ser),asizeof(self.customdata))
                     #header.zipinfo['customdata'] = (0,0,0)
-                    
+
                     #header.zipinfo['filestructure'] = (asizeof(filestructure_ser_compr),asizeof(filestructure_ser),asizeof(self.filestructure))
                     #header.zipinfo['filenames'] = (asizeof(filenames_ser_comp),asizeof(filenames_ser),asizeof(self.filenames))
-                    
+
                     header_ser = dumps(header)
                     header_ser_compr = compressor_compress(header_ser)
                     zip_file_dest.writestr('header',header_ser_compr)
@@ -1266,32 +1242,33 @@ class LibrerRecord:
                         zip_file_dest.writestr('customdata',customdata_ser_comp)
 
                     #self.header_sizes=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self_header))
-                    
+
                     #zip_file.writestr('header',header_ser_compr)
-                    
-                #if self.header.data_format_version != data_format_version:
-                #    message = f'cloning "{src_file_path}" error: incompatible data format version: {self.header.data_format_version} vs {data_format_version}'
+
+                #if self.header.data_format_version != DATA_FORMAT_VERSION:
+                #    message = f'cloning "{src_file_path}" error: incompatible data format version: {self.header.data_format_version} vs {DATA_FORMAT_VERSION}'
                 #   self.log.error(message)
                 #    return message
-                
+
                 #self.prepare_info()
 
+            return None
         except Exception as e:
             message = f'fileconing "{src_file_path}" error: "{e}"'
             #self.log.error(message)
             return message
-            
-        
+
+
     def load_wrap(self,db_dir,file_name):
-        self.FILE_NAME = file_name
-        file_path = sep.join([db_dir,self.FILE_NAME])
+        self.file_name = file_name
+        file_path = sep.join([db_dir,self.file_name])
 
         return self.load(file_path)
 
     def load(self,file_path):
         self.file_path = file_path
         #file_name = basename(normpath(file_path))
-        
+
         #self.log.info('loading %s' % file_name)
         #TODO - problem w podprocesie
 
@@ -1302,11 +1279,11 @@ class LibrerRecord:
                 self.header = loads( header_ser )
                 self.header_sizes=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self.header))
 
-            if self.header.data_format_version != data_format_version:
-                message = f'loading "{file_path}" error: incompatible data format version: {self.header.data_format_version} vs {data_format_version}'
+            if self.header.data_format_version != DATA_FORMAT_VERSION:
+                message = f'loading "{file_path}" error: incompatible data format version: {self.header.data_format_version} vs {DATA_FORMAT_VERSION}'
                 self.log.error(message)
                 return message
-            
+
             self.prepare_info()
 
         except Exception as e:
@@ -1334,12 +1311,12 @@ class LibrerRecord:
             return True
 
         return False
-    
+
     def unload_filestructure(self):
         self.decompressed_filestructure = False
         self.filestructure = ()
         self.prepare_info()
-            
+
     decompressed_customdata = False
     def decompress_customdata(self):
         if not self.decompressed_customdata:
@@ -1353,16 +1330,16 @@ class LibrerRecord:
 
             self.decompressed_customdata = True
             self.prepare_info()
-            
+
             return True
 
         return False
-    
+
     def unload_customdata(self):
         self.decompressed_customdata = False
         self.customdata = []
         self.prepare_info()
-    
+
 #######################################################################
 class LibrerCore:
     records = set()
@@ -1440,7 +1417,7 @@ class LibrerCore:
 
             info_curr_quant+=1
             info_curr_size+=size
-            
+
             if res:=new_record.load_wrap(self.db_dir,filename) :
                 self.log.warning('removing:%s',filename)
                 self.records.remove(new_record)
@@ -1528,13 +1505,13 @@ class LibrerCore:
                     curr_command_list = record_commnad_list[record_nr] = ['./record', 'load',record.file_path]
                 else:
                     curr_command_list = record_commnad_list[record_nr] = ['python3','./src/record.py', 'load',record.file_path]
-            
+
             if t_min:
                 curr_command_list.extend( ['--timestamp_min',str(t_min) ] )
-                
+
             if t_max:
                 curr_command_list.extend( ['--timestamp_max',str(t_max)] )
-            
+
             if size_min:
                 curr_command_list.extend( ['--size_min',str(size_min).replace(' ','') ] )
 
@@ -1551,7 +1528,7 @@ class LibrerCore:
                 elif find_filename_search_kind == 'fuzzy':
                     curr_command_list.extend(['--file_fuzzy',name_expr,'--file_fuzzy_threshold',filename_fuzzy_threshold])
             elif find_filename_search_kind == 'error':
-                    curr_command_list.append('--file_error')
+                curr_command_list.append('--file_error')
 
             if cd_expr:
                 if find_cd_search_kind == 'regexp':
@@ -1667,7 +1644,7 @@ class LibrerCore:
             waiting = len(waiting_list)
             running = len([record_nr for record_nr in range(records_to_process_len) if jobs[record_nr][0]==1 and jobs[record_nr][1].is_alive() ])
             finished = self.search_record_nr = records_to_process_len-running-waiting
-            
+
             self.records_perc_info = self.search_record_nr * 100.0 / records_to_process_len
 
             self.info_line = f'Threads: waiting:{waiting}, running:{running}, finished:{finished}'
@@ -1707,9 +1684,9 @@ class LibrerCore:
     def delete_record(self,record):
         file_path = record.file_path
         print('file_path',file_path)
-        
+
         self.records.remove(record)
-        
+
         self.log.info('removing file to trash:%s',file_path)
         try:
             send2trash_delete(file_path)
@@ -1719,8 +1696,8 @@ class LibrerCore:
                 os_remove(file_path)
             except Exception as e2:
                 self.log.error(f'deleting permanently failed:{e2}.')
-        
-        
+
+
         del record
         self.update_sorted()
         return file_path
