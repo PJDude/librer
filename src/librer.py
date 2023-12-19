@@ -572,7 +572,9 @@ class Gui:
 
         self.main_update()
 
-        self.records_show()
+        self.item_to_record={}
+        self.record_to_item={}
+        self.item_to_data={}
 
         #############################
         self_progress_dialog_on_load = self.progress_dialog_on_load
@@ -728,7 +730,7 @@ class Gui:
             data_tuple = self.item_to_data[item]
             code = data_tuple[1]
 
-            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
+            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode[code]
         return has_cd
 
     def block_actions_processing(func):
@@ -1349,16 +1351,16 @@ class Gui:
 
         return self.progress_dialog_on_find
 
-    def export_to_local(self):
-        self.export_dialog_file = sep.join([DATA_DIR,f'imp_{int(time())}.dat']),True
-        self.export_dialog.hide()
+    #def export_to_local(self):
+    #    self.export_dialog_file = sep.join([DATA_DIR,f'imp_{int(time())}.dat']),True
+    #    self.export_dialog.hide()
 
-    def export_to_file(self):
-        self.export_dialog_file = asksaveasfilename(initialdir=self.last_dir,parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]),False
-        self.export_dialog.hide()
+    #def export_to_file(self):
+    #    self.export_dialog_file = asksaveasfilename(initialdir=self.last_dir,parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]),False
+    #    self.export_dialog.hide()
 
-    def export_comp_set(self):
-        self.export_compr_var_int.set(int(self.export_compr_var.get()))
+    #def export_comp_set(self):
+    #    self.export_compr_var_int.set(int(self.export_compr_var.get()))
 
     export_dialog_created = False
     @restore_status_line
@@ -1801,118 +1803,28 @@ class Gui:
     @restore_status_line
     @block_actions_processing
     @gui_block
-    def record_export(self):
-        if self.current_record:
-            dialog = self.get_export_dialog()
-
-            self.export_compr_var.set(self.current_record.header.compression_level)
-            self.export_compr_var_int.set(self.current_record.header.compression_level)
-            self.export_label_var.set(self.current_record.header.label)
-
-            self.export_dialog_file=None,False
-
-            dialog.show()
-
-            new_label = self.export_label_var.get()
-            new_compression = self.export_compr_var_int.get()
-
-            new_file_path,is_local = self.export_dialog_file
-            if new_file_path:
-                self.record_export_do(new_file_path,is_local,new_label,new_compression)
-
-    @block_actions_processing
-    @gui_block
-    def record_export_do(self,new_file_path,is_local,new_label,new_compression):
-
-        keep_cd = self.cfg.set(CFG_KEY_export_cd,self.export_cd_var.get())
-        keep_crc = False
-        self.status('exporting "%s" ...' % str(new_file_path))
-        self.main_update()
-
-        #print(f'{is_local=}')
-        cres=LibrerRecord.clone_record_file(self.current_record.file_path,new_file_path,new_label,new_compression)
-        #print('cloned',cres)
-
-        if is_local:
-            new_record = librer_core.create()
-            if res:=new_record.load(new_file_path):
-                print(f'record_import:{res}')
-                self.info_dialog_on_main.show('Export-Import failed (3)',f'local load failed :{new_file_path}\nerror: {res}')
-            else:
-                self.single_record_show(new_record)
-
-    #@restore_status_line
-    @block_actions_processing
-    @gui_block
     def record_import(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
 
-        filenames = askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose record file(s) to import', defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")])
-
-        if not filenames:
-            return
-
-        ok_counter=0
-        messages_all=[]
-        for dat_file in filenames:
-            temp_record = librer_core.create()
-
-            record_short_info=[]
-            record_short_info.append(f'file:{dat_file}')
-            if res:=temp_record.load(dat_file):
-
-                record_short_info.append(res + '\n')
-                l_error(f'import failed :{dat_file} error: {res}')
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose record file(s) to import', defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
+            self.last_dir = dirname(import_filenames[0])
+            if import_res := librer_core.import_records(import_filenames,self.single_record_show):
+                self.info_dialog_on_main.show('Import failed',import_res)
             else:
-                record_short_info.append('\n' + temp_record.txtinfo_short + '\n')
-                ok_counter+=1
+                self.info_dialog_on_main.show('Import','Successful.')
 
-            messages_all.append('\n'.join(record_short_info))
-            del temp_record
-            self.last_dir = dirname(dat_file)
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def record_export(self):
+        if self.current_record:
+            if export_file_path := asksaveasfilename(initialdir=self.last_dir,parent = self.main, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
+                self.last_dir = dirname(export_file_path)
 
-        ask_dialog = self.get_text_ask_dialog_on_main()
-
-        ask_dialog.show('Continue importing selected record(s) ?',('-'*84 + '\n').join(messages_all))
-
-        if ask_dialog.res_bool:
-
-            if ok_counter:
-                dialog = self.get_import_dialog()
-                dialog.show()
-
-                if self.do_import:
-                    keep_cd = self.cfg.set(CFG_KEY_import_cd,self.import_cd_var.get())
-                    #keep_crc = self.cfg.set(CFG_KEY_import_crc,self.import_crc_var.get())
-                    keep_crc = False
-
-                    counter=0
-                    for dat_file in filenames:
-                        counter+=1
-                        self.status(f'importing {dat_file} ({counter}/{ok_counter})...')
-                        self.main_update()
-
-                        new_record = librer_core.create()
-                        if res:=new_record.load(dat_file):
-                            l_error(f'import failed :{dat_file} error: {res}')
-                            self.info_dialog_on_main.show('Import failed',f'import failed :{dat_file}\nerror: {res}')
-
-                            continue
-
-                        local_file_name = 'imported.'+ str(time()) + '.dat'
-                        local_file = sep.join([DATA_DIR,local_file_name])
-
-                        new_record.clone_record(local_file,keep_cd,keep_crc,self.import_compr_var_int.get())
-
-                        if res:=new_record.load_wrap(DATA_DIR,local_file_name):
-                            #print(f'record_import:{res}')
-                            self.info_dialog_on_main.show('Import failed (2)',f'local load failed :{local_file_name}\nerror: {res}')
-                        else:
-                            self.single_record_show(new_record)
-
-                    self.status(f'records import finished.')
-            else:
-                self.info_dialog_on_main.show('Import failed','No valid record files to import.')
+                if export_res := librer_core.export_record(self.current_record,export_file_path):
+                    self.info_dialog_on_main.show('Export failed',export_res)
+                else:
+                    self.info_dialog_on_main.show('Export','Successful.')
 
     def focusin(self):
         #print('focusin')
@@ -2021,7 +1933,7 @@ class Gui:
                         if item in self.item_to_data:
                             data_tuple = self.item_to_data[item]
                             code = data_tuple[1]
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode[code]
 
                             if is_symlink:
                                 tooltip_list.append('')
@@ -2948,9 +2860,13 @@ class Gui:
             pop_add_separator()
             pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_empty,compound='left')
             pop_add_separator()
-            pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_find,compound='left')
-            pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
-            pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+
+            can_search = bool(self.sel_item is not None and self.current_record)
+            search_state = 'normal' if can_search else 'disabled'
+
+            pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = search_state, image = self.ico_find,compound='left')
+            pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = search_state, image = self.ico_empty,compound='left')
+            pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = search_state, image = self.ico_empty,compound='left')
             pop_add_separator()
             pop_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_find_result else 'disabled')
             pop_add_separator()
@@ -3085,21 +3001,7 @@ class Gui:
     @restore_status_line
     @logwrapper
     def scan(self,compression_level):
-        #self.status('Scanning...')
-
-        #librer_core.reset()
-        #self.status_path_configure(text='')
-        #self.records_show()
-
         path_to_scan_from_entry = abspath(self.path_to_scan_entry_var.get())
-        #print('path_to_scan_from_entry:',path_to_scan_from_entry)
-
-        #exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
-
-        #if res:=librer_core.set_exclude_masks(self.cfg_get(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
-        #    self.get_info_dialog_on_scan().show('Error. Fix expression.',res)
-        #    return False
-        #self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_from_entry))
 
         if not path_to_scan_from_entry:
             self.get_info_dialog_on_scan().show('Error. No paths to scan.','Add paths to scan.')
@@ -3127,11 +3029,9 @@ class Gui:
                     self.get_info_dialog_on_scan().show('Wrong parameters',f"Non empty and without '{PARAM_INDICATOR_SIGN}' sign\n#{e}: ({parameters})")
                     return False
 
-
         self.last_dir = path_to_scan_from_entry
 
         new_record = librer_core.create(self.scan_label_entry_var.get(),path_to_scan_from_entry)
-
 
         self.main_update()
 
@@ -3824,21 +3724,22 @@ class Gui:
 
             (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple[0:4]
 
-            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_has_crc = LUT_decode_loc[top_code]
+            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_has_crc,top_aux1,top_aux2 = LUT_decode_loc[top_code]
 
-            record_get_file_name = record.get_file_name
+            #record_filenames = record.get_file_name
+            record_filenames = record.filenames
 
             if top_has_files:
                 for data_tuple in top_data_tuple[4]:
 
                     (entry_name_nr,code,size,mtime) = data_tuple[0:4]
 
-                    entry_name = record_get_file_name(entry_name_nr)
+                    entry_name = record_filenames[entry_name_nr]
 
                     entry_subpath_tuple = tuple(subpath_list + [entry_name])
                     #print('entry_subpath_tuple',entry_subpath_tuple)
 
-                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode_loc[code]
+                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode_loc[code]
 
                     sub_data_tuple = None
 
@@ -3925,33 +3826,6 @@ class Gui:
 
         self.main_update()
 
-    @block_actions_processing
-    @gui_block
-    @logwrapper
-    def records_show(self):
-        self.menu_disable()
-
-        self_tree = self.tree
-
-        self_tree.delete(*self_tree.get_children())
-
-        self.item_to_record={}
-        self.record_to_item={}
-
-        self.item_to_data={}
-
-        for record in sorted(librer_core.records,key=lambda x : x.header.creation_time):
-            self.single_record_show(record)
-
-        self.menu_enable()
-
-        #self_status=self.status=self.status_progress
-
-        self.status('')
-
-        #if children := self_tree.get_children():
-        #    self_tree.focus(children[0])
-
     def tree_update_none(self):
         self.tree.selection_remove(self.tree.selection())
 
@@ -4010,7 +3884,7 @@ class Gui:
                             data_tuple = self.item_to_data[item]
                             (entry_name,code,size,mtime) = data_tuple[0:4]
 
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc = LUT_decode[code]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode[code]
 
                             if has_cd: #wiec nie has_files
                                 cd_index = data_tuple[4]

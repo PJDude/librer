@@ -27,21 +27,8 @@
 ####################################################################################
 
 from os import name as os_name
-
-from tkinter import Frame
-from tkinter import Label
-from tkinter import BooleanVar
-from tkinter import DoubleVar
-from tkinter import StringVar
-from tkinter import scrolledtext
-from tkinter import Toplevel
-from tkinter import Canvas
-
-from tkinter.ttk import Button
-from tkinter.ttk import Scrollbar
-from tkinter.ttk import Progressbar
-from tkinter.ttk import Checkbutton
-from tkinter.ttk import Entry
+from tkinter import Frame,Label,BooleanVar,DoubleVar,StringVar,scrolledtext,Toplevel,Canvas
+from tkinter.ttk import Button,Scrollbar,Progressbar,Checkbutton,Entry,Style
 
 def set_geometry_by_parent(widget,parent):
     x_offset = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -88,7 +75,9 @@ class GenericDialog:
 
         self.area_buttons = Frame(widget,bg=self.bg_color)
         self.area_buttons.pack(side='bottom',expand=0)
-        #,fill='x'
+
+        self.area_mark = Frame(self.area_buttons,bg=self.bg_color)
+        self.area_mark.pack(side='left',expand=0,anchor='w')
 
         self.wait_var=BooleanVar()
         self.wait_var.set(False)
@@ -326,16 +315,15 @@ class TextDialogInfo(GenericDialog):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
         self.message = ''
-        
+
         self.uplabel = Label(self.area_main,bg=self.bg_color,relief='groove', bd=2,anchor='w')
-        
+
         textwidth=80
         self.text = scrolledtext.ScrolledText(self.area_main,relief='groove' , bd=2,bg='white',width = textwidth,takefocus=True)
         self.text.frame.config(takefocus=False)
         self.text.vbar.config(takefocus=False)
 
-        self.text.tag_configure('RED', foreground='red')
-        self.text.tag_configure('GRAY', foreground='gray')
+        self.text.tag_configure('found', background='pink')
 
         self.text.grid(row=1,column=0,padx=5,pady=5)
 
@@ -344,10 +332,53 @@ class TextDialogInfo(GenericDialog):
         self.cancel_button=Button(self.area_buttons, text='Close', width=14, command=super().hide )
         self.cancel_button.pack(side='left', anchor='e',padx=5,pady=5)
 
+        self.find_var=StringVar()
+        self.find_entry=Entry(self.area_mark, textvariable=self.find_var, width=16)
+        self.find_entry.pack(side='right', anchor='w',padx=5,pady=5)
+        self.find_entry.bind('<KeyRelease>', self.find_key_press )
+
+        self.find_lab=Label(self.area_mark, text='Mark:', width=8,anchor='e')
+        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
+
         self.copy_button=Button(self.area_buttons, text='Copy', width=14, command=self.clip_copy_message )
         self.copy_button.pack(side='right', anchor='w',padx=5,pady=5)
 
         self.focus=self.cancel_button
+
+    def find_key_press(self,event=None):
+        search_str = self.find_var.get()
+        self_text = self.text
+        self_text_search = self_text.search
+        self_text_tag_add = self_text.tag_add
+        #countVar = StringVar()
+
+        self_text.tag_remove("found", "1.0", 'end')
+
+        seen=False
+
+        if search_str:
+            start_index = "1.0"
+            len_search_str = len(search_str)
+
+            found=0
+            while True:
+                start_index = self_text_search(search_str, start_index, 'end')
+                if not start_index:
+                    break
+                end_index = f"{start_index}+{len_search_str}c"
+                self_text_tag_add("found", start_index, end_index)
+                start_index = end_index
+
+                if not seen:
+                    self_text.see(start_index)
+                    seen=True
+                found+=1
+
+            #if found:
+            #    self.entry_style.configure("TEntry", fieldbackground='white',background='white')
+            #else:
+            #    self.entry_style.configure("TEntry", fieldbackground='pink',background='pink')
+
 
     def clip_copy_message(self):
         self.clip_copy(self.message)
@@ -355,13 +386,13 @@ class TextDialogInfo(GenericDialog):
 
     def show(self,title='',message='',uplabel_text=''):
         self.widget.title(title)
-        
+
         if uplabel_text:
             self.uplabel.grid(row=0,column=0,sticky='we')
             self.uplabel.configure(text=uplabel_text)
         else:
             self.uplabel.grid_remove()
-        
+
         self.text.configure(state='normal')
         self.text.delete('1.0', 'end')
 
@@ -378,6 +409,7 @@ class TextDialogInfo(GenericDialog):
 
         self.copy_button.configure(state='normal')
 
+        self.find_key_press()
         super().show()
 
 class TextDialogQuestion(TextDialogInfo):
@@ -536,7 +568,7 @@ class SFrame(Frame):
         self.f.bind('<Leave>', self.on_leave)
 
         self.frame_conf(None)
-    
+
     def yscrollcommand(self,v1,v2):
         if v1=='0.0' and v2=='1.0':
             self.vsb.pack_forget()
@@ -546,7 +578,7 @@ class SFrame(Frame):
 
     def yview(self,*args,**kwargs):
         self.canvas.yview(*args,**kwargs)
-        
+
     def frame(self):
         return self.f
 
