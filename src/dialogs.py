@@ -73,11 +73,20 @@ class GenericDialog:
         #only grid here
         self.area_main.grid_columnconfigure(0, weight=1)
 
-        self.area_buttons = Frame(widget,bg=self.bg_color)
-        self.area_buttons.pack(side='bottom',expand=0)
+        self.area_buttons_all = Frame(widget,bg=self.bg_color)
+        self.area_buttons_all.pack(side='bottom',expand=0,fill='x')
 
-        self.area_mark = Frame(self.area_buttons,bg=self.bg_color)
-        self.area_mark.pack(side='left',expand=0,anchor='w')
+        self.area_buttons = Frame(self.area_buttons_all,bg=self.bg_color)
+        self.area_buttons.grid(row=0,column=3,sticky='we')
+
+        self.area_mark = Frame(self.area_buttons_all,bg=self.bg_color)
+        self.area_mark.grid(row=0,column=0,sticky='we')
+
+        self.area_dummy = Frame(self.area_buttons_all,bg=self.bg_color)
+        self.area_dummy.grid(row=0,column=5,sticky='we')
+
+        self.area_buttons_all.grid_columnconfigure(2, weight=1)
+        self.area_buttons_all.grid_columnconfigure(4, weight=1)
 
         self.wait_var=BooleanVar()
         self.wait_var.set(False)
@@ -330,27 +339,32 @@ class TextDialogInfo(GenericDialog):
         self.area_main.grid_rowconfigure(1, weight=1)
 
         self.cancel_button=Button(self.area_buttons, text='Close', width=14, command=super().hide )
-        self.cancel_button.pack(side='left', anchor='e',padx=5,pady=5)
-
-        self.find_var=StringVar()
-        self.find_entry=Entry(self.area_mark, textvariable=self.find_var, width=16)
-        self.find_entry.pack(side='right', anchor='w',padx=5,pady=5)
-        self.find_entry.bind('<KeyRelease>', self.find_key_press )
-
-        self.find_lab=Label(self.area_mark, text='Mark:', width=8,anchor='e')
-        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
+        self.cancel_button.pack(side='right', anchor='e',padx=5,pady=5)
 
         self.copy_button=Button(self.area_buttons, text='Copy', width=14, command=self.clip_copy_message )
         self.copy_button.pack(side='right', anchor='w',padx=5,pady=5)
 
+        self.find_var=StringVar()
+        self.find_entry=Entry(self.area_mark, textvariable=self.find_var, width=22)
+        self.find_entry.pack(side='right', anchor='w',padx=5,pady=5)
+        self.find_entry.bind('<KeyRelease>', self.find_key_binding )
+
+        self.find_lab=Label(self.area_mark, text='Search:', width=8,anchor='e')
+        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
+
+        #wypelniacz
+        self.dummylab1=Label(self.area_dummy, width=22)
+        self.dummylab2=Label(self.area_dummy, width=8)
+        self.dummylab1.pack(side='right', anchor='e',padx=5,pady=5)
+        self.dummylab2.pack(side='right', anchor='e',padx=5,pady=5)
+
         self.focus=self.cancel_button
 
-    def find_key_press(self,event=None):
+    def find_key_binding(self,event=None):
         search_str = self.find_var.get()
         self_text = self.text
         self_text_search = self_text.search
         self_text_tag_add = self_text.tag_add
-        #countVar = StringVar()
 
         self_text.tag_remove("found", "1.0", 'end')
 
@@ -409,7 +423,7 @@ class TextDialogInfo(GenericDialog):
 
         self.copy_button.configure(state='normal')
 
-        self.find_key_press()
+        self.find_key_binding()
         super().show()
 
 class TextDialogQuestion(TextDialogInfo):

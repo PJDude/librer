@@ -27,7 +27,7 @@
 ####################################################################################
 
 from json import loads as json_loads
-from subprocess import Popen, STDOUT, PIPE
+from subprocess import Popen, STDOUT, PIPE, run as subprocess_run
 from time import sleep, perf_counter,time,strftime,localtime
 from threading import Thread
 from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove
@@ -60,6 +60,26 @@ PARAM_INDICATOR_SIGN = '%'
 DATA_FORMAT_VERSION='0019'
 
 VERSION_FILE='version.txt'
+
+def get_dev_labes_dict():
+    lsblk = subprocess_run(['lsblk','-fJ'],capture_output = True,text = True)
+    lsblk.dict = json_loads(lsblk.stdout)
+
+    res_map = {}
+    def dict_parse(src_dict,res_map):
+        if 'children' in src_dict:
+            for l_elem in src_dict['children']:
+                d_l_elem = dict(l_elem)
+                dict_parse(d_l_elem,res_map)
+
+        for mountpoint in src_dict['mountpoints']:
+            res_map[mountpoint] = src_dict['label']
+
+    for l_elem in lsblk.dict['blockdevices']:
+        d_l_elem = dict(l_elem)
+        dict_parse(d_l_elem,res_map)
+
+    return res_map
 
 def localtime_catched(t):
     try:
@@ -193,10 +213,19 @@ def rec_kill(pid):
     except Exception as e:
         print('rec_kill error',e)
 
+def compress_with_stats(data,compression):
+    t0 = perf_counter()
+    data_ser = dumps(data)
+    data_ser_compr = ZstdCompressor(level=compression,threads=-1).compress(data_ser)
+    t1 = perf_counter()
+    tdiff=t1-t0
+
+    return data_ser_compr,tdiff,asizeof(data_ser_compr),asizeof(data_ser),asizeof(data)
 
 CREATION_CODE = 0
 EXPORT_CODE = 1
 IMPORT_CODE = 2
+REPACK_CODE = 3
 
 #######################################################################
 class Header :
@@ -235,6 +264,11 @@ class Header :
 
         self.creation_os,self.creation_host = f'{platform_system()} {platform_release()}',platform_node()
 
+        self.compression_time = {}
+        self.compression_time['filestructure']=0
+        self.compression_time['filenames']=0
+        self.compression_time['customdata']=0
+
         self.history_stack=[]
 
 #######################################################################
@@ -268,7 +302,7 @@ class LibrerRecord:
 
     def load(self,file_path):
         self.file_path = file_path
-        #file_name = basename(normpath(file_path))
+        self.file_name = basename(normpath(file_path))
 
         #self.log.info('loading %s' % file_name)
         #TODO - problem w podprocesie
@@ -293,32 +327,6 @@ class LibrerRecord:
             return message
 
         return False
-
-    #def export(self,new_file_path):
-    #    self.log.info(f'export {self.header.label} -> {new_file_path}')
-
-    #    try:
-    #        with ZipFile(self.file_path, "r") as src_zip_file:
-    #            with ZipFile(new_file_path, "w") as zip_file:
-    #                compressor = ZstdCompressor(level=self.header.compression_level,threads=-1)
-    #                compressor_compress = compressor.compress
-
-    #                temp_new_header = deepcopy(self.header)
-    #                temp_new_header.history_stack.append( (self.EXPORT_CODE,new_file_path) )
-    #                header_ser = dumps(temp_new_header)
-    #                header_ser_compr = compressor_compress(header_ser)
-    #                zip_file.writestr('header',header_ser_compr)
-
-    #                zip_file.writestr('filestructure',src_zip_file.read('filestructure'))
-    #                zip_file.writestr('filenames',src_zip_file.read('filenames'))
-
-    #                if self.customdata:
-    #                    zip_file.writestr('customdata',src_zip_file.read('customdata'))
-    ##    except Exception as ex_ex:
-    #        self.log.error(f'export error {ex_ex}')
-    ##        return str(ex_ex)
-    #    else:
-    #        return None
 
     def save(self,file_path=None,compression_level=9):
         if file_path:
@@ -367,7 +375,7 @@ class LibrerRecord:
 
             self.header.compression_level = compression_level
 
-            self.header.filestructure_time = t1-t0
+            self.header.compression_time['filestructure'] = t1-t0
             self.header.filenames_time = t2-t1
             self.header.customdata_time = t3-t2
 
@@ -391,7 +399,6 @@ class LibrerRecord:
         self.prepare_info()
 
         self.info_line = ''
-
 
     def scan_rec(self, path, scan_like_data,filenames_set,check_dev=True,dev_call=None) :
         if self.abort_action:
@@ -861,76 +868,32 @@ class LibrerRecord:
         del self.filenames_helper
         del self.scan_data
 
-    def clone_record_rec(self,cd_org,filenames_org,tuple_like_data,keep_cd,keep_crc):
+    def remove_cd_rec(self,tuple_like_data):
         LUT_decode_loc = LUT_decode
 
-        self_clone_record_rec = self.clone_record_rec
+        self_remove_cd_rec = self.remove_cd_rec
 
-        name_index,code,size,mtime = tuple_like_data[0:4]
-        if name_index:
-            name = filenames_org[name_index]
-        else:
-            name=''
+        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode_loc[tuple_like_data[1]]
 
-        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode_loc[code]
-        if not keep_cd or not keep_crc:
-            has_cd = has_cd and keep_cd
-            if not has_cd:
-                cd_ok=False
+        has_cd=False
+        cd_ok=False
 
-            has_crc = has_crc and keep_crc
+        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2) ]
 
-            code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,False,False) ]
-
-        new_list = [name_index,code,size,mtime]
+        new_list = [tuple_like_data[0],code,tuple_like_data[2],tuple_like_data[3]]
 
         elem_index=4
         if has_files:
             sub_new_list=[]
             for sub_structure in tuple_like_data[elem_index]:
-                sub_new_list.append(self_clone_record_rec(cd_org,filenames_org,sub_structure,keep_cd,keep_crc))
+                sub_new_list.append(self_remove_cd_rec(sub_structure))
             elem_index+=1
             new_list.append(tuple(sorted( sub_new_list,key = lambda x : x[1:4] )))
 
-        if has_cd:
-            cd_index = tuple_like_data[elem_index]
-            elem_index+=1
-            if keep_cd:
-                new_list.append(cd_index)
-
-        if has_crc:
-            crc = tuple_like_data[elem_index]
-            if keep_crc:
-                new_list.append(crc)
+        for elem in tuple_like_data[elem_index:]:
+            new_list.append(elem)
 
         return tuple(new_list)
-
-    #def clone_record(self,file_path,new_label=None,keep_cd=True,keep_crc=True,compression_level=9):
-    #    self.decompress_filestructure()
-    #    self.decompress_customdata()
-
-    #    new_record = LibrerRecord(self.header.label,self.header.scan_path,self.log)
-        #else:
-        #    new_record = LibrerRecord(self.header.label,self.header.scan_path,self.log)
-            #file_path
-
-    #    new_record.header = self.header
-    #    new_record.filenames = self.filenames
-
-    #    if keep_cd:
-    #        new_record.customdata = self.customdata
-
-    #    new_record.filestructure = self.clone_record_rec(self.customdata,self.filenames,self.filestructure,keep_cd,keep_crc)
-
-    #    if type(file_path) is bool:
-    #        new_record.db_dir = self.db_dir
-    #        new_record.header.label = new_label
-    #        new_record.save(file_path=None,compression_level=compression_level)
-    #        print(new_record.file_name)
-    #    else:
-    #        new_record.save(file_path,compression_level)
-
-    #    return new_record.file_name
 
     ########################################################################################
     def find_items(self,
@@ -1145,9 +1108,14 @@ class LibrerRecord:
 
             info_list.append('')
             info_list.append( 'serializing and compression times:')
-            info_list.append(f'file structure  : {str(round(self_header.filestructure_time,2))}s')
-            info_list.append(f'file names      : {str(round(self_header.filenames_time,2))}s')
-            info_list.append(f'custom data     : {str(round(self_header.customdata_time,2))}s')
+
+            filestructure_time = self.header.compression_time['filestructure']
+            filenames_time = self.header.compression_time['filenames']
+            customdata_time = self.header.compression_time['customdata']
+
+            info_list.append(f'file structure  : {str(round(filestructure_time,2))}s')
+            info_list.append(f'file names      : {str(round(filenames_time,2))}s')
+            info_list.append(f'custom data     : {str(round(customdata_time,2))}s')
             info_list.append('')
             info_list.append(f'custom data extraction errors : {fnumber(self_header.files_cde_errors_quant_all)}')
 
@@ -1197,6 +1165,11 @@ class LibrerRecord:
             info_list.append(loaded_fs_info)
             info_list.append(loaded_cd_info)
 
+            info_list.append('')
+            info_list.append('history (draft)')
+            for hist_entry in self_header.history_stack:
+                info_list.append(str(hist_entry))
+
             self.txtinfo_basic = self.txtinfo_basic + f'\n\n{loaded_fs_info}\n{loaded_cd_info}'
 
         self.txtinfo = '\n'.join(info_list)
@@ -1204,116 +1177,12 @@ class LibrerRecord:
     def has_cd(self):
         return bool(self.header.zipinfo["customdata"][0])
 
-    #def load_wrap(self,db_dir,file_name):
-        #self.file_name = file_name
-    #    file_path = sep.join([db_dir,self.file_name])
-
-    #    return self.load(sep.join([db_dir,self.file_name]))
-
     @staticmethod
-    def clone_record_file(src_file_path,dst_file_path,new_label=None,compression_level=9):
-        #print('clone_record_file',src_file_path,dst_file_path,new_label,compression_level)
-        #keep_cd=True,
-
-        decompressor = ZstdDecompressor()
-
-        try:
-            with ZipFile(src_file_path, "r") as zip_file:
-                header_ser_compr = zip_file.read('header')
-                header_ser = decompressor.decompress(header_ser_compr)
-                header = loads( header_ser )
-
-                header.label=new_label
-                print(f'{new_label=}')
-
-                filestructure_ser_comp = zip_file.read('filestructure')
-                filestructure_ser = decompressor.decompress(filestructure_ser_comp)
-                filestructure = loads( filestructure_ser )
-
-                filenames_ser_comp = zip_file.read('filenames')
-                filenames_ser = decompressor.decompress(filenames_ser_comp)
-                filenames = loads(filenames_ser)
-
-                try:
-                    customdata_ser_comp = zip_file.read('customdata')
-                    customdata_ser = decompressor.decompress(customdata_ser_comp)
-                    customdata = loads( customdata_ser )
-                except:
-                    customdata_ser_comp = None
-                    customdata = []
-
-                with ZipFile(dst_file_path, "w") as zip_file_dest:
-                    compressor = ZstdCompressor(level=compression_level,threads=-1)
-                    compressor_compress = compressor.compress
-
-                    t0 = perf_counter()
-                    info_line = f'serializing file stucture'
-                    filestructure_ser = dumps(filestructure)
-                    info_line = f'compressing file stucture'
-                    #filestructure_ser_comp = compressor_compress(filestructure_ser)
-                    header.zipinfo['filestructure'] = (asizeof(filestructure_ser_comp),asizeof(filestructure_ser),asizeof(filestructure))
-
-                    t1 = perf_counter()
-                    info_line = f'serializing file names'
-                    filenames_ser = dumps(filenames)
-                    info_line = f'compressing file names'
-                    filenames_ser_comp = compressor_compress(filenames_ser)
-                    header.zipinfo['filenames'] = (asizeof(filenames_ser_comp),asizeof(filenames_ser),asizeof(filenames))
-
-                    t2 = perf_counter()
-                    if customdata:
-                        info_line = f'serializing custom data'
-                        customdata_ser = dumps(customdata)
-                        info_line = f'compressing custom data'
-                        #customdata_ser_comp = compressor_compress(customdata_ser)
-                        header.zipinfo['customdata'] = (asizeof(customdata_ser_comp),asizeof(customdata_ser),asizeof(customdata))
-                    else:
-                        header.zipinfo['customdata'] = (0,0,0)
-
-                    t3 = perf_counter()
-
-                    header.compression_level = compression_level
-
-                    header.filestructure_time = t1-t0
-                    header.filenames_time = t2-t1
-                    header.customdata_time = t3-t2
-
-                    #header.zipinfo['customdata'] = (asizeof(customdata_ser_comp),asizeof(customdata_ser),asizeof(self.customdata))
-                    #header.zipinfo['customdata'] = (0,0,0)
-
-                    #header.zipinfo['filestructure'] = (asizeof(filestructure_ser_compr),asizeof(filestructure_ser),asizeof(self.filestructure))
-                    #header.zipinfo['filenames'] = (asizeof(filenames_ser_comp),asizeof(filenames_ser),asizeof(self.filenames))
-
-                    header_ser = dumps(header)
-                    header_ser_compr = compressor_compress(header_ser)
-                    zip_file_dest.writestr('header',header_ser_compr)
-                    ###########
-                    #info_line = f'saving {filename} (File stucture)'
-                    zip_file_dest.writestr('filestructure',filestructure_ser_comp)
-
-                    #info_line = f'saving {filename} (File names)'
-                    zip_file_dest.writestr('filenames',filenames_ser_comp)
-
-                    if customdata:
-                        #info_line = f'saving {filename} (Custom Data)'
-                        zip_file_dest.writestr('customdata',customdata_ser_comp)
-
-                    #self.header_sizes=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self_header))
-
-                    #zip_file.writestr('header',header_ser_compr)
-
-                #if self.header.data_format_version != DATA_FORMAT_VERSION:
-                #    message = f'cloning "{src_file_path}" error: incompatible data format version: {self.header.data_format_version} vs {DATA_FORMAT_VERSION}'
-                #   self.log.error(message)
-                #    return message
-
-                #self.prepare_info()
-
-            return None
-        except Exception as e:
-            message = f'fileconing "{src_file_path}" error: "{e}"'
-            #self.log.error(message)
-            return message
+    def compress_with_header_update(header,data,datalabel,zipfile):
+        info_line = f'compressing {datalabel}'
+        self.header = self_header
+        data_compr,tdiff,size_1,size_2,size_3 = compress_with_stats(data)
+        zip_file.writestr(datalabel,data_compr)
 
     decompressed_filestructure = False
     def decompress_filestructure(self):
@@ -1395,9 +1264,7 @@ class LibrerCore:
         return new_record
 
     def load_record(self):
-
         #self.records.add(new_record)
-
         pass
 
     def read_records_pre(self):
@@ -1430,7 +1297,7 @@ class LibrerCore:
         import_index=0
         for import_file in import_filenames:
             try:
-                new_file_path = sep.join([self.db_dir,f'{int(time())}.{import_index}.dat'])
+                new_file_path = sep.join([self.db_dir,f'imp.{int(time())}.{import_index}.dat'])
                 with ZipFile(import_file, "r") as src_zip_file:
 
                     decompressor = ZstdDecompressor()
@@ -1510,6 +1377,122 @@ class LibrerCore:
         else:
             return None
 
+    def repack_record(self,record,new_label,new_compression,keep_cd,update_callback):
+        self.log.info(f'repack_record {record.header.label}->{new_label},{new_compression},{keep_cd}')
+
+        messages = []
+
+        new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
+        try:
+            src_file = record.file_path
+
+            with ZipFile(src_file, "r") as src_zip_file:
+
+                dec_dec = ZstdDecompressor().decompress
+                #dec_dec = decompressor.decompress
+
+                header_ser_compr = src_zip_file.read('header')
+                header_ser = dec_dec(header_ser_compr)
+                header = loads( header_ser )
+
+                with ZipFile(new_file_path, "w") as zip_file:
+                    comp_comp = ZstdCompressor(level=new_compression,threads=-1).compress
+                    #compressor_compress = compressor
+
+                    new_header = deepcopy(header)
+                    new_header.label = new_label
+                    new_header.compression_level = new_compression
+                    new_header.history_stack.append( (REPACK_CODE,(record.header.label,record.header.compression_level)) )
+
+                    compression_change = bool(new_compression!=record.header.compression_level)
+
+                    if compression_change:
+                        data_filenames = loads(dec_dec(src_zip_file.read('filenames')))
+
+                        data_compr,tdiff,size_1,size_2,size_3 = compress_with_stats(data_filenames,new_compression)
+                        new_header.zipinfo['filenames']=(size_1,size_2,size_3)
+                        new_header.compression_time['filenames'] = tdiff
+                        zip_file.writestr('filenames',data_compr)
+
+                    else:
+                        zip_file.writestr('filenames',src_zip_file.read('filenames'))
+
+                    #info_line = f'compressing {datalabel}'
+                    #new_header = self_header
+                    #data_compr,tdiff,size_1,size_2,size_3 = compress_with_stats(data)
+
+                    if keep_cd!=bool(record.header.items_cd):
+                        data_filestructure = record.remove_cd_rec(loads(dec_dec(src_zip_file.read('filestructure'))))
+
+                        data_compr,tdiff,size_1,size_2,size_3 = compress_with_stats(data_filestructure,new_compression)
+                        new_header.zipinfo['filestructure']=(size_1,size_2,size_3)
+                        new_header.compression_time['filestructure'] = tdiff
+                        zip_file.writestr('filestructure',data_compr)
+
+                        new_header.zipinfo["customdata"]=(0,0,0)
+                        new_header.files_cde_size_extracted = 0
+                        new_header.items_cd=0
+                        new_header.references_cd = 0
+                        new_header.cde_list = []
+                        new_header.files_cde_errors_quant = {}
+                        new_header.files_cde_errors_quant_all = 0
+                        new_header.cde_stats_time_all = 0
+                        new_header.compression_time['customdata']=0
+
+                        #zip_file.writestr('filestructure',comp_comp(dumps()))
+                    elif not compression_change:
+                        zip_file.writestr('filestructure',src_zip_file.read('filestructure'))
+
+                        if header.items_cd:
+                            zip_file.writestr('customdata',src_zip_file.read('customdata'))
+                    else:
+                        data_filestructure = loads(dec_dec(src_zip_file.read('filestructure')))
+
+                        data_compr,tdiff,size_1,size_2,size_3 = compress_with_stats(data_filestructure,new_compression)
+                        new_header.zipinfo['filestructure']=(size_1,size_2,size_3)
+                        new_header.compression_time['filestructure'] = tdiff
+                        zip_file.writestr('filestructure',data_compr)
+
+                        #zip_file.writestr('filestructure',comp_comp( ))
+
+                        if header.items_cd:
+                            data_customdata = loads(dec_dec(src_zip_file.read('customdata')))
+
+                            data_compr,tdiff,size_1,size_2,size_3 = compress_with_stats(data_customdata,new_compression)
+                            new_header.zipinfo['customdata']=(size_1,size_2,size_3)
+                            new_header.compression_time['customdata'] = tdiff
+                            zip_file.writestr('customdata',data_compr)
+
+                            #zip_file.writestr('customdata',comp_comp( ))
+
+                    header_ser = dumps(new_header)
+                    header_ser_compr = comp_comp(header_ser)
+                    zip_file.writestr('header',header_ser_compr)
+
+                new_record = self.create()
+                #self.file_name =
+                if res:=new_record.load(new_file_path) :
+                    #self.log.warning('removing:%s',file_name)
+                    self.records.remove(new_record)
+                    #load_errors.append(res)
+                    send2trash_delete(new_file_path)
+                    messages.append(str(res))
+                else:
+                    #self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
+                    update_callback(new_record)
+
+        except Exception as ex_in:
+            message = f"repack of '{src_file}' error : {ex_in}"
+            self.log.error(message)
+            messages.append(message)
+
+            try:
+                self.log.info('removing:new_file_path')
+                send2trash_delete(new_file_path)
+            except Exception as ex_de:
+                print(ex_de)
+
+        return messages
 
     def abort(self):
         #print('core abort')

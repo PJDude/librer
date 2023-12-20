@@ -43,7 +43,7 @@ import logging
 from pickle import dumps, loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 from ciso8601 import parse_datetime
-from psutil import disk_partitions,disk_usage
+from psutil import disk_partitions
 from librer_images import librer_image
 
 from dialogs import *
@@ -53,6 +53,7 @@ windows = bool(os_name=='nt')
 
 if windows:
     from os import startfile
+    from win32api import GetVolumeInformation
 
 #l_debug = logging.debug
 l_info = logging.info
@@ -1351,121 +1352,122 @@ class Gui:
 
         return self.progress_dialog_on_find
 
-    #def export_to_local(self):
-    #    self.export_dialog_file = sep.join([DATA_DIR,f'imp_{int(time())}.dat']),True
-    #    self.export_dialog.hide()
+    def repack_to_local(self):
+        self.repack_dialog_do_it = True
+        self.repack_dialog.hide()
 
     #def export_to_file(self):
     #    self.export_dialog_file = asksaveasfilename(initialdir=self.last_dir,parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]),False
     #    self.export_dialog.hide()
 
-    #def export_comp_set(self):
-    #    self.export_compr_var_int.set(int(self.export_compr_var.get()))
+    def repack_comp_set(self):
+        self.repack_compr_var_int.set(int(self.repack_compr_var.get()))
 
-    export_dialog_created = False
+    repack_dialog_created = False
     @restore_status_line
     @block_actions_processing
     @gui_block
-    def get_export_dialog(self):
-        if not self.export_dialog_created:
+    def get_repack_dialog(self):
+        self.repack_dialog_do_it=False
 
-            self.export_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Export record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
-            self.export_cd_var = BooleanVar()
-            #self.export_crc_var = BooleanVar()
-            self.export_compr_var = IntVar()
-            self.export_compr_var_int = IntVar()
-            self.export_label_var = StringVar()
+        if not self.repack_dialog_created:
 
-            self.export_cd_var.set(self.cfg.get(CFG_KEY_export_cd))
-            #self.export_crc_var.set(self.cfg.get(CFG_KEY_export_crc))
+            self.repack_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Rename / Repack record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.repack_cd_var = BooleanVar()
+            #self.repack_crc_var = BooleanVar()
+            self.repack_compr_var = IntVar()
+            self.repack_compr_var_int = IntVar()
+            self.repack_label_var = StringVar()
 
-            self.export_compr_var.set(9)
-            self.export_compr_var_int.set(9)
-            self.export_label_var.set('')
+            #self.repack_cd_var.set(self.cfg.get(CFG_KEY_repack_cd))
+            #self.repack_crc_var.set(self.cfg.get(CFG_KEY_repack_crc))
 
-            (label_frame := LabelFrame(self.export_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
-            Entry(label_frame,textvariable=self.export_label_var).pack(expand='yes',fill='x',padx=2,pady=2)
+            self.repack_compr_var.set(9)
+            self.repack_compr_var_int.set(9)
+            self.repack_label_var.set('')
 
-            (export_frame := LabelFrame(self.export_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
-            self.export_dialog.area_main.grid_columnconfigure( 0, weight=1)
-            self.export_dialog.area_main.grid_columnconfigure( 1, weight=1)
+            (label_frame := LabelFrame(self.repack_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            Entry(label_frame,textvariable=self.repack_label_var).pack(expand='yes',fill='x',padx=2,pady=2)
 
-            self.export_dialog.area_main.grid_rowconfigure( 2, weight=1)
+            (repack_frame := LabelFrame(self.repack_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            self.repack_dialog.area_main.grid_columnconfigure( 0, weight=1)
+            self.repack_dialog.area_main.grid_columnconfigure( 1, weight=1)
 
-            self.export_cd_cb = Checkbutton(export_frame,text='Include \'Custom Data\'',variable=self.export_cd_var)
-            #self.export_crc_cb = Checkbutton(export_frame,text='Include CRC values',variable=self.export_crc_var)
+            self.repack_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
-            self.export_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
-            #self.export_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            self.repack_cd_cb = Checkbutton(repack_frame,text='Keep \'Custom Data\'',variable=self.repack_cd_var)
+            #self.repack_crc_cb = Checkbutton(repack_frame,text='Include CRC values',variable=self.repack_crc_var)
 
-            export_frame.grid_columnconfigure( 0, weight=1)
+            self.repack_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
+            #self.repack_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
 
-            (export_frame_compr := LabelFrame(self.export_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            repack_frame.grid_columnconfigure( 0, weight=1)
 
-            Scale(export_frame_compr, variable=self.export_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.export_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
-            Label(export_frame_compr, textvariable=self.export_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
+            (repack_frame_compr := LabelFrame(self.repack_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
 
-            self.export_dialog_file=None,False
+            Scale(repack_frame_compr, variable=self.repack_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.repack_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
+            Label(repack_frame_compr, textvariable=self.repack_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
 
-            Button(self.export_dialog.area_buttons, text='To Local Repo', width=14, command= self.export_to_local ).pack(side='left', anchor='n',padx=5,pady=5)
-            Button(self.export_dialog.area_buttons, text='Select File ...', width=14, command= self.export_to_file ).pack(side='left', anchor='n',padx=5,pady=5)
-            Button(self.export_dialog.area_buttons, text='Close', width=14, command=self.export_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+            #Button(self.repack_dialog.area_buttons, text='To Local Repo', width=14, command= self.repack_to_local ).pack(side='left', anchor='n',padx=5,pady=5)
+            #Button(self.repack_dialog.area_buttons, text='Select File ...', width=14, command= self.repack_to_file ).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.repack_dialog.area_buttons, text='Proceed', width=14 , command= self.repack_to_local).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.repack_dialog.area_buttons, text='Close', width=14, command=self.repack_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
 
-            self.export_dialog_created = True
-        return self.export_dialog
+            self.repack_dialog_created = True
+        return self.repack_dialog
 
-    def import_files_confirm(self):
-        self.do_import=True
-        self.import_dialog.hide()
+    #def import_files_confirm(self):
+    #    self.do_import=True
+    #    self.import_dialog.hide()
 
-    def import_comp_set(self):
-        self.import_compr_var_int.set(int(self.import_compr_var.get()))
+    #def import_comp_set(self):
+    #    self.import_compr_var_int.set(int(self.import_compr_var.get()))
 
-    import_dialog_created = False
-    @restore_status_line
-    @block_actions_processing
-    @gui_block
-    def get_import_dialog(self):
-        self.do_import=False
-        if not self.import_dialog_created:
+    #import_dialog_created = False
+    #@restore_status_line
+    #@block_actions_processing
+    #@gui_block
+    #def get_import_dialog(self):
+    #    self.do_import=False
+    #    if not self.import_dialog_created:
 
-            self.import_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Import record(s)',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
-            self.import_cd_var = BooleanVar()
+    #        self.import_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Import record(s)',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+    #        self.import_cd_var = BooleanVar()
             #self.import_crc_var = BooleanVar()
-            self.import_compr_var = IntVar()
-            self.import_compr_var_int = IntVar()
+    #        self.import_compr_var = IntVar()
+    #        self.import_compr_var_int = IntVar()
 
-            self.import_cd_var.set(self.cfg.get(CFG_KEY_import_cd))
+    #        self.import_cd_var.set(self.cfg.get(CFG_KEY_import_cd))
             #self.import_crc_var.set(self.cfg.get(CFG_KEY_import_crc))
 
-            self.import_compr_var.set(9)
-            self.import_compr_var_int.set(9)
+    #        self.import_compr_var.set(9)
+    #        self.import_compr_var_int.set(9)
 
-            (import_frame := LabelFrame(self.import_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
-            self.import_dialog.area_main.grid_columnconfigure( 0, weight=1)
-            self.import_dialog.area_main.grid_columnconfigure( 1, weight=1)
+    #        (import_frame := LabelFrame(self.import_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+    #        self.import_dialog.area_main.grid_columnconfigure( 0, weight=1)
+    #        self.import_dialog.area_main.grid_columnconfigure( 1, weight=1)
 
-            self.import_dialog.area_main.grid_rowconfigure( 2, weight=1)
+    #        self.import_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
-            self.import_cd_cb = Checkbutton(import_frame,text='Include \'Custom Data\'',variable=self.import_cd_var)
+    #        self.import_cd_cb = Checkbutton(import_frame,text='Include \'Custom Data\'',variable=self.import_cd_var)
             #self.import_crc_cb = Checkbutton(import_frame,text='Include CRC values',variable=self.import_crc_var)
 
-            self.import_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
+    #        self.import_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
             #self.import_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
 
-            import_frame.grid_columnconfigure( 0, weight=1)
+    #        import_frame.grid_columnconfigure( 0, weight=1)
 
-            (import_frame_compr := LabelFrame(self.import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+    #        (import_frame_compr := LabelFrame(self.import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
 
-            Scale(import_frame_compr, variable=self.import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.import_comp_set()).pack(fill='x',side='left',expand=1,padx=2)
-            Label(import_frame_compr, textvariable=self.import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
+    #        Scale(import_frame_compr, variable=self.import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.import_comp_set()).pack(fill='x',side='left',expand=1,padx=2)
+    #        Label(import_frame_compr, textvariable=self.import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
 
-            self.import_dialog_file=None
-            Button(self.import_dialog.area_buttons, text='OK', width=14, command= self.import_files_confirm ).pack(side='left', anchor='n',padx=5,pady=5)
-            Button(self.import_dialog.area_buttons, text='Cancel', width=14, command=self.import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+    #        self.import_dialog_file=None
+    #        Button(self.import_dialog.area_buttons, text='OK', width=14, command= self.import_files_confirm ).pack(side='left', anchor='n',padx=5,pady=5)
+    #        Button(self.import_dialog.area_buttons, text='Cancel', width=14, command=self.import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
 
-            self.import_dialog_created = True
-        return self.import_dialog
+    #        self.import_dialog_created = True
+    #    return self.import_dialog
 
 
     find_dialog_created = False
@@ -1799,6 +1801,26 @@ class Gui:
                     pass
 
         return self.license_dialog
+
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def record_repack(self):
+        if self.current_record:
+            dialog = self.get_repack_dialog()
+
+            self.repack_label_var.set(self.current_record.header.label)
+            self.repack_compr_var.set(self.current_record.header.compression_level)
+            self.repack_compr_var_int.set(self.current_record.header.compression_level)
+
+            self.repack_cd_cb.configure(state='normal' if self.current_record.header.items_cd else 'disabled')
+            self.repack_cd_var.set(True if self.current_record.header.items_cd else False)
+
+            dialog.show()
+
+            if self.repack_dialog_do_it:
+                if messages := librer_core.repack_record(self.current_record,self.repack_label_var.get(),self.repack_compr_var.get(),self.repack_cd_var.get(),self.single_record_show):
+                    self.info_dialog_on_main.show('Repacking failed','\n'.join(messages) )
 
     @restore_status_line
     @block_actions_processing
@@ -2172,7 +2194,6 @@ class Gui:
             res_txt = '\n'.join(rest_txt_list)
 
         self.text_dialog_on_find.show('Search results',res_txt)
-
 
     find_result_record_index=0
     find_result_index=0
@@ -2851,6 +2872,7 @@ class Gui:
             pop_add_separator()
             pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_record_export,compound='left',state=state_on_records)
             pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
+            pop_add_command(label = 'Rename / Repack ...', command = self.record_repack,image = self.ico_empty,compound='left')
             pop_add_separator()
             pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_info,compound='left',state=state_on_records)
             pop_add_separator()
@@ -3443,31 +3465,38 @@ class Gui:
     def set_dev_to_scan_menu(self):
         self.drives_menu.delete(0,'end')
 
-        templ = "%-17s %8s %8s %8s %5s%% %9s  %s"
-        #print(templ % ("Device", "Total", "Used", "Free", "Use ", "Type","Mount"))
+        if not windows:
+            try:
+                labes_dict = get_dev_labes_dict()
+            except Exception as lsblk_ex:
+                print(lsblk_ex)
+
         for part in disk_partitions(all=False):
+            filesystem_label=None
+
             if windows:
                 if 'cdrom' in part.opts or part.fstype == '':
                     # skip cd-rom drives with no disk in it; they may raise
                     # ENOENT, pop-up a Windows GUI error for a non-ready
                     # partition or just hang.
                     continue
-            usage = disk_usage(part.mountpoint)
+
+                try:
+                    filesystem_label = GetVolumeInformation(part.mountpoint)[0]
+                except Exception as lab_ex:
+                    print(lab_ex)
+            else:
+                try:
+                    filesystem_label = labes_dict[part.mountpoint]
+                except Exception as lab_ex:
+                    print(lab_ex)
+
             if part.fstype != 'squashfs':
-                #print(templ % (
-                #    part.device,
-                #    bytes_to_str(usage.total),
-                #    bytes_to_str(usage.used),
-                #    bytes_to_str(usage.free),
-                #    int(usage.percent),
-                #    part.fstype,
-                #    part.mountpoint))
+                self.drives_menu.add_command(label=f'{part.mountpoint} ({filesystem_label})' if filesystem_label else part.mountpoint,command = lambda dev=part.mountpoint,label=filesystem_label : self.set_dev_to_scan(dev,label) )
 
-                self.drives_menu.add_command(label=part.mountpoint,command = lambda dev=part.mountpoint : self.set_dev_to_scan(dev) )
-
-    def set_dev_to_scan(self,dev):
+    def set_dev_to_scan(self,dev,label=None):
         self.path_to_scan_entry_var.set(dev)
-        self.scan_label_entry_var.set(dev)
+        self.scan_label_entry_var.set(label if label else dev)
 
     def set_path_to_scan(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
