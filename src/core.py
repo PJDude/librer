@@ -27,11 +27,15 @@
 ####################################################################################
 
 from json import loads as json_loads
-from subprocess import Popen, STDOUT, PIPE, run as subprocess_run
+from subprocess import Popen, STDOUT,DEVNULL,PIPE, run as subprocess_run
 from time import sleep, perf_counter,time,strftime,localtime
 from threading import Thread
 from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove
-#from os import kill as os_kill
+windows = bool(os_name=='nt')
+
+if not windows:
+    from os import getpgid, killpg
+
 from os.path import abspath,normpath,basename,dirname
 from os.path import join as path_join
 
@@ -52,8 +56,6 @@ from send2trash import send2trash as send2trash_delete
 from psutil import Process
 
 from copy import deepcopy
-
-windows = bool(os_name=='nt')
 
 PARAM_INDICATOR_SIGN = '%'
 
@@ -169,49 +171,54 @@ def prepare_LUTs():
 
 prepare_LUTs()
 
-def get_command_list(executable,parameters,full_file_path,shell=False):
+def get_command(executable,parameters,full_file_path,shell):
     if windows:
         full_file_path = full_file_path.replace('/',sep)
 
+    if ' ' in full_file_path:
+        full_file_path = f'"{full_file_path}"'
+
     if shell:
-        if ' ' in executable:
-            executable=f'"{executable}"'
+        res = executable
 
-        if ' ' in full_file_path:
-            full_file_path = f'"{full_file_path}"'
+        if PARAM_INDICATOR_SIGN not in res:
+            res = res + ' ' + PARAM_INDICATOR_SIGN
 
-    parameters = parameters.strip()
-
-    if parameters:
+        res = res.replace(PARAM_INDICATOR_SIGN,full_file_path)
+        res_info = res
+    else:
         if PARAM_INDICATOR_SIGN not in parameters:
             parameters = parameters + ' ' + PARAM_INDICATOR_SIGN
 
+        if not parameters:
+            parameters=PARAM_INDICATOR_SIGN
+
         parameters = parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN)
-    else:
-        parameters=PARAM_INDICATOR_SIGN
+        parameters = parameters.replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN)
 
-    parameters_list = [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.split() if p_elem]
+        parameters_list = [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.strip().split() if p_elem]
 
-    single_command_list = [executable] + parameters_list
+        res = [executable] + parameters_list
+        res_info = ' '.join(res)
 
-    return single_command_list
+    return res,res_info
 
-def rec_kill(pid):
-    proc = Process(pid)
-
-    #proc.send_signal(SIGSTOP)
-    #proc.send_signal(SIGINT)
-
-    for child in proc.children():
-        rec_kill(child.pid)
-
+def kill_subprocess(subproc):
     try:
-        #proc.send_signal(SIGTERM)
-        proc.send_signal(SIGTERM)
-        #print('SIGTERM send to',pid)
+        pid = subproc.pid
 
-    except Exception as e:
-        print('rec_kill error',e)
+        if windows:
+            kill_cmd = ['taskkill', '/F', '/T', '/PID', str(pid)]
+            print(f'executing: {kill_cmd}')
+            subprocess_run(kill_cmd)
+            print(f'executing: {kill_cmd} - done')
+        else:
+            print(f'killing process group')
+            killpg(getpgid(pid), SIGTERM)
+            print(f'killing process group done')
+
+    except Exception as ke:
+        print(f'kill_subprocess: {ke}')
 
 def compress_with_stats(data,compression):
     t0 = perf_counter()
@@ -643,17 +650,15 @@ class LibrerRecord:
                     returncode=202
                     expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,do_crc = cde_list[rule_nr]
                     full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
-                    single_command_list = get_command_list(executable,parameters,full_file_path,shell)
-                    single_command_list_joined = ' '.join(single_command_list)
-                    command = single_command_list_joined if shell else single_command_list
+                    command,command_info = get_command(executable,parameters,full_file_path,shell)
 
-                    self.info_line_current = f'{single_command_list_joined} ({bytes_to_str(size)})'
+                    self.info_line_current = f"{command_info} ({bytes_to_str(size)})"
 
                     timeout_val=time()+timeout if timeout else None
                     #####################################
 
                     try:
-                        subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,shell=shell,text=True)
+                        subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
                         timeout_semi_list[0]=(timeout_val,subprocess)
                     except Exception as re:
                         print('threaded_cde error:',re)
@@ -738,33 +743,9 @@ class LibrerRecord:
         while cde_thread.is_alive():
             if timeout_semi_list[0]:
                 timeout_val,subprocess = timeout_semi_list[0]
-                if self.abort_action or (timeout_val and time()>timeout_val):
-                    try:
-                        self.killed=True
-                        rec_kill(subprocess.pid)
-                        #if windows:
-                        #    subprocess_call(['taskkill', '/F', '/T', '/PID', str(subprocess.pid)])
-                        #else:
-                        #    rec_kill(subprocess.pid)
-                            #subprocess.kill()
-                            #os_kill(subprocess.pid, -9)
-
-                    except Exception as ke:
-                        print('killing error:',subprocess.pid,ke)
-
-                if self.abort_single_file_cde:
-                    try:
-                        self.killed=True
-                        rec_kill(subprocess.pid)
-                        #if windows:
-                        #    subprocess_call(['taskkill', '/F', '/T', '/PID', str(subprocess.pid)])
-                        #else:
-                        #    rec_kill(subprocess.pid)
-                            #subprocess.kill()
-                            #os_kill(subprocess.pid, -9)
-
-                    except Exception as ke:
-                        print('killing error:',subprocess.pid,ke)
+                if self.abort_action or (timeout_val and time()>timeout_val) or self.abort_single_file_cde:
+                    kill_subprocess(subprocess)
+                    self.killed=True
             else:
                 sleep(0.01)
 
@@ -1668,7 +1649,7 @@ class LibrerCore:
             results_list_append = results_list[record_nr].find_results.append
 
             try:
-                subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True)
+                subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,start_new_session=True)
             except Exception as re:
                 print('threaded_run run error',re)
                 info_list[record_nr].append(f'threaded_run run error: {re}')

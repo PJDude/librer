@@ -1,4 +1,5 @@
-# LIBRER
+# <img src="./src/icons/librer.png" width=30> LIBRER
+
 A cross-platform GUI file cataloging program with extensive customization options to suit user preferences. Highly optimized for multi-core parallel search speed, data integrity, and repository portability.
 
 **The software and this document are under development and in a Release Candidate (2) state.**

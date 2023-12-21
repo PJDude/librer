@@ -325,7 +325,7 @@ class TextDialogInfo(GenericDialog):
 
         self.message = ''
 
-        self.uplabel = Label(self.area_main,bg=self.bg_color,relief='groove', bd=2,anchor='w')
+        self.uplabel = Label(self.area_main,bg=self.bg_color,relief='groove', bd=2,anchor='w', justify='left')
 
         textwidth=80
         self.text = scrolledtext.ScrolledText(self.area_main,relief='groove' , bd=2,bg='white',width = textwidth,takefocus=True)
@@ -412,11 +412,13 @@ class TextDialogInfo(GenericDialog):
 
         self.message = message
 
-        for line in message.split('\n'):
-            line_splitted=line.split('|')
-            tag=line_splitted[1] if len(line_splitted)>1 else None
+        self.text.insert('end',message)
+        #for line in message.split('\n'):
+            #line_splitted=line.split('|')
+            #tag=line_splitted[1] if len(line_splitted)>1 else None
 
-            self.text.insert('end', line_splitted[0] + "\n", tag)
+            #self.text.insert('end', line_splitted[0] + "\n", tag)
+        #    self.text.insert('end', line + "\n")
 
         self.text.configure(state='disabled')
         self.text.grid(row=1,column=0,sticky='news',padx=5,pady=5)

@@ -63,8 +63,6 @@ l_error = logging.error
 ###########################################################################################################################################
 
 CFG_KEY_USE_REG_EXPR='use_reg_expr'
-CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
-CFG_KEY_EXCLUDE='exclude'
 CFG_KEY_CDE_SETTINGS = 'cde_settings'
 CFG_KEY_SINGLE_DEVICE = 'single_device'
 
@@ -105,10 +103,8 @@ CFG_geometry = 'geometry'
 
 cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
-    CFG_KEY_EXCLUDE_REGEXP:False,
     CFG_KEY_SINGLE_DEVICE:True,
-    CFG_KEY_EXCLUDE:'',
-    CFG_KEY_CDE_SETTINGS:'',
+    CFG_KEY_CDE_SETTINGS:[],
 
     CFG_KEY_find_range_all:False,
     CFG_KEY_find_filename_search_kind:'dont',
@@ -202,8 +198,6 @@ class Gui:
         self.last_dir = self.cfg.get(CFG_last_dir).replace('/',sep)
 
         self.cfg_get=self.cfg.get
-
-        self.exclude_frames=[]
 
         signal(SIGINT, lambda a, k : self.handle_sigint())
 
@@ -925,6 +919,16 @@ class Gui:
     def configure_scan_button(self):
         self.scan_button.configure(image=self.ico_start if all(bool(self.CDE_use_var_list[e_local].get())==False for e_local in range(self.CDE_ENTRIES_MAX) ) else self.ico_warning)
 
+    def shell_change(self,e):
+        if self.CDE_shell_var_list[e].get():
+            self.open_button[e].configure(state='disabled')
+            self.executable_entry[e].grid(row=self.executable_entry_row[e], column=7,sticky='news',columnspan=2)
+            self.parameters_entry[e].grid_forget()
+        else:
+            self.open_button[e].configure(state='normal')
+            self.executable_entry[e].grid(row=self.executable_entry_row[e], column=7,sticky='news',columnspan=1)
+            self.parameters_entry[e].grid(row=self.executable_entry_row[e], column=8,sticky='news')
+
     def use_checkbutton_mod(self,e,do_configure_scan_button=True):
         #do_crc = bool( self.CDE_crc_var_list[e].get() )
         do_crc = False
@@ -976,8 +980,8 @@ class Gui:
 
             self_ico = self.ico
 
-            self.log_skipped_var=BooleanVar()
-            self.log_skipped_var.set(False)
+            #self.log_skipped_var=BooleanVar()
+            #self.log_skipped_var.set(False)
 
             dialog.area_main.grid_columnconfigure(0, weight=1)
             dialog.area_main.grid_rowconfigure(3, weight=1)
@@ -986,8 +990,6 @@ class Gui:
             dialog.widget.bind('<Alt_L><P>',lambda event : self.set_path_to_scan())
             dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
             dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
-            #dialog.widget.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
-            #dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
 
             ##############
 
@@ -1025,45 +1027,6 @@ class Gui:
             temp_frame.grid_columnconfigure(3, weight=1)
 
             ##############
-            self.exclude_regexp_scan=BooleanVar()
-
-            temp_frame2 = LabelFrame(dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
-
-            #TODO
-            #temp_frame2.grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=4)
-
-            self.exclude_scroll_frame=SFrame(temp_frame2,bg=self.bg_color)
-            self.exclude_scroll_frame.pack(fill='both',expand=True,side='top',ipadx=4,ipady=4)
-            self.exclude_frame=self.exclude_scroll_frame.frame()
-
-            buttons_fr2 = Frame(temp_frame2,bg=self.bg_color,takefocus=False)
-            buttons_fr2.pack(fill='x',expand=False,side='bottom')
-
-            self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self.ico_open,command=self.exclude_mask_add_dir)
-            self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
-
-            self.widget_tooltip(self.add_exclude_button_dir,"Add path as exclude expression ...")
-
-            self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
-
-            tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.:' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
-
-            self.widget_tooltip(self.add_exclude_button,tooltip_string)
-
-            self.add_exclude_button.pack(side='left',pady=4,padx=4)
-
-            Checkbutton(buttons_fr2,text='treat as a regular expression',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
-
-            self.exclude_frame.grid_columnconfigure(1, weight=1)
-            self.exclude_frame.grid_rowconfigure(99, weight=1)
-            ##############
-
-            skip_button = Checkbutton(dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
-            #TODO
-            #skip_button.grid(row=4,column=0,sticky='news',padx=8,pady=3,columnspan=3)
-
-            self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
-
             self.scan_button = Button(dialog.area_buttons,width=12,text="Scan",compound='left',command=self.scan_wrapper,underline=0)
             self.scan_button.pack(side='right',padx=4,pady=4)
             self.widget_tooltip(self.scan_button,'Start scanning.\n\nIf any Custom Data Extractor is enabled it will be executed\nwith every file that meets its criteria (mask & size).')
@@ -1109,10 +1072,10 @@ class Gui:
             (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=2,sticky='news')
             (lab_min := Label(cde_frame,text='Min\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=3,sticky='news')
             (lab_max := Label(cde_frame,text='Max\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=4,sticky='news')
-            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news')
+            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news')
             (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=6,sticky='news')
-            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
-            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
+            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
+            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
             (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=9,sticky='news')
             (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=10,sticky='news')
             #(lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
@@ -1123,7 +1086,7 @@ class Gui:
             max_tooltip = min_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
             exec_tooltip = "A binary executable or batch script that will run\nwith the full path to the file to be extracted as a parameter.\nThe executable may have a full path, be located in a PATH\nenvironment variable, or be interpreted by the system shell"
             pars_tooltip = f"The executable will run with the full path to the file to extract as a parameter.\nIf other constant parameters are necessary, they should be placed here\nand the scanned file should be indicated with the '{PARAM_INDICATOR_SIGN}' sign.\nThe absence of the '{PARAM_INDICATOR_SIGN}' sign means that the file will be passed as the last parameter.\ne.g.:const_param % other_const_param"
-            shell_tooltip = "Execute in system shell\nUse only when necessary."
+            shell_tooltip = "Execute in the system shell\n\nWhen enabled\nCommand with parameters will be passed\nto the system shell as single string\nThe use of pipes, redirection etc. is allowed\nExample:\n7z l % | tail -n +14\n\nWhen disabled\nAn executable file must be specified,\nthe contents of the parameters field will be\nsplitted and passed as a parameters list.\n\nIn more complicated cases\nit is recommended to prepare a dedicated shell\nscript and use it as a shell command."
             open_tooltip = "Point executable as custom data extractor..."
             timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or empty field means no timeout."
             test_tooltip = "Select a file and test your Custom Data Extractor.\n\nBefore you run scan, and therefore run your CDE on all\nfiles that will match on the scan path,\ntest your Custom Data Extractor\non a single, manually selected file.\nCheck if it's getting the expected data\nand has no unexpected side-effects."
@@ -1160,6 +1123,7 @@ class Gui:
             self.size_max_entry={}
             self.use_checkbutton={}
             self.executable_entry={}
+            self.executable_entry_row={}
             self.parameters_entry={}
             self.shell_checkbutton={}
             self.open_button={}
@@ -1197,17 +1161,18 @@ class Gui:
                 self.size_max_entry[e] = Entry(cde_frame,textvariable=self.CDE_size_max_var_list[e],width=6)
                 self.size_max_entry[e].grid(row=row, column=4,sticky ='news')
 
-                self.executable_entry[e] = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e])
-                self.executable_entry[e].grid(row=row, column=5,sticky='news')
+                self.shell_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_shell_var_list[e],command = lambda x=e : self.shell_change(x))
+                self.shell_checkbutton[e].grid(row=row, column=5,sticky='news')
 
                 self.open_button[e] = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
                 self.open_button[e].grid(row=row,column=6,sticky='news')
 
-                self.parameters_entry[e] = Entry(cde_frame,textvariable=self.CDE_parameters_var_list[e])
-                self.parameters_entry[e].grid(row=row, column=7,sticky='news')
+                self.executable_entry[e] = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e])
+                self.executable_entry_row[e] = row
+                self.executable_entry[e].grid(row=row, column=7,sticky='news')
 
-                self.shell_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_shell_var_list[e])
-                self.shell_checkbutton[e].grid(row=row, column=8,sticky='news')
+                self.parameters_entry[e] = Entry(cde_frame,textvariable=self.CDE_parameters_var_list[e])
+                self.parameters_entry[e].grid(row=row, column=8,sticky='news')
 
                 self.timeout_entry[e] = Entry(cde_frame,textvariable=self.CDE_timeout_var_list[e],width=3)
                 self.timeout_entry[e].grid(row=row, column=9,sticky='news')
@@ -1232,16 +1197,10 @@ class Gui:
                 #self.widget_tooltip(self.crc_entry[e],crc_tooltip)
 
             cde_frame.grid_columnconfigure(2, weight=2)
-            cde_frame.grid_columnconfigure(5, weight=2)
-            cde_frame.grid_columnconfigure(7, weight=1)
+            cde_frame.grid_columnconfigure(7, weight=2)
+            cde_frame.grid_columnconfigure(8, weight=1)
 
             self.scan_dialog_created = True
-
-            ###########################################
-
-            #self.exclude_dialog_on_scan = EntryDialogQuestion(dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-
-            self.exclude_regexp_scan.set(self.cfg_get(CFG_KEY_EXCLUDE_REGEXP))
 
         return self.scan_dialog
 
@@ -3045,11 +3004,9 @@ class Gui:
 
                 executable = self.CDE_executable_var_list[e].get()
                 parameters = self.CDE_parameters_var_list[e].get()
+                shell = self.CDE_shell_var_list[e].get()
 
-                command_list = get_command_list(executable,parameters,'dummy full_file_path',True)
-                if not command_list:
-                    self.get_info_dialog_on_scan().show('Wrong parameters',f"Non empty and without '{PARAM_INDICATOR_SIGN}' sign\n#{e}: ({parameters})")
-                    return False
+                command,command_info = get_command(executable,parameters,'dummy full_file_path',shell)
 
         self.last_dir = path_to_scan_from_entry
 
@@ -3083,14 +3040,10 @@ class Gui:
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
 
-        #librer_core.log_skipped = self.log_skipped_var.get()
-        self.log_skipped = self.log_skipped_var.get()
+        #self.log_skipped = self.log_skipped_var.get()
 
         self_progress_dialog_on_scan.lab_l1.configure(text='CDE Total space:')
         self_progress_dialog_on_scan.lab_l2.configure(text='CDE Files number:' )
-
-        #self_progress_dialog_on_scan_progr1var.set(10)
-        #self_progress_dialog_on_scan_progr2var.set(20)
 
         self_progress_dialog_on_scan.show('Creating new data record (scanning)')
 
@@ -3148,7 +3101,7 @@ class Gui:
             timeout,
             '1' if self.CDE_crc_var_list[e].get() else '0' ]
 
-            cde_sklejka_list.append('|'.join(line_list))
+            cde_sklejka_list.append(line_list)
 
             if self.CDE_use_var_list[e].get():
                 any_cde_enabled=True
@@ -3165,7 +3118,7 @@ class Gui:
                     timeout_int,
                     crc ) )
 
-        self.cfg.set(CFG_KEY_CDE_SETTINGS,'\n'.join(cde_sklejka_list))
+        self.cfg.set(CFG_KEY_CDE_SETTINGS,cde_sklejka_list)
 
         check_dev = self.single_device.get()
 
@@ -3376,8 +3329,6 @@ class Gui:
                     self.tree.focus_set()
 
     def scan_dialog_show(self):
-        #self.exclude_mask_update()
-
         dialog = self.get_scan_dialog()
 
         self.status("Opening dialog ...")
@@ -3386,9 +3337,11 @@ class Gui:
 
         do_clear_settings = False
         if sklejka_settings:
-            for e_section in self.cfg.get(CFG_KEY_CDE_SETTINGS).split('\n'):
+            #for e_section in sklejka_settings.split('\n'):
+            for e_section in sklejka_settings:
                 try:
-                    v1,v2,v3,v4,v5,v6,v7,v8,v9 = e_section  .split('|')
+                    #v1,v2,v3,v4,v5,v6,v7,v8,v9 = e_section.split('|')
+                    v1,v2,v3,v4,v5,v6,v7,v8,v9 = e_section
 
                     self.CDE_use_var_list[e].set(bool(v1=='1'))
                     self.CDE_mask_var_list[e].set(v2)
@@ -3419,48 +3372,17 @@ class Gui:
                 self.CDE_shell_var_list[e].set(False)
                 self.CDE_timeout_var_list[e].set('')
                 self.CDE_crc_var_list[e].set(False)
-            self.cfg.set(CFG_KEY_CDE_SETTINGS,'')
+            self.cfg.set(CFG_KEY_CDE_SETTINGS,[])
             self.cfg.write()
 
         for e in range(self.CDE_ENTRIES_MAX):
             self.use_checkbutton_mod(e,False)
+            self.shell_change(e)
 
         self.configure_scan_button()
 
         dialog.do_command_after_show=lambda : self.status("")
         dialog.show()
-
-    def exclude_regexp_set(self):
-        self.cfg.set(CFG_KEY_EXCLUDE_REGEXP,self.exclude_regexp_scan.get())
-
-    def exclude_mask_update(self) :
-        for subframe in self.exclude_frames:
-            subframe.destroy()
-
-        self.exclude_frames=[]
-        self.exclude_entry_var={}
-
-        row=0
-
-        for entry in self.cfg.get(CFG_KEY_EXCLUDE).split('|'):
-            if entry:
-                (frame:=Frame(self.exclude_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
-                self.exclude_frames.append(frame)
-
-                self.exclude_entry_var[row]=StringVar(value=entry)
-                Entry(frame,textvariable=self.exclude_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1,padx=(2,0))
-
-                remove_expression_button=Button(frame,image=self.ico['delete'],command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
-                remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
-
-                self.widget_tooltip(remove_expression_button,'Remove expression from list.')
-
-                row+=1
-
-        if row:
-            self.exclude_scroll_frame.pack(fill='both',expand=True,side='top')
-        else:
-            self.exclude_scroll_frame.pack_forget()
 
     def set_dev_to_scan_menu(self):
         self.drives_menu.delete(0,'end')
@@ -3505,10 +3427,11 @@ class Gui:
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
 
     def threaded_simple_run(self,command_list,shell):
+        l_info(f'threaded_simple_run {command_list=}')
         output_list_append = self.output_list.append
 
         try:
-            self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,shell=shell,text=True)
+            self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
         except Exception as re:
             print('test run error',re,flush = True)
             output_list_append(str(re))
@@ -3523,6 +3446,7 @@ class Gui:
                     line = f'{le}'
                     self.test_decoding_error = True
 
+                self.info_line = line
                 output_list_append(line.rstrip('\n\r'))
 
                 if not line and subprocess_poll() is not None:
@@ -3538,9 +3462,8 @@ class Gui:
 
     def kill_test(self):
         if self.subprocess and self.subprocess!=True:
-            self.output_list.append('Killing.')
-            print(f'{self.subprocess.pid=}',flush = True)
-            rec_kill(self.subprocess.pid)
+            kill_subprocess(self.subprocess)
+            #    self.output_list.append(str(e))
 
     def cde_test(self,e):
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -3557,12 +3480,9 @@ class Gui:
             except:
                 timeout_int = None
 
-            command_list = get_command_list(executable,parameters,full_file_path,shell)
-            if not command_list:
-                self.get_info_dialog_on_scan().show('Wrong parameters string',f"Non empty and without '{PARAM_INDICATOR_SIGN}' sign")
-                return
+            command,command_info = get_command(executable,parameters,full_file_path,shell)
 
-            info = ' '.join(command_list) + '\n' + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '') + f'\nshell:{"Yes" if shell else "No"}'
+            info = command_info + '\n' + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '') + f'\nshell:{"Yes" if shell else "No"}'
 
             ask_dialog = self.get_text_ask_dialog_on_scan()
             simple_progress_dialog_scan = self.get_simple_progress_dialog_on_scan()
@@ -3590,19 +3510,21 @@ class Gui:
 
                 self.subprocess = None
 
-                test_thread = Thread(target = lambda: self.threaded_simple_run(command_list,shell),daemon=True)
+                test_thread = Thread(target = lambda: self.threaded_simple_run(command,shell),daemon=True)
 
                 simple_progress_dialog_scan.command_on_close=self.kill_test
 
-                #simple_progress_dialog_scan.command_on_close=self.kill_test
-                test_thread.start()
-
+                self.info_line=''
+                simple_progress_dialog_scan_update_lab_text = simple_progress_dialog_scan.update_lab_text
+                simple_progress_dialog_scan_update_lab_image = simple_progress_dialog_scan.update_lab_image
+                simple_progress_dialog_scan_update_lab_text(0,'')
+                simple_progress_dialog_scan_update_lab_text(1,'')
                 simple_progress_dialog_scan.show('Testing selected Custom Data Extractor')
+
+                test_thread.start()
 
                 timeout_val=time()+float(timeout_int) if timeout_int else None
 
-                simple_progress_dialog_scan_update_lab_text = simple_progress_dialog_scan.update_lab_text
-                simple_progress_dialog_scan_update_lab_image = simple_progress_dialog_scan.update_lab_image
 
                 while test_thread.is_alive():
                     simple_progress_dialog_scan_update_lab_image(2,self.get_hg_ico())
@@ -3612,9 +3534,11 @@ class Gui:
                         if time_left>0:
                             simple_progress_dialog_scan_update_lab_text(0,f'timeout: {int(time_left)}')
                         else:
-                            simple_progress_dialog_scan_update_lab_text(0,'Timeout')
+                            simple_progress_dialog_scan_update_lab_text(0,'')
                             self.output_list.append(f'Timeout {timeout_int}s.')
                             self.kill_test()
+
+                    simple_progress_dialog_scan_update_lab_text(1,f'...{self.info_line[-50:]}')
 
                     self_main_after(25,lambda : wait_var_set(not wait_var_get()))
                     self_main_wait_variable(wait_var)
@@ -3642,40 +3566,11 @@ class Gui:
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Bat Files","*.bat"),("Executable Files","*.exe"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
+        if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Executable Files","*.exe"),("Bat Files","*.bat"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
             self.last_dir=dirname(res)
 
             expr = normpath(abspath(res))
             self.CDE_executable_var_list[e].set(expr)
-
-    def exclude_mask_add_dir(self):
-        initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
-            self.last_dir=res
-            expr = normpath(abspath(res)) + (".*" if self.exclude_regexp_scan.get() else "*")
-            self.exclude_mask_string(expr)
-
-    def exclude_mask_add_dialog(self):
-        self.exclude_dialog_on_scan.show('Specify Exclude expression','expression:','')
-        confirmed=self.exclude_dialog_on_scan.res_bool
-        mask=self.exclude_dialog_on_scan.res_str
-
-        if confirmed:
-            self.exclude_mask_string(mask)
-
-    def exclude_mask_string(self,mask):
-        orglist=self.cfg.get(CFG_KEY_EXCLUDE).split('|')
-        orglist.append(mask)
-        self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
-        self.exclude_mask_update()
-
-    def exclude_mask_remove(self,mask) :
-        orglist=self.cfg.get(CFG_KEY_EXCLUDE).split('|')
-        orglist.remove(mask)
-        if '' in orglist:
-            orglist.remove('')
-        self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
-        self.exclude_mask_update()
 
     @restore_status_line
     @block_actions_processing
@@ -3733,14 +3628,8 @@ class Gui:
             ###############################################
             record_item,record_name,subpath_list = self.get_item_record(item)
 
-            #print('subpath_list',subpath_list)
-
             record = self.item_to_record[record_item]
 
-            #try:
-            #    print(record.find_results[0])
-            #except Exception as e:
-            #    print('totu:',e)
             self_item_to_data = self.item_to_data
 
             if tree.tag_has(self.RECORD_RAW,item):
@@ -3755,7 +3644,6 @@ class Gui:
 
             top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_has_crc,top_aux1,top_aux2 = LUT_decode_loc[top_code]
 
-            #record_filenames = record.get_file_name
             record_filenames = record.filenames
 
             if top_has_files:
@@ -3766,7 +3654,6 @@ class Gui:
                     entry_name = record_filenames[entry_name_nr]
 
                     entry_subpath_tuple = tuple(subpath_list + [entry_name])
-                    #print('entry_subpath_tuple',entry_subpath_tuple)
 
                     is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode_loc[code]
 
@@ -3815,7 +3702,6 @@ class Gui:
 
                 tree.set(item,'opened','1')
 
-        #tree.item(item, open=True)
     def get_record_raw_icon(self,record):
         return self.ico_record_raw_cd if record.has_cd() else self.ico_record_raw
 
@@ -3895,7 +3781,6 @@ class Gui:
                         self.record_info()
                     else:
                         self.main.after_idle(self.show_customdata)
-
         return "break"
 
     def show_customdata(self):
@@ -3930,7 +3815,12 @@ class Gui:
                                     file_path = record.header.scan_path + sep + sep.join(subpath_list)
 
                                     cd_txt = cd_data
-                                    self.get_text_info_dialog().show(f'Custom Data of: {file_path}',cd_txt,uplabel_text=f"CDE command:'{executable} {parameters}' | shell:{shell} {timeout if timeout else ''} returncode:{returncode}")
+
+                                    command,command_info = get_command(executable,parameters,file_path,shell)
+
+                                    shell_info = ('No','Yes')[shell]
+                                    timeout_info = f'\ntimeout:{timeout}' if timeout else ''
+                                    self.get_text_info_dialog().show(f'Custom Data of: {file_path}',cd_txt,uplabel_text=f"{command_info}\n\nshell:{shell_info}{timeout_info}\nreturncode:{returncode}")
                                     return
 
                             self.info_dialog_on_main.show('Information','No Custom data.')
@@ -3972,27 +3862,6 @@ class Gui:
     def unload_all_recods(self):
         for record in librer_core.records:
             self.unload_recod(record)
-
-    #@logwrapper
-    #def tree_action(self,item):
-    #    tree=self.tree
-    #    try:
-    #        record_item,record_name,subpath_list = self.get_item_record(item)
-    #        record = self.item_to_record[record_item]
-
-            #kind = tree.set(item,'kind')
-            #opened = tree.item(item)['open']
-            #if kind == self.DIR :
-            #    pass
-                #if not opened:
-                #    self.open_item(item)
-            #elif kind == self.RECORD :
-
-                #if opened:
-                #    self.open_item(item)
-
-    #    except Exception as e:
-    #        print('tree_action',e)
 
     @logwrapper
     def show_log(self):
@@ -4048,8 +3917,6 @@ if __name__ == "__main__":
 
         VER_TIMESTAMP = get_ver_timestamp()
 
-        LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,"logs"])
-
         log_file = strftime('%Y_%m_%d_%H_%M_%S',localtime_catched(time())) +'.txt'
         log=abspath(LOG_DIR + sep + log_file)
 
@@ -4074,45 +3941,7 @@ if __name__ == "__main__":
 
         Gui(getcwd())
 
-        #if p_args.csv:
         #    signal(SIGINT, lambda a, k : librer_core.handle_sigint())
-
-        #    librer_core.set_paths_to_scan(p_args.paths)
-
-        #    if p_args.exclude:
-        #        set_exclude_masks_res=librer_core.set_exclude_masks(False,p_args.exclude)
-        #    elif p_args.exclude_regexp:
-        #        set_exclude_masks_res=librer_core.set_exclude_masks(True,p_args.exclude_regexp)
-        #    else:
-        #        set_exclude_masks_res=librer_core.set_exclude_masks(False,[])
-
-        #    if set_exclude_masks_res:
-        #        print(set_exclude_masks_res)
-        #        sys.exit(2)
-
-            #run_scan_thread=Thread(target=librer_core.scan,daemon=True)
-            #run_scan_thread.start()
-
-            #while run_scan_thread.is_alive():
-            #    print('Scanning ...', librer_core.info_counter,end='\r')
-            #    sleep(0.04)
-
-            #run_scan_thread.join()
-
-            #run_crc_thread=Thread(target=librer_core.crc_calc,daemon=True)
-            #run_crc_thread.start()
-
-            #while run_crc_thread.is_alive():
-            #    print(f'crc_calc...{librer_core.info_files_done}/{librer_core.info_total}                 ',end='\r')
-            #    sleep(0.04)
-
-            #run_crc_thread.join()
-            #print('')
-            #librer_core.write_csv(p_args.csv[0])
-
-        #    print('Done')
-
-        #else:
 
     except Exception as e_main:
         print(e_main)
