@@ -1315,10 +1315,6 @@ class Gui:
         self.repack_dialog_do_it = True
         self.repack_dialog.hide()
 
-    #def export_to_file(self):
-    #    self.export_dialog_file = asksaveasfilename(initialdir=self.last_dir,parent = self.export_dialog.widget, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]),False
-    #    self.export_dialog.hide()
-
     def repack_comp_set(self):
         self.repack_compr_var_int.set(int(self.repack_compr_var.get()))
 
@@ -1367,67 +1363,11 @@ class Gui:
             Scale(repack_frame_compr, variable=self.repack_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.repack_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
             Label(repack_frame_compr, textvariable=self.repack_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
 
-            #Button(self.repack_dialog.area_buttons, text='To Local Repo', width=14, command= self.repack_to_local ).pack(side='left', anchor='n',padx=5,pady=5)
-            #Button(self.repack_dialog.area_buttons, text='Select File ...', width=14, command= self.repack_to_file ).pack(side='left', anchor='n',padx=5,pady=5)
             Button(self.repack_dialog.area_buttons, text='Proceed', width=14 , command= self.repack_to_local).pack(side='left', anchor='n',padx=5,pady=5)
             Button(self.repack_dialog.area_buttons, text='Close', width=14, command=self.repack_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
 
             self.repack_dialog_created = True
         return self.repack_dialog
-
-    #def import_files_confirm(self):
-    #    self.do_import=True
-    #    self.import_dialog.hide()
-
-    #def import_comp_set(self):
-    #    self.import_compr_var_int.set(int(self.import_compr_var.get()))
-
-    #import_dialog_created = False
-    #@restore_status_line
-    #@block_actions_processing
-    #@gui_block
-    #def get_import_dialog(self):
-    #    self.do_import=False
-    #    if not self.import_dialog_created:
-
-    #        self.import_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Import record(s)',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
-    #        self.import_cd_var = BooleanVar()
-            #self.import_crc_var = BooleanVar()
-    #        self.import_compr_var = IntVar()
-    #        self.import_compr_var_int = IntVar()
-
-    #        self.import_cd_var.set(self.cfg.get(CFG_KEY_import_cd))
-            #self.import_crc_var.set(self.cfg.get(CFG_KEY_import_crc))
-
-    #        self.import_compr_var.set(9)
-    #        self.import_compr_var_int.set(9)
-
-    #        (import_frame := LabelFrame(self.import_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
-    #        self.import_dialog.area_main.grid_columnconfigure( 0, weight=1)
-    #        self.import_dialog.area_main.grid_columnconfigure( 1, weight=1)
-
-    #        self.import_dialog.area_main.grid_rowconfigure( 2, weight=1)
-
-    #        self.import_cd_cb = Checkbutton(import_frame,text='Include \'Custom Data\'',variable=self.import_cd_var)
-            #self.import_crc_cb = Checkbutton(import_frame,text='Include CRC values',variable=self.import_crc_var)
-
-    #        self.import_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
-            #self.import_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
-
-    #        import_frame.grid_columnconfigure( 0, weight=1)
-
-    #        (import_frame_compr := LabelFrame(self.import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
-
-    #        Scale(import_frame_compr, variable=self.import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.import_comp_set()).pack(fill='x',side='left',expand=1,padx=2)
-    #        Label(import_frame_compr, textvariable=self.import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
-
-    #        self.import_dialog_file=None
-    #        Button(self.import_dialog.area_buttons, text='OK', width=14, command= self.import_files_confirm ).pack(side='left', anchor='n',padx=5,pady=5)
-    #        Button(self.import_dialog.area_buttons, text='Cancel', width=14, command=self.import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
-
-    #        self.import_dialog_created = True
-    #    return self.import_dialog
-
 
     find_dialog_created = False
     @restore_status_line
@@ -2972,13 +2912,6 @@ class Gui:
         self.tree.focus_set()
         self.tree_semi_focus()
 
-    #prev_status_progress_text=''
-    #def status_progress(self,text='',image='',do_log=False):
-    #    if text != self.prev_status_progress_text:
-    #        self.progress_dialog_on_scan.lab[1].configure(text=text)
-    #        self.progress_dialog_on_scan.area_main.update()
-    #        self.prev_status_progress_text=text
-
     @restore_status_line
     @logwrapper
     def scan(self,compression_level):
@@ -3904,7 +3837,6 @@ class Gui:
 
 if __name__ == "__main__":
     try:
-
         LIBRER_FILE = normpath(__file__)
         LIBRER_DIR = dirname(LIBRER_FILE)
 
