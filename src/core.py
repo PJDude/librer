@@ -240,6 +240,8 @@ EXPORT_CODE = 1
 IMPORT_CODE = 2
 REPACK_CODE = 3
 
+hist_code_2_str={CREATION_CODE:'creation ',EXPORT_CODE:'export   ',IMPORT_CODE:'import   ',REPACK_CODE:'repack   '}
+
 #######################################################################
 class Header :
     def __init__(self,label='',scan_path=''):
@@ -282,7 +284,7 @@ class Header :
         self.compression_time['filenames']=0
         self.compression_time['customdata']=0
 
-        self.history_stack=[]
+        self.history_stack=[ (CREATION_CODE,int(time())) ]
 
 #######################################################################
 class LibrerRecord:
@@ -1120,10 +1122,33 @@ class LibrerRecord:
             info_list.append(loaded_cd_info)
 
             info_list.append('')
-            info_list.append('history (draft)')
+            info_list.append('history:')
             for hist_entry in self_header.history_stack:
-                info_list.append(str(hist_entry))
+                line_list = []
 
+                try:
+                    hist_code = hist_entry[0]
+                    hist_time = hist_entry[1]
+
+                    line_list.extend( [hist_code_2_str[hist_code],strftime('%Y/%m/%d %H:%M:%S',localtime_catched(hist_time))] )
+
+                    if hist_code==CREATION_CODE:
+                        pass
+                    elif hist_code==EXPORT_CODE:
+                        line_list.append(hist_entry[2])
+                    elif hist_code==IMPORT_CODE:
+                        line_list.append(hist_entry[2])
+                    elif hist_code==REPACK_CODE:
+                        line_list.append(f'lab:{hist_entry[2]}')
+                        line_list.append(f'compr:{hist_entry[3]}')
+                        line_list.append(f'cd:{"Yes" if hist_entry[4] else "No"}')
+                    else:
+                        line_list.append(f'unknown code:{hist_code}')
+
+                except Exception as he:
+                    line_list.append(str(he))
+
+                info_list.append('  ' + ' '.join(line_list))
             self.txtinfo_basic = self.txtinfo_basic + f'\n\n{loaded_fs_info}\n{loaded_cd_info}'
 
         self.txtinfo = '\n'.join(info_list)
@@ -1258,7 +1283,7 @@ class LibrerCore:
                         compressor_compress = compressor.compress
 
                         temp_new_header = deepcopy(header)
-                        temp_new_header.history_stack.append( (IMPORT_CODE,import_file) )
+                        temp_new_header.history_stack.append( (IMPORT_CODE,int(time()),import_file) )
                         header_ser = dumps(temp_new_header)
                         header_ser_compr = compressor_compress(header_ser)
                         zip_file.writestr('header',header_ser_compr)
@@ -1306,7 +1331,7 @@ class LibrerCore:
                 with ZipFile(new_file_path, "w") as zip_file:
 
                     temp_new_header = deepcopy(record.header)
-                    temp_new_header.history_stack.append( (EXPORT_CODE,new_file_path) )
+                    temp_new_header.history_stack.append( (EXPORT_CODE,int(time()),new_file_path) )
                     header_ser = dumps(temp_new_header)
                     header_ser_compr = ZstdCompressor(level=record.header.compression_level,threads=-1).compress(header_ser)
                     zip_file.writestr('header',header_ser_compr)
@@ -1344,7 +1369,7 @@ class LibrerCore:
                     new_header = deepcopy(header)
                     new_header.label = new_label
                     new_header.compression_level = new_compression
-                    new_header.history_stack.append( (REPACK_CODE,(record.header.label,record.header.compression_level)) )
+                    new_header.history_stack.append( (REPACK_CODE,int(time()),record.header.label,record.header.compression_level,keep_cd) )
 
                     compression_change = bool(new_compression!=record.header.compression_level)
 
