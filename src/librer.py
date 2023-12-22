@@ -1084,9 +1084,10 @@ class Gui:
             use_tooltip = "Mark to use CD Extractor"
             mask_tooltip = "glob expresions separated by comma (',')\ne.g.: '*.7z, *.zip, *.gz'\n\nthe given executable will run\nwith every file matching the expression\n(and size citeria if provided)"
             max_tooltip = min_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
-            exec_tooltip = "A binary executable or batch script that will run\nwith the full path to the file to be extracted as a parameter.\nThe executable may have a full path, be located in a PATH\nenvironment variable, or be interpreted by the system shell"
+            exec_tooltip = "Binary executable, batch script, or entire command\n(depending on the 'shell' option setting)\nthat will run with the full path to the scanned file.\nThe executable may have a full path, be located in a PATH\nenvironment variable, or be interpreted by the system shell\n\ncheck 'shell' option tooltip."
             pars_tooltip = f"The executable will run with the full path to the file to extract as a parameter.\nIf other constant parameters are necessary, they should be placed here\nand the scanned file should be indicated with the '{PARAM_INDICATOR_SIGN}' sign.\nThe absence of the '{PARAM_INDICATOR_SIGN}' sign means that the file will be passed as the last parameter.\ne.g.:const_param % other_const_param"
-            shell_tooltip = "Execute in the system shell\n\nWhen enabled\nCommand with parameters will be passed\nto the system shell as single string\nThe use of pipes, redirection etc. is allowed\nExample:\n7z l % | tail -n +14\n\nWhen disabled\nAn executable file must be specified,\nthe contents of the parameters field will be\nsplitted and passed as a parameters list.\n\nIn more complicated cases\nit is recommended to prepare a dedicated shell\nscript and use it as a shell command."
+            shell_example = '"C:\\Program Files\\7-Zip\\7z.exe" l % | more +13' if windows else "7z l % | tail -n +14"
+            shell_tooltip = f"Execute in the system shell\n\nWhen enabled\nCommand with parameters will be passed\nto the system shell as single string\nThe use of pipes, redirection etc. is allowed.\nUsing of quotes (\") may be necessary. Scanned\nfiles will be automatically enclosed with quotation marks.\nExample:\n{shell_example}\n\nWhen disabled\nAn executable file must be specified,\nthe contents of the parameters field will be\nsplitted and passed as a parameters list.\n\nIn more complicated cases\nit is recommended to prepare a dedicated shell\nscript and use it as a shell command."
             open_tooltip = "Point executable as custom data extractor..."
             timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or empty field means no timeout."
             test_tooltip = "Select a file and test your Custom Data Extractor.\n\nBefore you run scan, and therefore run your CDE on all\nfiles that will match on the scan path,\ntest your Custom Data Extractor\non a single, manually selected file.\nCheck if it's getting the expected data\nand has no unexpected side-effects."
@@ -3413,7 +3414,7 @@ class Gui:
             except:
                 timeout_int = None
 
-            command,command_info = get_command(executable,parameters,full_file_path,shell)
+            command,command_info = get_command(executable,parameters,normpath(full_file_path),shell)
 
             info = command_info + '\n' + ( ('\ntimeout:' + str(timeout_int)) if timeout_int else '') + f'\nshell:{"Yes" if shell else "No"}'
 
@@ -3748,7 +3749,7 @@ class Gui:
 
                                     expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc = record.header.cde_list[rule_nr]
 
-                                    file_path = record.header.scan_path + sep + sep.join(subpath_list)
+                                    file_path = normpath(sep.join([record.header.scan_path,sep.join(subpath_list)]))
 
                                     cd_txt = cd_data
 

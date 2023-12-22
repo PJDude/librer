@@ -2,10 +2,10 @@
 
 A cross-platform GUI file cataloging program with extensive customization options to suit user preferences. Highly optimized for multi-core parallel search speed, data integrity, and repository portability.
 
-**The software and this document are under development and in a Release Candidate (2) state.**
+**The software and this document are under development and in a Release Candidate (3) state.**
 
 ## Features:
-The primary purpose of this software is to enable users to catalog their files, particularly on removable media like memory cards and portable drives. It allows user to add metadata, referred to here as **custom data**, and facilitates future searching through the created records. **Custom data** consists of textual information acquired through the execution of user-chosen commands or scripts. **Custom data** may include any text data customized to meet the user's requirements, restricted only by the available memory and the software accessible for data retrieval. The retrieved data is stored in a newly created database record and can be utilized for search or verification purposes. **Liber**  allows you to search files using regular expressions, glob expressions and **fuzzy matching** on both filenames and custom data. Created data records can be exported and imported to share data with others or for backup purposes.
+The primary purpose of this software is to enable users to catalog their files, especially on removable media such as memory cards and portable drives. It allows user to add metadata, referred to here as **custom data**, and later search the created records with multiple cryteria. **Custom data** consists of textual information acquired through the execution of user-chosen commands or scripts. **Custom data** may include any text data customized to meet the user's requirements, restricted only by the available memory and the software accessible for data retrieval. The retrieved data is stored in a newly created database record and can be utilized for search or verification purposes. **Liber**  allows you to search files using regular expressions, glob expressions and **fuzzy matching** on both filenames and **custom data**. Created data records can be exported and imported to share data with others or for backup purposes.
 
 ## Screenshots:
 

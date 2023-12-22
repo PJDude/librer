@@ -172,36 +172,22 @@ def prepare_LUTs():
 prepare_LUTs()
 
 def get_command(executable,parameters,full_file_path,shell):
-    if windows:
-        full_file_path = full_file_path.replace('/',sep)
-
-    if ' ' in full_file_path:
-        full_file_path = f'"{full_file_path}"'
-
     if shell:
-        res = executable
+        if PARAM_INDICATOR_SIGN in executable:
+            res = executable.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN).replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN).replace(PARAM_INDICATOR_SIGN,f'"{full_file_path}"')
+        else:
+            res = executable + ' ' + f'"{full_file_path}"'
 
-        if PARAM_INDICATOR_SIGN not in res:
-            res = res + ' ' + PARAM_INDICATOR_SIGN
-
-        res = res.replace(PARAM_INDICATOR_SIGN,full_file_path)
-        res_info = res
+        return res,res
     else:
-        if PARAM_INDICATOR_SIGN not in parameters:
-            parameters = parameters + ' ' + PARAM_INDICATOR_SIGN
-
         if not parameters:
-            parameters=PARAM_INDICATOR_SIGN
+            res = [executable] + [full_file_path]
+        elif PARAM_INDICATOR_SIGN not in parameters:
+            res = [executable] + parameters.strip().split() + [full_file_path]
+        else:
+            res = [executable] + [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN).replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN).strip().split() if p_elem]
 
-        parameters = parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN)
-        parameters = parameters.replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN)
-
-        parameters_list = [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.strip().split() if p_elem]
-
-        res = [executable] + parameters_list
-        res_info = ' '.join(res)
-
-    return res,res_info
+    return res,' '.join(res)
 
 def kill_subprocess(subproc):
     try:
