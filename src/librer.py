@@ -3365,7 +3365,10 @@ class Gui:
         output_list_append = self.output_list.append
 
         try:
-            self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
+            if windows:
+                self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True,creationflags=CREATE_NO_WINDOW)
+            else:
+                self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
         except Exception as re:
             print('test run error',re,flush = True)
             output_list_append(str(re))
@@ -3481,7 +3484,7 @@ class Gui:
 
                 simple_progress_dialog_scan.hide(True)
 
-                output = '\n'.join(self.output_list)
+                output = '\n'.join(self.output_list).strip()
 
                 self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if self.returncode[0]==0 and not self.test_decoding_error else "with Error"}',output)
 

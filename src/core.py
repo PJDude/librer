@@ -28,12 +28,15 @@
 
 from json import loads as json_loads
 from subprocess import Popen, STDOUT,DEVNULL,PIPE, run as subprocess_run
+
 from time import sleep, perf_counter,time,strftime,localtime
 from threading import Thread
 from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove
 windows = bool(os_name=='nt')
 
-if not windows:
+if windows:
+    from subprocess import CREATE_NO_WINDOW
+else:
     from os import getpgid, killpg
 
 from os.path import abspath,normpath,basename,dirname
@@ -617,7 +620,10 @@ class LibrerRecord:
                     #####################################
 
                     try:
-                        subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
+                        if windows:
+                            subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True,creationflags=CREATE_NO_WINDOW)
+                        else:
+                            subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
                         timeout_semi_list[0]=(timeout_val,subprocess)
                     except Exception as re:
                         print('threaded_cde error:',re)
@@ -651,7 +657,7 @@ class LibrerRecord:
                         if self.killed:
                             output_list.append('Killed.')
 
-                        output = '\n'.join(output_list)
+                        output = '\n'.join(output_list).strip()
 
                     #####################################
 
@@ -1600,7 +1606,10 @@ class LibrerCore:
             results_list_append = results_list[record_nr].find_results.append
 
             try:
-                subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,start_new_session=True)
+                if windows:
+                    subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,start_new_session=True,creationflags=CREATE_NO_WINDOW)
+                else:
+                    subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,start_new_session=True)
             except Exception as re:
                 print('threaded_run run error',re)
                 info_list[record_nr].append(f'threaded_run run error: {re}')
