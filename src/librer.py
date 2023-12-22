@@ -3497,6 +3497,9 @@ class Gui:
             self.use_checkbutton_mod(e)
             self.use_checkbutton_mod(e_up)
 
+            self.shell_change(e)
+            self.shell_change(e_up)
+
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Executable Files","*.exe"),("Bat Files","*.bat"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
