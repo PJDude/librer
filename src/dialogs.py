@@ -332,25 +332,50 @@ class TextDialogInfo(GenericDialog):
         self.text.frame.config(takefocus=False)
         self.text.vbar.config(takefocus=False)
 
-        self.text.tag_configure('found', background='pink')
+        self.text.tag_configure('found', background='#F0D0D0')
+        self.text.tag_configure('found_sel', background='#D08080')
 
-        self.text.grid(row=1,column=0,padx=5,pady=5)
+        self.text.grid(row=1,column=0,padx=2,pady=5)
 
         self.area_main.grid_rowconfigure(1, weight=1)
 
         self.cancel_button=Button(self.area_buttons, text='Close', width=14, command=super().hide )
-        self.cancel_button.pack(side='right', anchor='e',padx=5,pady=5)
+        self.cancel_button.pack(side='right', anchor='e',padx=2,pady=5)
 
         self.copy_button=Button(self.area_buttons, text='Copy', width=14, command=self.clip_copy_message )
-        self.copy_button.pack(side='right', anchor='w',padx=5,pady=5)
+        self.copy_button.pack(side='right', anchor='w',padx=2,pady=5)
+
+        self.find_next_butt=Button(self.area_mark, command=lambda : self.find_next_prev(1), width=1)
+        self.find_next_butt.pack(side='right', anchor='w',padx=2,pady=5)
+
+        self.find_info_var=StringVar()
+        self.find_info_var.set('-/-')
+        self.find_info_lab=Label(self.area_mark, textvariable=self.find_info_var, width=8,relief='groove',bd=2,bg=self.bg_color)
+        self.find_info_lab.pack(side='right', anchor='w',padx=2,pady=5)
+
+        self.find_prev_butt=Button(self.area_mark, command=lambda : self.find_next_prev(-1), width=1)
+        self.find_prev_butt.pack(side='right', anchor='w',padx=2,pady=5)
 
         self.find_var=StringVar()
         self.find_entry=Entry(self.area_mark, textvariable=self.find_var, width=22)
-        self.find_entry.pack(side='right', anchor='w',padx=5,pady=5)
+        self.find_entry.pack(side='right', anchor='w',padx=2,pady=5)
         self.find_entry.bind('<KeyRelease>', self.find_key_binding )
 
-        self.find_lab=Label(self.area_mark, text='Search:', width=8,anchor='e')
+        #self.find_entry.bind('<KeyRelease>', self.find_key_binding )
+
+        self.text_search_pool=[]
+        self.text_search_pool_index=0
+
+        self.find_lab=Label(self.area_mark)
         self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
+
+        self.find_lab=Label(self.area_mark)
+        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
+
+        try:
+            self.find_lab.configure(text='Mark:',compound='left')
+        except Exception as e:
+            print(e)
 
         #wypelniacz
         self.dummylab1=Label(self.area_dummy, width=22)
@@ -360,39 +385,55 @@ class TextDialogInfo(GenericDialog):
 
         self.focus=self.cancel_button
 
+    def find_next_prev(self,mod):
+        text_search_pool_len = len(self.text_search_pool)
+        self_text = self.text
+        self.text.tag_remove("found_sel", "1.0", 'end')
+        self.text.tag_remove("found", "1.0", 'end')
+
+        if text_search_pool_len:
+            self.text_search_pool_index += mod
+            self.text_search_pool_index %= text_search_pool_len
+            start_index, end_index = self.text_search_pool[self.text_search_pool_index]
+
+            self_text.see(start_index)
+
+            self.find_info_var.set(f'{self.text_search_pool_index+1}/{text_search_pool_len}')
+
+            _ = [self.text.tag_add("found", si, ei) for si, ei in self.text_search_pool]
+
+            self.text.tag_remove("found", start_index, end_index)
+            self_text.tag_add("found_sel", start_index, end_index)
+
+        else:
+            self.find_info_var.set('-/-')
+
+
     def find_key_binding(self,event=None):
         search_str = self.find_var.get()
         self_text = self.text
         self_text_search = self_text.search
         self_text_tag_add = self_text.tag_add
 
-        self_text.tag_remove("found", "1.0", 'end')
+        text_search_pool = self.text_search_pool=[]
+        self.text_search_pool_index=0
 
-        seen=False
-
+        self.text_search_pool_index=-1
         if search_str:
             start_index = "1.0"
             len_search_str = len(search_str)
 
-            found=0
             while True:
                 start_index = self_text_search(search_str, start_index, 'end')
                 if not start_index:
                     break
                 end_index = f"{start_index}+{len_search_str}c"
                 self_text_tag_add("found", start_index, end_index)
+                text_search_pool.append( (start_index,end_index) )
+
                 start_index = end_index
 
-                if not seen:
-                    self_text.see(start_index)
-                    seen=True
-                found+=1
-
-            #if found:
-            #    self.entry_style.configure("TEntry", fieldbackground='white',background='white')
-            #else:
-            #    self.entry_style.configure("TEntry", fieldbackground='pink',background='pink')
-
+        self.find_next_prev(1)
 
     def clip_copy_message(self):
         self.clip_copy(self.message)

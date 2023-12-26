@@ -27,26 +27,7 @@ https://github.com/PJDude/librer/releases
 ## Guidelines for crafting custom data extractors
 Custom data extractor is a command that can be invoked with a single parameter - the full path to a specific file from which data is extracted. The command should provide the expected data in any textual format to the standard output (stdout). CDE can be an executable file (e.g., 7z, zip, ffmpeg, md5sum etc.) or an executable shell script (extract.sh, extract.bat etc.). The conditions it should meet are reasonably short execution time and reasonably limited information output. The criteria allowing the execution of a particular **Custom data extractor** include the glob expression (on file name) and the file size range.
 
-## Examples of Custom data extractor
-
-
-> "7z l" - Listing the contents of the archive. Applicable to files like *.7z, *.zip, etc. (linux)
-
-> "C:\Program Files\\[7-Zip](https://www.7-zip.org)\7z.exe l"  - Listing the contents of the archive (windows)
-
-> "cat" - Listing the contents of the entire file. May be applied to *.cue files or media playlists *.m3u or any text files (Linux)
-
-> "cmd /c more"  - Listing the contents of the entire file. May be applied to *.cue files or media playlists *.m3u or any text files (windows)
-
-> "[ffprobe](https://ffmpeg.org/ffprobe.html) -hide_banner" - get media tags and other metadata from media files like *.mp3 etc.
-
-> "[exiftool](https://exiftool.sourceforge.net/)" get exif data from images like *.jpg and many more
-
-> "[pdftotext](https://linux.die.net/man/1/pdftotext) - - <" - get text content of pdf file
-
-> "strings" - get printable strings from any file
-
-> "anything.sh/anything.bat"  - maybe not exactly "anything", but use your own script to apply more complex criteria to individual files and process the data to be stored.
+## [Custom Data tutorial and examples](./info/tutorial.md) ##    
 
 ## Usage tips:
 - don't put any destructive actions in your Custom Data Extractors scrips

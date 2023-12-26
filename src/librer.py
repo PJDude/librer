@@ -246,6 +246,14 @@ class Gui:
         self.ico_cd_error_crc = self_ico['cd_error_crc']
         self.ico_crc = self_ico['crc']
         self.ico_license = self_ico['license']
+        self.ico_timeout = self_ico['timeout']
+        self.ico_smaller = self_ico['smaller']
+        self.ico_bigger = self_ico['bigger']
+        self.ico_test_col = self_ico['test_col']
+        self.ico_shell = self_ico['shell']
+        self.ico_search_text = self_ico['search_text']
+        self.ico_left = self_ico['left']
+        self.ico_right = self_ico['right']
 
         self.ico_find = self_ico['find']
         self.ico_start = self_ico['start']
@@ -888,6 +896,8 @@ class Gui:
 
             self.text_info_dialog = TextDialogInfo(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
+            self.fix_text_fialog(self.text_info_dialog)
+
             self.text_info_dialog_created = True
 
         return self.text_info_dialog
@@ -921,11 +931,11 @@ class Gui:
 
     def shell_change(self,e):
         if self.CDE_shell_var_list[e].get():
-            self.open_button[e].configure(state='disabled')
+            #self.open_button[e].configure(state='disabled')
             self.executable_entry[e].grid(row=self.executable_entry_row[e], column=7,sticky='news',columnspan=2)
             self.parameters_entry[e].grid_forget()
         else:
-            self.open_button[e].configure(state='normal')
+            #self.open_button[e].configure(state='normal')
             self.executable_entry[e].grid(row=self.executable_entry_row[e], column=7,sticky='news',columnspan=1)
             self.parameters_entry[e].grid(row=self.executable_entry_row[e], column=8,sticky='news')
 
@@ -934,7 +944,7 @@ class Gui:
         do_crc = False
         do_cd = bool( self.CDE_use_var_list[e].get() )
 
-        if self.CDE_use_var_list[e].get():
+        if do_cd:
             self.executable_entry[e].configure(state='normal')
             self.parameters_entry[e].configure(state='normal')
             self.shell_checkbutton[e].configure(state='normal')
@@ -942,7 +952,10 @@ class Gui:
             self.timeout_entry[e].configure(state='normal')
             self.test_button[e].configure(state='normal')
 
+            self.shell_change(e)
+
             self.scan_button.configure(image=self.ico_warning)
+
         else:
             self.executable_entry[e].configure(state='disabled')
             self.parameters_entry[e].configure(state='disabled')
@@ -996,16 +1009,17 @@ class Gui:
             temp_frame = Frame(dialog.area_main,borderwidth=2,bg=self.bg_color)
             temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
 
-            ul_lab=Label(temp_frame,text="User label:",bg=self.bg_color,anchor='w')
+            ul_lab=Label(temp_frame,text="Label:",bg=self.bg_color,anchor='w')
             ul_lab.grid(row=0, column=0, sticky='news',padx=4,pady=4)\
 
-            self.widget_tooltip(ul_lab,"Label of record to be created\nCannot be changed later.")
+            label_tooltip = "Label of record to be created."
+            self.widget_tooltip(ul_lab,label_tooltip)
 
             self.scan_label_entry_var=StringVar(value='')
             scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
             scan_label_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
-            self.widget_tooltip(scan_label_entry,"Label of record to be created\nCannot be changed later.")
+            self.widget_tooltip(scan_label_entry,label_tooltip)
 
             Label(temp_frame,text="Path to scan:",bg=self.bg_color,anchor='w').grid(row=0, column=2, sticky='news',padx=4,pady=4)
 
@@ -1068,33 +1082,36 @@ class Gui:
             sf_par3.pack(fill='both',expand=True,side='top')
             self.cde_frame = cde_frame = sf_par3.frame()
 
-            (lab_use := Label(cde_frame,text='Use',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=1,sticky='news')
-            (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=2,sticky='news')
-            (lab_min := Label(cde_frame,text='Min\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=3,sticky='news')
-            (lab_max := Label(cde_frame,text='Max\nSize',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=4,sticky='news')
-            (lab_shell := Label(cde_frame,text='Shell',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news')
-            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=0, column=6,sticky='news')
-            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=7,sticky='news')
-            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=8,sticky='news')
-            (lab_timeout := Label(cde_frame,text='TO',bg=self.bg_color,anchor='n',relief='groove',bd=2,width=3)).grid(row=0, column=9,sticky='news')
-            (lab_test := Label(cde_frame,text='CD\nTest',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=10,sticky='news')
-            #(lab_crc := Label(cde_frame,text='CRC',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=9,sticky='news')
+            (lab_criteria := Label(cde_frame,text='% File cryteria',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=2,sticky='news',columnspan=3)
+            (lab_command := Label(cde_frame,text='Custom Data extractor command',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news',columnspan=4)
+            (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=2,sticky='news')
+            (lab_min := Label(cde_frame,image=self.ico_bigger,bg=self.bg_color,anchor='center',relief='groove',bd=2,width=40)).grid(row=1, column=3,sticky='news')
+            (lab_max := Label(cde_frame,image=self.ico_smaller,bg=self.bg_color,anchor='center',relief='groove',bd=2,width=40)).grid(row=1, column=4,sticky='news')
+            (lab_shell := Label(cde_frame,image=self.ico_shell,bg=self.bg_color,anchor='center',relief='groove',bd=2)).grid(row=1, column=5,sticky='news')
+            (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=1, column=6,sticky='news')
+            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=7,sticky='news')
+            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=8,sticky='news')
+            (lab_timeout := Label(cde_frame,image=self.ico_timeout,bg=self.bg_color,anchor='center',relief='groove',bd=2,width=3)).grid(row=1, column=9,sticky='news')
+            (lab_test := Label(cde_frame,image=self.ico_test_col,bg=self.bg_color,anchor='center',relief='groove',bd=2)).grid(row=1, column=10,sticky='news')
 
             up_tooltip = "Use the arrow to change the order\nin which CDE criteria are checked.\n\nIf a file meets several CDE criteria\n(mask & size), the one with higher priority\nwill be executed. In this table, the first\none from the top has the highest priority,\nthe next ones have lower and lower priority."
             use_tooltip = "Mark to use CD Extractor"
-            mask_tooltip = "glob expresions separated by comma (',')\ne.g.: '*.7z, *.zip, *.gz'\n\nthe given executable will run\nwith every file matching the expression\n(and size citeria if provided)"
-            max_tooltip = min_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
+            mask_tooltip = "Glob expresions separated by comma (',')\ne.g.: '*.7z, *.zip, *.gz'\n\nthe given executable will run\nwith every file matching the expression\n(and size citeria if provided)"
+            size_common_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
+            max_tooltip = 'Maximum file size.\n\n' + size_common_tooltip
+            min_tooltip = 'Minimum file size.\n\n'+ size_common_tooltip
             exec_tooltip = "Binary executable, batch script, or entire command\n(depending on the 'shell' option setting)\nthat will run with the full path to the scanned file.\nThe executable may have a full path, be located in a PATH\nenvironment variable, or be interpreted by the system shell\n\ncheck 'shell' option tooltip."
             pars_tooltip = f"The executable will run with the full path to the file to extract as a parameter.\nIf other constant parameters are necessary, they should be placed here\nand the scanned file should be indicated with the '{PARAM_INDICATOR_SIGN}' sign.\nThe absence of the '{PARAM_INDICATOR_SIGN}' sign means that the file will be passed as the last parameter.\ne.g.:const_param % other_const_param"
             shell_example = '"C:\\Program Files\\7-Zip\\7z.exe" l % | more +13' if windows else "7z l % | tail -n +14"
-            shell_tooltip = f"Execute in the system shell\n\nWhen enabled\nCommand with parameters will be passed\nto the system shell as single string\nThe use of pipes, redirection etc. is allowed.\nUsing of quotes (\") may be necessary. Scanned\nfiles will be automatically enclosed with quotation marks.\nExample:\n{shell_example}\n\nWhen disabled\nAn executable file must be specified,\nthe contents of the parameters field will be\nsplitted and passed as a parameters list.\n\nIn more complicated cases\nit is recommended to prepare a dedicated shell\nscript and use it as a shell command."
-            open_tooltip = "Point executable as custom data extractor..."
+            shell_tooltip = f"Execute in the system shell.\n\nWhen enabled\nCommand with parameters will be passed\nto the system shell as single string\nThe use of pipes, redirection etc. is allowed.\nUsing of quotes (\") may be necessary. Scanned\nfiles will be automatically enclosed with quotation marks.\nExample:\n{shell_example}\n\nWhen disabled\nAn executable file must be specified,\nthe contents of the parameters field will be\nsplitted and passed as a parameters list.\n\nIn more complicated cases\nit is recommended to prepare a dedicated shell\nscript and use it as a shell command."
+            open_tooltip = "Choose the executable file to serve as a custom data extractor..."
             timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or empty field means no timeout."
-            test_tooltip = "Select a file and test your Custom Data Extractor.\n\nBefore you run scan, and therefore run your CDE on all\nfiles that will match on the scan path,\ntest your Custom Data Extractor\non a single, manually selected file.\nCheck if it's getting the expected data\nand has no unexpected side-effects."
+            test_tooltip_common = "Before you run scan, and therefore run your CDE on all\nfiles that will match on the scan path,\ntest your Custom Data Extractor\non a single, manually selected file.\nCheck if it's getting the expected data\nand has no unexpected side-effects."
+            test_tooltip = "Select a file and test your Custom Data Extractor.\n\n" + test_tooltip_common
 
             self_widget_tooltip = self.widget_tooltip
 
-            self_widget_tooltip(lab_use,use_tooltip)
+            #self_widget_tooltip(lab_use,use_tooltip)
             self_widget_tooltip(lab_mask,mask_tooltip)
             self_widget_tooltip(lab_min,min_tooltip)
             self_widget_tooltip(lab_max,max_tooltip)
@@ -1143,7 +1160,7 @@ class Gui:
                 self.CDE_timeout_var_list.append(StringVar())
                 self.CDE_crc_var_list.append(BooleanVar())
 
-                row = e+1
+                row = e+2
 
                 self.up_button[e] = Button(cde_frame,image=self.ico_up,command = lambda x=e : self.cde_up(x) )
 
@@ -1165,7 +1182,7 @@ class Gui:
                 self.shell_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_shell_var_list[e],command = lambda x=e : self.shell_change(x))
                 self.shell_checkbutton[e].grid(row=row, column=5,sticky='news')
 
-                self.open_button[e] = Button(cde_frame,image=self.ico_folder,command = lambda x=e : self.cde_entry_open(x) )
+                self.open_button[e] = Button(cde_frame,image=self.ico_open,command = lambda x=e : self.cde_entry_open(x) )
                 self.open_button[e].grid(row=row,column=6,sticky='news')
 
                 self.executable_entry[e] = Entry(cde_frame,textvariable=self.CDE_executable_var_list[e])
@@ -1204,6 +1221,11 @@ class Gui:
             self.scan_dialog_created = True
 
         return self.scan_dialog
+
+    def fix_text_fialog(self,dialog):
+        dialog.find_lab.configure(image=self.ico_search_text,text=' Search:',compound='left')
+        dialog.find_prev_butt.configure(image=self.ico_left)
+        dialog.find_next_butt.configure(image=self.ico_right)
 
     progress_dialog_on_scan_created = False
     @restore_status_line
@@ -1265,6 +1287,9 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.text_dialog_on_scan = TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+
+            self.fix_text_fialog(self.text_dialog_on_scan)
+
             self.text_dialog_on_scan_created = True
 
         return self.text_dialog_on_scan
@@ -1278,6 +1303,9 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.text_ask_dialog_on_scan = TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
+
+            self.fix_text_fialog(self.text_ask_dialog_on_scan)
+
             self.text_ask_dialog_on_scan_created = True
 
         return self.text_ask_dialog_on_scan
@@ -1291,6 +1319,8 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.text_ask_dialog_on_main = TextDialogQuestion(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+
+            self.fix_text_fialog(self.text_ask_dialog_on_main)
             #,image=self.ico_warning
             self.text_ask_dialog_on_main_created = True
 
@@ -1615,6 +1645,8 @@ class Gui:
 
             self.info_dialog_on_find = LabelDialog(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.text_dialog_on_find = TextDialogInfo(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+
+            self.fix_text_fialog(self.text_dialog_on_find)
 
             self.results_on_find = LabelDialogQuestion(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
@@ -3311,7 +3343,6 @@ class Gui:
 
         for e in range(self.CDE_ENTRIES_MAX):
             self.use_checkbutton_mod(e,False)
-            self.shell_change(e)
 
         self.configure_scan_button()
 
@@ -3424,7 +3455,7 @@ class Gui:
             ask_dialog = self.get_text_ask_dialog_on_scan()
             simple_progress_dialog_scan = self.get_simple_progress_dialog_on_scan()
 
-            ask_dialog.show('Test selected Custom Data Extractor on selected file ?',info)
+            ask_dialog.show('Test Custom Data Extractor on selected file ?',info)
 
             wait_var=BooleanVar()
             wait_var.set(False)
@@ -3500,9 +3531,6 @@ class Gui:
 
             self.use_checkbutton_mod(e)
             self.use_checkbutton_mod(e_up)
-
-            self.shell_change(e)
-            self.shell_change(e_up)
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
