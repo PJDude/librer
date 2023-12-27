@@ -1227,6 +1227,10 @@ class Gui:
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
+
+        self.widget_tooltip(dialog.find_prev_butt,'Find Prev (Shift+F3)')
+        self.widget_tooltip(dialog.find_next_butt,'Find Next (F3)')
+
     progress_dialog_on_scan_created = False
     @restore_status_line
     @block_actions_processing

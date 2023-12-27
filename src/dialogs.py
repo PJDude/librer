@@ -332,8 +332,10 @@ class TextDialogInfo(GenericDialog):
         self.text.frame.config(takefocus=False)
         self.text.vbar.config(takefocus=False)
 
-        self.text.tag_configure('found', background='#F0D0D0')
-        self.text.tag_configure('found_sel', background='#D08080')
+        #self.text.tag_configure('found', background='#F0D0D0')
+        self.text.tag_configure('found', background='yellow')
+        #self.text.tag_configure('found_sel', background='#D08080')
+        self.text.tag_configure('found_sel', background='orange')
 
         self.text.grid(row=1,column=0,padx=2,pady=5)
 
@@ -346,22 +348,23 @@ class TextDialogInfo(GenericDialog):
         self.copy_button.pack(side='right', anchor='w',padx=2,pady=5)
 
         self.find_next_butt=Button(self.area_mark, command=lambda : self.find_next_prev(1), width=1)
-        self.find_next_butt.pack(side='right', anchor='w',padx=2,pady=5)
+        self.find_next_butt.pack(side='right', anchor='w',padx=2,pady=5,fill='both')
 
         self.find_info_var=StringVar()
         self.find_info_var.set('-/-')
         self.find_info_lab=Label(self.area_mark, textvariable=self.find_info_var, width=8,relief='groove',bd=2,bg=self.bg_color)
-        self.find_info_lab.pack(side='right', anchor='w',padx=2,pady=5)
+        self.find_info_lab.pack(side='right', anchor='w',padx=2,pady=5,expand=1)
 
         self.find_prev_butt=Button(self.area_mark, command=lambda : self.find_next_prev(-1), width=1)
-        self.find_prev_butt.pack(side='right', anchor='w',padx=2,pady=5)
+        self.find_prev_butt.pack(side='right', anchor='w',padx=2,pady=5,fill='both')
 
         self.find_var=StringVar()
         self.find_entry=Entry(self.area_mark, textvariable=self.find_var, width=22)
-        self.find_entry.pack(side='right', anchor='w',padx=2,pady=5)
-        self.find_entry.bind('<KeyRelease>', self.find_key_binding )
+        self.find_entry.pack(side='right', anchor='w',padx=2,pady=5,fill='both')
 
-        #self.find_entry.bind('<KeyRelease>', self.find_key_binding )
+        self.widget.bind('<KeyPress>',self.key_press)
+        self.widget.bind('<F3>', self.key_press_f3)
+        self.widget.bind('<Shift-F3>', self.key_press_Shift_f3)
 
         self.text_search_pool=[]
         self.text_search_pool_index=0
@@ -385,6 +388,21 @@ class TextDialogInfo(GenericDialog):
 
         self.focus=self.cancel_button
 
+    def key_press_f3(self,event):
+        self.find_next_prev(1)
+        self.text.focus_set()
+
+    def key_press_Shift_f3(self,event):
+        self.find_next_prev(-1)
+        self.text.focus_set()
+
+    def key_press(self,event):
+        key=event.keysym
+
+        if key != "F3":
+            self.find_entry.focus_set()
+            self.find_key_binding(event)
+
     def find_next_prev(self,mod):
         text_search_pool_len = len(self.text_search_pool)
         self_text = self.text
@@ -407,7 +425,6 @@ class TextDialogInfo(GenericDialog):
 
         else:
             self.find_info_var.set('-/-')
-
 
     def find_key_binding(self,event=None):
         search_str = self.find_var.get()
@@ -448,20 +465,13 @@ class TextDialogInfo(GenericDialog):
         else:
             self.uplabel.grid_remove()
 
-        self.text.configure(state='normal')
-        self.text.delete('1.0', 'end')
-
         self.message = message
 
+        self.text.configure(state='normal')
+        self.text.delete('1.0', 'end')
         self.text.insert('end',message)
-        #for line in message.split('\n'):
-            #line_splitted=line.split('|')
-            #tag=line_splitted[1] if len(line_splitted)>1 else None
-
-            #self.text.insert('end', line_splitted[0] + "\n", tag)
-        #    self.text.insert('end', line + "\n")
-
         self.text.configure(state='disabled')
+
         self.text.grid(row=1,column=0,sticky='news',padx=5,pady=5)
 
         self.copy_button.configure(state='normal')
@@ -488,119 +498,6 @@ class TextDialogQuestion(TextDialogInfo):
 
     def show(self,title='',message='',uplabel_text=''):
         super().show(title,message,uplabel_text)
-
-class EntryDialogQuestion(LabelDialog):
-    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):
-        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
-
-        self.cancel_button.configure(text='Cancel')
-
-        self.entry_val=StringVar()
-
-        self.entry = Entry(self.area_main, textvariable=self.entry_val,justify='left')
-        self.entry.grid(row=2,column=0,padx=5,pady=5,sticky="wens")
-
-        self.button_ok = Button(self.area_buttons, text='OK', width=14, command=self.ok )
-        self.button_ok.pack(side='left', anchor='n',padx=5,pady=5)
-
-        self.cancel_button.pack(side='right')
-
-        self.focus=self.entry
-
-    def return_bind(self,event):
-        widget=event.widget
-        if widget==self.entry:
-            self.button_ok.invoke()
-        else:
-            super().return_bind(event)
-
-    def ok(self):
-        self.res_bool= True
-        self.res_str = self.entry_val.get()
-        super().hide()
-
-    def show(self,title='',message='',initial=''):
-        self.entry_val.set(initial)
-
-        self.res_str=''
-        super().show(title,message)
-
-class CheckboxEntryDialogQuestion(EntryDialogQuestion):
-    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):
-        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
-
-        self.check_val=BooleanVar()
-
-        self.check = Checkbutton(self.area_main, variable=self.check_val)
-        self.check.grid(row=1,column=0,padx=5,pady=5,sticky="wens")
-        self.result2=None
-
-        self.focus=self.entry
-
-    def show(self,title='',message='',initial='',checkbutton_text='',checkbutton_initial=False):
-        self.check_val.set(checkbutton_initial)
-        self.check.configure(text=checkbutton_text)
-
-        self.res_check=checkbutton_initial
-        super().show(title,message,initial)
-        self.res_check = self.check_val.get()
-
-
-class FindEntryDialog(CheckboxEntryDialogQuestion):
-    def __init__(self,parent,icon,bg_color,mod_cmd,prev_cmd,next_cmd,pre_show=None,post_close=None,min_width=400,min_height=120):
-        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
-
-        self.button_prev = Button(self.area_buttons, text='prev (Shift+F3)', width=14, command=self.prev )
-        self.button_prev.pack(side='left', anchor='n',padx=5,pady=5)
-
-        self.button_next = Button(self.area_buttons, text='next (F3)', width=14, command=self.next )
-        self.button_next.pack(side='right', anchor='n',padx=5,pady=5)
-
-        self.mod_cmd=mod_cmd
-        self.prev_cmd=prev_cmd
-        self.next_cmd=next_cmd
-
-        self.button_ok.pack_forget()
-
-        self.check.configure(command=self.mod)
-
-        self.widget.bind('<KeyRelease>',lambda event : self.mod())
-        self.widget.bind('<KeyPress-F3>', self.f3_bind)
-
-        self.focus=self.entry
-
-    def f3_bind(self,event):
-        if 'Shift' in str(event):
-            self.button_prev.invoke()
-        else:
-            self.button_next.invoke()
-
-    def return_bind(self,event):
-        widget=event.widget
-        if widget==self.entry:
-            self.button_next.invoke()
-        else:
-            super().return_bind(event)
-
-    def mod(self):
-        self.mod_cmd(self.entry_val.get(),self.check_val.get())
-
-    def prev(self):
-        self.widget.config(cursor="watch")
-        self.prev_cmd(self.entry_val.get(),self.check_val.get())
-        self.widget.config(cursor="")
-
-    def next(self):
-        self.widget.config(cursor="watch")
-        self.next_cmd(self.entry_val.get(),self.check_val.get())
-        self.widget.config(cursor="")
-
-    def show(self,title='',message='',initial='',checkbutton_text='',checkbutton_initial=False):
-        self.focus_restore=False
-        try:
-            super().show(title=title,message=message,initial=initial,checkbutton_text=checkbutton_text,checkbutton_initial=checkbutton_initial)
-        except Exception as e:
-            print(e)
 
 class SFrame(Frame):
     def __init__(self, parent,bg,width=200,height=100):
