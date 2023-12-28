@@ -1227,7 +1227,6 @@ class Gui:
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
-
         self.widget_tooltip(dialog.find_prev_butt,'Find Prev (Shift+F3)')
         self.widget_tooltip(dialog.find_next_butt,'Find Next (F3)')
 
@@ -2005,6 +2004,7 @@ class Gui:
 
     find_params_changed=True
 
+    @block_actions_processing
     def finder_wrapper_show(self):
         if self.current_record:
             dialog = self.get_find_dialog()
@@ -2078,22 +2078,23 @@ class Gui:
                 _ = {nodes_set_add(child) for child in self_tree_get_children(item)}
 
     #@restore_status_line
-    @block_actions_processing
+    #@block_actions_processing
     @gui_block
     def find_prev(self):
-        if not self.any_find_result:
-            self.finder_wrapper_show()
-        else:
-            self.select_find_result(-1)
+        if self.actions_processing:
+            if not self.any_find_result:
+                self.finder_wrapper_show()
+            else:
+                self.select_find_result(-1)
 
     #@restore_status_line
-    @block_actions_processing
     @gui_block
     def find_next(self):
-        if not self.any_find_result:
-            self.finder_wrapper_show()
-        else:
-            self.select_find_result(1)
+        if self.actions_processing:
+            if not self.any_find_result:
+                self.finder_wrapper_show()
+            else:
+                self.select_find_result(1)
 
     def find_save_results(self):
         self.find_items()
@@ -2487,8 +2488,6 @@ class Gui:
                     self.find_result_index=-1
                     self.find_next()
 
-
-
     def get_child_of_name(self,item,child_name):
         self_tree = self.tree
         for child in self_tree.get_children(item):
@@ -2498,6 +2497,7 @@ class Gui:
                 return child
         return None
 
+    @block_actions_processing
     def select_find_result(self,mod):
         status_to_set=None
         self_tree = self.tree
@@ -2683,14 +2683,10 @@ class Gui:
             self.hide_tooltip()
             self.popup_unpost()
 
-            if self.actions_processing:
-                tree=event.widget
+            tree=self.tree
+            region = tree.identify("region", event.x, event.y)
 
-                region = tree.identify("region", event.x, event.y)
-
-                if region == 'separator':
-                    return None
-
+            if region != 'separator':
                 if region == 'heading':
                     col_nr = tree.identify_column(event.x)
                     colname = col_nr if col_nr=='#0' else tree.column(col_nr,'id')
@@ -2708,15 +2704,7 @@ class Gui:
 
                     self.tree_sel_change(item)
 
-                    #prevents processing of expanding nodes
-                    #return "break"
-
-            return None
-
-        return "break"
-
     sel_item = None
-
     def tree_semi_focus(self):
         tree = self.tree
 
@@ -2773,8 +2761,8 @@ class Gui:
             if tree.identify("region", event.x, event.y) == 'heading':
                 return
 
-            if not self.actions_processing:
-                return
+            #if not self.actions_processing:
+            #    return
 
             tree.focus_set()
             self.tree_on_mouse_button_press(event)

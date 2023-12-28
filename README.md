@@ -27,7 +27,7 @@ https://github.com/PJDude/librer/releases
 ## Guidelines for crafting custom data extractors
 Custom data extractor is a command that can be invoked with a single parameter - the full path to a specific file from which data is extracted. The command should provide the expected data in any textual format to the standard output (stdout). CDE can be an executable file (e.g., 7z, zip, ffmpeg, md5sum etc.) or an executable shell script (extract.sh, extract.bat etc.). The conditions it should meet are reasonably short execution time and reasonably limited information output. The criteria allowing the execution of a particular **Custom data extractor** include the glob expression (on file name) and the file size range.
 
-## [Custom Data tutorial and examples](./info/tutorial.md) ##    
+## [Tutorial](./info/tutorial.md) ##    
 
 ## Usage tips:
 - don't put any destructive actions in your Custom Data Extractors scrips
