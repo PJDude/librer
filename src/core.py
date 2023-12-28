@@ -192,6 +192,14 @@ def get_command(executable,parameters,full_file_path,shell):
 
     return res,' '.join(res)
 
+def popen_win(command,shell,text):
+    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=text,creationflags=CREATE_NO_WINDOW,close_fds=False)
+
+def popen_lin(command,shell,text):
+    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=text,start_new_session=True)
+
+uni_popen = (lambda command,shell=False,text=True : popen_win(command,shell,text)) if windows else (lambda command,shell=False,text=True : popen_lin(command,shell,text))
+
 def kill_subprocess(subproc):
     try:
         pid = subproc.pid
@@ -596,6 +604,7 @@ class LibrerRecord:
             self_customdata_append = self.customdata.append
 
             time_start_all = perf_counter()
+
             for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
                 decoding_error=False
                 self.killed=False
@@ -620,11 +629,8 @@ class LibrerRecord:
                     #####################################
 
                     try:
-                        if windows:
-                            subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,creationflags=CREATE_NO_WINDOW)
-                            #,start_new_session=True
-                        else:
-                            subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
+                        subprocess = uni_popen(command,shell,text=True)
+
                         timeout_semi_list[0]=(timeout_val,subprocess)
                     except Exception as re:
                         print('threaded_cde error:',re)
@@ -642,13 +648,13 @@ class LibrerRecord:
 
                         while True:
                             try:
-                                line = subprocess_stdout_readline()
+                                line = subprocess_stdout_readline().rstrip()
                             except Exception as le:
                                 #print(command,le)
                                 line = str(le)
                                 decoding_error = True
 
-                            output_list_append(line.rstrip('\n\r'))
+                            output_list_append(line)
 
                             if not line and subprocess_poll() is not None:
                                 returncode=subprocess.returncode
@@ -656,7 +662,7 @@ class LibrerRecord:
                                 break
 
                         if self.killed:
-                            output_list.append('Killed.')
+                            output_list_append('Killed.')
 
                         output = '\n'.join(output_list).strip()
 
@@ -1606,11 +1612,7 @@ class LibrerCore:
             results_list_append = results_list[record_nr].find_results.append
 
             try:
-                if windows:
-                    subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,creationflags=CREATE_NO_WINDOW)
-                    #,start_new_session=True
-                else:
-                    subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,start_new_session=True)
+                subprocess = uni_popen(commands_list[record_nr])
             except Exception as re:
                 print('threaded_run run error',re)
                 info_list[record_nr].append(f'threaded_run run error: {re}')

@@ -3388,11 +3388,7 @@ class Gui:
         output_list_append = self.output_list.append
 
         try:
-            if windows:
-                self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,creationflags=CREATE_NO_WINDOW)
-                #,start_new_session=True,
-            else:
-                self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
+            self.subprocess = uni_popen(command_list,shell)
         except Exception as re:
             print('test run error',re,flush = True)
             output_list_append(str(re))
