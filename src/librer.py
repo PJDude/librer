@@ -2796,7 +2796,7 @@ class Gui:
             pop_add_separator()
             pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_record_export,compound='left',state=state_on_records)
             pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
-            pop_add_command(label = 'Rename / Repack ...', command = self.record_repack,image = self.ico_empty,compound='left')
+            pop_add_command(label = 'Rename / Repack ...', command = self.record_repack,image = self.ico_empty,compound='left',state=state_on_records)
             pop_add_separator()
             pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_info,compound='left',state=state_on_records)
             pop_add_separator()
@@ -3222,8 +3222,8 @@ class Gui:
         self_progress_dialog_on_scan_update_lab_text(3,'')
         self_progress_dialog_on_scan_update_lab_text(4,'')
 
-        #self_progress_dialog_on_scan.abort_single_button.configure(state='disabled')
-        #self_progress_dialog_on_scan.abort_button.configure(state='disabled')
+        self_progress_dialog_on_scan.abort_single_button.configure(state='disabled')
+        self_progress_dialog_on_scan.abort_button.configure(state='disabled')
 
         ##################################
         pack_thread=Thread(target=new_record.pack_data,daemon=True)
@@ -3389,7 +3389,8 @@ class Gui:
 
         try:
             if windows:
-                self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True,creationflags=CREATE_NO_WINDOW)
+                self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,creationflags=CREATE_NO_WINDOW)
+                #,start_new_session=True,
             else:
                 self.subprocess = Popen(command_list, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
         except Exception as re:
@@ -3880,6 +3881,7 @@ if __name__ == "__main__":
         log=abspath(LOG_DIR + sep + log_file)
 
         Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
+        Path(DATA_DIR).mkdir(parents=True,exist_ok=True)
 
         print('log:',log)
 

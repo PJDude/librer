@@ -92,7 +92,7 @@ def parse_args(ver):
     #file_fuzzy_group = file_group.add_argument_group('file name fuzzy matching')
     file_group.add_argument('-ff'   ,'--file_fuzzy',type=str,help='serch files by fuzzy match with threshold')
     file_group.add_argument('-fft'  ,'--file_fuzzy_threshold', type=float,help='threshold value')
-    
+
     file_group.add_argument('-fe'   ,'--file_error',action='store_true',help='serch files with error on access')
 
     cd_group = parser.add_argument_group()
@@ -101,7 +101,7 @@ def parse_args(ver):
     cd_group.add_argument('-cderror','--cd_error',action='store_true',help='serch for riles with error status on custom data extraction')
 
     cd_group.add_argument('-cdre'   ,'--cd_regexp',type=str,help='serch by regular expression on custom data')
-    
+
     #cd_glob_group = file_group.add_argument_group('Custom data glob matching')
     cd_group.add_argument('-cdg'    ,'--cd_glob',type=str,help='serch by glob expression on custom data')
     cd_group.add_argument('-cdgcs'  ,'--cd_case_sensitive',action='store_true',help='serch by case sensitive glob expression on custom data')
@@ -112,7 +112,7 @@ def parse_args(ver):
 
     parser.add_argument('-min','--size_min',type=str,help='minimum size')
     parser.add_argument('-max','--size_max',type=str,help='maximum size')
-    
+
     parser.add_argument('-tmin','--timestamp_min',type=str,help='minimum modification timestamp')
     parser.add_argument('-tmax','--timestamp_max',type=str,help='maximum modification timestamp')
 
@@ -176,9 +176,9 @@ def print_info(*args):
 
 
 if __name__ == "__main__":
-    buffer_size = 1024*1024*64
-    sys.stdout = io.TextIOWrapper(sys.stdout.detach(), write_through=True, line_buffering=False)
-    sys.stdout._CHUNK_SIZE = buffer_size
+    #buffer_size = 1024*1024*64
+    #sys.stdout = io.TextIOWrapper(sys.stdout.detach(), write_through=True, line_buffering=False)
+    #sys.stdout._CHUNK_SIZE = buffer_size
 
     VER_TIMESTAMP = get_ver_timestamp()
 
@@ -194,12 +194,12 @@ if __name__ == "__main__":
 
     name_case_sens=args.file_case_sensitive
     cd_case_sens=args.cd_case_sensitive
-    
+
     name_regexp=args.file_regexp
     name_glob=args.file_glob
     name_fuzzy=args.file_fuzzy
     file_error=args.file_error
-    
+
     file_fuzzy_threshold = args.file_fuzzy_threshold
     cd_fuzzy_threshold = args.cd_fuzzy_threshold
 
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     elif file_error:
         name_func_to_call = None
         name_search_kind='error'
-        
+
     else:
         name_func_to_call = None
         name_search_kind='dont'
@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
     timestamp_min=int(args.timestamp_min) if args.timestamp_min else None
     timestamp_max=int(args.timestamp_max) if args.timestamp_max else None
-    
+
     print_info(f'args:{args}')
 
     thread = Thread(target=printer,daemon=True)

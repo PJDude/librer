@@ -621,7 +621,8 @@ class LibrerRecord:
 
                     try:
                         if windows:
-                            subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True,creationflags=CREATE_NO_WINDOW)
+                            subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,creationflags=CREATE_NO_WINDOW)
+                            #,start_new_session=True
                         else:
                             subprocess = Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,start_new_session=True)
                         timeout_semi_list[0]=(timeout_val,subprocess)
@@ -1198,7 +1199,6 @@ class LibrerRecord:
 #######################################################################
 class LibrerCore:
     records = set()
-    db_dir=''
 
     def __init__(self,db_dir,log):
         self.records = set()
@@ -1607,7 +1607,8 @@ class LibrerCore:
 
             try:
                 if windows:
-                    subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,start_new_session=True,creationflags=CREATE_NO_WINDOW)
+                    subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,creationflags=CREATE_NO_WINDOW)
+                    #,start_new_session=True
                 else:
                     subprocess = Popen(commands_list[record_nr], stdout=PIPE, stderr=STDOUT,shell=False,text=True,start_new_session=True)
             except Exception as re:
