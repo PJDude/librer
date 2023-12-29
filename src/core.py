@@ -35,7 +35,7 @@ from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove
 windows = bool(os_name=='nt')
 
 if windows:
-    from subprocess import CREATE_NO_WINDOW
+    from subprocess import CREATE_NO_WINDOW,HIGH_PRIORITY_CLASS
 else:
     from os import getpgid, killpg
 
@@ -605,102 +605,96 @@ class LibrerRecord:
 
             time_start_all = perf_counter()
 
-            for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
-                decoding_error=False
-                self.killed=False
-                self.abort_single_file_cde=False
+            creationflags = CREATE_NO_WINDOW | HIGH_PRIORITY_CLASS if windows else 0
+            temp_file_name = 'temp_file.dat'
 
-                time_start = perf_counter()
-                if self.abort_action:
-                    returncode=200
-                    output = 'Custom data extraction was aborted.'
-                    aborted = True
-                else:
-                    aborted = False
+            with open(temp_file_name, 'ba+') as temp_file:
+                temp_file_seek = temp_file.seek
+                temp_file_truncate = temp_file.truncate
+                temp_file_read = temp_file.read
 
-                    returncode=202
-                    expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,do_crc = cde_list[rule_nr]
-                    full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
-                    command,command_info = get_command(executable,parameters,full_file_path,shell)
+                self_header_files_cde_errors_quant = self_header.files_cde_errors_quant
 
-                    self.info_line_current = f"{command_info} ({bytes_to_str(size)})"
+                for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
+                    decoding_error=False
+                    self.killed=False
+                    self.abort_single_file_cde=False
 
-                    timeout_val=time()+timeout if timeout else None
-                    #####################################
-
-                    try:
-                        subprocess = uni_popen(command,shell,text=True)
-
-                        timeout_semi_list[0]=(timeout_val,subprocess)
-                    except Exception as re:
-                        print('threaded_cde error:',re)
-                        subprocess = None
-                        timeout_semi_list[0]=(timeout_val,subprocess)
-                        returncode=201
-                        output = str(re)
+                    time_start = perf_counter()
+                    if self.abort_action:
+                        returncode=200
+                        output = 'Custom data extraction was aborted.'
+                        aborted = True
                     else:
+                        aborted = False
 
-                        subprocess_stdout_readline = subprocess.stdout.readline
-                        subprocess_poll = subprocess.poll
+                        returncode=202
+                        expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,do_crc = cde_list[rule_nr]
+                        full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
+                        command,command_info = get_command(executable,parameters,full_file_path,shell)
 
-                        output_list = []
-                        output_list_append = output_list.append
+                        self.info_line_current = f"{command_info} ({bytes_to_str(size)})"
 
-                        while True:
+                        timeout_val=time()+timeout if timeout else None
+                        #####################################
+
+                        temp_file_seek(0)
+                        temp_file_truncate()
+
+                        try:
+                            subprocess = Popen(command, stdout=temp_file, stderr=temp_file,stdin=DEVNULL,shell=shell,start_new_session=True,creationflags=creationflags,close_fds=False)
+                            timeout_semi_list[0]=(timeout_val,subprocess)
+                        except Exception as re:
+                            output = bytes(str(re),encoding='utf-8')
+                            returncode=100
+                        else:
+                            returncode = subprocess.wait()
+                            timeout_semi_list[0] = None
+
+                            temp_file_seek(0)
                             try:
-                                line = subprocess_stdout_readline().rstrip()
-                            except Exception as le:
-                                #print(command,le)
-                                line = str(le)
-                                decoding_error = True
-
-                            output_list_append(line)
-
-                            if not line and subprocess_poll() is not None:
-                                returncode=subprocess.returncode
-                                timeout_semi_list[0] = None
-                                break
-
-                        if self.killed:
-                            output_list_append('Killed.')
-
-                        output = '\n'.join(output_list).strip()
+                                output = temp_file_read()
+                            except Exception as de:
+                                decoding_error=True
+                                output = bytes(str(de),encoding='utf-8')
 
                     #####################################
 
-                time_end = perf_counter()
-                customdata_stats_time[rule_nr]+=time_end-time_start
+                    time_end = perf_counter()
+                    customdata_stats_time[rule_nr]+=time_end-time_start
 
-                if returncode or decoding_error or self.killed or aborted:
-                    self_header.files_cde_errors_quant[rule_nr]+=1
-                    self_header.files_cde_errors_quant_all+=1
+                    if returncode or decoding_error or self.killed or aborted:
+                        self_header_files_cde_errors_quant[rule_nr]+=1
+                        self_header.files_cde_errors_quant_all+=1
 
-                if not aborted:
-                    self_header.files_cde_quant += 1
-                    self_header.files_cde_size += size
-                    self_header.files_cde_size_extracted += getsizeof(output)
+                    if not aborted:
+                        self_header.files_cde_quant += 1
+                        self_header.files_cde_size += size
+                        self_header.files_cde_size_extracted += getsizeof(output)
 
-                new_elem={}
-                new_elem['cd_ok']= bool(returncode==0 and not decoding_error and not self.killed and not aborted)
+                    new_elem={}
+                    new_elem['cd_ok']= bool(returncode==0 and not decoding_error and not self.killed and not aborted)
 
-                cd_field=(rule_nr,returncode,output)
-                if cd_field not in customdata_helper:
-                    customdata_helper[cd_field]=cd_index
-                    new_elem['cd_index']=cd_index
-                    cd_index+=1
+                    cd_field=(rule_nr,returncode,output)
+                    if cd_field not in customdata_helper:
+                        customdata_helper[cd_field]=cd_index
+                        new_elem['cd_index']=cd_index
+                        cd_index+=1
 
-                    self_customdata_append(cd_field)
+                        self_customdata_append(cd_field)
 
-                    customdata_stats_size[rule_nr]+=asizeof(cd_field)
-                    customdata_stats_uniq[rule_nr]+=1
-                    customdata_stats_refs[rule_nr]+=1
-                else:
-                    new_elem['cd_index']=customdata_helper[cd_field]
-                    customdata_stats_refs[rule_nr]+=1
+                        customdata_stats_size[rule_nr]+=asizeof(cd_field)
+                        customdata_stats_uniq[rule_nr]+=1
+                        customdata_stats_refs[rule_nr]+=1
+                    else:
+                        new_elem['cd_index']=customdata_helper[cd_field]
+                        customdata_stats_refs[rule_nr]+=1
 
-                #if do_crc:
-                #    new_elem['crc_val']=crc_val
-                scan_like_list.append(new_elem)
+                    #if do_crc:
+                    #    new_elem['crc_val']=crc_val
+                    scan_like_list.append(new_elem)
+
+            send2trash_delete(temp_file_name)
 
             time_end_all = perf_counter()
 
@@ -719,7 +713,7 @@ class LibrerRecord:
                     kill_subprocess(subprocess)
                     self.killed=True
             else:
-                sleep(0.01)
+                sleep(0.2)
 
         cde_thread.join()
 
@@ -1206,9 +1200,10 @@ class LibrerRecord:
 class LibrerCore:
     records = set()
 
-    def __init__(self,db_dir,log):
+    def __init__(self,db_dir,temp_dir,log):
         self.records = set()
         self.db_dir = db_dir
+        self.temp_dir = temp_dir
         self.log=log
         self.info_line = 'init'
         #self.info_line_current = ''

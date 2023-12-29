@@ -71,8 +71,10 @@ python3 ./src/librer.py
 ## Ideas for future development
 -   gather **custom data** (generated also by user scripts) not only as text but also as binary files and store them inside record file (e.g. image thumbnails etc.)
 - calculate the **CRC** of scanned files and use it to search for duplicates among different records, verify current data with the saved file system image
-
 - comparing two records with each other. e.g. two scans of the same file system performed at different times
+
+## Known issues
+For still unknown reason, Custom Data Extraction (Execution of tons of subprocesses) on the exact same hardware is much slower on Windows than on Linux.  
 
 ## Licensing
 - **librer** is licensed under **[MIT license](./LICENSE)**

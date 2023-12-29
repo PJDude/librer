@@ -400,6 +400,10 @@ class TextDialogInfo(GenericDialog):
         key=event.keysym
 
         if key != "F3":
+            if event.widget!=self.find_entry:
+                self.find_var.set(self.find_var.get() + event.char)
+                self.find_entry.icursor('end')
+
             self.find_entry.focus_set()
             self.find_key_binding(event)
 

@@ -3104,10 +3104,11 @@ class Gui:
         self.cfg.write()
 
         #############################
+        new_record_header = new_record.header
         while scan_thread_is_alive():
             change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-            change3 = self_progress_dialog_on_scan_update_lab_text(3,local_bytes_to_str(new_record.header.sum_size) )
-            change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(new_record.header.quant_files) )
+            change3 = self_progress_dialog_on_scan_update_lab_text(3,local_bytes_to_str(new_record_header.sum_size) )
+            change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(new_record_header.quant_files) )
 
             now=time()
 
@@ -3170,22 +3171,23 @@ class Gui:
             self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
             self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
+            new_record_header = new_record.header
             while cd_thread_is_alive():
                 change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(new_record.header.files_cde_size_extracted) )
-                change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record.header.files_cde_errors_quant_all) )
+                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(new_record_header.files_cde_size_extracted) )
+                change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record_header.files_cde_errors_quant_all) )
 
-                files_q = new_record.header.files_cde_quant
-                files_perc = files_q * 100.0 / new_record.header.files_cde_quant_sum if new_record.header.files_cde_quant_sum else 0
+                files_q = new_record_header.files_cde_quant
+                files_perc = files_q * 100.0 / new_record_header.files_cde_quant_sum if new_record_header.files_cde_quant_sum else 0
 
-                files_size = new_record.header.files_cde_size
-                files_size_perc = files_size * 100.0 / new_record.header.files_cde_size_sum if new_record.header.files_cde_size_sum else 0
+                files_size = new_record_header.files_cde_size
+                files_size_perc = files_size * 100.0 / new_record_header.files_cde_size_sum if new_record_header.files_cde_size_sum else 0
 
                 self_progress_dialog_on_scan_progr1var_set(files_size_perc)
                 self_progress_dialog_on_scan_progr2var_set(files_perc)
 
-                self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(new_record.header.files_cde_size) + '/' + local_bytes_to_str(new_record.header.files_cde_size_sum))
-                self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(new_record.header.files_cde_quant_sum))
+                self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(new_record_header.files_cde_size) + '/' + local_bytes_to_str(new_record_header.files_cde_size_sum))
+                self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(new_record_header.files_cde_quant_sum))
 
                 if self.action_abort:
                     new_record.abort()
@@ -3211,7 +3213,7 @@ class Gui:
 
                         update_once=True
 
-                self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+                self_main_after(200,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
 
             cd_thread.join()
@@ -3777,7 +3779,7 @@ class Gui:
 
                                     shell_info = ('No','Yes')[shell]
                                     timeout_info = f'\ntimeout:{timeout}' if timeout else ''
-                                    self.get_text_info_dialog().show(f'Custom Data of: {file_path}',cd_txt,uplabel_text=f"{command_info}\n\nshell:{shell_info}{timeout_info}\nreturncode:{returncode}")
+                                    self.get_text_info_dialog().show(f'Custom Data of: {file_path}',cd_txt,uplabel_text=f"{command_info}\n\nshell:{shell_info}{timeout_info}\nreturncode:{returncode}\nsize:{bytes_to_str(asizeof(cd_txt))}")
                                     return
 
                             self.info_dialog_on_main.show('Information','No Custom data.')
@@ -3868,6 +3870,7 @@ if __name__ == "__main__":
         LIBRER_EXECUTABLE_DIR = dirname(LIBRER_EXECUTABLE_FILE)
         DATA_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'data'])
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'logs'])
+        TEMP_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'temp'])
 
         #######################################################################
 
@@ -3878,6 +3881,7 @@ if __name__ == "__main__":
 
         Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
         Path(DATA_DIR).mkdir(parents=True,exist_ok=True)
+        Path(TEMP_DIR).mkdir(parents=True,exist_ok=True)
 
         print('log:',log)
 
@@ -3894,7 +3898,7 @@ if __name__ == "__main__":
         else:
             l_info('distro info:\n%s',distro_info)
 
-        librer_core = LibrerCore(DATA_DIR,logging)
+        librer_core = LibrerCore(DATA_DIR,TEMP_DIR,logging)
 
         Gui(getcwd())
 
