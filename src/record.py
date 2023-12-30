@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2022-2023 Piotr Jochymek
+#  Copyright (c) 2023-2024 Piotr Jochymek
 #
 #  MIT License
 #
@@ -26,13 +26,13 @@
 #
 ####################################################################################
 
-import argparse
-import os
-#import signal
-#from sys import exit
-#from subprocess import DEVNULL
-import pathlib
 import sys
+
+from os.path import dirname,join as path_join
+from os import name as os_name
+
+from pathlib import Path as pathlib_Path
+from argparse import ArgumentParser,RawTextHelpFormatter
 
 from time import sleep,perf_counter
 
@@ -42,17 +42,8 @@ from re import compile as re_compile,search as re_search,IGNORECASE
 from fnmatch import translate
 from difflib import SequenceMatcher
 
-#from pickle import load
-
-#from multiprocessing import Process, Queue
-#from queue import Empty
-
-#import base64
-#import codecs
-
-import io
-
 from json import dumps as json_dumps
+from collections import deque
 
 from core import *
 
@@ -60,20 +51,18 @@ VERSION_FILE='version.txt'
 
 def get_ver_timestamp():
     try:
-        timestamp=pathlib.Path(os.path.join(os.path.dirname(__file__),VERSION_FILE)).read_text(encoding='ASCII').strip()
+        timestamp=pathlib_Path(path_join(dirname(__file__),VERSION_FILE)).read_text(encoding='ASCII').strip()
     except Exception as e_ver:
         print(e_ver)
         timestamp=''
     return timestamp
 
 def parse_args(ver):
-    parser = argparse.ArgumentParser(
-            formatter_class=argparse.RawTextHelpFormatter,
-            prog = 'record.exe' if (os.name=='nt') else 'record',
-            description = f"librer record version {ver}\nCopyright (c) 2023 Piotr Jochymek\n\nhttps://github.com/PJDude/librer",
+    parser = ArgumentParser(
+            formatter_class=RawTextHelpFormatter,
+            prog = 'record.exe' if (os_name=='nt') else 'record',
+            description = f"librer record version {ver}\nCopyright (c) 2023-2024 Piotr Jochymek\n\nhttps://github.com/PJDude/librer",
             )
-
-    #parser.add_argument('--foo', required=True)
 
     parser.add_argument('command',type=str,help='command to execute',choices=('load','search','info'))
 
@@ -143,13 +132,9 @@ def find_params_check(self,
 
     return None
 
-from collections import deque
-
-#results_queue=Queue()
 results_queue=deque()
 
 def printer():
-    #results_queue_get = results_queue.get
     results_queue_get = results_queue.popleft
 
     try:
@@ -161,7 +146,7 @@ def printer():
                 print(json_dumps(result))
             else:
                 sys.stdout.flush()
-                sleep(0.01)
+                sleep(0.001)
 
     except Exception as pe:
         print_info('printer error:{pe}')
@@ -172,12 +157,7 @@ def printer():
 def print_info(*args):
     print('#',*args)
 
-
 if __name__ == "__main__":
-    #buffer_size = 1024*1024*64
-    #sys.stdout = io.TextIOWrapper(sys.stdout.detach(), write_through=True, line_buffering=False)
-    #sys.stdout._CHUNK_SIZE = buffer_size
-
     VER_TIMESTAMP = get_ver_timestamp()
 
     args=parse_args(VER_TIMESTAMP)

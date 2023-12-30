@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2023 Piotr Jochymek
+#  Copyright (c) 2023-2024 Piotr Jochymek
 #
 #  MIT License
 #
@@ -27,9 +27,8 @@
 ####################################################################################
 
 from os import sep,system,getcwd,name as os_name
-from os.path import abspath,normpath,dirname
-from os.path import join as path_join
-from os.path import isfile as path_isfile
+from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile
+
 from pathlib import Path
 from time import strftime,time,mktime
 from signal import signal,SIGINT
@@ -2730,12 +2729,12 @@ class Gui:
             tree.see(item)
             tree.selection_set(item)
 
-            self.tree_sel_change(item,True)
+            self.tree_sel_change(item)
         else:
             self.sel_item = None
 
     @catched
-    def tree_sel_change(self,item,force=False,change_status_line=True):
+    def tree_sel_change(self,item,change_status_line=True):
         self.sel_item = item
 
         if change_status_line :
@@ -2743,9 +2742,6 @@ class Gui:
 
         self_tree_set_item=lambda x : self.tree_set(item,x)
 
-        #path=self_tree_set_item('path')
-
-        #self.sel_kind = self_tree_set_item('kind')
         self.tree_select()
 
     def menubar_unpost(self):

@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2023 Piotr Jochymek
+#  Copyright (c) 2023-2024 Piotr Jochymek
 #
 #  MIT License
 #
@@ -40,15 +40,13 @@ if windows:
 else:
     from os import getpgid, killpg
 
-from os.path import abspath,normpath,basename,dirname
-from os.path import join as path_join
+from os.path import abspath,normpath,basename,dirname,join as path_join
 
 from zipfile import ZipFile
 from platform import system as platform_system,release as platform_release,node as platform_node
 
 from fnmatch import fnmatch
 from re import search as re_search
-from sys import getsizeof
 import sys
 from collections import defaultdict
 from pathlib import Path as pathlib_Path
@@ -125,12 +123,14 @@ def fnumber(num):
     return str(format(num,',d').replace(',',' '))
 
 def str_to_bytes(string):
-    units = {'kb': 1024,'mb': 1024*1024,'gb': 1024*1024*1024,'tb': 1024*1024*1024*1024, 'b':1}
     try:
-        string = string.replace(' ','')
-        for suffix,weight in units.items():
-            if string.lower().endswith(suffix):
+        string = string.replace(' ','').lower()
+        string_endswith = string.endswith
+        for suffix,altsuffix,weight in ( ('kb','k',1024),('mb','m',1024*1024),('gb','g',1024*1024*1024),('tb','t',1024*1024*1024*1024),('b','b',1) ):
+            if string_endswith(suffix):
                 return int(string[0:-len(suffix)]) * weight #no decimal point
+            elif string_endswith(altsuffix):
+                return int(string[0:-len(altsuffix)]) * weight #no decimal point
 
         return int(string)
     except:
@@ -196,7 +196,6 @@ def get_command(executable,parameters,full_file_path,shell):
 #'ignore','replace','backslashreplace'
 def popen_win(command,shell):
     return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,universal_newlines=True,creationflags=CREATE_NO_WINDOW,close_fds=False,errors='ignore')
-    universal
 
 def popen_lin(command,shell):
     return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=DEVNULL,shell=shell,text=True,universal_newlines=True,start_new_session=True,errors='ignore')
@@ -610,7 +609,7 @@ class LibrerRecord:
 
             aborted_string = 'Custom data extraction was aborted.'
             for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
-                #decoding_error=False
+
                 self.killed=False
                 self.abort_single_file_cde=False
 
@@ -636,7 +635,7 @@ class LibrerRecord:
                         subprocess = uni_popen(command,shell)
                         timeout_semi_list[0]=(timeout_val,subprocess)
                     except Exception as re:
-                        print('threaded_cde error:',re)
+                        #print('threaded_cde error:',re)
                         subprocess = None
                         timeout_semi_list[0]=(timeout_val,subprocess)
                         returncode=201
@@ -650,12 +649,6 @@ class LibrerRecord:
 
                         while True:
                             line = subprocess_stdout_readline().rstrip()
-
-                            #try:
-                            #except Exception as le:
-                                #print(command,le)
-                            #    line = str(le)
-                                #decoding_error = True
 
                             output_list_append(line)
 
@@ -681,7 +674,7 @@ class LibrerRecord:
                 if not aborted:
                     self_header.files_cde_quant += 1
                     self_header.files_cde_size += size
-                    self_header.files_cde_size_extracted += getsizeof(output)
+                    self_header.files_cde_size_extracted += asizeof(output)
 
                 new_elem={}
                 new_elem['cd_ok']= bool(returncode==0 and not self.killed and not aborted)

@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2023 Piotr Jochymek
+#  Copyright (c) 2023-2024 Piotr Jochymek
 #
 #  MIT License
 #
