@@ -733,7 +733,7 @@ class Gui:
             data_tuple = self.item_to_data[item]
             code = data_tuple[1]
 
-            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode[code]
+            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
         return has_cd
 
     def block_actions_processing(func):
@@ -1890,7 +1890,7 @@ class Gui:
                         if item in self.item_to_data:
                             data_tuple = self.item_to_data[item]
                             code = data_tuple[1]
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode[code]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
 
                             if is_symlink:
                                 tooltip_list.append('')
@@ -3601,10 +3601,19 @@ class Gui:
 
             (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple[0:4]
 
-            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_has_crc,top_aux1,top_aux2 = LUT_decode_loc[top_code]
+            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_aux0,top_aux1,top_aux2 = LUT_decode_loc[top_code]
 
             record_filenames = record.filenames
 
+            self_ico_folder_error = self.ico_folder_error
+            self_ico_folder_link = self.ico_folder_link
+            self_ico_folder = self.ico_folder
+            self_ico_cd_ok = self.ico_cd_ok
+            self_ico_cd_error = self.ico_cd_error
+            self_ico_empty = self.ico_empty
+
+            record_find_results = record.find_results
+            self.FOUND = self.FOUND
             if top_has_files:
                 for data_tuple in top_data_tuple[4]:
 
@@ -3614,7 +3623,7 @@ class Gui:
 
                     entry_subpath_tuple = tuple(subpath_list + [entry_name])
 
-                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode_loc[code]
+                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode_loc[code]
 
                     sub_data_tuple = None
 
@@ -3629,18 +3638,19 @@ class Gui:
                     if has_cd:
                         elem_index+=1
 
-                    if has_crc:
-                        pass
+                    #if has_crc:
+                    #    pass
                     kind = self_DIR if is_dir else self_FILE
 
-                    image = (self.ico_folder_error if size==-1 else self.ico_folder_link if is_symlink or is_bind else self.ico_folder) if is_dir else (self.ico_cd_ok if cd_ok else self.ico_cd_error) if has_cd and not has_crc else (self.ico_cd_ok_crc if cd_ok else self.ico_cd_error_crc) if has_cd and has_crc else self.ico_crc if has_crc else self.ico_empty
+                    #image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd and not has_crc else (self_ico_cd_ok_crc if cd_ok else self_ico_cd_error_crc) if has_cd and has_crc else self.ico_crc if has_crc else self_ico_empty
+                    image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd else self_ico_empty
 
                     if is_symlink or is_bind:
                         tags=self_SYMLINK
                     else:
                         tags=''
-                        if record.find_results:
-                            for find_result in record.find_results:
+                        if record_find_results:
+                            for find_result in record_find_results:
                                 if find_result[0]==entry_subpath_tuple:
                                     tags=self.FOUND
                                     break
@@ -3757,7 +3767,7 @@ class Gui:
                             data_tuple = self.item_to_data[item]
                             (entry_name,code,size,mtime) = data_tuple[0:4]
 
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode[code]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
 
                             if has_cd: #wiec nie has_files
                                 cd_index = data_tuple[4]
@@ -3870,7 +3880,6 @@ if __name__ == "__main__":
         LIBRER_EXECUTABLE_DIR = dirname(LIBRER_EXECUTABLE_FILE)
         DATA_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'data'])
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'logs'])
-        TEMP_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'temp'])
 
         #######################################################################
 
@@ -3881,7 +3890,6 @@ if __name__ == "__main__":
 
         Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
         Path(DATA_DIR).mkdir(parents=True,exist_ok=True)
-        Path(TEMP_DIR).mkdir(parents=True,exist_ok=True)
 
         print('log:',log)
 
@@ -3898,7 +3906,7 @@ if __name__ == "__main__":
         else:
             l_info('distro info:\n%s',distro_info)
 
-        librer_core = LibrerCore(DATA_DIR,TEMP_DIR,logging)
+        librer_core = LibrerCore(DATA_DIR,logging)
 
         Gui(getcwd())
 

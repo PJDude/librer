@@ -38,10 +38,8 @@ from time import sleep,perf_counter
 
 from threading import Thread
 
-from re import compile as re_compile
+from re import compile as re_compile,search as re_search,IGNORECASE
 from fnmatch import translate
-#fnmatch
-from re import search,IGNORECASE
 from difflib import SequenceMatcher
 
 #from pickle import load
@@ -241,7 +239,8 @@ if __name__ == "__main__":
         cd_search_kind='regexp'
         if res := test_regexp(cd_regexp):
             exit(res)
-        cd_func_to_call = lambda x : search(cd_regexp,x)
+        cd_func_to_call = lambda x : re_search(cd_regexp,x)
+
     elif cd_glob:
         custom_data_needed=True
         cd_search_kind='glob'
