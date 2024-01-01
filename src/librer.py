@@ -1477,25 +1477,6 @@ class Gui:
 
             ##############
 
-            self.find_size_min_var.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_size_max_var.trace_add("write", lambda i,j,k : self.find_mod())
-
-            self.find_modtime_min_var.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_modtime_max_var.trace_add("write", lambda i,j,k : self.find_mod())
-
-            self.find_name_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_name_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_name_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_name_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
-
-            self.find_cd_regexp_var.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_cd_glob_var.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_cd_fuzz_var.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_cd_case_sens_var.trace_add("write", lambda i,j,k : self.find_mod())
-
-            self.find_name_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
-            self.find_cd_fuzzy_threshold.trace_add("write", lambda i,j,k : self.find_mod())
-
             sfdma = self.find_dialog.area_main
 
             (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
@@ -1527,9 +1508,9 @@ class Gui:
             self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
             self.find_filename_fuzz_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzz_var,validate="key")
 
-            self.find_filename_regexp_entry.bind("<KeyPress>", lambda event : self.find_mod)
-            self.find_filename_glob_entry.bind("<KeyPress>", lambda event : self.find_mod)
-            self.find_filename_fuzz_entry.bind("<KeyPress>", lambda event : self.find_mod)
+            self.find_filename_regexp_entry.bind("<KeyPress>", self.find_mod_keypress)
+            self.find_filename_glob_entry.bind("<KeyPress>", self.find_mod_keypress)
+            self.find_filename_fuzz_entry.bind("<KeyPress>", self.find_mod_keypress)
 
             self.find_filename_regexp_entry.grid(row=2, column=1, sticky='we',padx=4,pady=4)
             self.find_filename_glob_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
@@ -1542,6 +1523,8 @@ class Gui:
             self.find_filename_fuzzy_threshold_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzzy_threshold)
             self.find_filename_fuzzy_threshold_lab.grid(row=4, column=2, sticky='wens',padx=4,pady=4)
             self.find_filename_fuzzy_threshold_entry.grid(row=4, column=3, sticky='wens',padx=4,pady=4)
+
+            self.find_filename_fuzzy_threshold_entry.bind("<KeyPress>", self.find_mod_keypress)
 
             self.widget_tooltip(regexp_radio_name,regexp_tooltip + regexp_tooltip_name)
             self.widget_tooltip(self.find_filename_regexp_entry,regexp_tooltip + regexp_tooltip_name)
@@ -1568,9 +1551,9 @@ class Gui:
             self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
             self.find_cd_fuzz_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzz_var,validate="key")
 
-            self.find_cd_regexp_entry.bind("<KeyPress>", lambda event : self.find_mod)
-            self.find_cd_glob_entry.bind("<KeyPress>", lambda event : self.find_mod)
-            self.find_cd_fuzz_entry.bind("<KeyPress>", lambda event : self.find_mod)
+            self.find_cd_regexp_entry.bind("<KeyPress>", self.find_mod_keypress)
+            self.find_cd_glob_entry.bind("<KeyPress>", self.find_mod_keypress)
+            self.find_cd_fuzz_entry.bind("<KeyPress>", self.find_mod_keypress)
 
             self.find_cd_regexp_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
             self.find_cd_glob_entry.grid(row=5, column=1, sticky='we',padx=4,pady=4)
@@ -1583,6 +1566,8 @@ class Gui:
             self.find_cd_fuzzy_threshold_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzzy_threshold)
             self.find_cd_fuzzy_threshold_lab.grid(row=6, column=2, sticky='wens',padx=4,pady=4)
             self.find_cd_fuzzy_threshold_entry.grid(row=6, column=3, sticky='wens',padx=4,pady=4)
+
+            self.find_cd_fuzzy_threshold_entry.bind("<KeyPress>", self.find_mod_keypress)
 
             self.widget_tooltip(regexp_radio_cd,regexp_tooltip + regexp_tooltip_cd)
             self.widget_tooltip(self.find_cd_regexp_entry,regexp_tooltip + regexp_tooltip_cd)
@@ -1611,6 +1596,9 @@ class Gui:
             find_size_max_entry=Entry(find_size_frame,textvariable=self.find_size_max_var)
             find_size_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
 
+            find_size_min_entry.bind("<KeyPress>", self.find_mod_keypress)
+            find_size_max_entry.bind("<KeyPress>", self.find_mod_keypress)
+
             size_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
             self.widget_tooltip(find_size_min_entry,size_tooltip)
             self.widget_tooltip(find_size_min_label,size_tooltip)
@@ -1627,6 +1615,9 @@ class Gui:
             find_modtime_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
             find_modtime_max_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_max_var)
             find_modtime_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
+
+            find_modtime_min_entry.bind("<KeyPress>", self.find_mod_keypress)
+            find_modtime_max_entry.bind("<KeyPress>", self.find_mod_keypress)
 
             time_toltip = 'Date and time in the format below.\nLeave the value blank to ignore this criterion.\n\nexamples:\n2023-12-14 22:21:20\n2023-12-14 22:21\n2023-12-14\n2023-12'
             self.widget_tooltip(find_modtime_min_entry,time_toltip)
@@ -2136,6 +2127,14 @@ class Gui:
 
     find_dialog_shown=False
 
+    def find_mod_keypress(self,event):
+        key=event.keysym
+
+        if key=='Return':
+            self.find_items()
+        else:
+            return self.find_mod()
+
     def find_mod(self):
         try:
             if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
@@ -2228,6 +2227,9 @@ class Gui:
 
                 self.search_show_butt.configure(state='disabled')
                 self.search_save_butt.configure(state='disabled')
+            else:
+                self.search_show_butt.configure(state='normal')
+                self.search_save_butt.configure(state='normal')
 
         except Exception as e:
             self.find_result_record_index=0

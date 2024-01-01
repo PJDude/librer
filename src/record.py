@@ -143,7 +143,7 @@ def printer():
                 result=results_queue_get()
                 if result==True:
                     break
-                print(json_dumps(result))
+                print(json_dumps(result),flush=False)
             else:
                 sys.stdout.flush()
                 sleep(0.001)
@@ -268,11 +268,15 @@ if __name__ == "__main__":
     thread = Thread(target=printer,daemon=True)
     thread.start()
 
-    record.find_items(results_queue,
-            size_min,size_max,
-            timestamp_min,timestamp_max,
-            name_search_kind,name_func_to_call,
-            cd_search_kind,cd_func_to_call)
+    try:
+        record.find_items(results_queue,
+                size_min,size_max,
+                timestamp_min,timestamp_max,
+                name_search_kind,name_func_to_call,
+                cd_search_kind,cd_func_to_call)
+    except Exception as fe:
+        print_info('find_items error:' + str(fe))
+        results_queue.append(True) #stop printer thread
 
     thread.join()
 

@@ -124,13 +124,11 @@ def fnumber(num):
 
 def str_to_bytes(string):
     try:
-        string = string.replace(' ','').lower()
+        string = string.replace(' ','').lower().rstrip('b')
         string_endswith = string.endswith
-        for suffix,altsuffix,weight in ( ('kb','k',1024),('mb','m',1024*1024),('gb','g',1024*1024*1024),('tb','t',1024*1024*1024*1024),('b','b',1) ):
+        for suffix,weight in ( ('k',1024),('m',1024*1024),('g',1024*1024*1024),('t',1024*1024*1024*1024) ):
             if string_endswith(suffix):
-                return int(string[0:-len(suffix)]) * weight #no decimal point
-            elif string_endswith(altsuffix):
-                return int(string[0:-len(altsuffix)]) * weight #no decimal point
+                return int(string[0:-1]) * weight #no decimal point
 
         return int(string)
     except:

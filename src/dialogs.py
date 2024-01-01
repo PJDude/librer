@@ -399,7 +399,7 @@ class TextDialogInfo(GenericDialog):
     def key_press(self,event):
         key=event.keysym
 
-        if key != "F3":
+        if key not in ("F3",'Up','Down','Next','Prior','Home','End','Delete','BackSpace'):
             if event.widget!=self.find_entry:
                 self.find_var.set(self.find_var.get() + event.char)
                 self.find_entry.icursor('end')
@@ -471,16 +471,18 @@ class TextDialogInfo(GenericDialog):
 
         self.message = message
 
-        self.text.configure(state='normal')
-        self.text.delete('1.0', 'end')
-        self.text.insert('end',message)
-        self.text.configure(state='disabled')
+        self_text = self.text
+        self_text.configure(state='normal')
+        self_text.delete('1.0', 'end')
+        self_text.insert('end',message)
+        self_text.configure(state='disabled')
 
-        self.text.grid(row=1,column=0,sticky='news',padx=5,pady=5)
+        self_text.grid(row=1,column=0,sticky='news',padx=5,pady=5)
 
         self.copy_button.configure(state='normal')
 
         self.find_key_binding()
+        self.focus = self_text
         super().show()
 
 class TextDialogQuestion(TextDialogInfo):
