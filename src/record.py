@@ -185,13 +185,13 @@ if __name__ == "__main__":
         if res := test_regexp(name_regexp):
             exit(res)
 
-        name_func_to_call = lambda x : search(name_regexp,x)
+        name_func_to_call = lambda x : re_compile(name_regexp).search(x)
         name_search_kind='regexp'
     elif name_glob:
         if name_case_sens:
-            name_func_to_call = lambda x : re_compile(translate(name_glob)).match(x)
+            name_func_to_call = lambda x : re_compile(translate(name_glob)).search(x)
         else:
-            name_func_to_call = lambda x : re_compile(translate(name_glob), IGNORECASE).match(x)
+            name_func_to_call = lambda x : re_compile(translate(name_glob), IGNORECASE).search(x)
         name_search_kind='glob'
     elif name_fuzzy:
         name_func_to_call = lambda x : bool(SequenceMatcher(None, name_fuzzy, x).ratio()>file_fuzzy_threshold)
@@ -219,21 +219,19 @@ if __name__ == "__main__":
         cd_search_kind='regexp'
         if res := test_regexp(cd_regexp):
             exit(res)
-        cd_func_to_call = lambda x : re_search(cd_regexp,x)
+        cd_func_to_call = lambda x : re_compile(cd_regexp).search(x)
 
     elif cd_glob:
         custom_data_needed=True
         cd_search_kind='glob'
         if cd_case_sens:
-            #cd_func_to_call = lambda x : fnmatch(x,cd_regexp)
-            cd_func_to_call = lambda x : re_compile(translate(cd_glob)).match(x)
+            cd_func_to_call = lambda x : re_compile(translate(cd_glob)).search(x)
         else:
-            cd_func_to_call = lambda x : re_compile(translate(cd_glob), IGNORECASE).match(x)
+            cd_func_to_call = lambda x : re_compile(translate(cd_glob), IGNORECASE).search(x)
     elif cd_fuzzy:
         custom_data_needed=True
         cd_search_kind='fuzzy'
         cd_func_to_call = lambda x : bool(SequenceMatcher(None,cd_fuzzy, x).ratio()>cd_fuzzy_threshold)
-        #cd_fuzzy_threshold = float(cd_fuzzy_threshold) if find_cd_search_kind == 'fuzzy' else 0
     elif cd_without:
         cd_search_kind='without'
         cd_func_to_call = None

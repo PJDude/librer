@@ -1508,9 +1508,9 @@ class Gui:
             self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
             self.find_filename_fuzz_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzz_var,validate="key")
 
-            self.find_filename_regexp_entry.bind("<KeyPress>", self.find_mod_keypress)
-            self.find_filename_glob_entry.bind("<KeyPress>", self.find_mod_keypress)
-            self.find_filename_fuzz_entry.bind("<KeyPress>", self.find_mod_keypress)
+            self.find_filename_regexp_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            self.find_filename_glob_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            self.find_filename_fuzz_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
             self.find_filename_regexp_entry.grid(row=2, column=1, sticky='we',padx=4,pady=4)
             self.find_filename_glob_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
@@ -1524,7 +1524,7 @@ class Gui:
             self.find_filename_fuzzy_threshold_lab.grid(row=4, column=2, sticky='wens',padx=4,pady=4)
             self.find_filename_fuzzy_threshold_entry.grid(row=4, column=3, sticky='wens',padx=4,pady=4)
 
-            self.find_filename_fuzzy_threshold_entry.bind("<KeyPress>", self.find_mod_keypress)
+            self.find_filename_fuzzy_threshold_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
             self.widget_tooltip(regexp_radio_name,regexp_tooltip + regexp_tooltip_name)
             self.widget_tooltip(self.find_filename_regexp_entry,regexp_tooltip + regexp_tooltip_name)
@@ -1551,9 +1551,9 @@ class Gui:
             self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
             self.find_cd_fuzz_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzz_var,validate="key")
 
-            self.find_cd_regexp_entry.bind("<KeyPress>", self.find_mod_keypress)
-            self.find_cd_glob_entry.bind("<KeyPress>", self.find_mod_keypress)
-            self.find_cd_fuzz_entry.bind("<KeyPress>", self.find_mod_keypress)
+            self.find_cd_regexp_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            self.find_cd_glob_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            self.find_cd_fuzz_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
             self.find_cd_regexp_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
             self.find_cd_glob_entry.grid(row=5, column=1, sticky='we',padx=4,pady=4)
@@ -1567,7 +1567,7 @@ class Gui:
             self.find_cd_fuzzy_threshold_lab.grid(row=6, column=2, sticky='wens',padx=4,pady=4)
             self.find_cd_fuzzy_threshold_entry.grid(row=6, column=3, sticky='wens',padx=4,pady=4)
 
-            self.find_cd_fuzzy_threshold_entry.bind("<KeyPress>", self.find_mod_keypress)
+            self.find_cd_fuzzy_threshold_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
             self.widget_tooltip(regexp_radio_cd,regexp_tooltip + regexp_tooltip_cd)
             self.widget_tooltip(self.find_cd_regexp_entry,regexp_tooltip + regexp_tooltip_cd)
@@ -1596,8 +1596,8 @@ class Gui:
             find_size_max_entry=Entry(find_size_frame,textvariable=self.find_size_max_var)
             find_size_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
 
-            find_size_min_entry.bind("<KeyPress>", self.find_mod_keypress)
-            find_size_max_entry.bind("<KeyPress>", self.find_mod_keypress)
+            find_size_min_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            find_size_max_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
             size_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
             self.widget_tooltip(find_size_min_entry,size_tooltip)
@@ -1616,8 +1616,8 @@ class Gui:
             find_modtime_max_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_max_var)
             find_modtime_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
 
-            find_modtime_min_entry.bind("<KeyPress>", self.find_mod_keypress)
-            find_modtime_max_entry.bind("<KeyPress>", self.find_mod_keypress)
+            find_modtime_min_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            find_modtime_max_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
             time_toltip = 'Date and time in the format below.\nLeave the value blank to ignore this criterion.\n\nexamples:\n2023-12-14 22:21:20\n2023-12-14 22:21\n2023-12-14\n2023-12'
             self.widget_tooltip(find_modtime_min_entry,time_toltip)
@@ -2394,7 +2394,6 @@ class Gui:
             self_progress_dialog_on_find_update_lab_image = self_progress_dialog_on_find.update_lab_image
             self_get_hg_ico = self.get_hg_ico
 
-            last_res_check = 0
             librer_core_files_search_quant = librer_core.files_search_quant
             fnumber_librer_core_files_search_quant = fnumber(librer_core_files_search_quant)
             fnumber_records_len = fnumber(records_len)
@@ -2405,12 +2404,7 @@ class Gui:
                 ######################################################################################
 
                 change0 = self_progress_dialog_on_find_update_lab_text(0,librer_core.info_line)
-                if now>last_res_check+1:
-                    #change3 = self_progress_dialog_on_find_update_lab_text(3,f'Found Files: {fnumber(librer_core.find_res_quant)} ({fnumber(len(librer_core.search_record_ref.find_results))})' )
-                    change3 = self_progress_dialog_on_find_update_lab_text(3,f'Found Files: {fnumber(librer_core.find_res_quant)}' )
-                    last_res_check=now
-                else:
-                    change3 = False
+                change3 = self_progress_dialog_on_find_update_lab_text(3,f'Found Files: {fnumber(librer_core.find_res_quant)}' )
 
                 curr_files = librer_core.total_search_progress
 
@@ -2424,8 +2418,6 @@ class Gui:
 
                 if self.action_abort:
                     librer_core.abort()
-                    #librer_core.search_record_ref.abort()
-                    #break
 
                 if change0 or change3 or prev_curr_files != curr_files:
                     prev_curr_files = curr_files
