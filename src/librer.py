@@ -730,6 +730,8 @@ class Gui:
         gc_collect()
         gc_enable()
 
+        self.search_results_reset=True
+
         self_main.mainloop()
 
 
@@ -1509,12 +1511,12 @@ class Gui:
             (fuzzy_radio_name:=Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
 
             regexp_tooltip = "Regular expression\n"
-            regexp_tooltip_name = "checked on the file\nor folder name."
-            regexp_tooltip_cd = "checked on the entire\nCustom Data of a file."
+            regexp_tooltip_name = "Checked on the file\nor folder name."
+            regexp_tooltip_cd = "Checked on the entire\nCustom Data of a file."
 
-            glob_tooltip = "An expression containing wildcard characters\nsuch as '*','?' or character range '[a-c]'.\n"
-            glob_tooltip_name = 'checked on the file or folder name.'
-            glob_tooltip_cd = 'checked on the entire Custom Data of a file.'
+            glob_tooltip = "An expression containing wildcard characters\nsuch as '*','?' or character range '[a-c]'.\n\nPlace '*' at the beginning and end of an expression\nunless you want the expression to be found exactly\nat the beginning or end of a path element\n\n"
+            glob_tooltip_name = 'Checked on the file or folder name.'
+            glob_tooltip_cd = 'Checked on the entire Custom Data of a file.'
 
             fuzzy_tooltip = 'Fuzzy matching is implemented using SequenceMatcher\nfrom the difflib module. Any file whose similarity\nscore exceeds the threshold will be classified as found.\nThe similarity score is calculated\n'
             fuzzy_tooltip_name = 'based on the file or folder name.'
@@ -1643,9 +1645,9 @@ class Gui:
 
             self.search_butt = Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_items )
             self.search_butt.pack(side='left', anchor='n',padx=5,pady=5)
-            self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
+            self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results, state='disabled' )
             self.search_show_butt.pack(side='left', anchor='n',padx=5,pady=5)
-            self.search_save_butt = Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results )
+            self.search_save_butt = Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results, state='disabled' )
             self.search_save_butt.pack(side='left', anchor='n',padx=5,pady=5)
 
             Button(self.find_dialog.area_buttons, text='Close', width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
@@ -1660,7 +1662,7 @@ class Gui:
 
             self.results_on_find = LabelDialogQuestion(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
-            self.results_on_find.cancel_button.configure(text='Continue search.',width=20)
+            self.results_on_find.cancel_button.configure(text='Continue search',width=20)
             self.results_on_find.ok_button.configure(text='Close Search dialog',width=20)
 
             self.find_dialog_created = True
@@ -2104,15 +2106,13 @@ class Gui:
                 self.select_find_result(1)
 
     def find_save_results(self):
-        self.find_items()
-
         if report_file_name := asksaveasfilename(parent = self.find_dialog.widget, initialfile = 'librer_search_report.txt',defaultextension=".txt",filetypes=[("All Files","*.*"),("Text Files","*.txt")]):
             self.status('saving file "%s" ...' % str(report_file_name))
 
             with open(report_file_name,'w') as report_file:
                 report_file_write = report_file.write
-                #report_file_write('criteria: \n')
 
+                report_file_write('# ' + ('\n# ').join(self.search_info_lines) + '\n\n')
                 for record in librer_core.records:
                     if record.find_results:
                         report_file_write(f'record:{record.header.label}\n')
@@ -2124,9 +2124,9 @@ class Gui:
             self.status('file saved: "%s"' % str(report_file_name))
 
     def find_show_results(self):
-        self.find_items()
+        rest_txt_list = ['# ' + line for line in self.search_info_lines]
+        rest_txt_list.append('')
 
-        rest_txt_list = []
         for record in librer_core.records:
             if record.find_results:
                 rest_txt_list.append(f'record:{record.header.label}')
@@ -2248,13 +2248,14 @@ class Gui:
                 self.search_show_butt.configure(state='disabled')
                 self.search_save_butt.configure(state='disabled')
             else:
-                if self.searching_aborted:
+                if self.searching_aborted or self.search_results_reset:
                     self.search_butt.configure(state='normal')
                 else:
                     self.search_butt.configure(state='disabled')
 
-                self.search_show_butt.configure(state='normal')
-                self.search_save_butt.configure(state='normal')
+                if self.any_find_result:
+                    self.search_show_butt.configure(state='normal')
+                    self.search_save_butt.configure(state='normal')
 
             self.find_dialog.widget.update()
 
@@ -2269,6 +2270,7 @@ class Gui:
     #@restore_status_line
     def find_items(self):
         if self.find_params_changed:
+            self.search_results_reset=False
 
             self.find_clear()
 
@@ -2302,11 +2304,96 @@ class Gui:
             filename_fuzzy_threshold = self.find_name_fuzzy_threshold.get()
             cd_fuzzy_threshold = self.find_cd_fuzzy_threshold.get()
 
+            self.search_info_lines=[]
+            search_info_lines_append = self.search_info_lines.append
+            if find_range_all:
+                search_info_lines_append('Search in all records')
+            else:
+                search_info_lines_append(f'Search in record:{self.current_record.header.label}')
+
+            range_par = self.current_record if not find_range_all else None
+
+            sel_range = [range_par] if range_par else librer_core.records
+            files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
+
+            if files_search_quant==0:
+                return 1
+
+            if find_filename_search_kind == 'regexp':
+                if find_name_regexp:
+                    if res := test_regexp(find_name_regexp):
+                        self.info_dialog_on_find.show('regular expression error',res)
+                        return
+                    search_info_lines_append(f'Regular expression on path element:"{find_name_regexp}"')
+                else:
+                    self.info_dialog_on_find.show('regular expression empty','(for path element)')
+                    return
+            elif find_filename_search_kind == 'glob':
+                if find_name_glob:
+                    info_str = f'Glob expression on path element:"{find_name_glob}"'
+                    if find_name_case_sens:
+                        search_info_lines_append(info_str + ' (Case sensitive)')
+                    else:
+                        search_info_lines_append(info_str)
+                else:
+                    self.info_dialog_on_find.show('empty glob expression','(for path element)')
+                    return
+            elif find_filename_search_kind == 'fuzzy':
+                if find_name_fuzz:
+                    try:
+                        float(filename_fuzzy_threshold)
+                    except ValueError:
+                        self.info_dialog_on_find.show('fuzzy threshold error',f"wrong threshold value:{filename_fuzzy_threshold}")
+                        return
+                    search_info_lines_append(f'Fuzzy match on path element:"{find_name_fuzz}" (...>{filename_fuzzy_threshold})')
+                else:
+                    self.info_dialog_on_find.show('fuzzy expression error','empty expression')
+                    return
+
+            if find_cd_search_kind == 'without':
+                search_info_lines_append(f'Files without Custom Data')
+            elif find_cd_search_kind == 'any':
+                search_info_lines_append(f'Files with any correct Custom Data')
+            elif find_cd_search_kind == 'error':
+                search_info_lines_append('Files with error on CD extraction')
+            elif find_cd_search_kind == 'regexp':
+                if find_cd_regexp:
+                    if res := test_regexp(find_cd_regexp):
+                        self.info_dialog_on_find.show('regular expression error',res)
+                        return
+                    search_info_lines_append(f'Regular expression on Custom Data:"{find_cd_regexp}"')
+                else:
+                    self.info_dialog_on_find.show('regular expression empty','(for Custom Data)')
+                    return
+            elif find_cd_search_kind == 'glob':
+                if find_cd_glob:
+                    info_str = f'Glob expression on Custom Data:"{find_cd_glob}"'
+                    if find_cd_case_sens:
+                        search_info_lines_append(info_str + ' (Case sensitive)')
+                    else:
+                        search_info_lines_append(info_str)
+                else:
+                    self.info_dialog_on_find.show('empty glob expression','(for Custom Data)')
+                    return
+            elif find_cd_search_kind == 'fuzzy':
+                if find_cd_fuzz:
+                    try:
+                        float(cd_fuzzy_threshold)
+                    except ValueError:
+                        self.info_dialog_on_find.show('fuzzy threshold error',f"wrong threshold value:{cd_fuzzy_threshold}")
+                        return
+                    search_info_lines_append(f'Fuzzy match on Custom Data:"{find_cd_fuzz}" (...>{cd_fuzzy_threshold})')
+
+                else:
+                    self.info_dialog_on_find.show('fuzzy expression error','empty expression')
+                    return
+
             if find_size_min:
                 min_num = str_to_bytes(find_size_min)
                 if min_num == -1:
                     self.info_dialog_on_find.show('min size value error',f'fix "{find_size_min}"')
                     return
+                search_info_lines_append(f'Min size:{find_size_min}')
             else:
                 min_num = ''
 
@@ -2315,6 +2402,7 @@ class Gui:
                 if max_num == -1:
                     self.info_dialog_on_find.show('max size value error',f'fix "{find_size_max}"')
                     return
+                search_info_lines_append(f'Max size:{find_size_max}')
             else:
                 max_num = ''
 
@@ -2330,7 +2418,7 @@ class Gui:
                 except Exception as te:
                     self.info_dialog_on_find.show('file modification time min error ',f'{find_modtime_min}\n{te}')
                     return
-
+                search_info_lines_append(f'Min modtime:{find_modtime_min}')
             t_max=None
             if find_modtime_max:
                 try:
@@ -2338,17 +2426,7 @@ class Gui:
                 except Exception as te:
                     self.info_dialog_on_find.show('file modification time max error ',f'{find_modtime_max}\n{te}')
                     return
-
-            range_par = self.current_record if not find_range_all else None
-
-            if check_res := librer_core.find_items_in_records_check(
-                range_par,
-                min_num,max_num,
-                find_filename_search_kind,find_name,find_name_case_sens,
-                find_cd_search_kind,find_cd,find_cd_case_sens,
-                filename_fuzzy_threshold,cd_fuzzy_threshold):
-                self.info_dialog_on_find.show('regular expression error',check_res)
-                return
+                search_info_lines_append(f'Max modtime:{find_modtime_max}')
 
             self.cfg.set(CFG_KEY_find_range_all,find_range_all)
             self.cfg.set(CFG_KEY_find_cd_search_kind,find_cd_search_kind)
@@ -2424,8 +2502,8 @@ class Gui:
             self_progress_dialog_on_find_update_lab_image = self_progress_dialog_on_find.update_lab_image
             self_get_hg_ico = self.get_hg_ico
 
-            librer_core_files_search_quant = librer_core.files_search_quant
-            fnumber_librer_core_files_search_quant = fnumber(librer_core_files_search_quant)
+            #librer_core_files_search_quant = librer_core.files_search_quant
+            fnumber_files_search_quant = fnumber(files_search_quant)
             fnumber_records_len = fnumber(records_len)
 
             time_without_busy_sign=0
@@ -2438,13 +2516,13 @@ class Gui:
 
                 curr_files = librer_core.total_search_progress
 
-                files_perc = curr_files * 100.0 / librer_core_files_search_quant
+                files_perc = curr_files * 100.0 / files_search_quant
 
                 self_progress_dialog_on_find_progr1var_set(librer_core.records_perc_info)
                 self_progress_dialog_on_find_progr2var_set(files_perc)
 
                 self_progress_dialog_on_find_lab_r1_config(text=fnumber(librer_core.search_record_nr) + '/' + fnumber_records_len)
-                self_progress_dialog_on_find_lab_r2_config(text=fnumber(curr_files) + '/' + fnumber_librer_core_files_search_quant)
+                self_progress_dialog_on_find_lab_r2_config(text=fnumber(curr_files) + '/' + fnumber_files_search_quant)
 
                 if self.action_abort:
                     librer_core.abort()
@@ -2501,7 +2579,8 @@ class Gui:
 
             self.find_mod()
 
-            self.results_on_find.show('Search results',f"found: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
+            search_info = '\n'.join(self.search_info_lines)
+            self.results_on_find.show('Search results',f"{search_info}\n\nfound: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
             self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
 
             if not self.searching_aborted and self.any_find_result:

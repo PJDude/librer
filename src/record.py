@@ -187,16 +187,16 @@ if __name__ == "__main__":
         if res := test_regexp(name_regexp):
             exit(res)
 
-        re_obj=re_compile(name_regexp)
-        name_func_to_call = lambda x : re_obj.match(x)
+        re_obj_name=re_compile(name_regexp)
+        name_func_to_call = lambda x : re_obj_name.match(x)
         name_search_kind='regexp'
     elif name_glob:
         if name_case_sens:
-            re_obj=re_compile(translate(name_glob))
-            name_func_to_call = lambda x : re_obj.match(x)
+            re_obj_name=re_compile(translate(name_glob))
+            name_func_to_call = lambda x : re_obj_name.match(x)
         else:
-            re_obj=re_compile(translate(name_glob), IGNORECASE)
-            name_func_to_call = lambda x : re_obj.match(x)
+            re_obj_name=re_compile(translate(name_glob), IGNORECASE)
+            name_func_to_call = lambda x : re_obj_name.match(x)
         name_search_kind='glob'
     elif name_fuzzy:
         name_func_to_call = lambda x : bool(SequenceMatcher(None, name_fuzzy, x).ratio()>file_fuzzy_threshold)
@@ -224,18 +224,18 @@ if __name__ == "__main__":
         cd_search_kind='regexp'
         if res := test_regexp(cd_regexp):
             exit(res)
-        re_obj=re_compile(cd_regexp, MULTILINE | DOTALL)
-        cd_func_to_call = lambda x : re_obj.match(x)
+        re_obj_cd=re_compile(cd_regexp, MULTILINE | DOTALL)
+        cd_func_to_call = lambda x : re_obj_cd.match(x)
 
     elif cd_glob:
         custom_data_needed=True
         cd_search_kind='glob'
         if cd_case_sens:
-            re_obj=re_compile(translate(cd_glob), MULTILINE | DOTALL)
-            cd_func_to_call = lambda x : re_obj.match(x)
+            re_obj_cd=re_compile(translate(cd_glob), MULTILINE | DOTALL)
+            cd_func_to_call = lambda x : re_obj_cd.match(x)
         else:
-            re_obj=re_compile(translate(cd_glob), MULTILINE | DOTALL | IGNORECASE)
-            cd_func_to_call = lambda x : re_obj.match(x)
+            re_obj_cd=re_compile(translate(cd_glob), MULTILINE | DOTALL | IGNORECASE)
+            cd_func_to_call = lambda x : re_obj_cd.match(x)
     elif cd_fuzzy:
         custom_data_needed=True
         cd_search_kind='fuzzy'

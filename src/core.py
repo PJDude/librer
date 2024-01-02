@@ -971,17 +971,8 @@ class LibrerRecord:
 
                         if cd_func_to_call:
                             try:
-                                if True: #entire file
-                                    if not cd_func_to_call(cd_data):
-                                        continue
-                                else:
-                                    found=False
-                                    for line in cd_data.splitlines():
-                                        if cd_func_to_call(line):
-                                            found=True
-                                            break
-                                    if not found:
-                                        continue
+                                if not cd_func_to_call(cd_data):
+                                    continue
                             except Exception as e:
                                 print_info_fn(f'find_items(2):{e}' )
                                 continue
@@ -1470,49 +1461,6 @@ class LibrerCore:
                 self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
         self.update_sorted()
 
-    def find_items_in_records_check(self,
-            range_par,
-            size_min,size_max,
-            find_filename_search_kind,name_expr,name_case_sens,
-            find_cd_search_kind,cd_expr,cd_case_sens,
-            filename_fuzzy_threshold,cd_fuzzy_threshold):
-
-        sel_range = [range_par] if range_par else self.records
-        self.files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
-
-        if self.files_search_quant==0:
-            return 1
-
-        #name_regexp
-        #cd_regexp
-        if name_expr and find_filename_search_kind == 'regexp':
-            if res := test_regexp(name_expr):
-                return res
-
-        if cd_expr and find_cd_search_kind == 'regexp':
-            if res := test_regexp(cd_expr):
-                return res
-
-        if find_filename_search_kind == 'fuzzy':
-            if name_expr:
-                try:
-                    float(filename_fuzzy_threshold)
-                except ValueError:
-                    return f"wrong threshold value:{filename_fuzzy_threshold}"
-            else:
-                return "empty file expression"
-
-        if find_cd_search_kind == 'fuzzy':
-            if cd_expr:
-                try:
-                    float(cd_fuzzy_threshold)
-                except ValueError:
-                    return f"wrong threshold value:{cd_fuzzy_threshold}"
-            else:
-                return "empty cd expression"
-
-        return None
-
     def find_results_clean(self):
         for record in self.records:
             record.find_results_clean()
@@ -1643,7 +1591,7 @@ class LibrerCore:
                 else:
                     if subprocess_poll() is not None:
                         break
-                    sleep(0.01)
+                    sleep(0.001)
             sys.exit() #thread
 
         #####################################################

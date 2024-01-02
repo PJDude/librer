@@ -332,9 +332,7 @@ class TextDialogInfo(GenericDialog):
         self.text.frame.config(takefocus=False)
         self.text.vbar.config(takefocus=False)
 
-        #self.text.tag_configure('found', background='#F0D0D0')
         self.text.tag_configure('found', background='yellow')
-        #self.text.tag_configure('found_sel', background='#D08080')
         self.text.tag_configure('found_sel', background='orange')
 
         self.text.grid(row=1,column=0,padx=2,pady=5)
@@ -406,6 +404,8 @@ class TextDialogInfo(GenericDialog):
 
             self.find_entry.focus_set()
             self.find_key_binding(event)
+        elif key in ('Delete','BackSpace'):
+            self.find_key_binding(event)
 
     def find_next_prev(self,mod):
         text_search_pool_len = len(self.text_search_pool)
@@ -426,7 +426,6 @@ class TextDialogInfo(GenericDialog):
 
             self.text.tag_remove("found", start_index, end_index)
             self_text.tag_add("found_sel", start_index, end_index)
-
         else:
             self.find_info_var.set('-/-')
 
