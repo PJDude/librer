@@ -36,7 +36,7 @@ from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove
 windows = bool(os_name=='nt')
 
 if windows:
-    from subprocess import CREATE_NO_WINDOW,HIGH_PRIORITY_CLASS
+    from subprocess import CREATE_NO_WINDOW
 else:
     from os import getpgid, killpg
 
@@ -217,20 +217,16 @@ def kill_subprocess(subproc):
     except Exception as ke:
         print(f'kill_subprocess: {ke}')
 
-def compress_with_stats(data,compression):
+def compress_with_header_update(header,data,compression,datalabel,zip_file):
     t0 = perf_counter()
     data_ser = dumps(data)
     data_ser_compr = ZstdCompressor(level=compression,threads=-1).compress(data_ser)
     t1 = perf_counter()
     tdiff=t1-t0
 
-    return data_ser_compr,tdiff,asizeof(data_ser_compr),asizeof(data_ser),asizeof(data)
-
-def compress_with_header_update(header,data,compression,datalabel,zip_file):
-        data_compr,tdiff,size_1,size_2,size_3 = compress_with_stats(data,compression)
-        header.zipinfo[datalabel]=(size_1,size_2,size_3)
-        header.compression_time[datalabel] = tdiff
-        zip_file.writestr(datalabel,data_compr)
+    header.zipinfo[datalabel]=(asizeof(data_ser_compr),asizeof(data_ser),asizeof(data))
+    header.compression_time[datalabel] = tdiff
+    zip_file.writestr(datalabel,data_ser_compr)
 
 CREATION_CODE = 0
 EXPORT_CODE = 1
@@ -848,7 +844,8 @@ class LibrerRecord:
             size_min,size_max,
             timestamp_min,timestamp_max,
             name_search_kind,name_func_to_call,
-            cd_search_kind,cd_func_to_call):
+            cd_search_kind,cd_func_to_call,
+            print_info_fn):
 
         self.find_results = []
 
@@ -872,7 +869,7 @@ class LibrerRecord:
         search_list_pop = search_list.pop
         search_list_append = search_list.append
 
-        cd_search_kind_is_regezp_glob_or_fuzzy = bool(cd_search_kind in ('regexp','glob','fuzzy'))
+        cd_search_kind_is_regexp_glob_or_fuzzy = bool(cd_search_kind in ('regexp','glob','fuzzy'))
         cd_search_kind_is_dont_or_without = bool(cd_search_kind in ('dont','without'))
 
         when_folder_may_apply = bool(cd_search_kind_is_dont_or_without and not use_size and not use_timestamp)
@@ -892,11 +889,6 @@ class LibrerRecord:
             for data_entry in filestructure:
                 #if check_abort():
                 #    break
-
-                search_progress_update_quant+=1
-                if search_progress_update_quant>1024:
-                    results_queue_put([search_progress])
-                    search_progress_update_quant=0
 
                 search_progress +=1
 
@@ -961,7 +953,7 @@ class LibrerRecord:
                             if not name_func_to_call(name):
                                 continue
                         except Exception as e:
-                            self.log.error('find_items(1):%s',str(e) )
+                            print_info_fn(f'find_items(1):{e}' )
                             continue
 
                     #oczywistosc
@@ -971,7 +963,7 @@ class LibrerRecord:
                     if cd_search_kind_is_any:
                         if not has_cd or not cd_ok:
                             continue
-                    elif cd_search_kind_is_regezp_glob_or_fuzzy:
+                    elif cd_search_kind_is_regexp_glob_or_fuzzy:
                         if has_cd and cd_ok:
                             cd_data = self_customdata[cd_nr][2]
                         else:
@@ -979,10 +971,19 @@ class LibrerRecord:
 
                         if cd_func_to_call:
                             try:
-                                if not cd_func_to_call(cd_data):
-                                    continue
+                                if True: #entire file
+                                    if not cd_func_to_call(cd_data):
+                                        continue
+                                else:
+                                    found=False
+                                    for line in cd_data.splitlines():
+                                        if cd_func_to_call(line):
+                                            found=True
+                                            break
+                                    if not found:
+                                        continue
                             except Exception as e:
-                                self.log.error('find_items(2):%s',str(e) )
+                                print_info_fn(f'find_items(2):{e}' )
                                 continue
 
                         else:
@@ -999,6 +1000,12 @@ class LibrerRecord:
 
                     results_queue_put([search_progress,size,mtime,*next_level])
                     search_progress_update_quant=0
+
+                if search_progress_update_quant>1024:
+                    results_queue_put([search_progress])
+                    search_progress_update_quant=0
+                else:
+                    search_progress_update_quant+=1
 
         results_queue_put([search_progress])
         results_queue_put(True)
@@ -1345,6 +1352,7 @@ class LibrerCore:
         messages = []
 
         new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
+
         try:
             src_file = record.file_path
 
@@ -1470,7 +1478,7 @@ class LibrerCore:
             filename_fuzzy_threshold,cd_fuzzy_threshold):
 
         sel_range = [range_par] if range_par else self.records
-        self.files_search_quant = sum([record.header.quant_files for record in sel_range])
+        self.files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
 
         if self.files_search_quant==0:
             return 1
@@ -1530,14 +1538,16 @@ class LibrerCore:
         records_to_process.sort(reverse = True,key = lambda x : x.header.quant_files)
 
         record_commnad_list={}
+        is_frozen = bool(getattr(sys, 'frozen', False))
+
         for record_nr,record in enumerate(records_to_process):
             if windows:
-                if getattr(sys, 'frozen', False):
+                if is_frozen:
                     curr_command_list = record_commnad_list[record_nr] = ['record.exe', 'load',record.file_path]
                 else:
                     curr_command_list = record_commnad_list[record_nr] = ['python','src\\record.py', 'load',record.file_path]
             else:
-                if getattr(sys, 'frozen', False):
+                if is_frozen:
                     curr_command_list = record_commnad_list[record_nr] = ['./record', 'load',record.file_path]
                 else:
                     curr_command_list = record_commnad_list[record_nr] = ['python3','./src/record.py', 'load',record.file_path]
@@ -1628,8 +1638,8 @@ class LibrerCore:
                         else:
                             info_list[record_nr].append(line.strip())
                     except Exception as e:
-                        print('threaded_run work error:',e,line)
-                        info_list[record_nr].append(f'threaded_run work error: {e} line: {line}')
+                        print(f'threaded_run work error:{e} line:{line}')
+                        info_list[record_nr].append(f'threaded_run work error:{e} line:{line}')
                 else:
                     if subprocess_poll() is not None:
                         break

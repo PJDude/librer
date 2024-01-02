@@ -28,6 +28,7 @@
 
 from os import sep,system,getcwd,name as os_name
 from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile
+from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect
 
 from pathlib import Path
 from time import strftime,time,mktime
@@ -189,6 +190,8 @@ class Gui:
     actions_processing=False
 
     def __init__(self,cwd):
+        gc_disable()
+
         self.cwd=cwd
 
         self.cfg = Config(DATA_DIR)
@@ -667,6 +670,7 @@ class Gui:
             self_progress_dialog_on_load.hide(True)
             read_thread.join()
 
+
             if self.action_abort:
                 self.info_dialog_on_main.show('Records loading aborted','Restart Librer to gain full access to the recordset.')
 
@@ -723,6 +727,9 @@ class Gui:
         self_main_bind('<F3>', lambda event : self.find_next())
         self_main_bind('<Shift-F3>', lambda event : self.find_prev())
 
+        gc_collect()
+        gc_enable()
+
         self_main.mainloop()
 
 
@@ -737,8 +744,13 @@ class Gui:
 
     def block_actions_processing(func):
         def block_actions_processing_wrapp(self,*args,**kwargs):
+            if self.actions_processing:
+                gc_disable()
+                gc_collect()
+
             prev_active=self.actions_processing
             self.actions_processing=False
+
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
@@ -749,6 +761,10 @@ class Gui:
                 res=None
 
             self.actions_processing=prev_active
+
+            if self.actions_processing:
+                gc_collect()
+                gc_enable()
 
             return res
         return block_actions_processing_wrapp
@@ -895,7 +911,7 @@ class Gui:
 
             self.text_info_dialog = TextDialogInfo(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
-            self.fix_text_fialog(self.text_info_dialog)
+            self.fix_text_dialog(self.text_info_dialog)
 
             self.text_info_dialog_created = True
 
@@ -1221,7 +1237,7 @@ class Gui:
 
         return self.scan_dialog
 
-    def fix_text_fialog(self,dialog):
+    def fix_text_dialog(self,dialog):
         dialog.find_lab.configure(image=self.ico_search_text,text=' Search:',compound='left')
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
@@ -1290,7 +1306,7 @@ class Gui:
 
             self.text_dialog_on_scan = TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
-            self.fix_text_fialog(self.text_dialog_on_scan)
+            self.fix_text_dialog(self.text_dialog_on_scan)
 
             self.text_dialog_on_scan_created = True
 
@@ -1306,7 +1322,7 @@ class Gui:
 
             self.text_ask_dialog_on_scan = TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
 
-            self.fix_text_fialog(self.text_ask_dialog_on_scan)
+            self.fix_text_dialog(self.text_ask_dialog_on_scan)
 
             self.text_ask_dialog_on_scan_created = True
 
@@ -1322,7 +1338,7 @@ class Gui:
 
             self.text_ask_dialog_on_main = TextDialogQuestion(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
-            self.fix_text_fialog(self.text_ask_dialog_on_main)
+            self.fix_text_dialog(self.text_ask_dialog_on_main)
             #,image=self.ico_warning
             self.text_ask_dialog_on_main_created = True
 
@@ -1483,7 +1499,7 @@ class Gui:
             (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record',variable=self.find_range_all,value=False,command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
             (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
-            (find_filename_frame := LabelFrame(sfdma,text='File path and name',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
+            (find_filename_frame := LabelFrame(sfdma,text='Path elements',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
             Radiobutton(find_filename_frame,text="Don't use this criterion",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
             Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod)
@@ -1625,7 +1641,8 @@ class Gui:
             self.widget_tooltip(find_modtime_max_entry,time_toltip)
             self.widget_tooltip(find_modtime_max_label,time_toltip)
 
-            Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_items ).pack(side='left', anchor='n',padx=5,pady=5)
+            self.search_butt = Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_items )
+            self.search_butt.pack(side='left', anchor='n',padx=5,pady=5)
             self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results )
             self.search_show_butt.pack(side='left', anchor='n',padx=5,pady=5)
             self.search_save_butt = Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results )
@@ -1639,7 +1656,7 @@ class Gui:
             self.info_dialog_on_find = LabelDialog(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.text_dialog_on_find = TextDialogInfo(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
-            self.fix_text_fialog(self.text_dialog_on_find)
+            self.fix_text_dialog(self.text_dialog_on_find)
 
             self.results_on_find = LabelDialogQuestion(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
@@ -2137,6 +2154,8 @@ class Gui:
 
     def find_mod(self):
         try:
+            self.find_params_changed=False
+
             if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
                 self.find_params_changed=True
             elif self.cfg.get(CFG_KEY_find_filename_search_kind) != self.find_filename_search_kind_var.get():
@@ -2225,11 +2244,19 @@ class Gui:
                 self.find_result_record_index=0
                 self.find_result_index=0
 
+                self.search_butt.configure(state='normal')
                 self.search_show_butt.configure(state='disabled')
                 self.search_save_butt.configure(state='disabled')
             else:
+                if self.searching_aborted:
+                    self.search_butt.configure(state='normal')
+                else:
+                    self.search_butt.configure(state='disabled')
+
                 self.search_show_butt.configure(state='normal')
                 self.search_save_butt.configure(state='normal')
+
+            self.find_dialog.widget.update()
 
         except Exception as e:
             self.find_result_record_index=0
@@ -2348,6 +2375,9 @@ class Gui:
 
             self_progress_dialog_on_find = self.get_progress_dialog_on_find()
 
+            gc_disable()
+            gc_collect()
+
             search_thread=Thread(target=lambda : librer_core.find_items_in_records(range_par,
                 min_num,max_num,
                 t_min,t_max,
@@ -2439,6 +2469,9 @@ class Gui:
             search_thread.join
             self_progress_dialog_on_find.hide(True)
 
+            gc_collect()
+            gc_enable()
+
             find_results_quant_sum = 0
 
             colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
@@ -2461,18 +2494,21 @@ class Gui:
 
             self.set_found()
 
-            self.results_on_find.show('Search results',f"found: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
-            self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
-
             if self.action_abort:
                 self.searching_aborted = True
             else:
-                self.find_params_changed=False
                 self.searching_aborted = False
+
+            self.find_mod()
+
+            self.results_on_find.show('Search results',f"found: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
+            self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
 
             if not self.searching_aborted and self.any_find_result:
                 self.search_show_butt.configure(state='normal')
                 self.search_save_butt.configure(state='normal')
+
+                self.search_butt.configure(state='disabled')
 
             if self.results_on_find.res_bool:
                 self.find_dialog.hide()
@@ -2901,6 +2937,9 @@ class Gui:
 
     scanning_in_progress=False
     def scan_wrapper(self):
+        gc_disable()
+        gc_collect()
+
         if self.scanning_in_progress:
             l_warning('scan_wrapper collision')
             return
@@ -2921,6 +2960,9 @@ class Gui:
             self.scan_dialog_hide_wrapper()
 
         self.scanning_in_progress=False
+        gc_collect()
+        gc_enable()
+
 
     def scan_dialog_hide_wrapper(self):
         self.scan_dialog.hide()
@@ -3071,6 +3113,7 @@ class Gui:
         check_dev = self.single_device.get()
 
         #############################
+
         scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
         scan_thread.start()
         scan_thread_is_alive = scan_thread.is_alive
@@ -3094,6 +3137,7 @@ class Gui:
         self.cfg.write()
 
         #############################
+
         new_record_header = new_record.header
         while scan_thread_is_alive():
             change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)

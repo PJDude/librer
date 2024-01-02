@@ -31,6 +31,8 @@ import sys
 from os.path import dirname,join as path_join
 from os import name as os_name
 
+from gc import disable as gc_disable
+
 from pathlib import Path as pathlib_Path
 from argparse import ArgumentParser,RawTextHelpFormatter
 
@@ -38,7 +40,7 @@ from time import sleep,perf_counter
 
 from threading import Thread
 
-from re import compile as re_compile,search as re_search,IGNORECASE
+from re import compile as re_compile,IGNORECASE,MULTILINE,DOTALL
 from fnmatch import translate
 from difflib import SequenceMatcher
 
@@ -185,13 +187,16 @@ if __name__ == "__main__":
         if res := test_regexp(name_regexp):
             exit(res)
 
-        name_func_to_call = lambda x : re_compile(name_regexp).search(x)
+        re_obj=re_compile(name_regexp)
+        name_func_to_call = lambda x : re_obj.match(x)
         name_search_kind='regexp'
     elif name_glob:
         if name_case_sens:
-            name_func_to_call = lambda x : re_compile(translate(name_glob)).search(x)
+            re_obj=re_compile(translate(name_glob))
+            name_func_to_call = lambda x : re_obj.match(x)
         else:
-            name_func_to_call = lambda x : re_compile(translate(name_glob), IGNORECASE).search(x)
+            re_obj=re_compile(translate(name_glob), IGNORECASE)
+            name_func_to_call = lambda x : re_obj.match(x)
         name_search_kind='glob'
     elif name_fuzzy:
         name_func_to_call = lambda x : bool(SequenceMatcher(None, name_fuzzy, x).ratio()>file_fuzzy_threshold)
@@ -219,15 +224,18 @@ if __name__ == "__main__":
         cd_search_kind='regexp'
         if res := test_regexp(cd_regexp):
             exit(res)
-        cd_func_to_call = lambda x : re_compile(cd_regexp).search(x)
+        re_obj=re_compile(cd_regexp, MULTILINE | DOTALL)
+        cd_func_to_call = lambda x : re_obj.match(x)
 
     elif cd_glob:
         custom_data_needed=True
         cd_search_kind='glob'
         if cd_case_sens:
-            cd_func_to_call = lambda x : re_compile(translate(cd_glob)).search(x)
+            re_obj=re_compile(translate(cd_glob), MULTILINE | DOTALL)
+            cd_func_to_call = lambda x : re_obj.match(x)
         else:
-            cd_func_to_call = lambda x : re_compile(translate(cd_glob), IGNORECASE).search(x)
+            re_obj=re_compile(translate(cd_glob), MULTILINE | DOTALL | IGNORECASE)
+            cd_func_to_call = lambda x : re_obj.match(x)
     elif cd_fuzzy:
         custom_data_needed=True
         cd_search_kind='fuzzy'
@@ -263,6 +271,8 @@ if __name__ == "__main__":
 
     print_info(f'args:{args}')
 
+    gc_disable()
+
     thread = Thread(target=printer,daemon=True)
     thread.start()
 
@@ -271,7 +281,8 @@ if __name__ == "__main__":
                 size_min,size_max,
                 timestamp_min,timestamp_max,
                 name_search_kind,name_func_to_call,
-                cd_search_kind,cd_func_to_call)
+                cd_search_kind,cd_func_to_call,
+                print_info)
     except Exception as fe:
         print_info('find_items error:' + str(fe))
         results_queue.append(True) #stop printer thread
