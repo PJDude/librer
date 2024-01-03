@@ -387,7 +387,7 @@ class Gui:
         self.status_records_all.pack(fill='x',expand=0,side='left')
         self.status_records_all_configure = lambda x : self.status_records_all.configure(image = self.ico_records_all, text = x,compound='left')
         self.widget_tooltip(self.status_records_all,'All records in repository')
-        self.status_records_all.bind("<ButtonPress-1>", lambda event : self.unload_recod() )
+        self.status_records_all.bind("<ButtonPress-1>", lambda event : self.unload_record() )
         self.status_records_all.bind("<Double-Button-1>", lambda event : self.unload_all_recods() )
 
         self.status_record=Label(status_frame,image=self.ico_record,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
@@ -726,6 +726,8 @@ class Gui:
         self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
         self_main_bind('<F3>', lambda event : self.find_next())
         self_main_bind('<Shift-F3>', lambda event : self.find_prev())
+
+        self_main_bind('<BackSpace>', lambda event : self.unload_record())
 
         gc_collect()
         gc_enable()
@@ -3935,7 +3937,7 @@ class Gui:
     @block_actions_processing
     @gui_block
     @logwrapper
-    def unload_recod(self,record=None):
+    def unload_record(self,record=None):
         if not record:
             record = self.current_record
 
@@ -3959,7 +3961,7 @@ class Gui:
     @logwrapper
     def unload_all_recods(self):
         for record in librer_core.records:
-            self.unload_recod(record)
+            self.unload_record(record)
 
     @logwrapper
     def show_log(self):
