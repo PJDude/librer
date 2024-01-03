@@ -441,11 +441,11 @@ class Gui:
         tree_heading('ctime_h',anchor='n',text=self_org_label['ctime_h'])
 
         tree_yview = tree.yview
-        vsb1 = Scrollbar(self_main, orient='vertical', command=tree_yview,takefocus=False)
+        self.tree_scrollbar = Scrollbar(self_main, orient='vertical', command=tree_yview,takefocus=False)
 
-        tree.configure(yscrollcommand=vsb1.set)
+        tree.configure(yscrollcommand=self.tree_scrollbar_set)
 
-        vsb1.pack(side='right',fill='y',expand=0)
+        self.tree_scrollbar.pack(side='right',fill='y',expand=0)
         tree.pack(fill='both',expand=1, side='left')
 
         tree_tag_configure = tree.tag_configure
@@ -496,7 +496,7 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_find_result else 'disabled')
+                self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
 
@@ -730,10 +730,17 @@ class Gui:
         gc_collect()
         gc_enable()
 
-        self.search_results_reset=True
+        self.any_valid_find_results = False
+        self.external_find_params_change=True
 
         self_main.mainloop()
 
+    def tree_scrollbar_set(self,v1,v2):
+        if v1=='0.0' and v2=='1.0':
+            self.tree_scrollbar.pack_forget()
+        else:
+            self.tree_scrollbar.set(v1,v2)
+            self.tree_scrollbar.pack(side='right',fill='y',expand=0)
 
     def item_has_cd(self,item):
         has_cd=False
@@ -1240,7 +1247,7 @@ class Gui:
         return self.scan_dialog
 
     def fix_text_dialog(self,dialog):
-        dialog.find_lab.configure(image=self.ico_search_text,text=' Search:',compound='left')
+        dialog.find_lab.configure(image=self.ico_search_text,text=' Search:',compound='left',bg=self.bg_color)
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
@@ -1690,7 +1697,7 @@ class Gui:
             frame2 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
 
-            lab2_text=  distro_info + '\n\nCurrent log file   :  ' + log_file
+            lab2_text=  distro_info + '\n\nCurrent log file: ' + log_file
 
             lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='center')
             lab_courier.pack(expand=1,fill='both')
@@ -1765,6 +1772,9 @@ class Gui:
             if self.repack_dialog_do_it:
                 if messages := librer_core.repack_record(self.current_record,self.repack_label_var.get(),self.repack_compr_var.get(),self.repack_cd_var.get(),self.single_record_show):
                     self.info_dialog_on_main.show('Repacking failed','\n'.join(messages) )
+                else:
+                    self.find_clear()
+                    self.info_dialog_on_main.show('Repacking finished.','Check repacked record\nDelete original record manually if you want.')
 
     @restore_status_line
     @block_actions_processing
@@ -1778,6 +1788,7 @@ class Gui:
                 self.info_dialog_on_main.show('Import failed',import_res)
             else:
                 self.info_dialog_on_main.show('Import','Successful.')
+                self.find_clear()
 
     @restore_status_line
     @block_actions_processing
@@ -2009,7 +2020,7 @@ class Gui:
         sys.exit(0)
         #self.main.destroy()
 
-    any_find_result=False
+    any_valid_find_results=False
 
     find_params_changed=True
 
@@ -2058,7 +2069,8 @@ class Gui:
 
         self.status_find_tooltip(self.status_find_tooltip_default)
 
-        self.any_find_result = False
+        self.any_valid_find_results = False
+        self.external_find_params_change=True
 
     def set_found(self):
         self_tree_get_children = self.tree.get_children
@@ -2091,7 +2103,7 @@ class Gui:
     @gui_block
     def find_prev(self):
         if self.actions_processing:
-            if not self.any_find_result:
+            if not self.any_valid_find_results:
                 self.finder_wrapper_show()
             else:
                 self.select_find_result(-1)
@@ -2100,7 +2112,7 @@ class Gui:
     @gui_block
     def find_next(self):
         if self.actions_processing:
-            if not self.any_find_result:
+            if not self.any_valid_find_results:
                 self.finder_wrapper_show()
             else:
                 self.select_find_result(1)
@@ -2154,49 +2166,50 @@ class Gui:
 
     def find_mod(self):
         try:
-            self.find_params_changed=False
+            self.find_params_changed=self.external_find_params_change
 
-            if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_filename_search_kind) != self.find_filename_search_kind_var.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_range_all) != self.find_range_all.get():
-                self.find_params_changed=True
+            if not self.find_params_changed:
+                if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_filename_search_kind) != self.find_filename_search_kind_var.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_range_all) != self.find_range_all.get():
+                    self.find_params_changed=True
 
-            elif self.cfg.get(CFG_KEY_find_size_min) != self.find_size_min_var.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_size_max) != self.find_size_max_var.get():
-                self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_size_min) != self.find_size_min_var.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_size_max) != self.find_size_max_var.get():
+                    self.find_params_changed=True
 
-            elif self.cfg.get(CFG_KEY_find_modtime_min) != self.find_modtime_min_var.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_modtime_max) != self.find_modtime_max_var.get():
-                self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_modtime_min) != self.find_modtime_min_var.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_modtime_max) != self.find_modtime_max_var.get():
+                    self.find_params_changed=True
 
-            elif self.cfg.get(CFG_KEY_find_name_regexp) != self.find_name_regexp_var.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_name_glob) != self.find_name_glob_var.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_name_fuzz) != self.find_name_fuzz_var.get():
-                self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_name_regexp) != self.find_name_regexp_var.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_name_glob) != self.find_name_glob_var.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_name_fuzz) != self.find_name_fuzz_var.get():
+                    self.find_params_changed=True
 
-            elif self.cfg.get(CFG_KEY_find_name_case_sens) != self.find_name_case_sens_var.get():
-                self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_name_case_sens) != self.find_name_case_sens_var.get():
+                    self.find_params_changed=True
 
-            elif self.cfg.get(CFG_KEY_find_cd_regexp) != self.find_cd_regexp_var.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_cd_glob) != self.find_cd_glob_var.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_find_cd_fuzz) != self.find_cd_fuzz_var.get():
-                self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_cd_regexp) != self.find_cd_regexp_var.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_cd_glob) != self.find_cd_glob_var.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_cd_fuzz) != self.find_cd_fuzz_var.get():
+                    self.find_params_changed=True
 
-            elif self.cfg.get(CFG_KEY_find_cd_case_sens) != self.find_cd_case_sens_var.get():
-                self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_find_cd_case_sens) != self.find_cd_case_sens_var.get():
+                    self.find_params_changed=True
 
-            elif self.cfg.get(CFG_KEY_filename_fuzzy_threshold) != self.find_name_fuzzy_threshold.get():
-                self.find_params_changed=True
-            elif self.cfg.get(CFG_KEY_cd_fuzzy_threshold) != self.find_cd_fuzzy_threshold.get():
-                self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_filename_fuzzy_threshold) != self.find_name_fuzzy_threshold.get():
+                    self.find_params_changed=True
+                elif self.cfg.get(CFG_KEY_cd_fuzzy_threshold) != self.find_cd_fuzzy_threshold.get():
+                    self.find_params_changed=True
 
             if self.find_filename_search_kind_var.get() == 'regexp':
                 self.find_filename_regexp_entry.configure(state='normal')
@@ -2248,12 +2261,12 @@ class Gui:
                 self.search_show_butt.configure(state='disabled')
                 self.search_save_butt.configure(state='disabled')
             else:
-                if self.searching_aborted or self.search_results_reset:
+                if self.searching_aborted or not self.any_valid_find_results:
                     self.search_butt.configure(state='normal')
                 else:
                     self.search_butt.configure(state='disabled')
 
-                if self.any_find_result:
+                if self.any_valid_find_results:
                     self.search_show_butt.configure(state='normal')
                     self.search_save_butt.configure(state='normal')
 
@@ -2263,15 +2276,16 @@ class Gui:
             self.find_result_record_index=0
             self.find_result_index=0
             self.find_params_changed=True
+            self.external_find_params_change=True
             l_error(e)
 
         return True #for entry validation
 
+    def invalidate_find_results(self):
+        self.any_valid_find_results=Fale
     #@restore_status_line
     def find_items(self):
         if self.find_params_changed:
-            self.search_results_reset=False
-
             self.find_clear()
 
             self.searching_aborted = False
@@ -2563,7 +2577,7 @@ class Gui:
                 record.find_items_sort(colname_real,reverse)
                 #print(record.find_result)
 
-            self.any_find_result=bool(find_results_quant_sum>0)
+            self.any_valid_find_results=bool(find_results_quant_sum>0)
 
             abort_info = '\nSearching aborted. Resuls may be incomplete.' if self.action_abort else ''
 
@@ -2583,12 +2597,13 @@ class Gui:
             self.results_on_find.show('Search results',f"{search_info}\n\nfound: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
             self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
 
-            if not self.searching_aborted and self.any_find_result:
+            if not self.searching_aborted and self.any_valid_find_results:
                 self.search_show_butt.configure(state='normal')
                 self.search_save_butt.configure(state='normal')
 
                 self.search_butt.configure(state='disabled')
 
+                self.external_find_params_change=False
             if self.results_on_find.res_bool:
                 self.find_dialog.hide()
 
@@ -2609,7 +2624,7 @@ class Gui:
     def select_find_result(self,mod):
         status_to_set=None
         self_tree = self.tree
-        if self.any_find_result:
+        if self.any_valid_find_results:
             settled = False
 
             records_quant = len(librer_core.records_sorted)
@@ -2919,7 +2934,7 @@ class Gui:
             pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = search_state, image = self.ico_empty,compound='left')
             pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = search_state, image = self.ico_empty,compound='left')
             pop_add_separator()
-            pop_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_find_result else 'disabled')
+            pop_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
             pop_add_separator()
 
             pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
@@ -3366,6 +3381,7 @@ class Gui:
         ##################################
 
         self.single_record_show(new_record)
+        self.find_clear()
 
         self_progress_dialog_on_scan.hide(True)
 
@@ -3392,6 +3408,8 @@ class Gui:
                     res=librer_core.delete_record(self.current_record)
                     l_info(f'deleted file:{res}')
 
+                    self.find_clear()
+
                     self.status_record_configure('')
                     if remaining_records := self.tree.get_children():
                         if new_sel_record := remaining_records[0]:
@@ -3410,10 +3428,8 @@ class Gui:
 
         do_clear_settings = False
         if sklejka_settings:
-            #for e_section in sklejka_settings.split('\n'):
             for e_section in sklejka_settings:
                 try:
-                    #v1,v2,v3,v4,v5,v6,v7,v8,v9 = e_section.split('|')
                     v1,v2,v3,v4,v5,v6,v7,v8,v9 = e_section
 
                     self.CDE_use_var_list[e].set(bool(v1=='1'))

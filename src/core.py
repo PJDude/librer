@@ -183,11 +183,11 @@ def get_command(executable,parameters,full_file_path,shell):
         return res,res
     else:
         if not parameters:
-            res = [executable] + [full_file_path]
+            res = [executable.strip()] + [full_file_path]
         elif PARAM_INDICATOR_SIGN not in parameters:
-            res = [executable] + parameters.strip().split() + [full_file_path]
+            res = [executable.strip()] + parameters.strip().split() + [full_file_path]
         else:
-            res = [executable] + [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN).replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN).strip().split() if p_elem]
+            res = [executable.strip()] + [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN).replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN).strip().split() if p_elem]
 
     return res,' '.join(res)
 

@@ -27,8 +27,8 @@
 ####################################################################################
 
 from os import name as os_name
-from tkinter import Frame,Label,BooleanVar,DoubleVar,StringVar,scrolledtext,Toplevel,Canvas
-from tkinter.ttk import Button,Scrollbar,Progressbar,Checkbutton,Entry,Style
+from tkinter import Frame,Label,BooleanVar,DoubleVar,StringVar,Toplevel,Canvas,Text
+from tkinter.ttk import Button,Scrollbar,Progressbar,Checkbutton,Entry
 
 def set_geometry_by_parent(widget,parent):
     x_offset = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -199,7 +199,6 @@ class GenericDialog:
                 else:
                     self.parent.focus_set()
 
-
             self.wait_var.set(True)
             self.parent.config(cursor="")
 
@@ -320,24 +319,41 @@ class ProgressDialog(GenericDialog):
         super().show(wait)
 
 class TextDialogInfo(GenericDialog):
+    def text_vsb_set(self,v1,v2):
+        if v1=='0.0' and v2=='1.0':
+            self.text_vsb.grid_remove()
+        else:
+            self.text_vsb.set(v1,v2)
+            self.text_vsb.grid()
+
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=1000,min_height=600):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
         self.message = ''
 
         self.uplabel = Label(self.area_main,bg=self.bg_color,relief='groove', bd=2,anchor='w', justify='left')
+        ############################################
 
-        textwidth=80
-        self.text = scrolledtext.ScrolledText(self.area_main,relief='groove' , bd=2,bg='white',width = textwidth,takefocus=True)
-        self.text.frame.config(takefocus=False)
-        self.text.vbar.config(takefocus=False)
+        scrolled_text_frame = Frame(self.area_main,bg=self.bg_color)
+        scrolled_text_frame.grid(row=1,column=0,sticky='nsew',padx=2,pady=5)
 
+        scrolled_text_frame.grid_rowconfigure(0, weight=1)
+        scrolled_text_frame.grid_columnconfigure(0, weight=1)
+
+        self.text = Text(scrolled_text_frame, bg='white',relief='groove',bd=2)
+        self.text.grid(row=0, column=0, sticky="nsew")
+
+        self.text_vsb = Scrollbar(scrolled_text_frame, command=self.text.yview, orient="vertical")
+        self.text_vsb.grid(row=0, column=1, sticky="ns")
+
+        self.text.configure(yscrollcommand=self.text_vsb_set)
+
+        ############################################
         self.text.tag_configure('found', background='yellow')
         self.text.tag_configure('found_sel', background='orange')
 
-        self.text.grid(row=1,column=0,padx=2,pady=5)
-
         self.area_main.grid_rowconfigure(1, weight=1)
+        self.area_main.grid_columnconfigure(0, weight=1)
 
         self.cancel_button=Button(self.area_buttons, text='Close', width=14, command=super().hide )
         self.cancel_button.pack(side='right', anchor='e',padx=2,pady=5)
@@ -370,19 +386,14 @@ class TextDialogInfo(GenericDialog):
         self.find_lab=Label(self.area_mark)
         self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
 
-        self.find_lab=Label(self.area_mark)
-        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
-
         try:
             self.find_lab.configure(text='Mark:',compound='left')
         except Exception as e:
             print(e)
 
         #wypelniacz
-        self.dummylab1=Label(self.area_dummy, width=22)
-        self.dummylab2=Label(self.area_dummy, width=8)
-        self.dummylab1.pack(side='right', anchor='e',padx=5,pady=5)
-        self.dummylab2.pack(side='right', anchor='e',padx=5,pady=5)
+        Label(self.area_dummy, width=22,bg=self.bg_color).pack(side='right', anchor='e',padx=5,pady=5)
+        Label(self.area_dummy, width=8,bg=self.bg_color).pack(side='right', anchor='e',padx=5,pady=5)
 
         self.focus=self.cancel_button
 
@@ -406,6 +417,10 @@ class TextDialogInfo(GenericDialog):
             self.find_key_binding(event)
         elif key in ('Delete','BackSpace'):
             self.find_key_binding(event)
+        elif key == 'Home':
+            self.text.see('0.0')
+        elif key == 'End':
+            self.text.see('end')
 
     def find_next_prev(self,mod):
         text_search_pool_len = len(self.text_search_pool)
@@ -476,8 +491,6 @@ class TextDialogInfo(GenericDialog):
         self_text.insert('end',message)
         self_text.configure(state='disabled')
 
-        self_text.grid(row=1,column=0,sticky='news',padx=5,pady=5)
-
         self.copy_button.configure(state='normal')
 
         self.find_key_binding()
@@ -532,8 +545,8 @@ class SFrame(Frame):
         if v1=='0.0' and v2=='1.0':
             self.vsb.pack_forget()
         else:
-            self.vsb.pack(side="right", fill="y")
             self.vsb.set(v1,v2)
+            self.vsb.pack(side="right", fill="y")
 
     def yview(self,*args,**kwargs):
         self.canvas.yview(*args,**kwargs)
