@@ -66,9 +66,11 @@ def parse_args(ver):
             description = f"librer record version {ver}\nCopyright (c) 2023-2024 Piotr Jochymek\n\nhttps://github.com/PJDude/librer",
             )
 
-    parser.add_argument('command',type=str,help='command to execute',choices=('load','search','info'))
+    parser.add_argument('command',type=str,help='command to execute',choices=('create','search'))
 
-    parser.add_argument('file',type=str,help='dat file')
+    parser.add_argument('file',type=str,help='record dat file')
+
+    parser.add_argument('cmdfile',type=str,help='internal commands file')
 
     file_group = parser.add_argument_group()
 
@@ -163,134 +165,168 @@ if __name__ == "__main__":
     VER_TIMESTAMP = get_ver_timestamp()
 
     args=parse_args(VER_TIMESTAMP)
-
-    if args.command in ('load','search'):
-        record = LibrerRecord('nowy','sciezka','./record.log')
-        record.load(args.file)
-        print_info(f'record label:{record.header.label}')
-    else:
-        print_info('parse problem')
-        exit(1)
-
-    name_case_sens=args.file_case_sensitive
-    cd_case_sens=args.cd_case_sensitive
-
-    name_regexp=args.file_regexp
-    name_glob=args.file_glob
-    name_fuzzy=args.file_fuzzy
-    file_error=args.file_error
-
-    file_fuzzy_threshold = args.file_fuzzy_threshold
-    cd_fuzzy_threshold = args.cd_fuzzy_threshold
-
-    if name_regexp:
-        if res := test_regexp(name_regexp):
-            exit(res)
-
-        re_obj_name=re_compile(name_regexp)
-        name_func_to_call = lambda x : re_obj_name.match(x)
-        name_search_kind='regexp'
-    elif name_glob:
-        if name_case_sens:
-            re_obj_name=re_compile(translate(name_glob))
-            name_func_to_call = lambda x : re_obj_name.match(x)
-        else:
-            re_obj_name=re_compile(translate(name_glob), IGNORECASE)
-            name_func_to_call = lambda x : re_obj_name.match(x)
-        name_search_kind='glob'
-    elif name_fuzzy:
-        name_func_to_call = lambda x : bool(SequenceMatcher(None, name_fuzzy, x).ratio()>file_fuzzy_threshold)
-        name_search_kind='fuzzy'
-    elif file_error:
-        name_func_to_call = None
-        name_search_kind='error'
-
-    else:
-        name_func_to_call = None
-        name_search_kind='dont'
-
-    custom_data_needed=False
-
-    cd_without=args.cd_without
-    cd_error=args.cd_error
-    cd_ok=args.cd_ok
-
-    cd_regexp=args.cd_regexp
-    cd_glob=args.cd_glob
-    cd_fuzzy=args.cd_fuzzy
-
-    if cd_regexp:
-        custom_data_needed=True
-        cd_search_kind='regexp'
-        if res := test_regexp(cd_regexp):
-            exit(res)
-        re_obj_cd=re_compile(cd_regexp, MULTILINE | DOTALL)
-        cd_func_to_call = lambda x : re_obj_cd.match(x)
-
-    elif cd_glob:
-        custom_data_needed=True
-        cd_search_kind='glob'
-        if cd_case_sens:
-            re_obj_cd=re_compile(translate(cd_glob), MULTILINE | DOTALL)
-            cd_func_to_call = lambda x : re_obj_cd.match(x)
-        else:
-            re_obj_cd=re_compile(translate(cd_glob), MULTILINE | DOTALL | IGNORECASE)
-            cd_func_to_call = lambda x : re_obj_cd.match(x)
-    elif cd_fuzzy:
-        custom_data_needed=True
-        cd_search_kind='fuzzy'
-        cd_func_to_call = lambda x : bool(SequenceMatcher(None,cd_fuzzy, x).ratio()>cd_fuzzy_threshold)
-    elif cd_without:
-        cd_search_kind='without'
-        cd_func_to_call = None
-    elif cd_error:
-        cd_search_kind='error'
-        cd_func_to_call = None
-    elif cd_ok:
-        cd_search_kind='any'
-        cd_func_to_call = None
-    else:
-        cd_search_kind='dont'
-        cd_func_to_call = None
-
-    #####################################################################
-    t0 = perf_counter()
-    record.decompress_filestructure()
-
-    if custom_data_needed:
-        record.decompress_customdata()
-
-    print_info('search start')
-    t1 = perf_counter()
-
-    size_min=str_to_bytes(args.size_min) if args.size_min else None
-    size_max=str_to_bytes(args.size_max) if args.size_max else None
-
-    timestamp_min=int(args.timestamp_min) if args.timestamp_min else None
-    timestamp_max=int(args.timestamp_max) if args.timestamp_max else None
-
-    print_info(f'args:{args}')
+    cmdfile=args.cmdfile
 
     gc_disable()
 
-    thread = Thread(target=printer,daemon=True)
-    thread.start()
+    if args.command == 'search':
+        record = LibrerRecord('nowy','sciezka','./record.log')
+        record.load(args.file)
+        print_info(f'record label:{record.header.label}')
+        print_info(f'{cmdfile=}')
+        if cmdfile:
+            try:
+                with open(cmdfile,"rb") as f:
+                    params = loads(ZstdDecompressor().decompress(f.read()))
+                    print_info(f'{params=}')
+            except Exception as e:
+                print_info(e)
+                exit(2)
+            else:
+                (size_min,size_max,t_min,t_max,find_filename_search_kind,name_expr,name_case_sens,find_cd_search_kind,cd_expr,cd_case_sens,filename_fuzzy_threshold,cd_fuzzy_threshold) = params
 
-    try:
-        record.find_items(results_queue,
-                size_min,size_max,
-                timestamp_min,timestamp_max,
-                name_search_kind,name_func_to_call,
-                cd_search_kind,cd_func_to_call,
-                print_info)
-    except Exception as fe:
-        print_info('find_items error:' + str(fe))
-        results_queue.append(True) #stop printer thread
+        name_case_sens=args.file_case_sensitive
+        cd_case_sens=args.cd_case_sensitive
 
-    thread.join()
+        name_regexp=args.file_regexp
+        name_glob=args.file_glob
+        name_fuzzy=args.file_fuzzy
+        file_error=args.file_error
 
-    t2 = perf_counter()
-    print_info(f'finished. times:{t1-t0},{t2-t1}')
+        file_fuzzy_threshold = args.file_fuzzy_threshold
+        cd_fuzzy_threshold = args.cd_fuzzy_threshold
+
+        if name_regexp:
+            if res := test_regexp(name_regexp):
+                exit(res)
+
+            re_obj_name=re_compile(name_regexp)
+            name_func_to_call = lambda x : re_obj_name.match(x)
+            name_search_kind='regexp'
+        elif name_glob:
+            if name_case_sens:
+                re_obj_name=re_compile(translate(name_glob))
+                name_func_to_call = lambda x : re_obj_name.match(x)
+            else:
+                re_obj_name=re_compile(translate(name_glob), IGNORECASE)
+                name_func_to_call = lambda x : re_obj_name.match(x)
+            name_search_kind='glob'
+        elif name_fuzzy:
+            name_func_to_call = lambda x : bool(SequenceMatcher(None, name_fuzzy, x).ratio()>file_fuzzy_threshold)
+            name_search_kind='fuzzy'
+        elif file_error:
+            name_func_to_call = None
+            name_search_kind='error'
+
+        else:
+            name_func_to_call = None
+            name_search_kind='dont'
+
+        custom_data_needed=False
+
+        cd_without=args.cd_without
+        cd_error=args.cd_error
+        cd_ok=args.cd_ok
+
+        cd_regexp=args.cd_regexp
+        cd_glob=args.cd_glob
+        cd_fuzzy=args.cd_fuzzy
+
+        if cd_regexp:
+            custom_data_needed=True
+            cd_search_kind='regexp'
+            if res := test_regexp(cd_regexp):
+                exit(res)
+            re_obj_cd=re_compile(cd_regexp, MULTILINE | DOTALL)
+            cd_func_to_call = lambda x : re_obj_cd.match(x)
+
+        elif cd_glob:
+            custom_data_needed=True
+            cd_search_kind='glob'
+            if cd_case_sens:
+                re_obj_cd=re_compile(translate(cd_glob), MULTILINE | DOTALL)
+                cd_func_to_call = lambda x : re_obj_cd.match(x)
+            else:
+                re_obj_cd=re_compile(translate(cd_glob), MULTILINE | DOTALL | IGNORECASE)
+                cd_func_to_call = lambda x : re_obj_cd.match(x)
+        elif cd_fuzzy:
+            custom_data_needed=True
+            cd_search_kind='fuzzy'
+            cd_func_to_call = lambda x : bool(SequenceMatcher(None,cd_fuzzy, x).ratio()>cd_fuzzy_threshold)
+        elif cd_without:
+            cd_search_kind='without'
+            cd_func_to_call = None
+        elif cd_error:
+            cd_search_kind='error'
+            cd_func_to_call = None
+        elif cd_ok:
+            cd_search_kind='any'
+            cd_func_to_call = None
+        else:
+            cd_search_kind='dont'
+            cd_func_to_call = None
+
+        #####################################################################
+        t0 = perf_counter()
+        record.decompress_filestructure()
+
+        if custom_data_needed:
+            record.decompress_customdata()
+
+        print_info('search start')
+        t1 = perf_counter()
+
+        size_min=str_to_bytes(args.size_min) if args.size_min else None
+        size_max=str_to_bytes(args.size_max) if args.size_max else None
+
+        timestamp_min=int(args.timestamp_min) if args.timestamp_min else None
+        timestamp_max=int(args.timestamp_max) if args.timestamp_max else None
+
+        print_info(f'args:{args}')
+
+        thread = Thread(target=printer,daemon=True)
+        thread.start()
+
+        try:
+            record.find_items(results_queue,
+                    size_min,size_max,
+                    timestamp_min,timestamp_max,
+                    name_search_kind,name_func_to_call,
+                    cd_search_kind,cd_func_to_call,
+                    print_info)
+        except Exception as fe:
+            print_info('find_items error:' + str(fe))
+            results_queue.append(True) #stop printer thread
+
+        thread.join()
+
+        t2 = perf_counter()
+        print_info(f'finished. times:{t1-t0},{t2-t1}')
+
+    ###################################################################
+    elif args.command == 'create':
+        print_info(f'{cmdfile=}')
+        if cmdfile:
+            try:
+                with open(cmdfile,"rb") as f:
+                    create_list = loads(ZstdDecompressor().decompress(f.read()))
+                    print_info(f'{cde_list=}')
+
+                label,path_to_scan,check_dev,cde_list = create_list
+            except Exception as e:
+                print_info(e)
+                exit(2)
+            else:
+                new_record = librer_core.create(label,path_to_scan)
+
+                scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
+                scan_thread.start()
+                scan_thread_is_alive = scan_thread.is_alive
+
+    else:
+        print_info(f'parse problem. command:{args.command}')
+        exit(1)
+
 
     sys.exit(0)
 

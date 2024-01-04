@@ -386,6 +386,8 @@ class LibrerRecord:
         self_scan_rec = self.scan_rec
 
         filenames_set_add = filenames_set.add
+        self_header_ext_stats = self.header.ext_stats
+        self_header_ext_stats_size = self.header.ext_stats_size
         try:
             with scandir(path) as res:
 
@@ -402,7 +404,10 @@ class LibrerRecord:
 
                     is_dir,is_file,is_symlink = entry.is_dir(),entry.is_file(),entry.is_symlink()
 
-                    self.ext_statistics[pathlib_Path(entry).suffix]+=1
+                    ext=pathlib_Path(entry).suffix
+
+                    if is_file:
+                        self_header_ext_stats[ext]+=1
 
                     self.info_line_current = entry_name
 
@@ -450,6 +455,7 @@ class LibrerRecord:
                             else:
                                 has_files = False
                                 size = int(stat_res.st_size)
+                                self_header_ext_stats_size[ext]+=size
 
                                 local_folder_size += size
 
@@ -478,7 +484,8 @@ class LibrerRecord:
 
         self.header.sum_size = 0
 
-        self.ext_statistics=defaultdict(int)
+        self.header.ext_stats=defaultdict(int)
+        self.header.ext_stats_size=defaultdict(int)
         self.scan_data={}
 
         #########################
@@ -507,9 +514,6 @@ class LibrerRecord:
             self.prepare_customdata_pool_rec(self.scan_data,[])
 
         self.info_line = ''
-
-        #for ext,stat in sorted(self.ext_statistics.items(),key = lambda x : x[1],reverse=True):
-        #    print(ext,stat)
 
     def prepare_customdata_pool_rec(self,scan_like_data,parent_path):
         scan_path = self.header.scan_path
@@ -602,6 +606,13 @@ class LibrerRecord:
             time_start_all = perf_counter()
 
             aborted_string = 'Custom data extraction was aborted.'
+
+            files_cde_errors_quant = defaultdict(int)
+
+            files_cde_quant = 0
+            files_cde_size = 0
+            files_cde_size_extracted = 0
+
             for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
 
                 self.killed=False
@@ -629,9 +640,7 @@ class LibrerRecord:
                         subprocess = uni_popen(command,shell)
                         timeout_semi_list[0]=(timeout_val,subprocess)
                     except Exception as re:
-                        #print('threaded_cde error:',re)
-                        subprocess = None
-                        timeout_semi_list[0]=(timeout_val,subprocess)
+                        timeout_semi_list[0]=None
                         returncode=201
                         output = str(re)
                     else:
@@ -655,6 +664,8 @@ class LibrerRecord:
                             output_list_append('Killed.')
 
                         output = '\n'.join(output_list).strip()
+                        if not output:
+                            returncode=203
 
                     #####################################
 
@@ -662,13 +673,12 @@ class LibrerRecord:
                 customdata_stats_time[rule_nr]+=time_end-time_start
 
                 if returncode or self.killed or aborted:
-                    self_header.files_cde_errors_quant[rule_nr]+=1
-                    self_header.files_cde_errors_quant_all+=1
+                    files_cde_errors_quant[rule_nr]+=1
 
                 if not aborted:
-                    self_header.files_cde_quant += 1
-                    self_header.files_cde_size += size
-                    self_header.files_cde_size_extracted += asizeof(output)
+                    files_cde_quant += 1
+                    files_cde_size += size
+                    files_cde_size_extracted += asizeof(output)
 
                 new_elem={}
                 new_elem['cd_ok']= bool(returncode==0 and not self.killed and not aborted)
@@ -694,6 +704,13 @@ class LibrerRecord:
 
             time_end_all = perf_counter()
 
+            self_header.files_cde_errors_quant=files_cde_errors_quant
+            self_header.files_cde_errors_quant_all = sum(files_cde_errors_quant.values())
+
+            self_header.files_cde_quant = files_cde_quant
+            self_header.files_cde_size = files_cde_size
+            self_header.files_cde_size_extracted = files_cde_size_extracted
+
             customdata_stats_time_all[0]=time_end_all-time_start_all
             sys.exit() #thread
 
@@ -709,7 +726,7 @@ class LibrerRecord:
                     kill_subprocess(subprocess)
                     self.killed=True
             else:
-                sleep(0.2)
+                sleep(0.1)
 
         cde_thread.join()
 
@@ -1142,6 +1159,28 @@ class LibrerRecord:
                 info_list.append('  ' + ' '.join(line_list))
             self.txtinfo_basic = self.txtinfo_basic + f'\n\n{loaded_fs_info}\n{loaded_cd_info}'
 
+            try:
+                longest = max({len(ext) for ext in self.header.ext_stats})+2
+
+                sublist=[]
+                for ext,ext_stat in sorted(self.header.ext_stats.items(),key = lambda x : x[1],reverse=True):
+                    sublist.append(f'{ext.ljust(longest)}   {fnumber(ext_stat).rjust(12)}   {bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}')
+                info_list.append('')
+                info_list.append('Files extensions statistics by quantity:')
+                info_list.append('========================================')
+                info_list.extend(sublist)
+
+                sublist_size=[]
+                for ext,ext_stat in sorted(self.header.ext_stats_size.items(),key = lambda x : x[1],reverse=True):
+                    sublist_size.append(f'{ext.ljust(longest)}   {bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}   {fnumber(self.header.ext_stats[ext]).rjust(12)}')
+                info_list.append('')
+                info_list.append('Files extensions statistics by sum size:')
+                info_list.append('========================================')
+                info_list.extend(sublist_size)
+            except Exception as se:
+                #print(se)
+                pass
+
         self.txtinfo = '\n'.join(info_list)
 
     def has_cd(self):
@@ -1485,20 +1524,39 @@ class LibrerCore:
 
         records_to_process.sort(reverse = True,key = lambda x : x.header.quant_files)
 
+        params = (size_min,size_max,
+            t_min,t_max,
+            find_filename_search_kind,name_expr,name_case_sens,
+            find_cd_search_kind,cd_expr,cd_case_sens,
+            filename_fuzzy_threshold,cd_fuzzy_threshold)
+
+        searchinfofile = sep.join([self.db_dir,'searchinfo'])
+        try:
+            with open(searchinfofile, "wb") as f:
+                f.write(ZstdCompressor(level=8,threads=1).compress(dumps(params)))
+        except Exception as e:
+            print(e)
+
         record_commnad_list={}
         is_frozen = bool(getattr(sys, 'frozen', False))
 
         for record_nr,record in enumerate(records_to_process):
+            curr_command_list = record_commnad_list[record_nr] = []
+
             if windows:
                 if is_frozen:
-                    curr_command_list = record_commnad_list[record_nr] = ['record.exe', 'load',record.file_path]
+                    curr_command_list.append('record.exe')
                 else:
-                    curr_command_list = record_commnad_list[record_nr] = ['python','src\\record.py', 'load',record.file_path]
+                    curr_command_list.extend(['python','src\\record.py'])
             else:
                 if is_frozen:
-                    curr_command_list = record_commnad_list[record_nr] = ['./record', 'load',record.file_path]
+                    curr_command_list.append('./record')
                 else:
-                    curr_command_list = record_commnad_list[record_nr] = ['python3','./src/record.py', 'load',record.file_path]
+                    curr_command_list.extend(['python3','./src/record.py'])
+
+            curr_command_list.extend(['search',record.file_path])
+
+            curr_command_list.append(searchinfofile)
 
             if t_min:
                 curr_command_list.extend( ['--timestamp_min',str(t_min) ] )

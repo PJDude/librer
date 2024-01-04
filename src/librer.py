@@ -3096,7 +3096,9 @@ class Gui:
 
         self.last_dir = path_to_scan_from_entry
 
-        new_record = librer_core.create(self.scan_label_entry_var.get(),path_to_scan_from_entry)
+        new_label = self.scan_label_entry_var.get()
+
+        new_record = librer_core.create(new_label,path_to_scan_from_entry)
 
         self.main_update()
 
@@ -3209,6 +3211,12 @@ class Gui:
         check_dev = self.single_device.get()
 
         #############################
+
+        try:
+            with open(sep.join([DATA_DIR,'scaninfo']), "wb") as f:
+                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,cde_list])))
+        except Exception as e:
+            print(e)
 
         scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
         scan_thread.start()
