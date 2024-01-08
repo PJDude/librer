@@ -2285,6 +2285,7 @@ class Gui:
 
     def invalidate_find_results(self):
         self.any_valid_find_results=Fale
+
     #@restore_status_line
     def find_items(self):
         if self.find_params_changed:
@@ -3098,7 +3099,7 @@ class Gui:
 
         new_label = self.scan_label_entry_var.get()
 
-        new_record = librer_core.create(new_label,path_to_scan_from_entry)
+        #new_record = librer_core.create(new_label,path_to_scan_from_entry)
 
         self.main_update()
 
@@ -3116,7 +3117,7 @@ class Gui:
         str_self_progress_dialog_on_scan_abort_button = str(self_progress_dialog_on_scan.abort_button)
         str_self_progress_dialog_on_scan_abort_single_button = str(self_progress_dialog_on_scan.abort_single_button)
 
-        self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single_file(new_record))
+        #self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single_file(new_record))
 
         self_progress_dialog_on_scan.abort_single_button.pack_forget()
         #############################
@@ -3210,13 +3211,173 @@ class Gui:
 
         check_dev = self.single_device.get()
 
-        #############################
+        #################################################################################################################################################
+
+        settings_file = sep.join([DATA_DIR,'scaninfo'])
 
         try:
-            with open(sep.join([DATA_DIR,'scaninfo']), "wb") as f:
+            with open(settings_file, "wb") as f:
                 f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,cde_list])))
         except Exception as e:
             print(e)
+        else:
+
+
+
+            gc_disable()
+            gc_collect()
+
+            creation_thread=Thread(target=lambda : librer_core.create_new_record(settings_file,self.single_record_show),daemon=True)
+            creation_thread.start()
+
+            creation_thread_is_alive = creation_thread.is_alive
+
+            wait_var=BooleanVar()
+            wait_var.set(False)
+
+            self_hg_ico = self.hg_ico
+
+            #############################
+
+            #self_progress_dialog_on_scan.lab_l1.configure(text='Records:')
+            #self_progress_dialog_on_scan.lab_l2.configure(text='Files:' )
+            #self_progress_dialog_on_scan.lab_r1.configure(text='--')
+            #self_progress_dialog_on_scan.lab_r2.configure(text='--' )
+            #self_progress_dialog_on_scan.show('Search progress')
+
+            records_len = len(librer_core.records)
+            if records_len==0:
+                return
+
+            self_progress_dialog_on_scan_progr1var_set = self.progress_dialog_on_scan.progr1var.set
+            self_progress_dialog_on_scan_progr2var_set = self.progress_dialog_on_scan.progr2var.set
+
+            self_progress_dialog_on_scan_update_lab_text = self.progress_dialog_on_scan.update_lab_text
+
+            self_progress_dialog_on_scan_lab_r1_config = self.progress_dialog_on_scan.lab_r1.config
+            self_progress_dialog_on_scan_lab_r2_config = self.progress_dialog_on_scan.lab_r2.config
+
+            update_once=True
+            self_ico_empty = self.ico_empty
+            prev_curr_files = curr_files = 0
+
+            wait_var_set = wait_var.set
+            wait_var_get = wait_var.get
+            self_main_after = self.main.after
+            self_main_wait_variable = self.main.wait_variable
+            self_progress_dialog_on_scan_update_lab_image = self_progress_dialog_on_scan.update_lab_image
+            self_get_hg_ico = self.get_hg_ico
+
+            #librer_core_files_search_quant = librer_core.files_search_quant
+            #fnumber_files_search_quant = fnumber(files_search_quant)
+            #fnumber_records_len = fnumber(records_len)
+
+            time_without_busy_sign=0
+            while creation_thread_is_alive():
+                now=time()
+                ######################################################################################
+
+                #stdout_quant_folders
+
+                #change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
+
+                if librer_core.stage==0: #scan stage
+
+                    change3 = self_progress_dialog_on_scan_update_lab_text(3,local_bytes_to_str(librer_core.stdout_sum_size) )
+                    change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(librer_core.stdout_quant_files) )
+
+                else:
+
+                    #change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
+                    change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(librer_core.stdout_files_cde_size_extracted) )
+                    change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_files_cde_errors_quant_all) )
+
+                    files_q = librer_core.stdout_files_cde_quant
+                    files_perc = files_q * 100.0 / librer_core.stdout_files_cde_quant_sum if librer_core.stdout_files_cde_quant_sum else 0
+
+                    files_size = librer_core.stdout_files_cde_size
+                    files_size_perc = files_size * 100.0 / librer_core.stdout_files_cde_size_sum if librer_core.stdout_files_cde_size_sum else 0
+
+                    self_progress_dialog_on_scan_progr1var_set(files_size_perc)
+                    self_progress_dialog_on_scan_progr2var_set(files_perc)
+
+                    self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(librer_core.stdout_files_cde_size) + '/' + local_bytes_to_str(librer_core.stdout_files_cde_size_sum))
+                    self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(librer_core.stdout_files_cde_quant_sum))
+
+
+
+
+
+
+
+
+
+
+
+
+                if self.action_abort:
+                    librer_core.abort()
+
+                if change3 or change4:
+                #    prev_curr_files = curr_files
+
+                    time_without_busy_sign=now
+
+                    if update_once:
+                        update_once=False
+                        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+                else :
+                    if len(librer_core.stdout_info_line_current)>50:
+                        change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
+                    else:
+                        change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
+
+                    if now>time_without_busy_sign+1.0:
+                        self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
+                        update_once=True
+
+                self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
+
+                self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+                self_main_wait_variable(wait_var)
+
+
+
+
+                ######################################################################################
+
+            creation_thread.join
+            #self_progress_dialog_on_scan.hide(True)
+
+            gc_collect()
+            gc_enable()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        self_progress_dialog_on_scan.hide(True)
+
+        return True
+
+        #################################################################################################################################################
+
+
 
         scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
         scan_thread.start()

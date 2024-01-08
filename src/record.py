@@ -47,7 +47,15 @@ from difflib import SequenceMatcher
 from json import dumps as json_dumps
 from collections import deque
 
+from signal import signal,SIGINT,SIGTERM
+
 from core import *
+
+import logging
+
+l_info = logging.info
+l_warning = logging.warning
+l_error = logging.error
 
 VERSION_FILE='version.txt'
 
@@ -136,30 +144,62 @@ def find_params_check(self,
 
     return None
 
-results_queue=deque()
+stdout_data_queue=deque()
+stdout_data_queue_print_time=0
+
+def print_func(data,always=False):
+    now=perf_counter()
+    global stdout_data_queue_print_time
+    if now>stdout_data_queue_print_time or always:
+        stdout_data_queue.append(data)
+        stdout_data_queue_print_time=now+0.2
+
+def print_func_always(data):
+    stdout_data_queue.append(data)
+
+def printer_stop():
+    stdout_data_queue.append(True)
+
+def print_d(data):
+    print_func(['D',data],True)
+
+def print_i(data):
+    print_func(['I',data],True)
 
 def printer():
-    results_queue_get = results_queue.popleft
+    stdout_data_queue_get = stdout_data_queue.popleft
 
     try:
         while True:
-            if results_queue:
-                result=results_queue_get()
+            if stdout_data_queue:
+                result=stdout_data_queue_get()
                 if result==True:
                     break
-                print(json_dumps(result),flush=False)
+                print(json_dumps(result),flush=True)
             else:
-                sys.stdout.flush()
-                sleep(0.001)
+                #sys.stdout.flush()
+                sleep(0.01)
 
     except Exception as pe:
-        print_info('printer error:{pe}')
+        print_info(f'printer error:{pe}')
 
-    sys.stdout.flush()
+    #print_info('printer finished.')
+    #sys.stdout.flush()
     sys.exit(0) #thread
 
 def print_info(*args):
     print('#',*args)
+
+abort_list=[False,False]
+
+def handle_sigterm():
+    print("Received SIGTERM signal [1]")
+    abort_list[1]=True
+
+def handle_sigint():
+    #self.status("Received SIGINT signal")
+    print("Received SIGINT signal [0]")
+    abort_list[0]=True
 
 if __name__ == "__main__":
     VER_TIMESTAMP = get_ver_timestamp()
@@ -167,9 +207,18 @@ if __name__ == "__main__":
     args=parse_args(VER_TIMESTAMP)
     cmdfile=args.cmdfile
 
+    logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s', filename='record-temp.log',filemode='w')
+
+    signal(SIGINT, lambda a, k : handle_sigint())
+    signal(SIGTERM, lambda a, k : handle_sigterm())
+
     gc_disable()
 
+    printer_thread = Thread(target=printer,daemon=True)
+    printer_thread.start()
+
     if args.command == 'search':
+        #####################################################################
         record = LibrerRecord('nowy','sciezka','./record.log')
         record.load(args.file)
         print_info(f'record label:{record.header.label}')
@@ -284,11 +333,8 @@ if __name__ == "__main__":
 
         print_info(f'args:{args}')
 
-        thread = Thread(target=printer,daemon=True)
-        thread.start()
-
         try:
-            record.find_items(results_queue,
+            record.find_items(print_func_always,abort_list,
                     size_min,size_max,
                     timestamp_min,timestamp_max,
                     name_search_kind,name_func_to_call,
@@ -296,37 +342,78 @@ if __name__ == "__main__":
                     print_info)
         except Exception as fe:
             print_info('find_items error:' + str(fe))
-            results_queue.append(True) #stop printer thread
-
-        thread.join()
 
         t2 = perf_counter()
         print_info(f'finished. times:{t1-t0},{t2-t1}')
-
-    ###################################################################
+        ###################################################################
     elif args.command == 'create':
-        print_info(f'{cmdfile=}')
+        print_i(f'{cmdfile=}')
         if cmdfile:
             try:
                 with open(cmdfile,"rb") as f:
                     create_list = loads(ZstdDecompressor().decompress(f.read()))
-                    print_info(f'{cde_list=}')
 
                 label,path_to_scan,check_dev,cde_list = create_list
             except Exception as e:
-                print_info(e)
+                print_i(e)
                 exit(2)
             else:
-                new_record = librer_core.create(label,path_to_scan)
+                #new_record = librer_core.create(label,path_to_scan)
+                new_record = LibrerRecord(logging,label=label,scan_path=path_to_scan)
+                #new_record.db_dir = '.' #not necessary
 
-                scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
-                scan_thread.start()
-                scan_thread_is_alive = scan_thread.is_alive
+                ###########################
 
+                try:
+                    new_record.scan(print_func,abort_list,tuple(cde_list),check_dev)
+                except Exception as fe:
+                    print_i(f'scan error:{fe}')
+                else:
+
+                    ###########################
+                    ###########################
+                    #scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
+                    #scan_thread.start()
+                    #scan_thread_is_alive = scan_thread.is_alive
+
+                    #new_record_header = new_record.header
+                    #while scan_thread_is_alive():
+                    #    print(new_record_header.sum_size,new_record_header.quant_files,new_record.info_line,new_record.info_line_current)
+                    #    sleep(0.1)
+
+                    #scan_thread.join()
+                    #print('totu - 0')
+
+                    if cde_list and not abort_list[0]:
+                        ###########################
+
+                        try:
+                            new_record.extract_customdata(print_func,abort_list)
+                        except Exception as fe:
+                            print_i(f'scan error:{fe}')
+                        else:
+                            pass
+                        #cd_thread=Thread(target=new_record.extract_customdata,daemon=True)
+                        #cd_thread.start()
+                        #cd_thread_is_alive = cd_thread.is_alive
+
+                        #while cd_thread_is_alive():
+                            #new_record_header.files_cde_size_extracted
+                            #files_q = new_record_header.files_cde_quant
+                            #new_record_header.files_cde_quant_sum
+                            #files_size = new_record_header.files_cde_size
+                            #new_record_header.files_cde_size_sum
+
+                    new_record.pack_data(print_func)
+                    new_record.save(file_path=args.file,compression_level=9)
+
+
+        #####################################################################
     else:
         print_info(f'parse problem. command:{args.command}')
         exit(1)
 
-
+    printer_stop()
+    printer_thread.join()
     sys.exit(0)
 

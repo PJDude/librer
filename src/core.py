@@ -373,8 +373,8 @@ class LibrerRecord:
 
         self.info_line = ''
 
-    def scan_rec(self, path, scan_like_data,filenames_set,check_dev=True,dev_call=None) :
-        if self.abort_action:
+    def scan_rec(self,print_func,abort_list,path, scan_like_data,filenames_set,check_dev=True,dev_call=None) :
+        if any(abort_list) :
             return True
 
         path_join_loc = path_join
@@ -396,7 +396,7 @@ class LibrerRecord:
 
                 for entry in res:
                     subitems+=1
-                    if self.abort_action:
+                    if any(abort_list) :
                         break
 
                     entry_name = entry.name
@@ -416,7 +416,8 @@ class LibrerRecord:
                         mtime = int(stat_res.st_mtime)
                         dev=stat_res.st_dev
                     except Exception as e:
-                        self.log.error('stat error:%s', e )
+                        #self.log.error('stat error:%s', e )
+                        print_func(f'stat error:{e}' )
                         #size -1 <=> error, dev,in ==0
                         is_bind = False
                         size=-1
@@ -429,7 +430,8 @@ class LibrerRecord:
                         if check_dev:
                             if dev_call:
                                 if dev_call!=dev:
-                                    self.log.info('devices mismatch:%s %s %s %s' % (path,entry_name,dev_call,dev) )
+                                    #self.log.info('devices mismatch:%s %s %s %s' % (path,entry_name,dev_call,dev) )
+                                    print_func(f'devices mismatch:{path},{entry_name},{dev_call},{dev}' )
                                     is_bind=True
                             else:
                                 dev_call=dev
@@ -442,7 +444,7 @@ class LibrerRecord:
                                 has_files = False
                                 size = 0
                             else:
-                                size,sub_sub_items = self_scan_rec(path_join_loc(path,entry_name),dict_entry,filenames_set,check_dev,dev)
+                                size,sub_sub_items = self_scan_rec(print_func,abort_list,path_join_loc(path,entry_name),dict_entry,filenames_set,check_dev,dev)
                                 has_files = bool(sub_sub_items)
 
                                 local_folder_size_with_subtree += size
@@ -471,16 +473,24 @@ class LibrerRecord:
                 self_header.quant_files += local_folder_files_count
                 self_header.quant_folders += local_folder_folders_count
 
+                print_func(('scan',self_header.sum_size,self_header.quant_files,self_header.quant_folders,self.info_line_current))
+                #t_now = perf_counter()
+                #if t_now>self.progress_update_time+1.0:
+                    #self.progress_update_time = t_now
+
         except Exception as e:
-            self.log.error('scandir error:%s',e )
+            #self.log.error('scandir error:%s',e )
+            print_func(f'scandir error:{e}' )
 
         self.info_line_current = ''
 
         return (local_folder_size_with_subtree+local_folder_size,subitems)
 
-    def scan(self,cde_list,check_dev=True):
-        self.info_line = 'Scanning filesystem'
-        self.abort_action=False
+    def scan(self,print_func,abort_list,cde_list,check_dev=True):
+        #self.info_line = 'Scanning filesystem'
+
+        #results_queue_put = results_queue.append
+        #self.progress_update_time = perf_counter()
 
         self.header.sum_size = 0
 
@@ -491,14 +501,14 @@ class LibrerRecord:
         #########################
         time_start = perf_counter()
         filenames_set=set()
-        self.scan_rec(self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev)
+        self.scan_rec(print_func,abort_list,self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev)
         time_end = perf_counter()
 
         self.header.scanning_time = time_end-time_start
 
         self.filenames = tuple(sorted(list(filenames_set)))
         #########################
-        self.info_line = 'indexing filesystem names'
+        #self.info_line = 'indexing filesystem names'
 
         self.filenames_helper = {fsname:fsname_index for fsname_index,fsname in enumerate(self.filenames)}
 
@@ -509,13 +519,15 @@ class LibrerRecord:
         self.customdata_pool_index = 0
 
         if cde_list:
-            self.log.info('estimating CD pool')
-            self.info_line = 'estimating files pool for custom data extraction'
-            self.prepare_customdata_pool_rec(self.scan_data,[])
+            #self.log.info('estimating CD pool')
+            print_func( ('info','estimating CD pool') )
+            #self.info_line = 'estimating files pool for custom data extraction'
+            #print_func = 'estimating files pool for custom data extraction'
+            self.prepare_customdata_pool_rec(print_func,abort_list,self.scan_data,[])
 
-        self.info_line = ''
+        #self.info_line = ''
 
-    def prepare_customdata_pool_rec(self,scan_like_data,parent_path):
+    def prepare_customdata_pool_rec(self,print_func,abort_list,scan_like_data,parent_path):
         scan_path = self.header.scan_path
         self_prepare_customdata_pool_rec = self.prepare_customdata_pool_rec
 
@@ -525,7 +537,7 @@ class LibrerRecord:
         for entry_name,items_list in scan_like_data.items():
             size,is_dir,is_file,is_symlink,is_bind,has_files,mtime = items_list[0:7]
 
-            if self.abort_action:
+            if any(abort_list) :
                 break
             try:
                 subpath_list = parent_path + [entry_name]
@@ -533,7 +545,7 @@ class LibrerRecord:
                 if not is_symlink and not is_bind:
                     if is_dir:
                         if has_files:
-                            self_prepare_customdata_pool_rec(items_list[7],subpath_list)
+                            self_prepare_customdata_pool_rec(print_func,abort_list,items_list[7],subpath_list)
                     else:
                         subpath=sep.join(subpath_list)
                         ############################
@@ -544,7 +556,7 @@ class LibrerRecord:
 
                         rule_nr=-1
                         for expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc in cde_list:
-                            if self.abort_action:
+                            if any(abort_list) :
                                 break
                             if matched:
                                 break
@@ -559,7 +571,7 @@ class LibrerRecord:
                                     continue
 
                             for expr in expressions:
-                                if self.abort_action:
+                                if any(abort_list) :
                                     break
                                 if matched:
                                     break
@@ -572,14 +584,16 @@ class LibrerRecord:
                                     matched = True
 
             except Exception as e:
-                self.log.error('prepare_customdata_pool_rec error::%s',e )
-                print('prepare_customdata_pool_rec',e,entry_name,size,is_dir,is_file,is_symlink,is_bind,has_files,mtime)
+                #self.log.error('prepare_customdata_pool_rec error::%s',e )
+                #print('prepare_customdata_pool_rec',e,entry_name,size,is_dir,is_file,is_symlink,is_bind,has_files,mtime)
+                print_func( ('error','prepare_customdata_pool_rec:{e},{entry_name},{size},{is_dir},{is_file},{is_symlink},{is_bind},{has_files},{mtime}') )
 
-    def extract_customdata_threaded(self):
+    def extract_customdata(self,print_func,abort_list):
         self_header = self.header
         scan_path = self_header.scan_path
 
-        self.info_line = 'custom data extraction ...'
+        #self.info_line = 'custom data extraction ...'
+        print_func( ('info','custom data extraction ...'),True)
 
         self_header.files_cde_quant = 0
         self_header.files_cde_size = 0
@@ -616,10 +630,10 @@ class LibrerRecord:
             for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
 
                 self.killed=False
-                self.abort_single_file_cde=False
+                #self.abort_single_file_cde=False
 
                 time_start = perf_counter()
-                if self.abort_action:
+                if abort_list[0] : #wszystko
                     returncode=200
                     output = aborted_string
                     aborted = True
@@ -631,7 +645,8 @@ class LibrerRecord:
                     full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
                     command,command_info = get_command(executable,parameters,full_file_path,shell)
 
-                    self.info_line_current = f"{command_info} ({bytes_to_str(size)})"
+                    #self.info_line = f"{command_info} ({bytes_to_str(size)})"
+                    print_func( ('cde',command_info,size) )
 
                     timeout_val=time()+timeout if timeout else None
                     #####################################
@@ -718,15 +733,17 @@ class LibrerRecord:
 
         cde_thread = Thread(target = lambda : threaded_cde(timeout_semi_list),daemon=True)
         cde_thread.start()
+        cde_thread_is_alive = cde_thread.is_alive
 
-        while cde_thread.is_alive():
+        while cde_thread_is_alive():
             if timeout_semi_list[0]:
                 timeout_val,subprocess = timeout_semi_list[0]
-                if self.abort_action or (timeout_val and time()>timeout_val) or self.abort_single_file_cde:
+                if any(abort_list) or (timeout_val and time()>timeout_val):
                     kill_subprocess(subprocess)
                     self.killed=True
+                    abort_list[1]=False
             else:
-                sleep(0.1)
+                sleep(0.5)
 
         cde_thread.join()
 
@@ -740,7 +757,7 @@ class LibrerRecord:
         self.header.cde_stats_time_all=customdata_stats_time_all[0]
 
     #############################################################
-    def tupelize_rec(self,scan_like_data):
+    def tupelize_rec(self,scan_like_data,results_queue_put):
         LUT_encode_loc = LUT_encode
 
         self_tupelize_rec = self.tupelize_rec
@@ -788,7 +805,7 @@ class LibrerRecord:
                     sub_list_elem=[entry_name_index,code_new,size,mtime]
 
                     if has_files:
-                        sub_list_elem.append(self_tupelize_rec(sub_dict))
+                        sub_list_elem.append(self_tupelize_rec(sub_dict,results_queue_put))
 
                     if has_cd: #only files
                         self.header.references_cd+=1
@@ -799,13 +816,14 @@ class LibrerRecord:
                     sub_list.append( tuple(sub_list_elem) )
 
                 except Exception as e:
-                    self.log.error('tupelize_rec error:%s',e )
-                    print('tupelize_rec error:',e,' entry_name:',entry_name)
+                    #self.log.error('tupelize_rec error:%s',e )
+                    results_queue_put(f'tupelize_rec error:{e}' )
+                    #print('tupelize_rec error:',e,' entry_name:',entry_name)
 
         return tuple(sorted(sub_list,key = lambda x : x[1:4]))
     #############################################################
 
-    def pack_data(self):
+    def pack_data(self,results_queue_put):
         size,mtime = 0,0
         is_dir = True
         is_file = False
@@ -820,7 +838,7 @@ class LibrerRecord:
         self.header.references_cd=0
 
         code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,False,False) ]
-        self.filestructure = ('',code,size,mtime,self.tupelize_rec(self.scan_data))
+        self.filestructure = ('',code,size,mtime,self.tupelize_rec(self.scan_data,results_queue_put))
 
         self.header.items_names=len(self.filenames)
         self.header.items_cd=len(self.customdata)
@@ -857,7 +875,7 @@ class LibrerRecord:
 
     ########################################################################################
     def find_items(self,
-            results_queue,
+            print_func,abort_list,
             size_min,size_max,
             timestamp_min,timestamp_max,
             name_search_kind,name_func_to_call,
@@ -872,7 +890,8 @@ class LibrerRecord:
         filestructure = self.filestructure
 
         search_progress = 0
-        search_progress_update_quant = 0
+        #search_progress_update_quant = 0
+        #progress_update_time = perf_counter()
 
         if cd_search_kind!='dont':
             self.decompress_customdata()
@@ -898,7 +917,7 @@ class LibrerRecord:
 
         self_customdata = self.customdata
 
-        results_queue_put = results_queue.append
+        #results_queue_put = results_queue.append
 
         while search_list:
             filestructure,parent_path_components = search_list_pop()
@@ -939,8 +958,9 @@ class LibrerRecord:
                         #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
                         if name_func_to_call:
                             if name_func_to_call(name):
-                                results_queue_put([search_progress,size,mtime,*next_level])
-                                search_progress_update_quant=0
+                                print_func([search_progress,size,mtime,*next_level])
+                                #search_progress_update_quant=0
+                                #progress_update_time = perf_counter()
 
                     if sub_data:
                         search_list_append( (sub_data,next_level) )
@@ -1006,17 +1026,22 @@ class LibrerRecord:
                         else:
                             continue
 
-                    results_queue_put([search_progress,size,mtime,*next_level])
-                    search_progress_update_quant=0
+                    print_func([search_progress,size,mtime,*next_level])
+                    #search_progress_update_quant=0
+                    #progress_update_time = perf_counter()
 
-                if search_progress_update_quant>1024:
-                    results_queue_put([search_progress])
-                    search_progress_update_quant=0
-                else:
-                    search_progress_update_quant+=1
+                print_func([search_progress])
+                #t_now = perf_counter()
+                #if t_now>progress_update_time+1.0:
+                #    progress_update_time = t_now
 
-        results_queue_put([search_progress])
-        results_queue_put(True)
+                #if search_progress_update_quant>1024:
+                    #search_progress_update_quant=0
+                #else:
+                #    search_progress_update_quant+=1
+
+        print_func([search_progress])
+        #print_func(True)
 
     def find_items_sort(self,what,reverse):
         if what=='data':
@@ -1120,7 +1145,7 @@ class LibrerRecord:
 
 
             except Exception as EE:
-                print(EE)
+                info_list.append(str(EE))
 
             info_list.append('')
 
@@ -1264,9 +1289,9 @@ class LibrerCore:
         self.update_sorted()
         return new_record
 
-    def load_record(self):
+    #def load_record(self):
         #self.records.add(new_record)
-        pass
+    #    pass
 
     def read_records_pre(self):
         try:
@@ -1504,7 +1529,149 @@ class LibrerCore:
         for record in self.records:
             record.find_results_clean()
 
+    stage = 0
+
+    stdout_sum_size = 0
+    stdout_quant_files = 0
+    stdout_quant_folders = 0
+    stdout_info_line_current = ''
+    stdout_cde_size = 0
+
+    stdout_files_cde_size_extracted=0
+    stdout_files_cde_errors_quant_all=0
+    stdout_files_cde_quant=0
+    stdout_files_cde_quant_sum=0
+    stdout_files_cde_size=0
+    stdout_files_cde_size_sum=0
+
     ########################################################################################################################
+    def create_new_record(self,settings_file,update_callback):
+        self.log.info(f'create_new_record {settings_file}')
+
+        new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
+
+        #new_record_filename = str(int(time()) + .dat
+        command = self.record_exe()
+        command.append('create')
+        command.append(new_file_path)
+        command.append(settings_file)
+
+        self.abort_action=False
+
+        self.stdout_sum_size = 0
+        self.stdout_quant_files = 0
+        self.stdout_quant_folders = 0
+        self.stdout_info_line_current = ''
+        self.stdout_cde_size = 0
+
+        self.stage = 0
+
+        self.stdout_files_cde_size_extracted=0
+        self.stdout_files_cde_errors_quant_all=0
+        self.stdout_files_cde_quant=0
+        self.stdout_files_cde_quant_sum=0
+        self.stdout_files_cde_size=0
+        self.stdout_files_cde_size_sum=0
+
+
+        def threaded_run(command,results_semi_list,info_semi_list,processes_semi_list):
+            #results_list_append = results_semi_list[0].find_results.append
+
+            try:
+                subprocess = uni_popen(command)
+            except Exception as re:
+                print('threaded_run run error',re)
+                info_semi_list[0].append(f'threaded_run run error: {re}')
+                sys.exit() #thread
+
+            processes_semi_list[0]=subprocess
+            subprocess_stdout_readline = subprocess.stdout.readline
+            subprocess_poll = subprocess.poll
+
+            while True:
+                if line := subprocess_stdout_readline():
+                    try:
+                        if line[0]!='#':
+                            val = json_loads(line.strip())
+
+                            print(f'{val=}')
+                            self.info_line = val
+                            kind = val[0]
+                            if kind == 'scan':
+                                self.stdout_sum_size,self.stdout_quant_files,self.stdout_quant_folders,self.stdout_info_line_current = val[1:5]
+                            elif kind == 'info':
+                                self.stdout_info_line_current = val[1]
+                            elif kind == 'error':
+                                self.stdout_info_line_current = val[1]
+                            elif kind == 'cde':
+                                self.stage = 1 #non scan stage
+                                self.stdout_info_line_current = val[1]
+                                self.stdout_cde_size = val[2]
+
+                            #progress_semi_list[0]=int(val[0])
+                            #if len(val)>1:
+                            #    results_list_append( tuple([tuple(val[3:]),int(val[1]),int(val[2])]) )
+                        else:
+                            info_semi_list[0].append(line.strip())
+                    except Exception as e:
+                        print(f'threaded_run work error:{e} line:{line}')
+                        info_semi_list[0]=f'threaded_run work error:{e} line:{line}'
+                else:
+                    if subprocess_poll() is not None:
+                        break
+                    sleep(0.001)
+            sys.exit() #thread
+
+        results_semi_list=[None]
+        info_semi_list=[None]
+        processes_semi_list=[None]
+        job = Thread(target=lambda : threaded_run(command,results_semi_list,info_semi_list,processes_semi_list),daemon=True)
+        job.start()
+        job_is_alive = job.is_alive
+        while job_is_alive():
+            if self.abort_action:
+                self.info_line = 'Aborting ...'
+
+                subprocess=processes_semi_list[0]
+                if subprocess:
+                    try:
+                        subprocess.kill()
+                    except Exception as ke:
+                        print('killing error:',ke)
+
+                break
+            sleep(0.01)
+
+            self.info_line = f'scanning czy costam'
+
+        job.join()
+
+        if not self.abort_action:
+            new_record = self.create()
+
+            if res:=new_record.load(new_file_path) :
+                self.log.warning('removing:%s',new_file_path)
+                self.records.remove(new_record)
+                print(res)
+            else:
+                update_callback(new_record)
+                #self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
+
+        return True
+
+    def record_exe(self):
+        is_frozen = bool(getattr(sys, 'frozen', False))
+        if windows:
+            if is_frozen:
+               return(['record.exe'])
+            else:
+                return(['python','src\\record.py'])
+        else:
+            if is_frozen:
+                return(['./record'])
+            else:
+                return(['python3','./src/record.py'])
+
     def find_items_in_records(self,
             range_par,
             size_min,size_max,
@@ -1537,22 +1704,11 @@ class LibrerCore:
         except Exception as e:
             print(e)
 
-        record_commnad_list={}
+        record_command_list={}
         is_frozen = bool(getattr(sys, 'frozen', False))
 
         for record_nr,record in enumerate(records_to_process):
-            curr_command_list = record_commnad_list[record_nr] = []
-
-            if windows:
-                if is_frozen:
-                    curr_command_list.append('record.exe')
-                else:
-                    curr_command_list.extend(['python','src\\record.py'])
-            else:
-                if is_frozen:
-                    curr_command_list.append('./record')
-                else:
-                    curr_command_list.extend(['python3','./src/record.py'])
+            curr_command_list = record_command_list[record_nr] = self.record_exe()
 
             curr_command_list.extend(['search',record.file_path])
 
@@ -1665,8 +1821,6 @@ class LibrerCore:
             info_list.append([])
             processes_list.append(None)
 
-            #abort_queues.append(Queue())
-
             jobs[record_nr] = [0,None]
 
             record.find_results=[]
@@ -1705,7 +1859,7 @@ class LibrerCore:
                 if running<max_processes:
                     record_nr = waiting_list[0]
                     job = jobs[record_nr]
-                    job[1] = Thread(target=lambda : threaded_run(record_nr,record_commnad_list,records_to_process,total_progress,info_list,processes_list),daemon=True)
+                    job[1] = Thread(target=lambda : threaded_run(record_nr,record_command_list,records_to_process,total_progress,info_list,processes_list),daemon=True)
                     job[1].start()
                     job[0] = 1
                     sleep(0.01)
