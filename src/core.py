@@ -50,7 +50,7 @@ from re import search as re_search
 import sys
 from collections import defaultdict
 from pathlib import Path as pathlib_Path
-from signal import SIGTERM
+from signal import SIGTERM,SIGINT
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 from pympler.asizeof import asizeof
@@ -200,7 +200,7 @@ def popen_lin(command,shell):
 
 uni_popen = (lambda command,shell=False : popen_win(command,shell)) if windows else (lambda command,shell=False : popen_lin(command,shell))
 
-def kill_subprocess(subproc):
+def kill_subprocess(subproc,signal=SIGTERM):
     try:
         pid = subproc.pid
 
@@ -211,7 +211,7 @@ def kill_subprocess(subproc):
             print(f'executing: {kill_cmd} - done')
         else:
             print(f'killing process group')
-            killpg(getpgid(pid), SIGTERM)
+            killpg(getpgid(pid), signal)
             print(f'killing process group done')
 
     except Exception as ke:
@@ -336,7 +336,7 @@ class LibrerRecord:
 
         return False
 
-    def save(self,file_path=None,compression_level=9):
+    def save(self,print_func,file_path=None,compression_level=9):
         if file_path:
             filename = basename(normpath(file_path))
         else:
@@ -345,9 +345,10 @@ class LibrerRecord:
 
         self.file_path = file_path
 
-        self.info_line = f'saving {filename}'
+        #self.info_line = f'saving {filename}'
 
-        self.log.info('saving %s' % file_path)
+        #self.log.info('saving %s' % file_path)
+        #print_func(['save',f'saving {file_path}'])
 
         self_header = self.header
 
@@ -355,7 +356,8 @@ class LibrerRecord:
 
         with ZipFile(file_path, "w") as zip_file:
             def compress_with_header_update_wrapp(data,datalabel):
-                self.info_line = f'compressing {datalabel}'
+                #self.info_line = f'compressing {datalabel}'
+                print_func(['save',f'compressing {datalabel}'],True)
                 compress_with_header_update(self.header,data,compression_level,datalabel,zip_file)
 
             compress_with_header_update_wrapp(self.filestructure,'filestructure')
@@ -371,7 +373,7 @@ class LibrerRecord:
 
         self.prepare_info()
 
-        self.info_line = ''
+        print_func(['save','finished'],True)
 
     def scan_rec(self,print_func,abort_list,path, scan_like_data,filenames_set,check_dev=True,dev_call=None) :
         if any(abort_list) :
@@ -528,10 +530,11 @@ class LibrerRecord:
         #self.info_line = ''
 
     def prepare_customdata_pool_rec(self,print_func,abort_list,scan_like_data,parent_path):
-        scan_path = self.header.scan_path
+        self_header = self.header
+        scan_path = self_header.scan_path
         self_prepare_customdata_pool_rec = self.prepare_customdata_pool_rec
 
-        cde_list = self.header.cde_list
+        cde_list = self_header.cde_list
         self_customdata_pool = self.customdata_pool
 
         for entry_name,items_list in scan_like_data.items():
@@ -580,7 +583,7 @@ class LibrerRecord:
                                     self_customdata_pool[self.customdata_pool_index]=(items_list,subpath,rule_nr,size)
                                     self.customdata_pool_index += 1
                                     self.cd_stat[rule_nr]+=1
-                                    self.header.files_cde_size_sum += size
+                                    self_header.files_cde_size_sum += size
                                     matched = True
 
             except Exception as e:
@@ -630,7 +633,7 @@ class LibrerRecord:
             for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
 
                 self.killed=False
-                #self.abort_single_file_cde=False
+                #self.abort_action_single=False
 
                 time_start = perf_counter()
                 if abort_list[0] : #wszystko
@@ -645,8 +648,7 @@ class LibrerRecord:
                     full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
                     command,command_info = get_command(executable,parameters,full_file_path,shell)
 
-                    #self.info_line = f"{command_info} ({bytes_to_str(size)})"
-                    print_func( ('cde',command_info,size) )
+                    print_func( ('cde',command_info,size,  files_cde_size_extracted,self_header.files_cde_errors_quant_all,files_cde_quant,self_header.files_cde_quant_sum,files_cde_size,self_header.files_cde_size_sum) )
 
                     timeout_val=time()+timeout if timeout else None
                     #####################################
@@ -1189,7 +1191,7 @@ class LibrerRecord:
 
                 sublist=[]
                 for ext,ext_stat in sorted(self.header.ext_stats.items(),key = lambda x : x[1],reverse=True):
-                    sublist.append(f'{ext.ljust(longest)}   {fnumber(ext_stat).rjust(12)}   {bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}')
+                    sublist.append(f'{bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}  {fnumber(ext_stat).rjust(12)}  {ext.ljust(longest)}')
                 info_list.append('')
                 info_list.append('Files extensions statistics by quantity:')
                 info_list.append('========================================')
@@ -1197,7 +1199,7 @@ class LibrerRecord:
 
                 sublist_size=[]
                 for ext,ext_stat in sorted(self.header.ext_stats_size.items(),key = lambda x : x[1],reverse=True):
-                    sublist_size.append(f'{ext.ljust(longest)}   {bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}   {fnumber(self.header.ext_stats[ext]).rjust(12)}')
+                    sublist_size.append(f'{bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}   {fnumber(self.header.ext_stats[ext]).rjust(12)}  {ext.ljust(longest)}')
                 info_list.append('')
                 info_list.append('Files extensions statistics by sum size:')
                 info_list.append('========================================')
@@ -1499,6 +1501,10 @@ class LibrerCore:
         #print('core abort')
         self.abort_action = True
 
+    def abort_single(self):
+        #print('core abort')
+        self.abort_action_single = True
+
     def threaded_read_records(self,load_errors):
         self.log.info('read_records: %s',self.db_dir)
         self.records_to_show=[]
@@ -1557,6 +1563,7 @@ class LibrerCore:
         command.append(settings_file)
 
         self.abort_action=False
+        self.abort_action_single=False
 
         self.stdout_sum_size = 0
         self.stdout_quant_files = 0
@@ -1572,7 +1579,6 @@ class LibrerCore:
         self.stdout_files_cde_quant_sum=0
         self.stdout_files_cde_size=0
         self.stdout_files_cde_size_sum=0
-
 
         def threaded_run(command,results_semi_list,info_semi_list,processes_semi_list):
             #results_list_append = results_semi_list[0].find_results.append
@@ -1594,23 +1600,48 @@ class LibrerCore:
                         if line[0]!='#':
                             val = json_loads(line.strip())
 
-                            print(f'{val=}')
+                            #print(f'{val=}')
                             self.info_line = val
                             kind = val[0]
-                            if kind == 'scan':
-                                self.stdout_sum_size,self.stdout_quant_files,self.stdout_quant_folders,self.stdout_info_line_current = val[1:5]
-                            elif kind == 'info':
-                                self.stdout_info_line_current = val[1]
+                            if kind == 'stage':
+                                self.stage = val[1]
                             elif kind == 'error':
                                 self.stdout_info_line_current = val[1]
-                            elif kind == 'cde':
-                                self.stage = 1 #non scan stage
+                            elif kind == 'info':
                                 self.stdout_info_line_current = val[1]
-                                self.stdout_cde_size = val[2]
+                            else:
+                                if self.stage==0: #scan
+                                    self.stdout_sum_size,self.stdout_quant_files,self.stdout_quant_folders,self.stdout_info_line_current = val[1:5]
 
-                            #progress_semi_list[0]=int(val[0])
-                            #if len(val)>1:
-                            #    results_list_append( tuple([tuple(val[3:]),int(val[1]),int(val[2])]) )
+                                elif self.stage==1: #cde
+                                    self.stdout_info_line_current = val[1]
+                                    self.stdout_cde_size = val[2]
+
+                                    self.stdout_files_cde_size_extracted=val[3]
+                                    self.stdout_files_cde_errors_quant_all=val[4]
+                                    self.stdout_files_cde_quant=val[5]
+                                    self.stdout_files_cde_quant_sum=val[6]
+                                    self.stdout_files_cde_size=val[7]
+                                    self.stdout_files_cde_size_sum=val[8]
+
+                                    self.stdout_info_line_current
+                                    self.stdout_cde_size
+
+                                    #print(type(self.stdout_files_cde_size_extracted))
+                                    #print(type(self.stdout_files_cde_errors_quant_all))
+                                    #print(type(self.stdout_files_cde_quant))
+                                    #print(type(self.stdout_files_cde_quant_sum))
+                                    #print(type(self.stdout_files_cde_size))
+                                    #print(type(self.stdout_files_cde_size_sum))
+
+                                elif self.stage==2: #pack
+                                    self.stdout_info_line_current = val[1]
+
+                                elif self.stage==3: #save
+                                    self.stdout_info_line_current = val[1]
+
+                                elif self.stage==4: #end
+                                    pass
                         else:
                             info_semi_list[0].append(line.strip())
                     except Exception as e:

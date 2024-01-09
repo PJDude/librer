@@ -3099,8 +3099,6 @@ class Gui:
 
         new_label = self.scan_label_entry_var.get()
 
-        #new_record = librer_core.create(new_label,path_to_scan_from_entry)
-
         self.main_update()
 
         #############################
@@ -3117,13 +3115,11 @@ class Gui:
         str_self_progress_dialog_on_scan_abort_button = str(self_progress_dialog_on_scan.abort_button)
         str_self_progress_dialog_on_scan_abort_single_button = str(self_progress_dialog_on_scan.abort_single_button)
 
-        #self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single_file(new_record))
-
         self_progress_dialog_on_scan.abort_single_button.pack_forget()
         #############################
 
         self.scan_dialog.widget.update()
-        self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
+        #self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
         self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Cancel',compound='left',width=15)
 
         self.action_abort=False
@@ -3134,11 +3130,18 @@ class Gui:
         self_progress_dialog_on_scan.lab_l1.configure(text='CDE Total space:')
         self_progress_dialog_on_scan.lab_l2.configure(text='CDE Files number:' )
 
+        self_progress_dialog_on_scan_update_lab_text = self.progress_dialog_on_scan.update_lab_text
+        self_progress_dialog_on_scan_update_lab_image = self_progress_dialog_on_scan.update_lab_image
+        self_ico_empty = self.ico_empty
+
+        self_progress_dialog_on_scan_update_lab_text(1,'')
+        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+        self_progress_dialog_on_scan_update_lab_text(3,'')
+        self_progress_dialog_on_scan_update_lab_text(4,'')
+
         self_progress_dialog_on_scan.show('Creating new data record (scanning)')
 
         update_once=True
-
-        time_without_busy_sign=0
 
         self_hg_ico = self.hg_ico
 
@@ -3221,9 +3224,6 @@ class Gui:
         except Exception as e:
             print(e)
         else:
-
-
-
             gc_disable()
             gc_collect()
 
@@ -3232,18 +3232,9 @@ class Gui:
 
             creation_thread_is_alive = creation_thread.is_alive
 
-            wait_var=BooleanVar()
-            wait_var.set(False)
-
             self_hg_ico = self.hg_ico
 
             #############################
-
-            #self_progress_dialog_on_scan.lab_l1.configure(text='Records:')
-            #self_progress_dialog_on_scan.lab_l2.configure(text='Files:' )
-            #self_progress_dialog_on_scan.lab_r1.configure(text='--')
-            #self_progress_dialog_on_scan.lab_r2.configure(text='--' )
-            #self_progress_dialog_on_scan.show('Search progress')
 
             records_len = len(librer_core.records)
             if records_len==0:
@@ -3252,271 +3243,132 @@ class Gui:
             self_progress_dialog_on_scan_progr1var_set = self.progress_dialog_on_scan.progr1var.set
             self_progress_dialog_on_scan_progr2var_set = self.progress_dialog_on_scan.progr2var.set
 
-            self_progress_dialog_on_scan_update_lab_text = self.progress_dialog_on_scan.update_lab_text
-
             self_progress_dialog_on_scan_lab_r1_config = self.progress_dialog_on_scan.lab_r1.config
             self_progress_dialog_on_scan_lab_r2_config = self.progress_dialog_on_scan.lab_r2.config
 
             update_once=True
-            self_ico_empty = self.ico_empty
+
             prev_curr_files = curr_files = 0
 
+            wait_var=BooleanVar()
             wait_var_set = wait_var.set
             wait_var_get = wait_var.get
+            wait_var_set(False)
+
             self_main_after = self.main.after
             self_main_wait_variable = self.main.wait_variable
-            self_progress_dialog_on_scan_update_lab_image = self_progress_dialog_on_scan.update_lab_image
+
             self_get_hg_ico = self.get_hg_ico
 
             #librer_core_files_search_quant = librer_core.files_search_quant
             #fnumber_files_search_quant = fnumber(files_search_quant)
             #fnumber_records_len = fnumber(records_len)
 
-            time_without_busy_sign=0
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
+            self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+
+            time_to_show_busy_sign=0
+
+            switch_done=False
+
+            prev_stage=-1
             while creation_thread_is_alive():
-                now=time()
-                ######################################################################################
+                try:
+                    now=time()
+                    ######################################################################################
 
-                #stdout_quant_folders
+                    if self.action_abort:
+                        librer_core.abort()
 
-                #change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
-
-                if librer_core.stage==0: #scan stage
-
-                    change3 = self_progress_dialog_on_scan_update_lab_text(3,local_bytes_to_str(librer_core.stdout_sum_size) )
-                    change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(librer_core.stdout_quant_files) )
-
-                else:
-
-                    #change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-                    change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(librer_core.stdout_files_cde_size_extracted) )
-                    change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_files_cde_errors_quant_all) )
-
-                    files_q = librer_core.stdout_files_cde_quant
-                    files_perc = files_q * 100.0 / librer_core.stdout_files_cde_quant_sum if librer_core.stdout_files_cde_quant_sum else 0
-
-                    files_size = librer_core.stdout_files_cde_size
-                    files_size_perc = files_size * 100.0 / librer_core.stdout_files_cde_size_sum if librer_core.stdout_files_cde_size_sum else 0
-
-                    self_progress_dialog_on_scan_progr1var_set(files_size_perc)
-                    self_progress_dialog_on_scan_progr2var_set(files_perc)
-
-                    self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(librer_core.stdout_files_cde_size) + '/' + local_bytes_to_str(librer_core.stdout_files_cde_size_sum))
-                    self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(librer_core.stdout_files_cde_quant_sum))
-
-
-
-
-
-
-
-
-
-
-
-
-                if self.action_abort:
-                    librer_core.abort()
-
-                if change3 or change4:
-                #    prev_curr_files = curr_files
-
-                    time_without_busy_sign=now
-
-                    if update_once:
-                        update_once=False
+                    if prev_stage!=librer_core.stage:
+                        self_progress_dialog_on_scan_update_lab_text(0,'')
+                        self_progress_dialog_on_scan_update_lab_text(1,'')
                         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
-                else :
-                    if len(librer_core.stdout_info_line_current)>50:
-                        change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
+                        self_progress_dialog_on_scan_update_lab_text(3,'')
+                        self_progress_dialog_on_scan_update_lab_text(4,'')
+                        prev_stage=librer_core.stage
+                        switch_done=False
+
+                    if librer_core.stage==0: #scan stage
+                        if not switch_done:
+                            self_progress_dialog_on_scan.widget.title('Creating new data record (Scanning)')
+                            self_progress_dialog_on_scan.abort_single_button.pack_forget()
+                            switch_done=True
+
+                        change3 = self_progress_dialog_on_scan_update_lab_text(3,local_bytes_to_str(librer_core.stdout_sum_size) )
+                        change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(librer_core.stdout_quant_files) )
+                    elif librer_core.stage==1: #cde stage
+                        if not switch_done:
+                            self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
+                            self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
+                            self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single(),state='normal')
+
+                            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Abort',compound='left',width=15,state='normal')
+
+                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom Data will be incomplete.'
+                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]='Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.'
+                            switch_done=True
+
+                        change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(librer_core.stdout_files_cde_size_extracted) )
+                        change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_files_cde_errors_quant_all) )
+
+                        files_q = librer_core.stdout_files_cde_quant
+                        files_perc = files_q * 100.0 / librer_core.stdout_files_cde_quant_sum if librer_core.stdout_files_cde_quant_sum else 0
+
+                        files_size = librer_core.stdout_files_cde_size
+                        files_size_perc = files_size * 100.0 / librer_core.stdout_files_cde_size_sum if librer_core.stdout_files_cde_size_sum else 0
+
+                        self_progress_dialog_on_scan_progr1var_set(files_size_perc)
+                        self_progress_dialog_on_scan_progr2var_set(files_perc)
+
+                        self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(librer_core.stdout_files_cde_size) + '/' + local_bytes_to_str(librer_core.stdout_files_cde_size_sum))
+                        self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(librer_core.stdout_files_cde_quant_sum))
+
+                        if change3 or change4:
+                            time_to_show_busy_sign=now+1.0
+
+                            if update_once:
+                                update_once=False
+                                self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+                                self_progress_dialog_on_scan_update_lab_text(0,'')
+                        else :
+                            if now>time_to_show_busy_sign:
+                                if len(librer_core.stdout_info_line_current)>50:
+                                    change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
+                                else:
+                                    change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
+
+                                self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
+                                update_once=True
+
                     else:
-                        change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
+                        if len(librer_core.stdout_info_line_current)>50:
+                            change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
+                        else:
+                            change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
 
-                    if now>time_without_busy_sign+1.0:
-                        self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
-                        update_once=True
-
-                self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
+                except Exception as e:
+                    print(e)
+                    l_error(e)
+                    change0 = self_progress_dialog_on_scan_update_lab_text(0,str(e))
 
                 self_main_after(25,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
 
-
-
-
                 ######################################################################################
 
             creation_thread.join
-            #self_progress_dialog_on_scan.hide(True)
 
             gc_collect()
             gc_enable()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         self_progress_dialog_on_scan.hide(True)
-
-        return True
 
         #################################################################################################################################################
 
-
-
-        scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
-        scan_thread.start()
-        scan_thread_is_alive = scan_thread.is_alive
-
-        self_ico_empty = self.ico_empty
-
-        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
-        self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
-
-        self_main_after = self.main.after
-        self_main_wait_variable = self.main.wait_variable
-        wait_var_set = wait_var.set
-        wait_var_get = wait_var.get
-
-        self_progress_dialog_on_scan_update_lab_text = self_progress_dialog_on_scan.update_lab_text
-        self_progress_dialog_on_scan_update_lab_image = self_progress_dialog_on_scan.update_lab_image
-
-        #############################
-
         self.cfg.set(CFG_KEY_SINGLE_DEVICE,check_dev)
         self.cfg.write()
-
-        #############################
-
-        new_record_header = new_record.header
-        while scan_thread_is_alive():
-            change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-            change3 = self_progress_dialog_on_scan_update_lab_text(3,local_bytes_to_str(new_record_header.sum_size) )
-            change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(new_record_header.quant_files) )
-
-            now=time()
-
-            if change0 or change3 or change4:
-                time_without_busy_sign=now
-
-                if update_once:
-                    update_once=False
-                    self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
-                    self_progress_dialog_on_scan_update_lab_text(1,'')
-            else :
-                if now>time_without_busy_sign+1.0:
-                    self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
-                    self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
-
-                    if len(new_record.info_line_current)>50:
-                        self_progress_dialog_on_scan_update_lab_text(1,f'...{new_record.info_line_current[-50:]}')
-                    else:
-                        self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
-
-                    update_once=True
-
-            self_progress_dialog_on_scan_area_main_update()
-
-            if self.action_abort:
-                new_record.abort()
-                break
-
-            self_main_after(25,lambda : wait_var_set(not wait_var_get()))
-            self_main_wait_variable(wait_var)
-
-        self_progress_dialog_on_scan_update_lab_text(1,'')
-        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
-        self_progress_dialog_on_scan_update_lab_text(3,'')
-        self_progress_dialog_on_scan_update_lab_text(4,'')
-
-        scan_thread.join()
-
-        if self.action_abort:
-            self_progress_dialog_on_scan.hide(True)
-            del new_record
-
-            return False
-
-        if any_cde_enabled:
-            self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
-            self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
-            self_progress_dialog_on_scan.abort_single_button.configure(state='normal')
-            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Abort',compound='left',width=15,state='normal')
-
-            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom Data will be incomplete.'
-            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]='Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.'
-
-            #########################################################################################
-            cd_thread=Thread(target=new_record.extract_customdata_threaded,daemon=True)
-            cd_thread.start()
-
-            cd_thread_is_alive = cd_thread.is_alive
-
-            self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
-            self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
-
-            new_record_header = new_record.header
-            while cd_thread_is_alive():
-                change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-                change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(new_record_header.files_cde_size_extracted) )
-                change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(new_record_header.files_cde_errors_quant_all) )
-
-                files_q = new_record_header.files_cde_quant
-                files_perc = files_q * 100.0 / new_record_header.files_cde_quant_sum if new_record_header.files_cde_quant_sum else 0
-
-                files_size = new_record_header.files_cde_size
-                files_size_perc = files_size * 100.0 / new_record_header.files_cde_size_sum if new_record_header.files_cde_size_sum else 0
-
-                self_progress_dialog_on_scan_progr1var_set(files_size_perc)
-                self_progress_dialog_on_scan_progr2var_set(files_perc)
-
-                self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(new_record_header.files_cde_size) + '/' + local_bytes_to_str(new_record_header.files_cde_size_sum))
-                self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(new_record_header.files_cde_quant_sum))
-
-                if self.action_abort:
-                    new_record.abort()
-                    break
-
-                now=time()
-
-                if change0 or change3 or change4:
-                    time_without_busy_sign=now
-
-                    if update_once:
-                        update_once=False
-                        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
-                        self_progress_dialog_on_scan_update_lab_text(1,'')
-                else :
-                    if now>time_without_busy_sign+1.0:
-                        self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
-
-                        if len(new_record.info_line_current)>50:
-                            self_progress_dialog_on_scan_update_lab_text(1,f'...{new_record.info_line_current[-50:]}')
-                        else:
-                            self_progress_dialog_on_scan_update_lab_text(1,new_record.info_line_current)
-
-                        update_once=True
-
-                self_main_after(200,lambda : wait_var_set(not wait_var_get()))
-                self_main_wait_variable(wait_var)
-
-            cd_thread.join()
-            #########################################################################################
 
         self_progress_dialog_on_scan_update_lab_text(1,'')
         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
@@ -3526,35 +3378,10 @@ class Gui:
         self_progress_dialog_on_scan.abort_single_button.configure(state='disabled')
         self_progress_dialog_on_scan.abort_button.configure(state='disabled')
 
-        ##################################
-        pack_thread=Thread(target=new_record.pack_data,daemon=True)
-        pack_thread.start()
-        pack_thread_is_alive = pack_thread.is_alive
-        while pack_thread_is_alive():
-            change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-            self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
-            self_main_after(25,lambda : wait_var_set(not wait_var_get()))
-            self_main_wait_variable(wait_var)
-        pack_thread.join()
-        self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
-
-        ##################################
-        save_thread=Thread(target=lambda : new_record.save(compression_level=compression_level),daemon=True)
-        save_thread.start()
-        save_thread_is_alive = save_thread.is_alive
-        while save_thread_is_alive():
-            change0 = self_progress_dialog_on_scan_update_lab_text(0,new_record.info_line)
-            self_progress_dialog_on_scan_update_lab_image(2,self.get_hg_ico())
-            self_main_after(25,lambda : wait_var_set(not wait_var_get()))
-            self_main_wait_variable(wait_var)
-        save_thread.join()
         self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
         ##################################
 
-        self.single_record_show(new_record)
         self.find_clear()
-
-        self_progress_dialog_on_scan.hide(True)
 
         return True
 
@@ -3715,9 +3542,8 @@ class Gui:
         self.subprocess = True
         sys.exit(0) #thread
 
-    def abort_single_file(self,record):
-        record.abort_single_file_cde=True
-        print('abort_single_file')
+    def abort_single(self):
+        librer_core.abort_single()
 
     def kill_test(self):
         if self.subprocess and self.subprocess!=True:

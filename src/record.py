@@ -152,7 +152,7 @@ def print_func(data,always=False):
     global stdout_data_queue_print_time
     if now>stdout_data_queue_print_time or always:
         stdout_data_queue.append(data)
-        stdout_data_queue_print_time=now+0.2
+        stdout_data_queue_print_time=now+0.1
 
 def print_func_always(data):
     stdout_data_queue.append(data)
@@ -163,8 +163,8 @@ def printer_stop():
 def print_d(data):
     print_func(['D',data],True)
 
-def print_i(data):
-    print_func(['I',data],True)
+#def print_i(data):
+#    print_func(['I',data],True)
 
 def printer():
     stdout_data_queue_get = stdout_data_queue.popleft
@@ -347,7 +347,8 @@ if __name__ == "__main__":
         print_info(f'finished. times:{t1-t0},{t2-t1}')
         ###################################################################
     elif args.command == 'create':
-        print_i(f'{cmdfile=}')
+        #print_i(f'{cmdfile=}')
+        #print_func(f'{cmdfile=}')
         if cmdfile:
             try:
                 with open(cmdfile,"rb") as f:
@@ -358,54 +359,29 @@ if __name__ == "__main__":
                 print_i(e)
                 exit(2)
             else:
-                #new_record = librer_core.create(label,path_to_scan)
                 new_record = LibrerRecord(logging,label=label,scan_path=path_to_scan)
-                #new_record.db_dir = '.' #not necessary
-
-                ###########################
 
                 try:
+                    print_func(['stage',0],True)
                     new_record.scan(print_func,abort_list,tuple(cde_list),check_dev)
                 except Exception as fe:
                     print_i(f'scan error:{fe}')
                 else:
-
-                    ###########################
-                    ###########################
-                    #scan_thread=Thread(target=lambda : new_record.scan(tuple(cde_list),check_dev),daemon=True)
-                    #scan_thread.start()
-                    #scan_thread_is_alive = scan_thread.is_alive
-
-                    #new_record_header = new_record.header
-                    #while scan_thread_is_alive():
-                    #    print(new_record_header.sum_size,new_record_header.quant_files,new_record.info_line,new_record.info_line_current)
-                    #    sleep(0.1)
-
-                    #scan_thread.join()
-                    #print('totu - 0')
-
                     if cde_list and not abort_list[0]:
                         ###########################
 
                         try:
+                            print_func(['stage',1],True)
                             new_record.extract_customdata(print_func,abort_list)
                         except Exception as fe:
                             print_i(f'scan error:{fe}')
                         else:
                             pass
-                        #cd_thread=Thread(target=new_record.extract_customdata,daemon=True)
-                        #cd_thread.start()
-                        #cd_thread_is_alive = cd_thread.is_alive
-
-                        #while cd_thread_is_alive():
-                            #new_record_header.files_cde_size_extracted
-                            #files_q = new_record_header.files_cde_quant
-                            #new_record_header.files_cde_quant_sum
-                            #files_size = new_record_header.files_cde_size
-                            #new_record_header.files_cde_size_sum
-
+                    print_func(['stage',2],True)
                     new_record.pack_data(print_func)
-                    new_record.save(file_path=args.file,compression_level=9)
+                    print_func(['stage',3],True)
+                    new_record.save(print_func,file_path=args.file,compression_level=9)
+                    print_func(['stage',4],True)
 
 
         #####################################################################
