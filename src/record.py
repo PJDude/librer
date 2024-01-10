@@ -28,15 +28,15 @@
 
 import sys
 
-from os.path import dirname,join as path_join
-from os import name as os_name
+from os.path import dirname,join as path_join,exists as path_exists
+from os import name as os_name,remove
 
 from gc import disable as gc_disable
 
 from pathlib import Path as pathlib_Path
 from argparse import ArgumentParser,RawTextHelpFormatter
 
-from time import sleep,perf_counter
+from time import sleep,perf_counter,time
 
 from threading import Thread
 
@@ -47,9 +47,12 @@ from difflib import SequenceMatcher
 from json import dumps as json_dumps
 from collections import deque
 
-from signal import signal,SIGINT,SIGTERM
+#from signal import signal,SIGINT,CTRL_C_EVENT,SIGTERM,SIGABRT
 
 from core import *
+
+#if windows:
+#    from signal import SIGBREAK
 
 import logging
 
@@ -78,7 +81,7 @@ def parse_args(ver):
 
     parser.add_argument('file',type=str,help='record dat file')
 
-    parser.add_argument('cmdfile',type=str,help='internal commands file')
+    parser.add_argument('comm_dir',type=str,help='internal communication dir')
 
     file_group = parser.add_argument_group()
 
@@ -145,14 +148,19 @@ def find_params_check(self,
     return None
 
 stdout_data_queue=deque()
+stdout_data_last_not_printed=None
 stdout_data_queue_print_time=0
 
 def print_func(data,always=False):
     now=perf_counter()
     global stdout_data_queue_print_time
+    global stdout_data_last_not_printed
     if now>stdout_data_queue_print_time or always:
         stdout_data_queue.append(data)
         stdout_data_queue_print_time=now+0.1
+        stdout_data_last_not_printed=None
+    else:
+        stdout_data_last_not_printed=data
 
 def print_func_always(data):
     stdout_data_queue.append(data)
@@ -160,15 +168,11 @@ def print_func_always(data):
 def printer_stop():
     stdout_data_queue.append(True)
 
-def print_d(data):
-    print_func(['D',data],True)
-
-#def print_i(data):
-#    print_func(['I',data],True)
-
 def printer():
     stdout_data_queue_get = stdout_data_queue.popleft
 
+    last_print_time=0
+    global stdout_data_last_not_printed
     try:
         while True:
             if stdout_data_queue:
@@ -176,56 +180,71 @@ def printer():
                 if result==True:
                     break
                 print(json_dumps(result),flush=True)
+                last_print_time=time()
             else:
-                #sys.stdout.flush()
                 sleep(0.01)
-
+                if stdout_data_last_not_printed:
+                    if time()>last_print_time+0.5:
+                        print(json_dumps(stdout_data_last_not_printed),flush=True)
+                        stdout_data_last_not_printed=None
     except Exception as pe:
         print_info(f'printer error:{pe}')
 
-    #print_info('printer finished.')
-    #sys.stdout.flush()
+    sys.exit(0) #thread
+
+abort_list=[False,False]
+
+def check_abort(signal_file):
+    while True:
+        if path_exists(signal_file):
+            try:
+                with open(signal_file,'r') as sf:
+                    got_int = int(sf.read().strip())
+
+                    print_info(f'got abort int:{got_int}')
+
+                    global abort_list
+                    abort_list[got_int]=True
+
+                remove(signal_file)
+
+            except Exception as pe:
+                print_info(f'check_abort error:{pe}')
+        else:
+            sleep(0.1)
+
     sys.exit(0) #thread
 
 def print_info(*args):
     print('#',*args)
 
-abort_list=[False,False]
-
-def handle_sigterm():
-    print("Received SIGTERM signal [1]")
-    abort_list[1]=True
-
-def handle_sigint():
-    #self.status("Received SIGINT signal")
-    print("Received SIGINT signal [0]")
-    abort_list[0]=True
-
 if __name__ == "__main__":
     VER_TIMESTAMP = get_ver_timestamp()
 
     args=parse_args(VER_TIMESTAMP)
-    cmdfile=args.cmdfile
+    comm_dir=args.comm_dir
 
     logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s', filename='record-temp.log',filemode='w')
-
-    signal(SIGINT, lambda a, k : handle_sigint())
-    signal(SIGTERM, lambda a, k : handle_sigterm())
 
     gc_disable()
 
     printer_thread = Thread(target=printer,daemon=True)
     printer_thread.start()
 
+    signal_file = sep.join([comm_dir,SIGINT_FILE])
+
+    abort_thread = Thread(target=lambda : check_abort(signal_file),daemon=True)
+    abort_thread.start()
+
     if args.command == 'search':
         #####################################################################
         record = LibrerRecord('nowy','sciezka','./record.log')
         record.load(args.file)
         print_info(f'record label:{record.header.label}')
-        print_info(f'{cmdfile=}')
-        if cmdfile:
+        print_info(f'{comm_dir=}')
+        if comm_dir:
             try:
-                with open(cmdfile,"rb") as f:
+                with open(sep.join([comm_dir,SEARCH_DAT_FILE]),"rb") as f:
                     params = loads(ZstdDecompressor().decompress(f.read()))
                     print_info(f'{params=}')
             except Exception as e:
@@ -347,16 +366,14 @@ if __name__ == "__main__":
         print_info(f'finished. times:{t1-t0},{t2-t1}')
         ###################################################################
     elif args.command == 'create':
-        #print_i(f'{cmdfile=}')
-        #print_func(f'{cmdfile=}')
-        if cmdfile:
+        if comm_dir:
             try:
-                with open(cmdfile,"rb") as f:
+                with open(sep.join([comm_dir,SCAN_DAT_FILE]),"rb") as f:
                     create_list = loads(ZstdDecompressor().decompress(f.read()))
 
                 label,path_to_scan,check_dev,cde_list = create_list
             except Exception as e:
-                print_i(e)
+                print_info(e)
                 exit(2)
             else:
                 new_record = LibrerRecord(logging,label=label,scan_path=path_to_scan)
@@ -365,24 +382,21 @@ if __name__ == "__main__":
                     print_func(['stage',0],True)
                     new_record.scan(print_func,abort_list,tuple(cde_list),check_dev)
                 except Exception as fe:
-                    print_i(f'scan error:{fe}')
+                    print_info(f'scan error:{fe}')
                 else:
-                    if cde_list and not abort_list[0]:
-                        ###########################
+                    if not abort_list[0]:
+                        if cde_list :
+                            try:
+                                print_func(['stage',1],True)
+                                new_record.extract_customdata(print_func,abort_list)
+                            except Exception as cde:
+                                print_info(f'cde error:{cde}')
 
-                        try:
-                            print_func(['stage',1],True)
-                            new_record.extract_customdata(print_func,abort_list)
-                        except Exception as fe:
-                            print_i(f'scan error:{fe}')
-                        else:
-                            pass
-                    print_func(['stage',2],True)
-                    new_record.pack_data(print_func)
-                    print_func(['stage',3],True)
-                    new_record.save(print_func,file_path=args.file,compression_level=9)
-                    print_func(['stage',4],True)
-
+                        print_func(['stage',2],True)
+                        new_record.pack_data(print_func)
+                        print_func(['stage',3],True)
+                        new_record.save(print_func,file_path=args.file,compression_level=9)
+                        print_func(['stage',4],True)
 
         #####################################################################
     else:

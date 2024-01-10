@@ -33,6 +33,7 @@ from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect
 from pathlib import Path
 from time import strftime,time,mktime
 from signal import signal,SIGINT
+
 from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
@@ -46,6 +47,7 @@ from ciso8601 import parse_datetime
 from psutil import disk_partitions
 from librer_images import librer_image
 
+from shutil import rmtree
 from dialogs import *
 from core import *
 
@@ -54,6 +56,7 @@ windows = bool(os_name=='nt')
 if windows:
     from os import startfile
     from win32api import GetVolumeInformation
+    from signal import SIGBREAK
 
 #l_debug = logging.debug
 l_info = logging.info
@@ -601,6 +604,7 @@ class Gui:
         self_progress_dialog_on_load.abort_button.pack( anchor='center',padx=5,pady=5)
 
         self.action_abort=False
+        self.action_abort_single=False
         self_progress_dialog_on_load.abort_button.configure(state='normal')
 
         self.status_info.configure(image='',text = 'Checking records to load ...')
@@ -734,6 +738,9 @@ class Gui:
 
         self.any_valid_find_results = False
         self.external_find_params_change=True
+
+        self.temp_dir = mkdtemp()
+        #print(f'{self.temp_dir=}')
 
         self_main.mainloop()
 
@@ -2008,6 +2015,9 @@ class Gui:
             self.status('WM_DELETE_WINDOW NOT exiting ...')
 
     def exit(self):
+        #print(f'removing temp dir:{self.temp_dir}')
+        rmtree(self.temp_dir)
+
         try:
             self.status('exiting ...')
             self.cfg.set(CFG_last_dir,self.last_dir)
@@ -2473,7 +2483,7 @@ class Gui:
             gc_disable()
             gc_collect()
 
-            search_thread=Thread(target=lambda : librer_core.find_items_in_records(range_par,
+            search_thread=Thread(target=lambda : librer_core.find_items_in_records(self.temp_dir,range_par,
                 min_num,max_num,
                 t_min,t_max,
                 find_filename_search_kind,find_name,find_name_case_sens,
@@ -2751,7 +2761,11 @@ class Gui:
 
         if item:
             record_item,record_name,subpath_list = self.get_item_record(item)
-            self.current_record = record = self.item_to_record[record_item]
+            record = self.item_to_record[record_item]
+            if record != self.current_record:
+                self.current_record = record
+                if not self.cfg.get(CFG_KEY_find_range_all):
+                    self.external_find_params_change = True
 
             record_name = self.tree.item(record_item,'text')
             image=self.tree.item(record_item,'image')
@@ -3216,10 +3230,8 @@ class Gui:
 
         #################################################################################################################################################
 
-        settings_file = sep.join([DATA_DIR,'scaninfo'])
-
         try:
-            with open(settings_file, "wb") as f:
+            with open(sep.join([self.temp_dir,SCAN_DAT_FILE]), "wb") as f:
                 f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,cde_list])))
         except Exception as e:
             print(e)
@@ -3227,7 +3239,7 @@ class Gui:
             gc_disable()
             gc_collect()
 
-            creation_thread=Thread(target=lambda : librer_core.create_new_record(settings_file,self.single_record_show),daemon=True)
+            creation_thread=Thread(target=lambda : librer_core.create_new_record(self.temp_dir,self.single_record_show),daemon=True)
             creation_thread.start()
 
             creation_thread_is_alive = creation_thread.is_alive
@@ -3279,6 +3291,10 @@ class Gui:
 
                     if self.action_abort:
                         librer_core.abort()
+                        self.action_abort=False
+                    elif self.action_abort_single:
+                        librer_core.abort_single()
+                        self.action_abort_single=False
 
                     if prev_stage!=librer_core.stage:
                         self_progress_dialog_on_scan_update_lab_text(0,'')
@@ -3543,7 +3559,9 @@ class Gui:
         sys.exit(0) #thread
 
     def abort_single(self):
-        librer_core.abort_single()
+        self.status("Abort single pressed ...")
+        l_info("Abort single pressed ...")
+        self.action_abort_single=True
 
     def kill_test(self):
         if self.subprocess and self.subprocess!=True:
@@ -3939,16 +3957,19 @@ class Gui:
         if record:
             record_item = self.record_to_item[record]
 
-            self.tree.delete(*self.tree.get_children(record_item))
-            self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
-            self.tree.set(record_item,'opened','0')
-            self.tree.item(record_item, open=False)
+            self_tree = self.tree
+
+            self_tree.delete(*self_tree.get_children(record_item))
+            self_tree.insert(record_item,'end',text='dummy') #dummy_sub_item
+            self_tree.set(record_item,'opened','0')
+            self_tree.item(record_item, open=False)
 
             record.unload_filestructure()
             record.unload_customdata()
-            self.tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
-            self.tree.focus(record_item)
-            self.tree.selection_set(record_item)
+            self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
+            self_tree.focus(record_item)
+            self_tree.see(record_item)
+            self_tree.selection_set(record_item)
             self.tree_select()
 
     @block_actions_processing
@@ -4035,8 +4056,6 @@ if __name__ == "__main__":
         librer_core = LibrerCore(DATA_DIR,logging)
 
         Gui(getcwd())
-
-        #    signal(SIGINT, lambda a, k : librer_core.handle_sigint())
 
     except Exception as e_main:
         print(e_main)
