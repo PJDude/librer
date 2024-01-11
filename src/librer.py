@@ -199,9 +199,9 @@ class Gui:
         self.cfg = Config(DATA_DIR)
         self.cfg.read()
 
-        self.last_dir = self.cfg.get(CFG_last_dir).replace('/',sep)
-
         self.cfg_get=self.cfg.get
+
+        self.last_dir = self.cfg_get(CFG_last_dir).replace('/',sep)
 
         signal(SIGINT, lambda a, k : self.handle_sigint())
 
@@ -552,7 +552,7 @@ class Gui:
 
         self.main_update()
         try:
-            cfg_geometry=self.cfg.get(CFG_geometry)
+            cfg_geometry=self.cfg_get(CFG_geometry)
 
             if cfg_geometry:
                 self_main.geometry(cfg_geometry)
@@ -1842,7 +1842,10 @@ class Gui:
             self.tooltip_show_after_tree = event.widget.after(1, self.show_tooltips_tree(event))
 
     def configure_tooltip(self,widget):
-        self.tooltip_lab_configure(text=self.tooltip_message[str(widget)])
+        try:
+            self.tooltip_lab_configure(text=self.tooltip_message[str(widget)])
+        except Exception as te:
+            print(f'configure_tooltip error:{widget}:{te}')
 
     def show_tooltip_widget(self,event):
         self.unschedule_tooltip_widget(event)
@@ -3131,9 +3134,13 @@ class Gui:
         self_progress_dialog_on_scan.abort_single_button.pack_forget()
         #############################
 
-        self.scan_dialog.widget.update()
-        #self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
+        self_tooltip_message = self.tooltip_message
+        self_configure_tooltip = self.configure_tooltip
+
+        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
         self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Cancel',compound='left',width=15)
+
+        self.scan_dialog.widget.update()
 
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
@@ -3170,8 +3177,6 @@ class Gui:
 
         self_progress_dialog_on_scan_lab[2].configure(image='',text='')
 
-        self_tooltip_message = self.tooltip_message
-        self_configure_tooltip = self.configure_tooltip
 
         any_cde_enabled=False
         cde_sklejka_list=[]
@@ -3247,10 +3252,6 @@ class Gui:
 
             #############################
 
-            records_len = len(librer_core.records)
-            if records_len==0:
-                return
-
             self_progress_dialog_on_scan_progr1var_set = self.progress_dialog_on_scan.progr1var.set
             self_progress_dialog_on_scan_progr2var_set = self.progress_dialog_on_scan.progr2var.set
 
@@ -3270,10 +3271,6 @@ class Gui:
             self_main_wait_variable = self.main.wait_variable
 
             self_get_hg_ico = self.get_hg_ico
-
-            #librer_core_files_search_quant = librer_core.files_search_quant
-            #fnumber_files_search_quant = fnumber(files_search_quant)
-            #fnumber_records_len = fnumber(records_len)
 
             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
             self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
@@ -3474,6 +3471,7 @@ class Gui:
                 self.CDE_shell_var_list[e].set(False)
                 self.CDE_timeout_var_list[e].set('')
                 self.CDE_crc_var_list[e].set(False)
+
             self.cfg.set(CFG_KEY_CDE_SETTINGS,[])
             self.cfg.write()
 
