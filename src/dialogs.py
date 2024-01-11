@@ -367,7 +367,7 @@ class TextDialogInfo(GenericDialog):
         self.find_info_var=StringVar()
         self.find_info_var.set('-/-')
         self.find_info_lab=Label(self.area_mark, textvariable=self.find_info_var, width=8,relief='groove',bd=2,bg=self.bg_color)
-        self.find_info_lab.pack(side='right', anchor='w',padx=2,pady=5,expand=1)
+        self.find_info_lab.pack(side='right', anchor='w',padx=2,pady=5,expand=1,fill='both')
 
         self.find_prev_butt=Button(self.area_mark, command=lambda : self.find_next_prev(-1), width=1)
         self.find_prev_butt.pack(side='right', anchor='w',padx=2,pady=5,fill='both')

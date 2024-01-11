@@ -38,7 +38,6 @@ windows = bool(os_name=='nt')
 
 if windows:
     from subprocess import CREATE_NO_WINDOW
-    from signal import SIGBREAK
 else:
     from os import getpgid, killpg
 
@@ -202,10 +201,11 @@ def get_command(executable,parameters,full_file_path,shell):
 
 #'ignore','replace','backslashreplace'
 def popen_win(command,shell,stdin=DEVNULL):
-    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=stdin,shell=shell,text=True,universal_newlines=True,creationflags=CREATE_NO_WINDOW,close_fds=False,errors='ignore')
+    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=stdin,shell=shell,text=True,universal_newlines=True,bufsize=-1,errors='ignore',creationflags=CREATE_NO_WINDOW)
+    #,close_fds=False
 
 def popen_lin(command,shell,stdin=DEVNULL):
-    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=stdin,shell=shell,text=True,universal_newlines=True,start_new_session=True,errors='ignore')
+    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=stdin,shell=shell,text=True,universal_newlines=True,bufsize=-1,errors='ignore',start_new_session=True)
 
 uni_popen = (lambda command,shell=False,stdin=DEVNULL : popen_win(command,shell,stdin)) if windows else (lambda command,shell=False,stdin=DEVNULL : popen_lin(command,shell,stdin))
 
@@ -682,9 +682,9 @@ class LibrerRecord:
                         output_list_append = output_list.append
 
                         while True:
-                            line = subprocess_stdout_readline().rstrip()
+                            line = subprocess_stdout_readline()
 
-                            output_list_append(line)
+                            output_list_append(line.rstrip())
 
                             if not line and subprocess_poll() is not None:
                                 returncode=subprocess.returncode
@@ -759,8 +759,11 @@ class LibrerRecord:
                     kill_subprocess(subprocess,print_func)
                     self.killed=True
                     abort_list[1]=False
+                sleep(0.2)
             else:
-                sleep(0.5)
+                sleep(0.4)
+
+        print_func( ('info','custom data extraction finished.'),True)
 
         cde_thread.join()
 
@@ -975,7 +978,7 @@ class LibrerRecord:
                         #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
                         if name_func_to_call:
                             if name_func_to_call(name):
-                                print_func([search_progress,size,mtime,*next_level])
+                                print_func( (search_progress,size,mtime,*next_level) )
                                 #search_progress_update_quant=0
                                 #progress_update_time = perf_counter()
 
@@ -1043,11 +1046,12 @@ class LibrerRecord:
                         else:
                             continue
 
-                    print_func([search_progress,size,mtime,*next_level])
+                    print_func( (search_progress,size,mtime,*next_level) )
                     #search_progress_update_quant=0
                     #progress_update_time = perf_counter()
 
-                print_func([search_progress])
+                #print_func((search_progress))
+
                 #t_now = perf_counter()
                 #if t_now>progress_update_time+1.0:
                 #    progress_update_time = t_now
@@ -1057,7 +1061,7 @@ class LibrerRecord:
                 #else:
                 #    search_progress_update_quant+=1
 
-        print_func([search_progress])
+        print_func( [search_progress] )
         #print_func(True)
 
     def find_items_sort(self,what,reverse):
@@ -1739,10 +1743,7 @@ class LibrerCore:
             find_cd_search_kind,cd_expr,cd_case_sens,
             filename_fuzzy_threshold,cd_fuzzy_threshold):
 
-        self.log.info(f'find_items_in_records {size_min},{size_max},\
-            {find_filename_search_kind},{name_expr},{name_case_sens},\
-            {find_cd_search_kind},{cd_expr},{cd_case_sens},\
-            {filename_fuzzy_threshold},{cd_fuzzy_threshold}')
+        self.log.info(f'find_items_in_records:{size_min},{size_max},{find_filename_search_kind},{name_expr},{name_case_sens},{find_cd_search_kind},{cd_expr},{cd_case_sens},{filename_fuzzy_threshold},{cd_fuzzy_threshold}')
 
         self.find_results_clean()
 
@@ -1764,53 +1765,10 @@ class LibrerCore:
             print(e)
 
         record_command_list={}
-        is_frozen = bool(getattr(sys, 'frozen', False))
 
         for record_nr,record in enumerate(records_to_process):
             curr_command_list = record_command_list[record_nr] = self.record_exe()
-
             curr_command_list.extend(['search',record.file_path,temp_dir])
-
-            if t_min:
-                curr_command_list.extend( ['--timestamp_min',str(t_min) ] )
-
-            if t_max:
-                curr_command_list.extend( ['--timestamp_max',str(t_max)] )
-
-            if size_min:
-                curr_command_list.extend( ['--size_min',str(size_min).replace(' ','') ] )
-
-            if size_max:
-                curr_command_list.extend( ['--size_max',str(size_max).replace(' ','')] )
-
-            if name_expr:
-                if find_filename_search_kind == 'regexp':
-                    curr_command_list.extend(['--file_regexp',name_expr])
-                elif find_filename_search_kind == 'glob':
-                    curr_command_list.extend(['--file_glob',name_expr])
-                    if name_case_sens:
-                        curr_command_list.append('--file_case_sensitive')
-                elif find_filename_search_kind == 'fuzzy':
-                    curr_command_list.extend(['--file_fuzzy',name_expr,'--file_fuzzy_threshold',filename_fuzzy_threshold])
-            elif find_filename_search_kind == 'error':
-                curr_command_list.append('--file_error')
-
-            if cd_expr:
-                if find_cd_search_kind == 'regexp':
-                    curr_command_list.extend( ['--cd_regexp',cd_expr] )
-                elif find_cd_search_kind == 'glob':
-                    curr_command_list.extend( ['--cd_glob',cd_expr] )
-                    if cd_case_sens:
-                        curr_command_list.append('--cd_case_sensitive')
-                elif find_cd_search_kind == 'fuzzy':
-                    curr_command_list.extend( ['--cd_fuzzy',cd_expr,'--cd_fuzzy_threshold',cd_fuzzy_threshold] )
-            elif find_cd_search_kind == 'without':
-                curr_command_list.append('--cd_without')
-            elif find_cd_search_kind == 'any':
-                curr_command_list.append('--cd_ok')
-            elif find_cd_search_kind == 'error':
-                curr_command_list.append('--cd_error')
-
             self.log.info(f'curr_command_list: {curr_command_list}')
 
         self.find_res_quant = 0

@@ -56,7 +56,6 @@ windows = bool(os_name=='nt')
 if windows:
     from os import startfile
     from win32api import GetVolumeInformation
-    from signal import SIGBREAK
 
 #l_debug = logging.debug
 l_info = logging.info
