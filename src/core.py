@@ -71,7 +71,7 @@ VERSION_FILE='version.txt'
 
 SCAN_DAT_FILE = 'scaninfo'
 SEARCH_DAT_FILE = 'searchinfo'
-SIGINT_FILE = 'signal'
+SIGNAL_FILE = 'signal'
 
 def get_dev_labes_dict():
     lsblk = subprocess_run(['lsblk','-fJ'],capture_output = True,text = True)
@@ -211,8 +211,7 @@ uni_popen = (lambda command,shell=False,stdin=DEVNULL : popen_win(command,shell,
 
 def send_signal(subproc,temp_dir,kind=0):
     try:
-        signal_file = sep.join([temp_dir,SIGINT_FILE])
-        #print(f'sending signal in file {signal_file}')
+        signal_file = sep.join([temp_dir,SIGNAL_FILE])
 
         temp_signal_file = signal_file+ '_temp'
         with open(temp_signal_file,'w') as tsf:
@@ -304,18 +303,14 @@ class Header :
 
 #######################################################################
 class LibrerRecord:
-    def __init__(self,log,label=None,scan_path=None,file_path=None):
+    def __init__(self,label=None,scan_path=None,file_path=None):
         self.header = Header(label,scan_path)
 
         self.filestructure = ()
         self.customdata = []
         self.filenames = []
 
-        self.log = log
         self.find_results = []
-
-        self.info_line = ''
-        #self.info_line_current = ''
 
         self.abort_action = False
 
@@ -335,9 +330,6 @@ class LibrerRecord:
         self.file_path = file_path
         self.file_name = basename(normpath(file_path))
 
-        #self.log.info('loading %s' % file_name)
-        #TODO - problem w podprocesie
-
         try:
             with ZipFile(file_path, "r") as zip_file:
                 header_ser_compr = zip_file.read('header')
@@ -346,16 +338,12 @@ class LibrerRecord:
                 self.header.zipinfo["header"]=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self.header))
 
             if self.header.data_format_version != DATA_FORMAT_VERSION:
-                message = f'loading "{file_path}" error: incompatible data format version: {self.header.data_format_version} vs {DATA_FORMAT_VERSION}'
-                self.log.error(message)
-                return message
+                return f'loading "{file_path}" error: incompatible data format version: {self.header.data_format_version} vs {DATA_FORMAT_VERSION}'
 
             self.prepare_info()
 
         except Exception as e:
-            message = f'loading "{file_path}" error: "{e}"'
-            #self.log.error(message)
-            return message
+            return f'loading "{file_path}" error: "{e}"'
 
         return False
 
@@ -368,18 +356,12 @@ class LibrerRecord:
 
         self.file_path = file_path
 
-        #self.info_line = f'saving {filename}'
-
-        #self.log.info('saving %s' % file_path)
-        #print_func(['save',f'saving {file_path}'])
-
         self_header = self.header
 
         self.header.compression_level = compression_level
 
         with ZipFile(file_path, "w") as zip_file:
             def compress_with_header_update_wrapp(data,datalabel):
-                #self.info_line = f'compressing {datalabel}'
                 print_func(['save',f'compressing {datalabel}'],True)
                 compress_with_header_update(self.header,data,compression_level,datalabel,zip_file)
 
@@ -434,16 +416,11 @@ class LibrerRecord:
                     if is_file:
                         self_header_ext_stats[ext]+=1
 
-                    #self.info_line_current = entry_name
-
-                    #print_func(('scan-line',entry_name))
-
                     try:
                         stat_res = stat(entry)
                         mtime = int(stat_res.st_mtime)
                         dev=stat_res.st_dev
                     except Exception as e:
-                        #self.log.error('stat error:%s', e )
                         print_func( ('error',f'stat {entry_name} error:{e}') )
                         #size -1 <=> error, dev,in ==0
                         is_bind = False
@@ -501,15 +478,9 @@ class LibrerRecord:
                 self_header.quant_folders += local_folder_folders_count
 
                 print_func( ('scan',self_header.sum_size,self_header.quant_files,self_header.quant_folders,path) )
-                #t_now = perf_counter()
-                #if t_now>self.progress_update_time+1.0:
-                    #self.progress_update_time = t_now
 
         except Exception as e:
-            #self.log.error('scandir error:%s',e )
             print_func( ('error', f'scandir {path} error:{e}') )
-
-        #self.info_line_current = ''
 
         return (local_folder_size_with_subtree+local_folder_size,subitems)
 
@@ -608,7 +579,6 @@ class LibrerRecord:
         self_header = self.header
         scan_path = self_header.scan_path
 
-        #self.info_line = 'custom data extraction ...'
         print_func( ('info','custom data extraction ...'),True)
 
         self_header.files_cde_quant = 0
@@ -616,9 +586,11 @@ class LibrerRecord:
         self_header.files_cde_size_extracted = 0
         self_header.files_cde_errors_quant = defaultdict(int)
         self_header.files_cde_errors_quant_all = 0
-        self_header.files_cde_quant_sum = len(self.customdata_pool)
-
+        files_cde_quant_sum = self_header.files_cde_quant_sum = len(self.customdata_pool)
+        files_cde_size_sum = self_header.files_cde_size_sum
         cde_list = self.header.cde_list
+
+        print_func( ('cdeinit',files_cde_quant_sum,files_cde_size_sum),True)
 
         customdata_helper={}
 
@@ -643,10 +615,10 @@ class LibrerRecord:
             files_cde_size = 0
             files_cde_size_extracted = 0
 
+            files_cde_errors_quant_all = 0
             for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
 
                 self.killed=False
-                #self.abort_action_single=False
 
                 time_start = perf_counter()
                 if abort_list[0] : #wszystko
@@ -661,8 +633,8 @@ class LibrerRecord:
                     full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
                     command,command_info = get_command(executable,parameters,full_file_path,shell)
 
-                    info_line = f'{full_file_path} ({bytes_to_str(size)})'
-                    print_func( ('cde',info_line,size,  files_cde_size_extracted,self_header.files_cde_errors_quant_all,files_cde_quant,self_header.files_cde_quant_sum,files_cde_size,self_header.files_cde_size_sum) )
+                    #print_func( ('cde',f'{full_file_path} ({bytes_to_str(size)})',size,files_cde_size_extracted,files_cde_errors_quant_all,files_cde_quant,files_cde_quant_sum,files_cde_size,files_cde_size_sum) )
+                    print_func( ('cde',f'{full_file_path} ({bytes_to_str(size)})',size,files_cde_size_extracted,files_cde_errors_quant_all,files_cde_quant,files_cde_size) )
 
                     timeout_val=time()+timeout if timeout else None
                     #####################################
@@ -706,6 +678,7 @@ class LibrerRecord:
 
                 if returncode or self.killed or aborted:
                     files_cde_errors_quant[rule_nr]+=1
+                    files_cde_errors_quant_all+=1
 
                 if not aborted:
                     files_cde_quant += 1
@@ -737,7 +710,7 @@ class LibrerRecord:
             time_end_all = perf_counter()
 
             self_header.files_cde_errors_quant=files_cde_errors_quant
-            self_header.files_cde_errors_quant_all = sum(files_cde_errors_quant.values())
+            self_header.files_cde_errors_quant_all = files_cde_errors_quant_all
 
             self_header.files_cde_quant = files_cde_quant
             self_header.files_cde_size = files_cde_size
@@ -910,8 +883,6 @@ class LibrerRecord:
         filestructure = self.filestructure
 
         search_progress = 0
-        #search_progress_update_quant = 0
-        #progress_update_time = perf_counter()
 
         if cd_search_kind!='dont':
             self.decompress_customdata()
@@ -936,8 +907,6 @@ class LibrerRecord:
         name_search_kind_is_error = bool(name_search_kind=='error')
 
         self_customdata = self.customdata
-
-        #results_queue_put = results_queue.append
 
         while search_list:
             filestructure,parent_path_components = search_list_pop()
@@ -979,8 +948,6 @@ class LibrerRecord:
                         if name_func_to_call:
                             if name_func_to_call(name):
                                 print_func( (search_progress,size,mtime,*next_level) )
-                                #search_progress_update_quant=0
-                                #progress_update_time = perf_counter()
 
                     if sub_data:
                         search_list_append( (sub_data,next_level) )
@@ -1047,22 +1014,8 @@ class LibrerRecord:
                             continue
 
                     print_func( (search_progress,size,mtime,*next_level) )
-                    #search_progress_update_quant=0
-                    #progress_update_time = perf_counter()
-
-                #print_func((search_progress))
-
-                #t_now = perf_counter()
-                #if t_now>progress_update_time+1.0:
-                #    progress_update_time = t_now
-
-                #if search_progress_update_quant>1024:
-                    #search_progress_update_quant=0
-                #else:
-                #    search_progress_update_quant+=1
 
         print_func( [search_progress] )
-        #print_func(True)
 
     def find_items_sort(self,what,reverse):
         if what=='data':
@@ -1288,7 +1241,6 @@ class LibrerCore:
         self.db_dir = db_dir
         self.log=log
         self.info_line = 'init'
-        #self.info_line_current = ''
 
         self.records_to_show=[]
         self.abort_action=False
@@ -1304,7 +1256,7 @@ class LibrerCore:
         self.records_sorted = sorted(self.records,key = lambda x : x.header.creation_time)
 
     def create(self,label='',scan_path=''):
-        new_record = LibrerRecord(self.log,label=label,scan_path=scan_path)
+        new_record = LibrerRecord(label=label,scan_path=scan_path)
         new_record.db_dir = self.db_dir
 
         self.records.add(new_record)
@@ -1573,14 +1525,14 @@ class LibrerCore:
     ########################################################################################################################
     def create_new_record(self,temp_dir,update_callback):
         self.log.info(f'create_new_record')
+        self_log_info = self.log.info
+
 
         new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
 
-        #new_record_filename = str(int(time()) + .dat
         command = self.record_exe()
         command.append('create')
         command.append(new_file_path)
-        #command.append(settings_file)
         command.append(temp_dir)
 
         self.abort_action=False
@@ -1602,8 +1554,6 @@ class LibrerCore:
         self.stdout_files_cde_size_sum=0
 
         def threaded_run(command,results_semi_list,info_semi_list,processes_semi_list):
-            #results_list_append = results_semi_list[0].find_results.append
-
             try:
                 subprocess = uni_popen(command,stdin=PIPE)
             except Exception as re:
@@ -1617,12 +1567,12 @@ class LibrerCore:
 
             while True:
                 if line := subprocess_stdout_readline():
+                    line_strip = line.strip()
+                    self_log_info(f'rec:{line_strip}')
                     try:
-                        #print(line)
                         if line[0]!='#':
-                            val = json_loads(line.strip())
+                            val = json_loads(line_strip)
 
-                            self.info_line = val
                             kind = val[0]
                             if kind == 'stage':
                                 self.stage = val[1]
@@ -1637,25 +1587,20 @@ class LibrerCore:
                                     self.stdout_sum_size,self.stdout_quant_files,self.stdout_quant_folders,self.stdout_info_line_current = val[1:5]
 
                                 elif self.stage==1: #cde
-                                    self.stdout_info_line_current = val[1]
-                                    self.stdout_cde_size = val[2]
+                                    if val[0]=='cdeinit':
+                                        #files_cde_quant_sum,files_cde_size_sum
+                                        self.stdout_files_cde_quant_sum = val[1]
+                                        self.stdout_files_cde_size_sum = val[2]
+                                    elif val[0]=='cde':
+                                        self.stdout_info_line_current = val[1]
+                                        self.stdout_cde_size = val[2]
 
-                                    self.stdout_files_cde_size_extracted=val[3]
-                                    self.stdout_files_cde_errors_quant_all=val[4]
-                                    self.stdout_files_cde_quant=val[5]
-                                    self.stdout_files_cde_quant_sum=val[6]
-                                    self.stdout_files_cde_size=val[7]
-                                    self.stdout_files_cde_size_sum=val[8]
-
-                                    self.stdout_info_line_current
-                                    self.stdout_cde_size
-
-                                    #print(type(self.stdout_files_cde_size_extracted))
-                                    #print(type(self.stdout_files_cde_errors_quant_all))
-                                    #print(type(self.stdout_files_cde_quant))
-                                    #print(type(self.stdout_files_cde_quant_sum))
-                                    #print(type(self.stdout_files_cde_size))
-                                    #print(type(self.stdout_files_cde_size_sum))
+                                        self.stdout_files_cde_size_extracted=val[3]
+                                        self.stdout_files_cde_errors_quant_all=val[4]
+                                        self.stdout_files_cde_quant=val[5]
+                                        self.stdout_files_cde_size=val[6]
+                                    else:
+                                        self_log_info('ERROR UNRECOGNIZED LINE')
 
                                 elif self.stage==2: #pack
                                     self.stdout_info_line_current = val[1]
@@ -1666,10 +1611,11 @@ class LibrerCore:
                                 elif self.stage==4: #end
                                     pass
                         else:
-                            info_semi_list[0]=line.strip()
+                            info_semi_list[0]=line_strip
                     except Exception as e:
                         print(f'threaded_run work error:{e} line:{line}')
                         info_semi_list[0]=f'threaded_run work error:{e} line:{line}'
+                        self_log_info(f'threaded_run work error:{e} line:{line}')
                 else:
                     if subprocess_poll() is not None:
                         break
@@ -1683,32 +1629,24 @@ class LibrerCore:
         job.start()
         job_is_alive = job.is_alive
 
+        aborted=False
         ###########################################
         while job_is_alive():
             subprocess=processes_semi_list[0]
             if subprocess:
                 if self.abort_action:
-                    self.info_line = 'Aborting ...'
                     send_signal(subprocess,temp_dir,0)
                     self.abort_action=False
+                    aborted=True
                 if self.abort_action_single:
-                    self.info_line = 'Aborting single ...'
                     send_signal(subprocess,temp_dir,1)
                     self.abort_action_single=False
+            sleep(0.1)
 
-                    #try:
-                    #    subprocess.kill()
-                    #except Exception as ke:
-                    #    print('killing error:',ke)
-
-                #break
-            sleep(0.01)
-
-            self.info_line = f'scanning czy costam'
         job.join()
         ###########################################
 
-        if not self.abort_action:
+        if not aborted:
             new_record = self.create()
 
             if res:=new_record.load(new_file_path) :
@@ -1717,7 +1655,6 @@ class LibrerCore:
                 print(res)
             else:
                 update_callback(new_record)
-                #self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
 
         return True
 
