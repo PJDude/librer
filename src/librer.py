@@ -3354,6 +3354,9 @@ class Gui:
                                 update_once=True
 
                     else:
+                        self_progress_dialog_on_scan.abort_button.configure(state='disabled')
+                        self_progress_dialog_on_scan.abort_single_button.configure(state='disabled')
+
                         if len(librer_core.stdout_info_line_current)>50:
                             change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
                         else:
