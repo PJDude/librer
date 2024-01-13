@@ -309,6 +309,7 @@ class LibrerRecord:
         self.filenames = []
 
         self.find_results = []
+        self.find_results_tuples_set=set()
 
         self.abort_action = False
 
@@ -872,8 +873,6 @@ class LibrerRecord:
             name_search_kind,name_func_to_call,
             cd_search_kind,cd_func_to_call,
             print_info_fn):
-
-        self.find_results = []
 
         self.decompress_filestructure()
 
@@ -1814,6 +1813,9 @@ class LibrerCore:
 
             sleep(0.1)
         #####################################################
+        for record in records_to_process:
+            record.find_results_tuples_set = {result[0] for result in record.find_results}
+
         for record_nr,info in enumerate(info_list):
             self.log.info(f'got info for record:{record_nr}')
             for info_line in info:

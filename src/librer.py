@@ -610,6 +610,7 @@ class Gui:
         records_quant,records_size = librer_core.read_records_pre()
 
         load_errors = []
+
         if records_quant:
             self.status_info.configure(image='',text = 'Loading records ...')
 
@@ -2626,12 +2627,16 @@ class Gui:
                     self.find_result_index=-1
                     self.find_next()
 
-    def get_child_of_name(self,item,child_name):
+    def get_child_of_name(self,record,item,child_name):
         self_tree = self.tree
+        self_tree_item = self_tree.item
+
+        self_item_to_data = self.item_to_data
+        record_filenames = record.filenames
+
+        #mozna by to zcachowac ale jest kwestia sortowania
         for child in self_tree.get_children(item):
-            values = self_tree.item(child,'values')
-            data=values[0]
-            if data==child_name:
+            if record_filenames[self_item_to_data[child][0]]==child_name:
                 return child
         return None
 
@@ -2646,13 +2651,10 @@ class Gui:
             find_result_index_reset=False
 
             while not settled:
-                #print('self.find_result_record_index:',self.find_result_record_index)
-                #print('self.find_result_index:',self.find_result_index)
-
                 record = librer_core.records_sorted[self.find_result_record_index]
-                #print('\n'.join([sep.join(x[0]) for x in record.find_results]))
-                record_find_results_len=len(record.find_results)
+                record_find_results = record.find_results
 
+                record_find_results_len=len(record_find_results)
 
                 if find_result_index_reset:
                     find_result_index_reset=False
@@ -2673,33 +2675,31 @@ class Gui:
                     self.find_result_record_index %= records_quant
 
                 try:
-                    items_names_tuple,res_size,res_mtime=record.find_results[self.find_result_index]
+                    items_names_tuple,res_size,res_mtime=record_find_results[self.find_result_index]
                 except Exception as e:
                     continue
                 else:
                     settled=True
-                    status_to_set=f'record find result: {self.find_result_index+1 if self.find_result_index>=0 else record_find_results_len+self.find_result_index+1} / {fnumber(record_find_results_len)} / {fnumber(self.all_records_find_results_len)}'
-
-            #print(record_result)
+                    status_to_set=f'record find result: {fnumber(self.find_result_index+1 if self.find_result_index>=0 else record_find_results_len+self.find_result_index+1)} / {fnumber(record_find_results_len)} / {fnumber(self.all_records_find_results_len)}'
 
             record_item = self.record_to_item[record]
-
-            #record = self.item_to_record[record_item]
 
             current_item = record_item
 
             self.open_item(current_item)
 
+            self_get_child_of_name = self.get_child_of_name
+            self_open_item = self.open_item
+            self_tree_update = self_tree.update
+
             for item_name in items_names_tuple:
-                #print('item_name:',item_name)
-                child_item = self.get_child_of_name(current_item,item_name)
-                #print('child_item:',child_item)
+                child_item = self_get_child_of_name(record,current_item,item_name)
 
                 if child_item:
                     current_item = child_item
-                    self.open_item(current_item)
+                    self_open_item(current_item)
                     #self_tree.see(current_item)
-                    self_tree.update()
+                    self_tree_update()
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
@@ -3757,7 +3757,9 @@ class Gui:
             self_ico_empty = self.ico_empty
 
             record_find_results = record.find_results
-            self.FOUND = self.FOUND
+            record_find_results_tuples_set = record.find_results_tuples_set
+
+            self_FOUND = self.FOUND
             if top_has_files:
                 for data_tuple in top_data_tuple[4]:
 
@@ -3793,11 +3795,8 @@ class Gui:
                         tags=self_SYMLINK
                     else:
                         tags=''
-                        if record_find_results:
-                            for find_result in record_find_results:
-                                if find_result[0]==entry_subpath_tuple:
-                                    tags=self.FOUND
-                                    break
+                        if entry_subpath_tuple in record_find_results_tuples_set:
+                            tags=self_FOUND
 
                     #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
                     values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(mtime)),kind)
