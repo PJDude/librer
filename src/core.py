@@ -228,13 +228,11 @@ def kill_subprocess(subproc,print_func=print):
 
         if windows:
             kill_cmd = ['taskkill', '/F', '/T', '/PID', str(pid)]
-            #print_func( ('info',f'executing: {kill_cmd}') )
             print_func( ('info',f'killing pid: {pid}') )
             subprocess_run(kill_cmd)
         else:
             print_func( ('info',f'killing process group of pid {pid}') )
             killpg(getpgid(pid), SIGTERM)
-            #print_func( ('info',f'killing process group done') )
 
     except Exception as ke:
         print_func( ('error',f'kill_subprocess error: {ke}') )
@@ -1263,10 +1261,6 @@ class LibrerCore:
         self.update_sorted()
         return new_record
 
-    #def load_record(self):
-        #self.records.add(new_record)
-    #    pass
-
     def read_records_pre(self):
         try:
             with scandir(self.db_dir) as res:
@@ -1527,7 +1521,6 @@ class LibrerCore:
         self.log.info(f'create_new_record')
         self_log_info = self.log.info
 
-
         new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
 
         command = self.record_exe()
@@ -1613,7 +1606,6 @@ class LibrerCore:
                         else:
                             info_semi_list[0]=line_strip
                     except Exception as e:
-                        print(f'threaded_run work error:{e} line:{line}')
                         info_semi_list[0]=f'threaded_run work error:{e} line:{line}'
                         self_log_info(f'threaded_run work error:{e} line:{line}')
                 else:
@@ -1629,7 +1621,6 @@ class LibrerCore:
         job.start()
         job_is_alive = job.is_alive
 
-        aborted=False
         ###########################################
         while job_is_alive():
             subprocess=processes_semi_list[0]
@@ -1637,7 +1628,6 @@ class LibrerCore:
                 if self.abort_action:
                     send_signal(subprocess,temp_dir,0)
                     self.abort_action=False
-                    aborted=True
                 if self.abort_action_single:
                     send_signal(subprocess,temp_dir,1)
                     self.abort_action_single=False
@@ -1646,15 +1636,15 @@ class LibrerCore:
         job.join()
         ###########################################
 
-        if not aborted:
-            new_record = self.create()
+        #nie wiadomo czy przerwano na skanie czy cde
+        new_record = self.create()
 
-            if res:=new_record.load(new_file_path) :
-                self.log.warning('removing:%s',new_file_path)
-                self.records.remove(new_record)
-                print(res)
-            else:
-                update_callback(new_record)
+        if res:=new_record.load(new_file_path) :
+            self.log.warning('removing:%s',new_file_path)
+            self.records.remove(new_record)
+            self_log_info(res)
+        else:
+            update_callback(new_record)
 
         return True
 
@@ -1721,7 +1711,6 @@ class LibrerCore:
         ############################################################
 
         max_processes = cpu_count()
-        #max_processes = 1
 
         records_to_process_len = len(records_to_process)
 

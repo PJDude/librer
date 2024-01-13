@@ -126,8 +126,15 @@ def caretaker(signal_file):
     sys_stdout_flush = sys.stdout.flush
     lines_non_stop=0
 
+    def flush_last_data_not_printed(flush):
+        nonlocal last_data_not_printed
+        if last_data_not_printed:
+            print(json_dumps(last_data_not_printed),flush=flush)
+            last_data_not_printed=None
+
     while True:
         now=perf_counter()
+        now_grater_than_next_time_print = bool(now>next_time_print)
 
         if stdout_data_queue:
             data,always=stdout_data_queue_get()
@@ -135,17 +142,24 @@ def caretaker(signal_file):
             if data==True:
                 break
 
-            if always or now>next_time_print:
+            if always:
+                flush_last_data_not_printed(False)
+
+            if always or now_grater_than_next_time_print:
                 print(json_dumps(data),flush=True)
                 next_time_print=now+print_min_time_period
+                lines_non_stop+=1
+                last_data_not_printed=None
             else:
                 last_data_not_printed=data
-            lines_non_stop+=1
 
-            if lines_non_stop<100:
+            if lines_non_stop<128:
                 continue
-            else:
-                lines_non_stop=0
+
+        lines_non_stop=0
+
+        if now_grater_than_next_time_print:
+            flush_last_data_not_printed(True)
 
         if now>next_signal_file_check:
             next_signal_file_check=now+signal_file_check_period
@@ -159,10 +173,6 @@ def caretaker(signal_file):
 
                 except Exception as pe:
                     print_info(f'check_abort error:{pe}')
-
-        if last_data_not_printed and now>next_time_print:
-            print(json_dumps(last_data_not_printed),flush=True)
-            last_data_not_printed=None
 
         sleep(0.01)
 
