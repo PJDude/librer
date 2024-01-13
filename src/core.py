@@ -754,7 +754,6 @@ class LibrerRecord:
 
         self_tupelize_rec = self.tupelize_rec
 
-        #self_customdata = self.customdata
         sub_list = []
         for entry_name,items_list in scan_like_data.items():
             try:
@@ -909,9 +908,6 @@ class LibrerRecord:
             filestructure,parent_path_components = search_list_pop()
 
             for data_entry in filestructure:
-                #if check_abort():
-                #    break
-
                 search_progress +=1
 
                 name_nr,code,size,mtime = data_entry[0:4]
@@ -1081,7 +1077,6 @@ class LibrerRecord:
             info_list.append( 'internal sizes  :  compressed  serialized    original       items  references    CDE time  CDE errors')
             info_list.append('')
 
-            #h_data = self.header_sizes
             h_data = self_header.zipinfo["header"]
             fs_data = self_header.zipinfo["filestructure"]
             fn_data = self_header.zipinfo["filenames"]
@@ -1381,7 +1376,6 @@ class LibrerCore:
             with ZipFile(src_file, "r") as src_zip_file:
 
                 dec_dec = ZstdDecompressor().decompress
-                #dec_dec = decompressor.decompress
 
                 header_ser_compr = src_zip_file.read('header')
                 header_ser = dec_dec(header_ser_compr)
@@ -1791,7 +1785,7 @@ class LibrerCore:
             running = len([record_nr for record_nr in range(records_to_process_len) if jobs[record_nr][0]==1 and jobs[record_nr][1].is_alive() ])
             finished = self.search_record_nr = records_to_process_len-running-waiting
 
-            self.records_perc_info = self.search_record_nr * 100.0 / records_to_process_len
+            self.records_perc_info = (self.search_record_nr+0.5) * 100.0 / records_to_process_len
 
             self.info_line = f'Threads: waiting:{waiting}, running:{running}, finished:{finished}'
 

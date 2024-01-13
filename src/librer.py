@@ -1848,6 +1848,29 @@ class Gui:
         except Exception as te:
             print(f'configure_tooltip error:{widget}:{te}')
 
+    def adaptive_tooltip_geometry(self,event):
+        x,y = self.tooltip_wm_geometry().split('+')[0].split('x')
+        x_int=int(x)
+        y_int=int(y)
+
+        size_combo,x_main_off,y_main_off = self.main.wm_geometry().split('+')
+        x_main_size,y_main_size = size_combo.split('x')
+
+        x_middle = int(x_main_size)/2+int(x_main_off)
+        y_middle = int(y_main_size)/2+int(y_main_off)
+
+        if event.x_root>x_middle:
+            x_mod = -x_int -20
+        else:
+            x_mod = 20
+
+        if event.y_root>y_middle:
+            y_mod = -y_int -5
+        else:
+            y_mod = 5
+
+        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + x_mod, event.y_root + y_mod))
+
     def show_tooltip_widget(self,event):
         self.unschedule_tooltip_widget(event)
         self.menubar_unpost()
@@ -1855,7 +1878,8 @@ class Gui:
         self.configure_tooltip(event.widget)
 
         self.tooltip_deiconify()
-        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+
+        self.adaptive_tooltip_geometry(event)
 
     def get_item_record(self,item):
         tree = self.tree
@@ -1875,21 +1899,15 @@ class Gui:
             if values:
                 data=values[0]
                 subpath_list.append(data)
-            #else:
-                #print(f'get_item_record no values: {item=},{values=}')
-                #dummy item
-
+<
             item=tree.parent(item)
 
         subpath_list.reverse()
         return (item,current_record_name,subpath_list)
-        #sep + sep.join(reversed(subpath_list))
 
     def show_tooltips_tree(self,event):
         self.unschedule_tooltips_tree(event)
         self.menubar_unpost()
-
-        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
 
         tree = event.widget
         col=tree.identify_column(event.x)
@@ -1949,6 +1967,8 @@ class Gui:
 
                     else:
                         self.hide_tooltip()
+
+        self.adaptive_tooltip_geometry(event)
 
     def unschedule_tooltip_widget(self,event):
         if self.tooltip_show_after_widget:
@@ -2344,6 +2364,7 @@ class Gui:
             range_par = self.current_record if not find_range_all else None
 
             sel_range = [range_par] if range_par else librer_core.records
+            sel_range_len = len(sel_range)
             files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
 
             if files_search_quant==0:
@@ -2534,7 +2555,7 @@ class Gui:
 
             #librer_core_files_search_quant = librer_core.files_search_quant
             fnumber_files_search_quant = fnumber(files_search_quant)
-            fnumber_records_len = fnumber(records_len)
+            fnumber_sel_range_len = fnumber(sel_range_len)
 
             time_without_busy_sign=0
             while search_thread_is_alive():
@@ -2546,13 +2567,11 @@ class Gui:
 
                 curr_files = librer_core.total_search_progress
 
-                files_perc = curr_files * 100.0 / files_search_quant
-
                 self_progress_dialog_on_find_progr1var_set(librer_core.records_perc_info)
-                self_progress_dialog_on_find_progr2var_set(files_perc)
+                self_progress_dialog_on_find_progr2var_set(curr_files * 100.0 / files_search_quant)
 
-                self_progress_dialog_on_find_lab_r1_config(text=fnumber(librer_core.search_record_nr) + '/' + fnumber_records_len)
-                self_progress_dialog_on_find_lab_r2_config(text=fnumber(curr_files) + '/' + fnumber_files_search_quant)
+                self_progress_dialog_on_find_lab_r1_config(text=f'{fnumber(librer_core.search_record_nr)} / {fnumber_sel_range_len}')
+                self_progress_dialog_on_find_lab_r2_config(text=f'{fnumber(curr_files)} / {fnumber_files_search_quant}')
 
                 if self.action_abort:
                     librer_core.abort()
@@ -2900,9 +2919,6 @@ class Gui:
             if tree.identify("region", event.x, event.y) == 'heading':
                 return
 
-            #if not self.actions_processing:
-            #    return
-
             tree.focus_set()
             self.tree_on_mouse_button_press(event)
             tree.update()
@@ -2918,8 +2934,6 @@ class Gui:
             pop_add_command = pop.add_command
             self_ico = self.ico
             state_on_records = 'normal' if librer_core.records else 'disabled'
-            #state_has_cd =
-            #print(state_has_cd)
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
@@ -3177,7 +3191,6 @@ class Gui:
 
         self_progress_dialog_on_scan_lab[2].configure(image='',text='')
 
-
         any_cde_enabled=False
         cde_sklejka_list=[]
         cde_list=[]
@@ -3325,16 +3338,15 @@ class Gui:
                         change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_files_cde_errors_quant_all) )
 
                         files_q = librer_core.stdout_files_cde_quant
-                        files_perc = files_q * 100.0 / librer_core.stdout_files_cde_quant_sum if librer_core.stdout_files_cde_quant_sum else 0
 
                         files_size = librer_core.stdout_files_cde_size
                         files_size_perc = files_size * 100.0 / librer_core.stdout_files_cde_size_sum if librer_core.stdout_files_cde_size_sum else 0
 
                         self_progress_dialog_on_scan_progr1var_set(files_size_perc)
-                        self_progress_dialog_on_scan_progr2var_set(files_perc)
+                        self_progress_dialog_on_scan_progr2var_set(files_q * 100.0 / librer_core.stdout_files_cde_quant_sum if librer_core.stdout_files_cde_quant_sum else 0)
 
-                        self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(librer_core.stdout_files_cde_size) + '/' + local_bytes_to_str(librer_core.stdout_files_cde_size_sum))
-                        self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(librer_core.stdout_files_cde_quant_sum))
+                        self_progress_dialog_on_scan_lab_r1_config(text=f'{local_bytes_to_str(librer_core.stdout_files_cde_size)} / {local_bytes_to_str(librer_core.stdout_files_cde_size_sum)}')
+                        self_progress_dialog_on_scan_lab_r2_config(text=f'{fnumber(files_q)} / {fnumber(librer_core.stdout_files_cde_quant_sum)}')
 
                         if change3 or change4:
                             time_to_show_busy_sign=now+1.0
@@ -3376,7 +3388,6 @@ class Gui:
 
             gc_collect()
             gc_enable()
-
 
         self_progress_dialog_on_scan.hide(True)
 
@@ -3566,7 +3577,6 @@ class Gui:
     def kill_test(self):
         if self.subprocess and self.subprocess!=True:
             kill_subprocess(self.subprocess)
-            #    self.output_list.append(str(e))
 
     def cde_test(self,e):
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -3833,8 +3843,6 @@ class Gui:
 
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
-
-        #self.item_to_data[record_item] = record.filestructure
 
         self.tree.focus(record_item)
         self.tree.selection_set(record_item)
