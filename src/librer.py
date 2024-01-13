@@ -1899,7 +1899,7 @@ class Gui:
             if values:
                 data=values[0]
                 subpath_list.append(data)
-<
+
             item=tree.parent(item)
 
         subpath_list.reverse()
