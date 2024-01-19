@@ -48,6 +48,8 @@ from psutil import disk_partitions
 from librer_images import librer_image
 
 from shutil import rmtree
+from re import compile as re_compile
+
 from dialogs import *
 from core import *
 
@@ -495,6 +497,7 @@ class Gui:
 
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
+                self_file_cascade_add_command(label = 'Import "Where Is It?" xml ...', command = self.record_import_wii,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
@@ -1784,6 +1787,163 @@ class Gui:
                 else:
                     self.find_clear()
                     self.info_dialog_on_main.show('Repacking finished.','Check repacked record\nDelete original record manually if you want.')
+
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def record_import_wii(self):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml file to import', defaultextension=".xml",filetypes=[("XML Files","*.xml"),("All Files","*.*")]):
+            self.last_dir = dirname(import_filenames[0])
+            try:
+                re_obj_item = re_compile(r'<ITEM ItemType="([^"]+)">')
+                re_obj_item_end = re_compile(r'/ITEM>')
+
+                re_obj_name = re_compile(r'<NAME>(.+)</NAME>')
+                re_obj_ext = re_compile(r'<EXT>(.+)</EXT>')
+                re_obj_size = re_compile(r'<SIZE>(.+)</SIZE>')
+                re_obj_date = re_compile(r'<DATE>(.+)</DATE>')
+                re_obj_disk_name = re_compile(r'<DISK_NAME>(.+)</DISK_NAME>')
+                re_obj_disk_type = re_compile(r'<DISK_TYPE>(.+)</DISK_TYPE>')
+                re_obj_disk_num = re_compile(r'<DISK_NUM>(.+)</DISK_NUM>')
+                re_obj_disk_location = re_compile(r'<DISK_LOCATION>(.+)</DISK_LOCATION>')
+                re_obj_path = re_compile(r'<PATH>(.+)</PATH>')
+                re_obj_time = re_compile(r'<TIME>(.+)</TIME>')
+                re_obj_crc = re_compile(r'<CRC>(.+)</CRC>')
+                re_obj_category = re_compile(r'<CATEGORY>(.+)</CATEGORY>')
+                re_obj_flag = re_compile(r'<FLAG>(.+)</FLAG>')
+                re_obj_desc = re_compile(r'<DESCRIPTION>(.+)</DESCRIPTION>')
+                re_obj_desc_begin = re_compile(r'<DESCRIPTION>(.*)')
+                re_obj_desc_end = re_compile(r'(.*)</DESCRIPTION>')
+
+                l=0
+                in_item=False
+                in_description=False
+
+                demo_str = '*** DEMO ***'
+
+                #known_discs = set()
+                #known_items = set()
+
+                wii_paths_dict = {}
+
+                def print_dir_structure(file_handle,curr_dict_ref,indent=''):
+                    try:
+                        for key,val in curr_dict_ref.items():
+                            if not indent:
+                                file_handle.write('\n==================================\n')
+                            file_handle.write(indent + str(key) + '\n')
+                            print_dir_structure(file_handle,val,indent + '  ')
+                    except Exception as e:
+                        pass
+
+                def wii_paths_dict_add(path_elem,curr_dict_ref):
+                    if path_elem not in curr_dict_ref:
+                        curr_dict_ref[path_elem] = {}
+
+                    return curr_dict_ref[path_elem]
+
+                for import_filename in import_filenames:
+                    with open(import_filename,"rt") as f:
+                        for line in f:
+                            if match := re_obj_item.search(line):
+                                in_item=True
+                                in_description=False
+                                item={}
+                                item['description'] = []
+
+                                item['type']=match.group(1)
+                            elif match := re_obj_item_end.search(line):
+                                in_item=False
+                                in_description=False
+
+                                if item['disk_name']!=demo_str and item['path']!=demo_str:
+                                    path_splitted = [item['disk_name'] + ':'] + item['path'].strip('\\').split('\\')
+                                    path_splitted_len = len(path_splitted)
+                                    #print(f'{path_splitted=}')
+
+                                    next_dict = wii_paths_dict
+                                    for ps_i in range(path_splitted_len):
+                                        next_dict = wii_paths_dict_add(path_splitted[ps_i],next_dict)
+
+                            elif match := re_obj_name.search(line):
+                                item['name']=match.group(1)
+                            elif match := re_obj_ext.search(line):
+                                item['ext']=match.group(1)
+                            elif match := re_obj_size.search(line):
+                                item['size']=match.group(1)
+                            elif match := re_obj_date.search(line):
+                                item['date']=match.group(1)
+                            elif match := re_obj_disk_name.search(line):
+                                item['disk_name']=match.group(1)
+                            elif match := re_obj_disk_type.search(line):
+                                item['disk_type']=match.group(1)
+                            elif match := re_obj_disk_num.search(line):
+                                item['disk_num']=match.group(1)
+                            elif match := re_obj_disk_location.search(line):
+                                item['disk_loc']=match.group(1)
+                            elif match := re_obj_path.search(line):
+                                item['path']=match.group(1)
+                            elif match := re_obj_time.search(line):
+                                item['time']=match.group(1)
+                            elif match := re_obj_crc.search(line):
+                                item['crc']=match.group(1)
+                            elif match := re_obj_category.search(line):
+                                item['category']=match.group(1)
+                            elif match := re_obj_flag.search(line):
+                                item['flag']=match.group(1)
+                            elif match := re_obj_desc.search(line):
+                                item['desc']=match.group(1)
+                            elif match := re_obj_desc_begin.search(line):
+                                in_description=True
+                                item['description'].append(match.group(1))
+                            elif match := re_obj_desc_end.search(line):
+                                in_description=False
+                                item['description'].append(match.group(1))
+                                item['description'] = tuple(item['description'])
+                            elif in_description:
+                                item['description'].append(line)
+                            elif lstrip:=line.strip():
+                                #pass
+                                print('IGNORING:',lstrip)
+
+                            l+=1
+
+
+                        #xml_content = fb.read().decode('utf-8', errors='replace')
+
+                        #print(f'{xml_content=}')
+
+                        #root = ET.fromstring(xml_content)
+
+                        #<ITEM ItemType="Folder">
+                        #    <NAME>$Recycle.Bin</NAME>
+                        #    <SIZE>1918697428</SIZE>
+                        #    <DATE>2023-04-27</DATE>
+                        #    <DISK_NAME>c</DISK_NAME>
+                        #    <DISK_TYPE>Hard disk</DISK_TYPE>
+                        #    <PATH>\</PATH>
+                        #    <DESCRIPTION><![CDATA[*** DEMO ***]]></DESCRIPTION>
+                        #    <DISK_NUM>1</DISK_NUM>
+                        #    <TIME>12:55:08</TIME>
+                        #    <CRC>0</CRC>
+                        #</ITEM>
+
+
+                        #librer_core.wii_xml_import(root,self.single_record_show)
+                    #print('done.',l,'known_items_len:',len(known_items))
+
+                #proof of concept
+                if poc_file_path := asksaveasfilename(initialdir=self.last_dir,parent = self.main, initialfile = 'decoded_wii.txt',defaultextension=".txt",filetypes=[("Text Files","*.txt"),("All Files","*.*")]):
+                    self.last_dir = dirname(poc_file_path)
+                    with open(poc_file_path,'w') as fw:
+                        fw.write('Where Is It? - report decoding - proof of concept\n')
+                        fw.write('=================================================\n\n')
+                        print_dir_structure(fw,wii_paths_dict)
+
+            except Exception as ie:
+                print(f'WII Import error:{ie}')
 
     @restore_status_line
     @block_actions_processing
@@ -3882,7 +4042,7 @@ class Gui:
             record = self.item_to_record[record_item]
 
             self.main.clipboard_clear()
-            self.main.clipboard_append(record.header.scan_path + sep + sep.join(subpath_list))
+            self.main.clipboard_append(normpath(sep.join([record.header.scan_path,sep.join(subpath_list)])))
 
             self.status('Full path copied to clipboard')
 
