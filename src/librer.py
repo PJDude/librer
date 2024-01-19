@@ -1845,7 +1845,7 @@ class Gui:
                     return curr_dict_ref[path_elem]
 
                 for import_filename in import_filenames:
-                    with open(import_filename,"rt") as f:
+                    with open(import_filename,"rt", encoding='utf-8', errors='ignore') as f:
                         for line in f:
                             if match := re_obj_item.search(line):
                                 in_item=True
