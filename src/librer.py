@@ -1388,6 +1388,9 @@ class Gui:
     def repack_comp_set(self):
         self.repack_compr_var_int.set(int(self.repack_compr_var.get()))
 
+    def wii_import_comp_set(self):
+        self.wii_import_compr_var_int.set(int(self.wii_import_compr_var.get()))
+
     repack_dialog_created = False
     @restore_status_line
     @block_actions_processing
@@ -1438,6 +1441,64 @@ class Gui:
 
             self.repack_dialog_created = True
         return self.repack_dialog
+
+    wii_import_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_wii_import_dialog(self):
+        self.wii_import_dialog_do_it=False
+
+        if not self.wii_import_dialog_created:
+            self.wii_import_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Where Is It ? import records',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.wii_import_separate = BooleanVar()
+            self.wii_import_separate.set(False)
+            self.wii_import_compr_var = IntVar()
+            self.wii_import_compr_var_int = IntVar()
+            self.wii_import_label_var = StringVar()
+
+            self.wii_import_compr_var.set(9)
+            self.wii_import_compr_var_int.set(9)
+            self.wii_import_label_var.set('WII-imported')
+
+            self.wii_import_brief_label=Label(self.wii_import_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False,relief='groove',anchor='w',justify='left')
+            self.wii_import_brief_label.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            try:
+                self.wii_import_brief_label.configure(font=('Courier', 10))
+            except:
+                try:
+                    self.wii_import_brief_label.configure(font=('TkFixedFont', 10))
+                except:
+                    pass
+
+            (label_frame := LabelFrame(self.wii_import_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            Entry(label_frame,textvariable=self.wii_import_label_var).pack(expand='yes',fill='x',padx=2,pady=2)
+
+            (wii_import_frame := LabelFrame(self.wii_import_dialog.area_main,text='Options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            self.wii_import_dialog.area_main.grid_columnconfigure( 0, weight=1)
+            self.wii_import_dialog.area_main.grid_columnconfigure( 1, weight=1)
+
+            self.wii_import_dialog.area_main.grid_rowconfigure( 2, weight=1)
+
+            self.wii_import_separate_cb = Checkbutton(wii_import_frame,text='create separate records',variable=self.wii_import_separate)
+            #self.wii_import_crc_cb = Checkbutton(wii_import_frame,text='Include CRC values',variable=self.wii_import_crc_var)
+
+            self.wii_import_separate_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
+            #self.wii_import_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+
+            wii_import_frame.grid_columnconfigure( 0, weight=1)
+
+            (wii_import_frame_compr := LabelFrame(self.wii_import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+
+            Scale(wii_import_frame_compr, variable=self.wii_import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.wii_import_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
+            Label(wii_import_frame_compr, textvariable=self.wii_import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
+
+            Button(self.wii_import_dialog.area_buttons, text='Proceed', width=14 , command= self.wii_import_to_local).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.wii_import_dialog.area_buttons, text='Close', width=14, command=self.wii_import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+
+            self.wii_import_dialog_created = True
+
+        return self.wii_import_dialog
 
     find_dialog_created = False
     @restore_status_line
@@ -1788,162 +1849,44 @@ class Gui:
                     self.find_clear()
                     self.info_dialog_on_main.show('Repacking finished.','Check repacked record\nDelete original record manually if you want.')
 
+    def wii_import_to_local(self):
+        self.wii_import_dialog_do_it=True
+        self.wii_import_dialog.hide()
+
     @restore_status_line
     @block_actions_processing
     @gui_block
     def record_import_wii(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
-
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml file to import', defaultextension=".xml",filetypes=[("XML Files","*.xml"),("All Files","*.*")]):
+        self.wii_import_dialog_do_it= False
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml files to import', defaultextension=".xml",filetypes=[("XML Files","*.xml"),("All Files","*.*")]):
             self.last_dir = dirname(import_filenames[0])
-            try:
-                re_obj_item = re_compile(r'<ITEM ItemType="([^"]+)">')
-                re_obj_item_end = re_compile(r'/ITEM>')
 
-                re_obj_name = re_compile(r'<NAME>(.+)</NAME>')
-                re_obj_ext = re_compile(r'<EXT>(.+)</EXT>')
-                re_obj_size = re_compile(r'<SIZE>(.+)</SIZE>')
-                re_obj_date = re_compile(r'<DATE>(.+)</DATE>')
-                re_obj_disk_name = re_compile(r'<DISK_NAME>(.+)</DISK_NAME>')
-                re_obj_disk_type = re_compile(r'<DISK_TYPE>(.+)</DISK_TYPE>')
-                re_obj_disk_num = re_compile(r'<DISK_NUM>(.+)</DISK_NUM>')
-                re_obj_disk_location = re_compile(r'<DISK_LOCATION>(.+)</DISK_LOCATION>')
-                re_obj_path = re_compile(r'<PATH>(.+)</PATH>')
-                re_obj_time = re_compile(r'<TIME>(.+)</TIME>')
-                re_obj_crc = re_compile(r'<CRC>(.+)</CRC>')
-                re_obj_category = re_compile(r'<CATEGORY>(.+)</CATEGORY>')
-                re_obj_flag = re_compile(r'<FLAG>(.+)</FLAG>')
-                re_obj_desc = re_compile(r'<DESCRIPTION>(.+)</DESCRIPTION>')
-                re_obj_desc_begin = re_compile(r'<DESCRIPTION>(.*)')
-                re_obj_desc_end = re_compile(r'(.*)</DESCRIPTION>')
+            quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict = librer_core.import_records_wii_scan(import_filenames)
 
-                l=0
-                in_item=False
-                in_description=False
+            if quant_files==0 or quant_folders==0:
+                self.info_dialog_on_main.show('Where Is It? Import failed',"No files / No folders")
+            else:
+                ###########################
+                dialog = self.get_wii_import_dialog()
 
-                demo_str = '*** DEMO ***'
+                #self.wii_import_label_var.set(self.current_record.header.label)
+                self.wii_import_compr_var.set(9)
+                self.wii_import_compr_var_int.set(9)
+                self.wii_import_brief_label.configure(text=f'GATHERED DATA:\nfiles   : {fnumber(quant_files)}\nfolders : {fnumber(quant_folders)}')
 
-                #known_discs = set()
-                #known_items = set()
+                dialog.show()
 
-                wii_paths_dict = {}
+                if self.wii_import_dialog_do_it:
+                    res = librer_core.import_records_wii_do(quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,self.single_record_show)
 
-                def print_dir_structure(file_handle,curr_dict_ref,indent=''):
-                    try:
-                        for key,val in curr_dict_ref.items():
-                            if not indent:
-                                file_handle.write('\n==================================\n')
-                            file_handle.write(indent + str(key) + '\n')
-                            print_dir_structure(file_handle,val,indent + '  ')
-                    except Exception as e:
-                        pass
+                    if not res:
+                        ###########################
+                        self.info_dialog_on_main.show('Where Is It? Import','Successful.')
+                        self.find_clear()
+                    else:
+                        self.info_dialog_on_main.show('Where Is It? Import failed',res)
 
-                def wii_paths_dict_add(path_elem,curr_dict_ref):
-                    if path_elem not in curr_dict_ref:
-                        curr_dict_ref[path_elem] = {}
-
-                    return curr_dict_ref[path_elem]
-
-                for import_filename in import_filenames:
-                    with open(import_filename,"rt", encoding='utf-8', errors='ignore') as f:
-                        for line in f:
-                            if match := re_obj_item.search(line):
-                                in_item=True
-                                in_description=False
-                                item={}
-                                item['description'] = []
-
-                                item['type']=match.group(1)
-                            elif match := re_obj_item_end.search(line):
-                                in_item=False
-                                in_description=False
-
-                                if item['disk_name']!=demo_str and item['path']!=demo_str:
-                                    path_splitted = [item['disk_name'] + ':'] + item['path'].strip('\\').split('\\')
-                                    path_splitted_len = len(path_splitted)
-                                    #print(f'{path_splitted=}')
-
-                                    next_dict = wii_paths_dict
-                                    for ps_i in range(path_splitted_len):
-                                        next_dict = wii_paths_dict_add(path_splitted[ps_i],next_dict)
-
-                            elif match := re_obj_name.search(line):
-                                item['name']=match.group(1)
-                            elif match := re_obj_ext.search(line):
-                                item['ext']=match.group(1)
-                            elif match := re_obj_size.search(line):
-                                item['size']=match.group(1)
-                            elif match := re_obj_date.search(line):
-                                item['date']=match.group(1)
-                            elif match := re_obj_disk_name.search(line):
-                                item['disk_name']=match.group(1)
-                            elif match := re_obj_disk_type.search(line):
-                                item['disk_type']=match.group(1)
-                            elif match := re_obj_disk_num.search(line):
-                                item['disk_num']=match.group(1)
-                            elif match := re_obj_disk_location.search(line):
-                                item['disk_loc']=match.group(1)
-                            elif match := re_obj_path.search(line):
-                                item['path']=match.group(1)
-                            elif match := re_obj_time.search(line):
-                                item['time']=match.group(1)
-                            elif match := re_obj_crc.search(line):
-                                item['crc']=match.group(1)
-                            elif match := re_obj_category.search(line):
-                                item['category']=match.group(1)
-                            elif match := re_obj_flag.search(line):
-                                item['flag']=match.group(1)
-                            elif match := re_obj_desc.search(line):
-                                item['desc']=match.group(1)
-                            elif match := re_obj_desc_begin.search(line):
-                                in_description=True
-                                item['description'].append(match.group(1))
-                            elif match := re_obj_desc_end.search(line):
-                                in_description=False
-                                item['description'].append(match.group(1))
-                                item['description'] = tuple(item['description'])
-                            elif in_description:
-                                item['description'].append(line)
-                            elif lstrip:=line.strip():
-                                #pass
-                                print('IGNORING:',lstrip)
-
-                            l+=1
-
-
-                        #xml_content = fb.read().decode('utf-8', errors='replace')
-
-                        #print(f'{xml_content=}')
-
-                        #root = ET.fromstring(xml_content)
-
-                        #<ITEM ItemType="Folder">
-                        #    <NAME>$Recycle.Bin</NAME>
-                        #    <SIZE>1918697428</SIZE>
-                        #    <DATE>2023-04-27</DATE>
-                        #    <DISK_NAME>c</DISK_NAME>
-                        #    <DISK_TYPE>Hard disk</DISK_TYPE>
-                        #    <PATH>\</PATH>
-                        #    <DESCRIPTION><![CDATA[*** DEMO ***]]></DESCRIPTION>
-                        #    <DISK_NUM>1</DISK_NUM>
-                        #    <TIME>12:55:08</TIME>
-                        #    <CRC>0</CRC>
-                        #</ITEM>
-
-
-                        #librer_core.wii_xml_import(root,self.single_record_show)
-                    #print('done.',l,'known_items_len:',len(known_items))
-
-                #proof of concept
-                if poc_file_path := asksaveasfilename(initialdir=self.last_dir,parent = self.main, initialfile = 'decoded_wii.txt',defaultextension=".txt",filetypes=[("Text Files","*.txt"),("All Files","*.*")]):
-                    self.last_dir = dirname(poc_file_path)
-                    with open(poc_file_path,'w') as fw:
-                        fw.write('Where Is It? - report decoding - proof of concept\n')
-                        fw.write('=================================================\n\n')
-                        print_dir_structure(fw,wii_paths_dict)
-
-            except Exception as ie:
-                print(f'WII Import error:{ie}')
 
     @restore_status_line
     @block_actions_processing
@@ -2528,6 +2471,7 @@ class Gui:
             files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
 
             if files_search_quant==0:
+                self.info_dialog_on_find.show('Search aborted.','No files in records.')
                 return 1
 
             if find_filename_search_kind == 'regexp':
@@ -2692,6 +2636,7 @@ class Gui:
 
             records_len = len(librer_core.records)
             if records_len==0:
+                self.info_dialog_on_find.show('Search aborted.','No records.')
                 return
 
             self_progress_dialog_on_find_progr1var_set = self.progress_dialog_on_find.progr1var.set
@@ -2805,6 +2750,8 @@ class Gui:
                 if find_results_quant_sum_format:
                     self.find_result_index=-1
                     self.find_next()
+        else:
+            self.info_dialog_on_find.show('Search aborted.','Same params')
 
     def get_child_of_name(self,record,item,child_name):
         self_tree = self.tree

@@ -21,6 +21,12 @@ Portable executable packages created with [PyInstaller](https://pyinstaller.org/
 
 https://github.com/PJDude/librer/releases
 
+## MAJORGEEKS review:
+https://www.majorgeeks.com/files/details/librer.html
+
+## SOFTPEDIA review:
+https://www.softpedia.com/get/Others/File-CD-DVD-Catalog/Librer.shtml
+
 ## [Tutorial](./info/tutorial.md) ##
 
 ## Guidelines for crafting custom data extractors
@@ -39,6 +45,8 @@ Custom data extractor is a command that can be invoked with a single parameter -
 
 ## Portability
 **librer** writes log files, configuration and record files in runtime. Default location for these files is **logs** and **data** subfolders of **librer** main directory.
+
+## [Importing data from "Where Is It?"](./info/wii_import.md) ##
 
 ## Technical information
 Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other. Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) module. Searching records is performed as a separate subprocess for each record. The number of parallel searches is limited by the CPU cores. 
