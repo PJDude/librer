@@ -1524,11 +1524,14 @@ class LibrerCore:
                                                     mtime=0
 
                                                 #scan_like_data
-                                                sld_tuple = tuple([size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,item['description']])
 
                                                 if description:=item['description']:
+                                                    description = description.lstrip('<![CDATA[').rstrip(']]>')
                                                     cd_set_add(description)
                                                     cd_set_per_disk[disk_name].add(description)
+                                                    sld_tuple = tuple([size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,description])
+                                                else:
+                                                    sld_tuple = tuple([size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,''])
 
                                                 #print('description',item['description'])
                                                 ############################################################
