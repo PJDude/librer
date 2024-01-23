@@ -472,8 +472,6 @@ class Gui:
 
         self.info_dialog_on_main = LabelDialog(self_main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
-        #self.text_ask_dialog_on_main = TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
-
         self.progress_dialog_on_load = ProgressDialog(self_main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
@@ -1442,6 +1440,9 @@ class Gui:
             self.repack_dialog_created = True
         return self.repack_dialog
 
+    def wii_import_dialog_name_state(self):
+        self.wii_import_label_entry.configure(state='disabled' if self.wii_import_separate.get() else 'normal')
+
     wii_import_dialog_created = False
     @restore_status_line
     @block_actions_processing
@@ -1471,8 +1472,7 @@ class Gui:
                 except:
                     pass
 
-            (label_frame := LabelFrame(self.wii_import_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
-            Entry(label_frame,textvariable=self.wii_import_label_var).pack(expand='yes',fill='x',padx=2,pady=2)
+            #(label_frame := LabelFrame(self.wii_import_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
 
             (wii_import_frame := LabelFrame(self.wii_import_dialog.area_main,text='Options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             self.wii_import_dialog.area_main.grid_columnconfigure( 0, weight=1)
@@ -1480,13 +1480,15 @@ class Gui:
 
             self.wii_import_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
-            self.wii_import_separate_cb = Checkbutton(wii_import_frame,text='create separate records',variable=self.wii_import_separate)
-            #self.wii_import_crc_cb = Checkbutton(wii_import_frame,text='Include CRC values',variable=self.wii_import_crc_var)
+            self.wii_import_separate_cb = Checkbutton(wii_import_frame,text=' Separate record per each disk (not recommended)',variable=self.wii_import_separate,command = self.wii_import_dialog_name_state)
+            self.wii_import_separate_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4,columnspan=2)
 
-            self.wii_import_separate_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
-            #self.wii_import_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            Label(wii_import_frame,text='Common record label:',anchor='w').grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            self.wii_import_label_entry = Entry(wii_import_frame,textvariable=self.wii_import_label_var)
+            self.wii_import_label_entry.grid(row=1, column=1, sticky='wens',padx=4,pady=4)
 
             wii_import_frame.grid_columnconfigure( 0, weight=1)
+            wii_import_frame.grid_columnconfigure( 1, weight=1)
 
             (wii_import_frame_compr := LabelFrame(self.wii_import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=2)
 
@@ -1860,11 +1862,19 @@ class Gui:
         initialdir = self.last_dir if self.last_dir else self.cwd
         self.wii_import_dialog_do_it= False
         if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml files to import', defaultextension=".xml",filetypes=[("XML Files","*.xml"),("All Files","*.*")]):
+            self.status('Parsing WII files ... ')
+            self.main.update()
+
             self.last_dir = dirname(import_filenames[0])
+            wiis_res = librer_core.import_records_wii_scan(import_filenames)
 
-            quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict = librer_core.import_records_wii_scan(import_filenames)
+            if len(wiis_res)!=11:
+                self.info_dialog_on_main.show('Where Is It? Import failed',f"Format error.\n{wiis_res[1]}")
+                return
 
-            if quant_files==0 or quant_folders==0:
+            quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk = wiis_res
+
+            if quant_disks==0 or (quant_files==0 and quant_folders==0):
                 self.info_dialog_on_main.show('Where Is It? Import failed',"No files / No folders")
             else:
                 ###########################
@@ -1873,20 +1883,51 @@ class Gui:
                 #self.wii_import_label_var.set(self.current_record.header.label)
                 self.wii_import_compr_var.set(9)
                 self.wii_import_compr_var_int.set(9)
-                self.wii_import_brief_label.configure(text=f'GATHERED DATA:\nfiles   : {fnumber(quant_files)}\nfolders : {fnumber(quant_folders)}')
+                self.wii_import_brief_label.configure(text=f'GATHERED DATA:\ndisks   : {fnumber(quant_disks)}\nfiles   : {fnumber(quant_files)}\nfolders : {fnumber(quant_folders)}')
 
                 dialog.show()
 
+                compr = self.wii_import_compr_var.get()
+
                 if self.wii_import_dialog_do_it:
-                    res = librer_core.import_records_wii_do(quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,self.single_record_show)
+                    postfix=0
 
-                    if not res:
-                        ###########################
-                        self.info_dialog_on_main.show('Where Is It? Import','Successful.')
-                        self.find_clear()
+                    if self.wii_import_separate.get():
+                        res= []
+                        #wii_path_tuple_to_data_per_disk[(disk_name,tuple(filenames_set_sd)][tuple(path_splitted)] = sld_tuple
+
+                        for disk_name,wii_path_tuple_to_data_curr in wii_path_tuple_to_data_per_disk.items():
+                            print(f'{disk_name=}')
+                            self.status(f'importing {disk_name} ... ')
+                            #sld_tuple = sub_dict[path_splitted_tuple]
+                            quant_files=3
+                            quant_folders=3
+
+                            label = disk_name
+                            sub_res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set_per_disk[disk_name],wii_path_tuple_to_data_curr,wii_paths_dict_per_disk[disk_name],cd_set_per_disk[disk_name],self.single_record_show)
+                            postfix+=1
+                            if sub_res:
+                                res.append(sub_res)
+
+                        if not res:
+                            ###########################
+                            self.info_dialog_on_main.show('Where Is It? Import','Successful.')
+                            self.find_clear()
+                        else:
+                            self.info_dialog_on_main.show('Where Is It? Import failed','\n'.join(res))
+
                     else:
-                        self.info_dialog_on_main.show('Where Is It? Import failed',res)
+                        label = self.wii_import_label_var.get()
+                        self.status(f'importing {label} ... ')
 
+                        res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,self.single_record_show)
+
+                        if not res:
+                            ###########################
+                            self.info_dialog_on_main.show('Where Is It? Import','Successful.')
+                            self.find_clear()
+                        else:
+                            self.info_dialog_on_main.show('Where Is It? Import failed',res)
 
     @restore_status_line
     @block_actions_processing
@@ -2608,8 +2649,8 @@ class Gui:
 
             self_progress_dialog_on_find = self.get_progress_dialog_on_find()
 
-            gc_disable()
-            gc_collect()
+            #gc_disable()
+            #gc_collect()
 
             search_thread=Thread(target=lambda : librer_core.find_items_in_records(self.temp_dir,range_par,
                 min_num,max_num,
@@ -2701,8 +2742,8 @@ class Gui:
             search_thread.join
             self_progress_dialog_on_find.hide(True)
 
-            gc_collect()
-            gc_enable()
+            #gc_collect()
+            #gc_enable()
 
             find_results_quant_sum = 0
 
@@ -4033,6 +4074,7 @@ class Gui:
                                 self.access_customdata(record)
 
                                 cd_field = record.customdata[cd_index]
+
                                 if cd_data := cd_field[2]:
                                     rule_nr=cd_field[0]
                                     returncode=cd_field[1]
@@ -4053,7 +4095,7 @@ class Gui:
                             self.info_dialog_on_main.show('Information','No Custom data.')
 
                 except Exception as e:
-                    self.info_dialog_on_main.show(e)
+                    self.info_dialog_on_main.show('Custom Data Info Error',str(e))
 
     def record_info(self):
         if self.actions_processing:

@@ -16,16 +16,12 @@ The primary purpose of this software is to enable users to catalog their files, 
 #### Context menu:
 ![image info](./info/menu.png)
 
-## Download:
-Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the Releases site:
+## [Download](https://github.com/PJDude/librer/releases) ##
+Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the Releases site.
 
-https://github.com/PJDude/librer/releases
+## [MAJORGEEKS review](https://www.majorgeeks.com/files/details/librer.html) ##
 
-## MAJORGEEKS review:
-https://www.majorgeeks.com/files/details/librer.html
-
-## SOFTPEDIA review:
-https://www.softpedia.com/get/Others/File-CD-DVD-Catalog/Librer.shtml
+## [SOFTPEDIA review](https://www.softpedia.com/get/Others/File-CD-DVD-Catalog/Librer.shtml) ##
 
 ## [Tutorial](./info/tutorial.md) ##
 
