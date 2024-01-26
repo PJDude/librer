@@ -18,7 +18,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v4
       with:
-        python-version: "3.12"
+        python-version: "3.11"
         cache: 'pip'
         check-latest: true
 
@@ -47,16 +47,16 @@ jobs:
       shell: cmd
 
     #####################################
-    - name: run pyinstaller
+    - name: run nuitka
       working-directory: ./scripts
-      run: "pyinstaller.run.bat"
+      run: "nuitka.run.bat"
       shell: cmd
 
     - name: upload win distro
       uses: actions/upload-artifact@v3
       with:
-        name: pyinstaller-win
-        path: ./build-pyinstaller/librer.win.zip
+        name: nuitka-win
+        path: ./build-nuitka/librer.win.zip
         if-no-files-found: error
 
 ##########################################################################
@@ -72,7 +72,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v4
       with:
-        python-version: "3.12"
+        python-version: "3.11"
         cache: 'pip'
         check-latest: true
 
@@ -96,15 +96,15 @@ jobs:
       run: bash "icons.convert.sh"
 
     #####################################
-    - name: run pyinstaller
+    - name: run nuitka
       working-directory: ./scripts
-      run: bash "pyinstaller.run.sh"
+      run: bash "nuitka.run.sh"
 
     - name: upload lin distro
       uses: actions/upload-artifact@v3
       with:
-        name: pyinstaller-lin
-        path: ./build-pyinstaller/librer.lin.zip
+        name: nuitka-lin
+        path: ./build-nuitka/librer.lin.zip
         if-no-files-found: error
 
     #####################################
@@ -113,13 +113,13 @@ jobs:
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
     - name: rename linux distro
-      run: mv ./build-pyinstaller/librer.lin.zip ./librer.${{ steps.version.outputs.version }}.portable.linux.zip
+      run: mv ./build-nuitka/librer.lin.zip ./librer.${{ steps.version.outputs.version }}.portable.linux.zip
 
     #####################################
     - name: download windows distro
       uses: actions/download-artifact@v3
       with:
-        name: pyinstaller-win
+        name: nuitka-win
         path: ./
 
     - name: rename windows distro
@@ -133,8 +133,8 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
-        draft: false
-        prerelease: false
+        draft: true
+        prerelease: true
         files: |
             librer.${{ steps.version.outputs.version }}.portable.linux.zip
             librer.${{ steps.version.outputs.version }}.portable.windows.zip

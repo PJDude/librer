@@ -2147,7 +2147,7 @@ class LibrerCore:
         return True
 
     def record_exe(self):
-        is_frozen = bool(getattr(sys, 'frozen', False))
+        is_frozen = bool(getattr(sys, 'frozen', False) or "__compiled__" in globals())
         if windows:
             if is_frozen:
                return(['record.exe'])

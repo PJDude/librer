@@ -4179,10 +4179,14 @@ if __name__ == "__main__":
         LIBRER_FILE = normpath(__file__)
         LIBRER_DIR = dirname(LIBRER_FILE)
 
-        LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]))
+        LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.executable if getattr(sys, 'frozen', False) or "__compiled__" in globals() else sys.argv[0]))
         LIBRER_EXECUTABLE_DIR = dirname(LIBRER_EXECUTABLE_FILE)
         DATA_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'data'])
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'logs'])
+
+        #if "__compiled__" in globals():
+        #    print("nuitka info")
+        #    print(__compiled__)
 
         #######################################################################
 
