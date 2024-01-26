@@ -113,7 +113,7 @@ jobs:
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
     - name: rename linux distro
-      run: mv ./build-nuitka/librer.lin.zip ./librer.${{ steps.version.outputs.version }}.portable.linux.zip
+      run: mv ./build-nuitka/librer.lin.zip ./librer_nuitka.${{ steps.version.outputs.version }}.portable.linux.zip
 
     #####################################
     - name: download windows distro
@@ -123,7 +123,7 @@ jobs:
         path: ./
 
     - name: rename windows distro
-      run: mv ./librer.win.zip ./librer.${{ steps.version.outputs.version }}.portable.windows.zip
+      run: mv ./librer.win.zip ./librer_nuitka.${{ steps.version.outputs.version }}.portable.windows.zip
 
     #####################################
     - name: Create GitHub release
@@ -133,8 +133,8 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
-        draft: true
+        draft: false
         prerelease: true
         files: |
-            librer.${{ steps.version.outputs.version }}.portable.linux.zip
-            librer.${{ steps.version.outputs.version }}.portable.windows.zip
+            librer_nuitka.${{ steps.version.outputs.version }}.portable.linux.zip
+            librer_nuitka.${{ steps.version.outputs.version }}.portable.windows.zip
