@@ -1460,7 +1460,7 @@ class Gui:
 
             self.wii_import_compr_var.set(9)
             self.wii_import_compr_var_int.set(9)
-            self.wii_import_label_var.set('WII-imported')
+
 
             self.wii_import_brief_label=Label(self.wii_import_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False,relief='groove',anchor='w',justify='left')
             self.wii_import_brief_label.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
@@ -1880,9 +1880,11 @@ class Gui:
                 ###########################
                 dialog = self.get_wii_import_dialog()
 
-                #self.wii_import_label_var.set(self.current_record.header.label)
-                self.wii_import_compr_var.set(9)
-                self.wii_import_compr_var_int.set(9)
+                if len(import_filenames)>1:
+                    self.wii_import_label_var.set(f'WII-imported-multiple-files')
+                else:
+                    self.wii_import_label_var.set(f'WII-imported-{Path(import_filenames[0]).stem}')
+
                 self.wii_import_brief_label.configure(text=f'GATHERED DATA:\ndisks   : {fnumber(quant_disks)}\nfiles   : {fnumber(quant_files)}\nfolders : {fnumber(quant_folders)}')
 
                 dialog.show()
@@ -4005,7 +4007,7 @@ class Gui:
             sum_size+=record_temp.header.sum_size
             quant_files+=record_temp.header.quant_files
 
-        self.widget_tooltip(self.status_records_all,f'All records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}\n\nClick to unload (free memory) data of selected record\nDouble click to unload data of all records.')
+        self.widget_tooltip(self.status_records_all,f'Records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}\n\nClick to unload (free memory) data of selected record\nDouble click to unload data of all records.')
 
         self.main_update()
 
@@ -4055,6 +4057,7 @@ class Gui:
         if self.actions_processing:
             item=self.tree.focus()
             if item:
+                error_infos=[]
                 try:
                     if self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
                         self.record_info()
@@ -4070,11 +4073,12 @@ class Gui:
 
                             if has_cd: #wiec nie has_files
                                 cd_index = data_tuple[4]
+                                error_infos.append(f'{cd_index=},type:{type(cd_index)}')
 
                                 self.access_customdata(record)
-
                                 cd_field = record.customdata[cd_index]
 
+                                error_infos.append(' '.join(str(cd_field)))
                                 if cd_data := cd_field[2]:
                                     rule_nr=cd_field[0]
                                     returncode=cd_field[1]
@@ -4083,7 +4087,7 @@ class Gui:
 
                                     file_path = normpath(sep.join([record.header.scan_path,sep.join(subpath_list)]))
 
-                                    cd_txt = cd_data
+                                    cd_txt = str(cd_data)
 
                                     command,command_info = get_command(executable,parameters,file_path,shell)
 
@@ -4095,7 +4099,7 @@ class Gui:
                             self.info_dialog_on_main.show('Information','No Custom data.')
 
                 except Exception as e:
-                    self.info_dialog_on_main.show('Custom Data Info Error',str(e))
+                    self.info_dialog_on_main.show('Custom Data Info Error',str(e) + ('\n' + '\n'.join(error_infos)) if error_infos else '')
 
     def record_info(self):
         if self.actions_processing:

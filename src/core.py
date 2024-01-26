@@ -1709,12 +1709,12 @@ class LibrerCore:
 
         new_record = self.create()
 
-        expressions='WII_import'
+        expressions=''
         use_smin=False
         smin_int=0
         use_smax=False
         smax_int=0
-        executable='WII_import'
+        executable=''
         parameters=''
         shell=False
         timeout=0
@@ -1722,7 +1722,7 @@ class LibrerCore:
 
         new_record.header.cde_list = [ [expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc] ]
 
-        new_record.header.scan_path = 'WII_import'
+        new_record.header.scan_path = ' -- Imported from "Where Is It? -- '
 
         new_record.customdata = [(0,0,cd_elem) for cd_elem in cd_set]
 
@@ -1735,7 +1735,7 @@ class LibrerCore:
 
         new_record.filenames = tuple(sorted(list(filenames_set)))
         new_record.header.label = label
-        new_record.header.scan_path = 'WII import'
+
         new_record.filenames_helper = {fsname:fsname_index for fsname_index,fsname in enumerate(new_record.filenames)}
 
         new_record.header.quant_files = quant_files
@@ -1767,6 +1767,7 @@ class LibrerCore:
         new_record.header.quant_folders = sub_folders_quant
 
         new_record.header.items_names=len(new_record.filenames)
+        new_record.header.items_cd=len(new_record.customdata)
 
         new_record.filestructure = ('',code,sub_size,mtime,new_record.tupelize_rec(scan_like_data,print))
 
