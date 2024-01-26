@@ -17,7 +17,7 @@ The primary purpose of this software is to enable users to catalog their files, 
 ![image info](./info/menu.png)
 
 ## [Download](https://github.com/PJDude/librer/releases) ##
-Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the Releases site. Simultaneously, on **nuitka** branch, builds are made with [nuitka](https://github.com/Nuitka/Nuitka) compiler with its all pros and cons. These builds are marked as Pre-release and have separate build counter.
+Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/librer/releases) site. Simultaneously, on **nuitka** branch, builds are made with [Nuitka](https://github.com/Nuitka/Nuitka) compiler with its all pros and cons. These builds are marked as Pre-release and have separate build counter.
 
 ## [MAJORGEEKS review](https://www.majorgeeks.com/files/details/librer.html) ##
 
