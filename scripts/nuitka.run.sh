@@ -16,7 +16,7 @@ echo ''
 echo running-nuitka
 echo wd:`pwd`
 
-echo -n "nuitka: " > distro.info.txt
+echo -n "Nuitka: " > distro.info.txt
 python3 -m nuitka --version >> distro.info.txt
 
 echo ''

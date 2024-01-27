@@ -1772,7 +1772,7 @@ class Gui:
             frame2 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
 
-            lab2_text=  distro_info + '\n\nCurrent log file: ' + log_file
+            lab2_text = '\n' + distro_info + '\n\nCurrent log file: ' + log_file + '\n'
 
             lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='center')
             lab_courier.pack(expand=1,fill='both')
