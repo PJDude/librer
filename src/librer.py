@@ -4076,7 +4076,6 @@ class Gui:
                                 error_infos.append(f'{cd_index=},type:{type(cd_index)}')
 
                                 self.access_customdata(record)
-
                                 cd_field = record.customdata[cd_index]
 
                                 error_infos.append(' '.join(str(cd_field)))
