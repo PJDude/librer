@@ -16,10 +16,12 @@ The primary purpose of this software is to enable users to catalog their files, 
 #### Context menu:
 ![image info](./info/menu.png)
 
-## Download:
-Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the Releases site:
+## [Download](https://github.com/PJDude/librer/releases) ##
+Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/librer/releases) site. Simultaneously, on **nuitka** branch, builds are made with [Nuitka](https://github.com/Nuitka/Nuitka) compiler with its all pros and cons. These builds are marked as Pre-release and have separate build counter.
 
-https://github.com/PJDude/librer/releases
+## [MAJORGEEKS review](https://www.majorgeeks.com/files/details/librer.html) ##
+
+## [SOFTPEDIA review](https://www.softpedia.com/get/Others/File-CD-DVD-Catalog/Librer.shtml) ##
 
 ## [Tutorial](./info/tutorial.md) ##
 
@@ -39,6 +41,8 @@ Custom data extractor is a command that can be invoked with a single parameter -
 
 ## Portability
 **librer** writes log files, configuration and record files in runtime. Default location for these files is **logs** and **data** subfolders of **librer** main directory.
+
+## [Importing data from "Where Is It?"](./info/wii_import.md) ##
 
 ## Technical information
 Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other. Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) module. Searching records is performed as a separate subprocess for each record. The number of parallel searches is limited by the CPU cores. 

@@ -26,10 +26,12 @@
 #
 ####################################################################################
 
+from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect
+
 from json import loads as json_loads
 from subprocess import Popen, STDOUT,DEVNULL,PIPE, run as subprocess_run
 
-from time import sleep, perf_counter,time,strftime,localtime
+from time import sleep, perf_counter,time,strftime,localtime,mktime
 from threading import Thread
 from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove,kill,rename
 
@@ -46,6 +48,7 @@ from os.path import abspath,normpath,basename,dirname,join as path_join
 from zipfile import ZipFile
 from platform import system as platform_system,release as platform_release,node as platform_node
 
+from ciso8601 import parse_datetime
 from fnmatch import fnmatch
 from re import search as re_search
 import sys
@@ -54,6 +57,8 @@ from pathlib import Path as pathlib_Path
 from signal import SIGTERM,SIGINT,SIGABRT
 if windows:
     from signal import CTRL_C_EVENT
+
+from re import compile as re_compile
 
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
@@ -228,13 +233,11 @@ def kill_subprocess(subproc,print_func=print):
 
         if windows:
             kill_cmd = ['taskkill', '/F', '/T', '/PID', str(pid)]
-            #print_func( ('info',f'executing: {kill_cmd}') )
             print_func( ('info',f'killing pid: {pid}') )
             subprocess_run(kill_cmd)
         else:
             print_func( ('info',f'killing process group of pid {pid}') )
             killpg(getpgid(pid), SIGTERM)
-            #print_func( ('info',f'killing process group done') )
 
     except Exception as ke:
         print_func( ('error',f'kill_subprocess error: {ke}') )
@@ -290,6 +293,8 @@ class Header :
 
         self.zipinfo = {}
 
+        self.scanning_time=0
+
         self.compression_level=0
 
         self.creation_os,self.creation_host = f'{platform_system()} {platform_release()}',platform_node()
@@ -311,6 +316,7 @@ class LibrerRecord:
         self.filenames = []
 
         self.find_results = []
+        self.find_results_tuples_set=set()
 
         self.abort_action = False
 
@@ -375,6 +381,22 @@ class LibrerRecord:
                 self_header.zipinfo['customdata'] = (0,0,0)
 
             compress_with_header_update_wrapp(self.header,'header')
+
+        if False:
+            with open(file_path+'.debug.txt', "w") as txt_file:
+                #txt_file.write(str(self.header) + '\n')
+
+                txt_file.write('-------------------------------\nheader:\n\n')
+                for k,v in vars(self.header).items():
+                    txt_file.write(f'  {k}:{v}\n')
+
+                txt_file.write('\n\n-------------------------------\nfilestructure:\n\n')
+                txt_file.write(str(self.filestructure))
+                txt_file.write('\n\n-------------------------------\nfilenames:\n\n')
+                txt_file.write(str(self.filenames))
+                if self.customdata:
+                    txt_file.write('\n-------------------------------\ncustomdata\n')
+                    txt_file.write(self.customdata)
 
         self.prepare_info()
 
@@ -750,12 +772,41 @@ class LibrerRecord:
         self.header.cde_stats_time_all=customdata_stats_time_all[0]
 
     #############################################################
+    def sld_recalc_rec(self,scan_like_data):
+        new_size_on_this_level = 0
+        new_files_quant_on_this_level = 0
+        new_folders_quant_on_this_level = 0
+
+        for entry_name,items_list in scan_like_data.items():
+            (size,is_dir,is_file,is_symlink,is_bind,has_files,mtime) = items_list[0:7]
+
+            elem_index = 7
+            if has_files:
+                sub_dict = items_list[elem_index]
+                elem_index+=1
+
+                sub_size,sub_quant,sub_folders_quant = self.sld_recalc_rec(sub_dict)
+                new_size_on_this_level+=sub_size
+                new_files_quant_on_this_level+=sub_quant
+                new_folders_quant_on_this_level+=sub_folders_quant+1
+
+                if size==0:
+                    items_list[0]=sub_size
+            elif is_file:
+                new_files_quant_on_this_level+=1
+                new_size_on_this_level+=size
+            else:
+                new_folders_quant_on_this_level+=1
+
+        #scan_like_data[0]=new_size_on_this_level
+        return new_size_on_this_level,new_files_quant_on_this_level,new_folders_quant_on_this_level
+
+    #############################################################
     def tupelize_rec(self,scan_like_data,results_queue_put):
         LUT_encode_loc = LUT_encode
 
         self_tupelize_rec = self.tupelize_rec
 
-        #self_customdata = self.customdata
         sub_list = []
         for entry_name,items_list in scan_like_data.items():
             try:
@@ -767,10 +818,14 @@ class LibrerRecord:
                 try:
                     (size,is_dir,is_file,is_symlink,is_bind,has_files,mtime) = items_list[0:7]
 
-                    elem_index = 7
-                    if has_files:
-                        sub_dict = items_list[elem_index]
-                        elem_index+=1
+                    try:
+                        elem_index = 7
+                        if has_files:
+                            sub_dict = items_list[elem_index]
+                            elem_index+=1
+                    except:
+                        #print('f1 error')
+                        sub_dict={}
 
                     try:
                         info_dict = items_list[elem_index]
@@ -875,8 +930,6 @@ class LibrerRecord:
             cd_search_kind,cd_func_to_call,
             print_info_fn):
 
-        self.find_results = []
-
         self.decompress_filestructure()
 
         filenames_loc = self.filenames
@@ -912,9 +965,6 @@ class LibrerRecord:
             filestructure,parent_path_components = search_list_pop()
 
             for data_entry in filestructure:
-                #if check_abort():
-                #    break
-
                 search_progress +=1
 
                 name_nr,code,size,mtime = data_entry[0:4]
@@ -1084,7 +1134,6 @@ class LibrerRecord:
             info_list.append( 'internal sizes  :  compressed  serialized    original       items  references    CDE time  CDE errors')
             info_list.append('')
 
-            #h_data = self.header_sizes
             h_data = self_header.zipinfo["header"]
             fs_data = self_header.zipinfo["filestructure"]
             fn_data = self_header.zipinfo["filenames"]
@@ -1263,10 +1312,6 @@ class LibrerCore:
         self.update_sorted()
         return new_record
 
-    #def load_record(self):
-        #self.records.add(new_record)
-    #    pass
-
     def read_records_pre(self):
         try:
             with scandir(self.db_dir) as res:
@@ -1289,6 +1334,454 @@ class LibrerCore:
         except Exception as e:
             self.log.error('list read error:%s' % e )
             return (0,0)
+
+    def get_wii_files_dict(self,import_filenames):
+        #<?xml version="1.0" encoding="UTF-8"?>
+        re_obj_header_search = re_compile(r'.*<\?(.*)\?>.*').search
+
+        #<!-- Generated by WhereIsIt Report Generator 3.93 -->
+        re_obj_comment_search = re_compile(r'.*<!--(.*)-->.*').search
+
+        re_obj_report_search = re_compile(r'.*<REPORT Title="([^"]+)">').search
+
+        re_obj_report_end_search = re_compile(r'.*</REPORT>').search
+
+        re_obj_item_search = re_compile(r'.*<ITEM ItemType="([^"]+)">').search
+        re_obj_item_end_search = re_compile(r'.*/ITEM>.*').search
+
+        re_obj_desc_search = re_compile(r'.*<DESCRIPTION>(.+)</DESCRIPTION>.*').search
+        re_obj_desc_begin_search = re_compile(r'.*<DESCRIPTION>(.*)').search
+        re_obj_desc_end_search = re_compile(r'(.*)</DESCRIPTION>.*').search
+
+        re_obj_name_search = re_compile(r'.*<NAME>(.+)</NAME>.*').search
+        re_obj_ext_search = re_compile(r'.*<EXT>(.+)</EXT>.*').search
+        re_obj_size_search = re_compile(r'.*<SIZE>(.+)</SIZE>.*').search
+        re_obj_date_search = re_compile(r'.*<DATE>(.+)</DATE>.*').search
+        re_obj_disk_name_search = re_compile(r'.*<DISK_NAME>(.+)</DISK_NAME>.*').search
+        re_obj_disk_type_search = re_compile(r'.*<DISK_TYPE>(.+)</DISK_TYPE>.*').search
+        re_obj_disk_num_search = re_compile(r'.*<DISK_NUM>(.+)</DISK_NUM>.*').search
+        re_obj_disk_location_search = re_compile(r'.*<DISK_LOCATION>(.+)</DISK_LOCATION>.*').search
+        re_obj_path_search = re_compile(r'.*<PATH>(.+)</PATH>.*').search
+        re_obj_time_search = re_compile(r'.*<TIME>(.+)</TIME>.*').search
+        re_obj_crc_search = re_compile(r'.*<CRC>(.+)</CRC>.*').search
+        re_obj_category_search = re_compile(r'.*<CATEGORY>(.+)</CATEGORY>.*').search
+        re_obj_flag_search = re_compile(r'.*<FLAG>(.+)</FLAG>.*').search
+
+        #######################################################################
+
+        #l=0
+        in_report=False
+        in_item=False
+        in_description=False
+
+        demo_str = '*** DEMO ***'
+
+        wii_paths_dict = {}
+        wii_paths_dict_per_disk = defaultdict(dict)
+
+        wii_path_tuple_to_data = {}
+        wii_path_tuple_to_data_per_disk = defaultdict(dict)
+
+        filenames_set=set()
+        filenames_set_per_disk=defaultdict(set)
+
+        filenames_set_add = filenames_set.add
+
+        cd_set=set()
+        cd_set_per_disk=defaultdict(set)
+
+        cd_set_add = cd_set.add
+
+        try:
+            for import_filename in import_filenames:
+                with open(import_filename,"rt", encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        try:
+                            if in_report:
+                                if in_item:
+                                    if in_description:
+                                        if match := re_obj_desc_end_search(line):
+                                            item['description'].append(match.group(1))
+                                            item['description'] = tuple(item['description'])
+                                            in_description=False
+                                        else:
+                                            item['description'].append(line)
+
+                                        continue
+
+                                    elif not item['description']:
+                                        if match := re_obj_desc_search(line):
+                                            item['description']=match.group(1)
+                                            continue
+
+                                    elif match := re_obj_desc_begin_search(line):
+                                        in_description=True
+                                        item['description'].append(match.group(1))
+                                        continue
+
+                                    if not item['name']:
+                                        if match := re_obj_name_search(line):
+                                            item['name']=match.group(1)
+                                            continue
+
+                                    if not item['ext']:
+                                        if match := re_obj_ext_search(line):
+                                            item['ext'] = match.group(1)
+                                            continue
+
+                                    if not item['size']:
+                                        if match := re_obj_size_search(line):
+                                            try:
+                                                item['size']=int(match.group(1))
+                                            except:
+                                                item['size']=0
+                                            continue
+
+                                    if not item['date']:
+                                        if match := re_obj_date_search(line):
+                                            item['date']=match.group(1)
+                                            continue
+
+                                    if not item['disk_name']:
+                                        if match := re_obj_disk_name_search(line):
+                                            item['disk_name']=match.group(1)
+                                            continue
+
+                                    if not item['disk_type']:
+                                        if match := re_obj_disk_type_search(line):
+                                            item['disk_type']=match.group(1)
+                                            continue
+
+                                    if not item['disk_num']:
+                                        if match := re_obj_disk_num_search(line):
+                                            item['disk_num']=match.group(1)
+                                            continue
+
+                                    if not item['disk_loc']:
+                                        if match := re_obj_disk_location_search(line):
+                                            item['disk_loc']=match.group(1)
+                                            continue
+
+                                    if not item['path']:
+                                        if match := re_obj_path_search(line):
+                                            item['path']=match.group(1)
+                                            continue
+
+                                    if not item['time']:
+                                        if match := re_obj_time_search(line):
+                                            item['time']=match.group(1)
+                                            continue
+
+                                    if not item['crc']:
+                                        if match := re_obj_crc_search(line):
+                                            item['crc']=match.group(1)
+                                            continue
+
+                                    if not item['category']:
+                                        if match := re_obj_category_search(line):
+                                            item['category']=match.group(1)
+                                            continue
+
+                                    if not item['flag']:
+                                        if match := re_obj_flag_search(line):
+                                            item['flag']=match.group(1)
+                                            continue
+
+                                    if re_obj_item_end_search(line):
+                                        in_item=False
+                                        in_description=False
+
+                                        if item['type']=="Disk":
+                                            print(f'disk found :{item} -> incompatible kind of report:{import_filename}')
+                                            return [None,f'incompatible kind of report:{import_filename}']
+
+                                        elif item['type']=="File" or item['type']=="Folder":
+                                            if item['disk_name']!=demo_str and item['path']!=demo_str and item['name'] and item['name']!=demo_str and item['ext']!=demo_str and item['size']!=demo_str:
+                                                disk_name = item['disk_name']
+                                                path = item['path'].strip('\\').split('\\')
+
+                                                fileame = item['name']
+                                                if item['ext']:
+                                                    fileame+='.' + item['ext']
+
+                                                size = item['size']
+                                                is_dir = bool(item['type']=="Folder")
+                                                is_file = bool(item['type']=="File")
+                                                is_symlink=False
+                                                is_bind=False
+                                                has_files=False
+
+                                                if item['date'] and item['date']!=demo_str:
+                                                    time_str=item['date']
+                                                    if item['time']!=demo_str:
+                                                        time_str += ' ' +  item['time']
+                                                    try:
+                                                        mtime=int(mktime(parse_datetime(time_str).timetuple()))
+                                                    except Exception as te:
+                                                        print(f'time conv {time_str} error: {te}')
+                                                        mtime=0
+                                                else:
+                                                    mtime=0
+
+                                                #scan_like_data
+
+                                                if description:=item['description']:
+                                                    description = description.lstrip('<![CDATA[').rstrip(']]>')
+                                                    cd_set_add(description)
+                                                    cd_set_per_disk[disk_name].add(description)
+                                                    sld_tuple = tuple([size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,description])
+                                                else:
+                                                    sld_tuple = tuple([size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,''])
+
+                                                #print('description',item['description'])
+                                                ############################################################
+
+                                                path_splitted = [disk_name] + path + [fileame]
+                                                path_splitted = [path_elem for path_elem in path_splitted if path_elem]
+
+                                                next_dict = wii_paths_dict
+                                                for filename in path_splitted:
+                                                    filenames_set_add(filename)
+
+                                                    if filename not in next_dict:
+                                                        next_dict[filename] = {}
+                                                    next_dict = next_dict[filename]
+
+                                                wii_path_tuple_to_data[tuple(path_splitted)] = sld_tuple
+
+                                                ############################################################
+                                                path_splitted = path + [fileame]
+                                                path_splitted = [path_elem for path_elem in path_splitted if path_elem]
+
+                                                next_dict = wii_paths_dict_per_disk[disk_name]
+                                                for filename in path_splitted:
+                                                    filenames_set_per_disk[disk_name].add(filename)
+
+                                                    if filename not in next_dict:
+                                                        next_dict[filename] = {}
+                                                    next_dict = next_dict[filename]
+
+                                                wii_path_tuple_to_data_per_disk[disk_name][tuple(path_splitted)] = sld_tuple
+                                                ############################################################
+                                            else:
+                                                pass
+                                                #print(f'another item:{item}')
+
+                                elif match := re_obj_item_search(line):
+                                    in_item=True
+                                    in_description=False
+
+                                    item = { 'ext':None,'date':None,'time':None,'path':None,'name':None,'disk_name':None,'disk_type':None,'disk_loc':None,'disk_num':None,'category':None,'crc':None,'flag':None,'size':0,'description':[],'type':match.group(1)}
+
+                                elif re_obj_report_end_search(line):
+                                    in_report=False
+                                    in_item=False
+                                    in_description=False
+                                else:
+                                    print('parse problem 1')
+                            elif re_obj_header_search(line) or re_obj_comment_search(line):
+                                #print(f'recognize and ignored:{line}')
+                                pass
+                            else:
+                                if match := re_obj_report_search(line):
+                                    #print(f'report :"{match.group(1)}"')
+                                    in_report=True
+                                    in_item=False
+                                    in_description=False
+                                else:
+                                    print('IGNORING:',line)
+
+                        except Exception as le:
+                            print(f'line exception: "{line}" exception: {le}')
+
+                    #<ITEM ItemType="Folder">
+                    #    <NAME>$Recycle.Bin</NAME>
+                    #    <SIZE>1918697428</SIZE>
+                    #    <DATE>2023-04-27</DATE>
+                    #    <DISK_NAME>c</DISK_NAME>
+                    #    <DISK_TYPE>Hard disk</DISK_TYPE>
+                    #    <PATH>\</PATH>
+                    #    <DESCRIPTION><![CDATA[*** DEMO ***]]></DESCRIPTION>
+                    #    <DISK_NUM>1</DISK_NUM>
+                    #    <TIME>12:55:08</TIME>
+                    #    <CRC>0</CRC>
+                    #</ITEM>
+
+            return filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
+        except Exception as ie:
+            return [None,str(ie)]
+
+    def wii_data_to_scan_like_data(self,path_list,curr_dict_ref,scan_like_data,customdata_helper):
+        path_list_tuple = tuple(path_list)
+
+        anything = False
+        try:
+            for name,val in curr_dict_ref.items():
+
+                anything = True
+
+                dict_entry={}
+
+                sub_path_list = path_list + [name]
+                sub_path_list_tuple = tuple(sub_path_list)
+
+                try:
+                    size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,cd = self.wii_path_tuple_to_data[sub_path_list_tuple]
+                    if cd:
+                        cd_field=(0,0,cd)
+
+                        try:
+                            cd_index=customdata_helper[cd_field]
+                        except Exception as cd_e:
+                            print(f'{cd_e=}')
+
+                except Exception as e1:
+                    #print(f'{e1=}')
+                    #tylko topowy albo niekompletny ?
+                    cd=None
+                    cd_index=0
+                    size=0
+                    is_dir = True
+                    is_file = False
+                    is_symlink = False
+                    is_bind = False
+                    mtime = 0
+
+                if is_dir:
+                    self.wii_data_to_scan_like_data(sub_path_list,val,dict_entry,customdata_helper)
+
+                if dict_entry:
+                    has_files = True
+                else:
+                    has_files = False
+
+                if is_dir and not has_files and size>0:
+                    is_dir=False
+                    is_file=True
+
+                temp_list_ref = scan_like_data[name] = [size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
+
+                if dict_entry:
+                    temp_list_ref.append(dict_entry)
+
+                if cd:
+                    new_elem={}
+                    new_elem['cd_index']=cd_index
+                    new_elem['cd_ok']=True
+
+                    temp_list_ref.append(new_elem)
+
+        except Exception as e:
+            print('wii_data_to_scan_like_data error:',e)
+
+        return anything
+
+    def import_records_wii_scan(self,import_filenames):
+        self.log.info(f'import_records_wii:{",".join(import_filenames)}')
+
+        gc_disable()
+        res = self.get_wii_files_dict(import_filenames)
+        gc_collect()
+        gc_enable()
+
+        if len(res)==8:
+            filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk = res
+
+            quant_disks = len(wii_path_tuple_to_data_per_disk)
+
+            quant_files,quant_folders = 0,0
+            for k,v in wii_path_tuple_to_data.items():
+                size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,cd = v
+                if is_dir:
+                    quant_folders+=1
+                elif is_file:
+                    quant_files+=1
+
+            return quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
+        else:
+            return res
+
+    def import_records_wii_do(self,compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,update_callback):
+        import_res=[]
+
+        self.wii_path_tuple_to_data = wii_path_tuple_to_data
+        self.wii_paths_dict=wii_paths_dict
+
+        new_record = self.create()
+
+        expressions=''
+        use_smin=False
+        smin_int=0
+        use_smax=False
+        smax_int=0
+        executable=''
+        parameters=''
+        shell=False
+        timeout=0
+        crc=False
+
+        new_record.header.cde_list = [ [expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc] ]
+
+        new_record.header.scan_path = ' -- Imported from "Where Is It? -- '
+
+        new_record.customdata = [(0,0,cd_elem) for cd_elem in cd_set]
+
+        customdata_helper={cd_elem_tuple:index for index,cd_elem_tuple in enumerate(new_record.customdata)}
+
+        scan_like_data={}
+        self.wii_data_to_scan_like_data([],self.wii_paths_dict,scan_like_data,customdata_helper)
+
+        del customdata_helper
+
+        new_record.filenames = tuple(sorted(list(filenames_set)))
+        new_record.header.label = label
+
+        new_record.filenames_helper = {fsname:fsname_index for fsname_index,fsname in enumerate(new_record.filenames)}
+
+        new_record.header.quant_files = quant_files
+        new_record.header.quant_folders = quant_folders
+
+        ##################################
+        #size,mtime = 0,0
+        mtime = 0
+        is_dir = True
+        is_file = False
+        is_symlink = False
+        is_bind = False
+        has_cd = bool(new_record.customdata)
+        has_files = True
+        cd_ok = False
+        has_crc = False
+
+
+        new_record.header.references_names=0
+        new_record.header.references_cd=0
+
+        sub_size,sub_quant,sub_folders_quant = new_record.sld_recalc_rec(scan_like_data)
+        #print('ccc',sub_size,sub_quant,sub_folders_quant,flush=True)
+
+        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,False,False) ]
+
+        new_record.header.sum_size = sub_size
+        new_record.header.quant_files = sub_quant
+        new_record.header.quant_folders = sub_folders_quant
+
+        new_record.header.items_names=len(new_record.filenames)
+        new_record.header.items_cd=len(new_record.customdata)
+
+        new_record.filestructure = ('',code,sub_size,mtime,new_record.tupelize_rec(scan_like_data,print))
+
+        new_file_path = sep.join([self.db_dir,f'wii.{int(time())}.{postfix}.dat'])
+        #print(f'{new_file_path=}')
+
+        new_record.save(print,file_path=new_file_path,compression_level=compr)
+
+        update_callback(new_record)
+
+        if import_res:
+            return '\n'.join(import_res)
+        else:
+            return None
 
     def import_records(self,import_filenames,update_callback):
         self.log.info(f"import {','.join(import_filenames)}")
@@ -1388,7 +1881,6 @@ class LibrerCore:
             with ZipFile(src_file, "r") as src_zip_file:
 
                 dec_dec = ZstdDecompressor().decompress
-                #dec_dec = decompressor.decompress
 
                 header_ser_compr = src_zip_file.read('header')
                 header_ser = dec_dec(header_ser_compr)
@@ -1523,10 +2015,10 @@ class LibrerCore:
     stdout_files_cde_size_sum=0
 
     ########################################################################################################################
+
     def create_new_record(self,temp_dir,update_callback):
         self.log.info(f'create_new_record')
         self_log_info = self.log.info
-
 
         new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
 
@@ -1613,7 +2105,6 @@ class LibrerCore:
                         else:
                             info_semi_list[0]=line_strip
                     except Exception as e:
-                        print(f'threaded_run work error:{e} line:{line}')
                         info_semi_list[0]=f'threaded_run work error:{e} line:{line}'
                         self_log_info(f'threaded_run work error:{e} line:{line}')
                 else:
@@ -1629,7 +2120,6 @@ class LibrerCore:
         job.start()
         job_is_alive = job.is_alive
 
-        aborted=False
         ###########################################
         while job_is_alive():
             subprocess=processes_semi_list[0]
@@ -1637,7 +2127,6 @@ class LibrerCore:
                 if self.abort_action:
                     send_signal(subprocess,temp_dir,0)
                     self.abort_action=False
-                    aborted=True
                 if self.abort_action_single:
                     send_signal(subprocess,temp_dir,1)
                     self.abort_action_single=False
@@ -1646,15 +2135,15 @@ class LibrerCore:
         job.join()
         ###########################################
 
-        if not aborted:
-            new_record = self.create()
+        #nie wiadomo czy przerwano na skanie czy cde
+        new_record = self.create()
 
-            if res:=new_record.load(new_file_path) :
-                self.log.warning('removing:%s',new_file_path)
-                self.records.remove(new_record)
-                print(res)
-            else:
-                update_callback(new_record)
+        if res:=new_record.load(new_file_path) :
+            self.log.warning('removing:%s',new_file_path)
+            self.records.remove(new_record)
+            self_log_info(res)
+        else:
+            update_callback(new_record)
 
         return True
 
@@ -1721,7 +2210,6 @@ class LibrerCore:
         ############################################################
 
         max_processes = cpu_count()
-        #max_processes = 1
 
         records_to_process_len = len(records_to_process)
 
@@ -1803,7 +2291,7 @@ class LibrerCore:
             running = len([record_nr for record_nr in range(records_to_process_len) if jobs[record_nr][0]==1 and jobs[record_nr][1].is_alive() ])
             finished = self.search_record_nr = records_to_process_len-running-waiting
 
-            self.records_perc_info = self.search_record_nr * 100.0 / records_to_process_len
+            self.records_perc_info = (self.search_record_nr+0.5) * 100.0 / records_to_process_len
 
             self.info_line = f'Threads: waiting:{waiting}, running:{running}, finished:{finished}'
 
@@ -1825,6 +2313,9 @@ class LibrerCore:
 
             sleep(0.1)
         #####################################################
+        for record in records_to_process:
+            record.find_results_tuples_set = {result[0] for result in record.find_results}
+
         for record_nr,info in enumerate(info_list):
             self.log.info(f'got info for record:{record_nr}')
             for info_line in info:

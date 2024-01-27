@@ -48,6 +48,8 @@ from psutil import disk_partitions
 from librer_images import librer_image
 
 from shutil import rmtree
+from re import compile as re_compile
+
 from dialogs import *
 from core import *
 
@@ -470,8 +472,6 @@ class Gui:
 
         self.info_dialog_on_main = LabelDialog(self_main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
-        #self.text_ask_dialog_on_main = TextDialogQuestion(self_main,self_ico_librer,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
-
         self.progress_dialog_on_load = ProgressDialog(self_main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
@@ -495,6 +495,7 @@ class Gui:
 
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
+                self_file_cascade_add_command(label = 'Import "Where Is It?" xml ...', command = self.record_import_wii,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
                 self_file_cascade_add_separator()
@@ -610,6 +611,7 @@ class Gui:
         records_quant,records_size = librer_core.read_records_pre()
 
         load_errors = []
+
         if records_quant:
             self.status_info.configure(image='',text = 'Loading records ...')
 
@@ -1384,6 +1386,9 @@ class Gui:
     def repack_comp_set(self):
         self.repack_compr_var_int.set(int(self.repack_compr_var.get()))
 
+    def wii_import_comp_set(self):
+        self.wii_import_compr_var_int.set(int(self.wii_import_compr_var.get()))
+
     repack_dialog_created = False
     @restore_status_line
     @block_actions_processing
@@ -1434,6 +1439,68 @@ class Gui:
 
             self.repack_dialog_created = True
         return self.repack_dialog
+
+    def wii_import_dialog_name_state(self):
+        self.wii_import_label_entry.configure(state='disabled' if self.wii_import_separate.get() else 'normal')
+
+    wii_import_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_wii_import_dialog(self):
+        self.wii_import_dialog_do_it=False
+
+        if not self.wii_import_dialog_created:
+            self.wii_import_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Where Is It ? import records',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.wii_import_separate = BooleanVar()
+            self.wii_import_separate.set(False)
+            self.wii_import_compr_var = IntVar()
+            self.wii_import_compr_var_int = IntVar()
+            self.wii_import_label_var = StringVar()
+
+            self.wii_import_compr_var.set(9)
+            self.wii_import_compr_var_int.set(9)
+
+
+            self.wii_import_brief_label=Label(self.wii_import_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False,relief='groove',anchor='w',justify='left')
+            self.wii_import_brief_label.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            try:
+                self.wii_import_brief_label.configure(font=('Courier', 10))
+            except:
+                try:
+                    self.wii_import_brief_label.configure(font=('TkFixedFont', 10))
+                except:
+                    pass
+
+            #(label_frame := LabelFrame(self.wii_import_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+
+            (wii_import_frame := LabelFrame(self.wii_import_dialog.area_main,text='Options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            self.wii_import_dialog.area_main.grid_columnconfigure( 0, weight=1)
+            self.wii_import_dialog.area_main.grid_columnconfigure( 1, weight=1)
+
+            self.wii_import_dialog.area_main.grid_rowconfigure( 2, weight=1)
+
+            self.wii_import_separate_cb = Checkbutton(wii_import_frame,text=' Separate record per each disk (not recommended)',variable=self.wii_import_separate,command = self.wii_import_dialog_name_state)
+            self.wii_import_separate_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4,columnspan=2)
+
+            Label(wii_import_frame,text='Common record label:',anchor='w').grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            self.wii_import_label_entry = Entry(wii_import_frame,textvariable=self.wii_import_label_var)
+            self.wii_import_label_entry.grid(row=1, column=1, sticky='wens',padx=4,pady=4)
+
+            wii_import_frame.grid_columnconfigure( 0, weight=1)
+            wii_import_frame.grid_columnconfigure( 1, weight=1)
+
+            (wii_import_frame_compr := LabelFrame(self.wii_import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+
+            Scale(wii_import_frame_compr, variable=self.wii_import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.wii_import_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
+            Label(wii_import_frame_compr, textvariable=self.wii_import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
+
+            Button(self.wii_import_dialog.area_buttons, text='Proceed', width=14 , command= self.wii_import_to_local).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.wii_import_dialog.area_buttons, text='Close', width=14, command=self.wii_import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+
+            self.wii_import_dialog_created = True
+
+        return self.wii_import_dialog
 
     find_dialog_created = False
     @restore_status_line
@@ -1784,6 +1851,86 @@ class Gui:
                     self.find_clear()
                     self.info_dialog_on_main.show('Repacking finished.','Check repacked record\nDelete original record manually if you want.')
 
+    def wii_import_to_local(self):
+        self.wii_import_dialog_do_it=True
+        self.wii_import_dialog.hide()
+
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def record_import_wii(self):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        self.wii_import_dialog_do_it= False
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml files to import', defaultextension=".xml",filetypes=[("XML Files","*.xml"),("All Files","*.*")]):
+            self.status('Parsing WII files ... ')
+            self.main.update()
+
+            self.last_dir = dirname(import_filenames[0])
+            wiis_res = librer_core.import_records_wii_scan(import_filenames)
+
+            if len(wiis_res)!=11:
+                self.info_dialog_on_main.show('Where Is It? Import failed',f"Format error.\n{wiis_res[1]}")
+                return
+
+            quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk = wiis_res
+
+            if quant_disks==0 or (quant_files==0 and quant_folders==0):
+                self.info_dialog_on_main.show('Where Is It? Import failed',"No files / No folders")
+            else:
+                ###########################
+                dialog = self.get_wii_import_dialog()
+
+                if len(import_filenames)>1:
+                    self.wii_import_label_var.set(f'WII-imported-multiple-files')
+                else:
+                    self.wii_import_label_var.set(f'WII-imported-{Path(import_filenames[0]).stem}')
+
+                self.wii_import_brief_label.configure(text=f'GATHERED DATA:\ndisks   : {fnumber(quant_disks)}\nfiles   : {fnumber(quant_files)}\nfolders : {fnumber(quant_folders)}')
+
+                dialog.show()
+
+                compr = self.wii_import_compr_var.get()
+
+                if self.wii_import_dialog_do_it:
+                    postfix=0
+
+                    if self.wii_import_separate.get():
+                        res= []
+                        #wii_path_tuple_to_data_per_disk[(disk_name,tuple(filenames_set_sd)][tuple(path_splitted)] = sld_tuple
+
+                        for disk_name,wii_path_tuple_to_data_curr in wii_path_tuple_to_data_per_disk.items():
+                            print(f'{disk_name=}')
+                            self.status(f'importing {disk_name} ... ')
+                            #sld_tuple = sub_dict[path_splitted_tuple]
+                            quant_files=3
+                            quant_folders=3
+
+                            label = disk_name
+                            sub_res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set_per_disk[disk_name],wii_path_tuple_to_data_curr,wii_paths_dict_per_disk[disk_name],cd_set_per_disk[disk_name],self.single_record_show)
+                            postfix+=1
+                            if sub_res:
+                                res.append(sub_res)
+
+                        if not res:
+                            ###########################
+                            self.info_dialog_on_main.show('Where Is It? Import','Successful.')
+                            self.find_clear()
+                        else:
+                            self.info_dialog_on_main.show('Where Is It? Import failed','\n'.join(res))
+
+                    else:
+                        label = self.wii_import_label_var.get()
+                        self.status(f'importing {label} ... ')
+
+                        res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,self.single_record_show)
+
+                        if not res:
+                            ###########################
+                            self.info_dialog_on_main.show('Where Is It? Import','Successful.')
+                            self.find_clear()
+                        else:
+                            self.info_dialog_on_main.show('Where Is It? Import failed',res)
+
     @restore_status_line
     @block_actions_processing
     @gui_block
@@ -1847,6 +1994,29 @@ class Gui:
         except Exception as te:
             print(f'configure_tooltip error:{widget}:{te}')
 
+    def adaptive_tooltip_geometry(self,event):
+        x,y = self.tooltip_wm_geometry().split('+')[0].split('x')
+        x_int=int(x)
+        y_int=int(y)
+
+        size_combo,x_main_off,y_main_off = self.main.wm_geometry().split('+')
+        x_main_size,y_main_size = size_combo.split('x')
+
+        x_middle = int(x_main_size)/2+int(x_main_off)
+        y_middle = int(y_main_size)/2+int(y_main_off)
+
+        if event.x_root>x_middle:
+            x_mod = -x_int -20
+        else:
+            x_mod = 20
+
+        if event.y_root>y_middle:
+            y_mod = -y_int -5
+        else:
+            y_mod = 5
+
+        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + x_mod, event.y_root + y_mod))
+
     def show_tooltip_widget(self,event):
         self.unschedule_tooltip_widget(event)
         self.menubar_unpost()
@@ -1854,7 +2024,8 @@ class Gui:
         self.configure_tooltip(event.widget)
 
         self.tooltip_deiconify()
-        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+
+        self.adaptive_tooltip_geometry(event)
 
     def get_item_record(self,item):
         tree = self.tree
@@ -1874,21 +2045,15 @@ class Gui:
             if values:
                 data=values[0]
                 subpath_list.append(data)
-            #else:
-                #print(f'get_item_record no values: {item=},{values=}')
-                #dummy item
 
             item=tree.parent(item)
 
         subpath_list.reverse()
         return (item,current_record_name,subpath_list)
-        #sep + sep.join(reversed(subpath_list))
 
     def show_tooltips_tree(self,event):
         self.unschedule_tooltips_tree(event)
         self.menubar_unpost()
-
-        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
 
         tree = event.widget
         col=tree.identify_column(event.x)
@@ -1948,6 +2113,8 @@ class Gui:
 
                     else:
                         self.hide_tooltip()
+
+        self.adaptive_tooltip_geometry(event)
 
     def unschedule_tooltip_widget(self,event):
         if self.tooltip_show_after_widget:
@@ -2343,9 +2510,11 @@ class Gui:
             range_par = self.current_record if not find_range_all else None
 
             sel_range = [range_par] if range_par else librer_core.records
+            sel_range_len = len(sel_range)
             files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
 
             if files_search_quant==0:
+                self.info_dialog_on_find.show('Search aborted.','No files in records.')
                 return 1
 
             if find_filename_search_kind == 'regexp':
@@ -2482,8 +2651,8 @@ class Gui:
 
             self_progress_dialog_on_find = self.get_progress_dialog_on_find()
 
-            gc_disable()
-            gc_collect()
+            #gc_disable()
+            #gc_collect()
 
             search_thread=Thread(target=lambda : librer_core.find_items_in_records(self.temp_dir,range_par,
                 min_num,max_num,
@@ -2510,6 +2679,7 @@ class Gui:
 
             records_len = len(librer_core.records)
             if records_len==0:
+                self.info_dialog_on_find.show('Search aborted.','No records.')
                 return
 
             self_progress_dialog_on_find_progr1var_set = self.progress_dialog_on_find.progr1var.set
@@ -2533,7 +2703,7 @@ class Gui:
 
             #librer_core_files_search_quant = librer_core.files_search_quant
             fnumber_files_search_quant = fnumber(files_search_quant)
-            fnumber_records_len = fnumber(records_len)
+            fnumber_sel_range_len = fnumber(sel_range_len)
 
             time_without_busy_sign=0
             while search_thread_is_alive():
@@ -2545,13 +2715,11 @@ class Gui:
 
                 curr_files = librer_core.total_search_progress
 
-                files_perc = curr_files * 100.0 / files_search_quant
-
                 self_progress_dialog_on_find_progr1var_set(librer_core.records_perc_info)
-                self_progress_dialog_on_find_progr2var_set(files_perc)
+                self_progress_dialog_on_find_progr2var_set(curr_files * 100.0 / files_search_quant)
 
-                self_progress_dialog_on_find_lab_r1_config(text=fnumber(librer_core.search_record_nr) + '/' + fnumber_records_len)
-                self_progress_dialog_on_find_lab_r2_config(text=fnumber(curr_files) + '/' + fnumber_files_search_quant)
+                self_progress_dialog_on_find_lab_r1_config(text=f'{fnumber(librer_core.search_record_nr)} / {fnumber_sel_range_len}')
+                self_progress_dialog_on_find_lab_r2_config(text=f'{fnumber(curr_files)} / {fnumber_files_search_quant}')
 
                 if self.action_abort:
                     librer_core.abort()
@@ -2576,8 +2744,8 @@ class Gui:
             search_thread.join
             self_progress_dialog_on_find.hide(True)
 
-            gc_collect()
-            gc_enable()
+            #gc_collect()
+            #gc_enable()
 
             find_results_quant_sum = 0
 
@@ -2625,13 +2793,19 @@ class Gui:
                 if find_results_quant_sum_format:
                     self.find_result_index=-1
                     self.find_next()
+        else:
+            self.info_dialog_on_find.show('Search aborted.','Same params')
 
-    def get_child_of_name(self,item,child_name):
+    def get_child_of_name(self,record,item,child_name):
         self_tree = self.tree
+        self_tree_item = self_tree.item
+
+        self_item_to_data = self.item_to_data
+        record_filenames = record.filenames
+
+        #mozna by to zcachowac ale jest kwestia sortowania
         for child in self_tree.get_children(item):
-            values = self_tree.item(child,'values')
-            data=values[0]
-            if data==child_name:
+            if record_filenames[self_item_to_data[child][0]]==child_name:
                 return child
         return None
 
@@ -2646,13 +2820,10 @@ class Gui:
             find_result_index_reset=False
 
             while not settled:
-                #print('self.find_result_record_index:',self.find_result_record_index)
-                #print('self.find_result_index:',self.find_result_index)
-
                 record = librer_core.records_sorted[self.find_result_record_index]
-                #print('\n'.join([sep.join(x[0]) for x in record.find_results]))
-                record_find_results_len=len(record.find_results)
+                record_find_results = record.find_results
 
+                record_find_results_len=len(record_find_results)
 
                 if find_result_index_reset:
                     find_result_index_reset=False
@@ -2673,33 +2844,31 @@ class Gui:
                     self.find_result_record_index %= records_quant
 
                 try:
-                    items_names_tuple,res_size,res_mtime=record.find_results[self.find_result_index]
+                    items_names_tuple,res_size,res_mtime=record_find_results[self.find_result_index]
                 except Exception as e:
                     continue
                 else:
                     settled=True
-                    status_to_set=f'record find result: {self.find_result_index+1 if self.find_result_index>=0 else record_find_results_len+self.find_result_index+1} / {fnumber(record_find_results_len)} / {fnumber(self.all_records_find_results_len)}'
-
-            #print(record_result)
+                    status_to_set=f'record find result: {fnumber(self.find_result_index+1 if self.find_result_index>=0 else record_find_results_len+self.find_result_index+1)} / {fnumber(record_find_results_len)} / {fnumber(self.all_records_find_results_len)}'
 
             record_item = self.record_to_item[record]
-
-            #record = self.item_to_record[record_item]
 
             current_item = record_item
 
             self.open_item(current_item)
 
+            self_get_child_of_name = self.get_child_of_name
+            self_open_item = self.open_item
+            self_tree_update = self_tree.update
+
             for item_name in items_names_tuple:
-                #print('item_name:',item_name)
-                child_item = self.get_child_of_name(current_item,item_name)
-                #print('child_item:',child_item)
+                child_item = self_get_child_of_name(record,current_item,item_name)
 
                 if child_item:
                     current_item = child_item
-                    self.open_item(current_item)
+                    self_open_item(current_item)
                     #self_tree.see(current_item)
-                    self_tree.update()
+                    self_tree_update()
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
@@ -2900,9 +3069,6 @@ class Gui:
             if tree.identify("region", event.x, event.y) == 'heading':
                 return
 
-            #if not self.actions_processing:
-            #    return
-
             tree.focus_set()
             self.tree_on_mouse_button_press(event)
             tree.update()
@@ -2918,8 +3084,6 @@ class Gui:
             pop_add_command = pop.add_command
             self_ico = self.ico
             state_on_records = 'normal' if librer_core.records else 'disabled'
-            #state_has_cd =
-            #print(state_has_cd)
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
@@ -3177,7 +3341,6 @@ class Gui:
 
         self_progress_dialog_on_scan_lab[2].configure(image='',text='')
 
-
         any_cde_enabled=False
         cde_sklejka_list=[]
         cde_list=[]
@@ -3325,16 +3488,15 @@ class Gui:
                         change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_files_cde_errors_quant_all) )
 
                         files_q = librer_core.stdout_files_cde_quant
-                        files_perc = files_q * 100.0 / librer_core.stdout_files_cde_quant_sum if librer_core.stdout_files_cde_quant_sum else 0
 
                         files_size = librer_core.stdout_files_cde_size
                         files_size_perc = files_size * 100.0 / librer_core.stdout_files_cde_size_sum if librer_core.stdout_files_cde_size_sum else 0
 
                         self_progress_dialog_on_scan_progr1var_set(files_size_perc)
-                        self_progress_dialog_on_scan_progr2var_set(files_perc)
+                        self_progress_dialog_on_scan_progr2var_set(files_q * 100.0 / librer_core.stdout_files_cde_quant_sum if librer_core.stdout_files_cde_quant_sum else 0)
 
-                        self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(librer_core.stdout_files_cde_size) + '/' + local_bytes_to_str(librer_core.stdout_files_cde_size_sum))
-                        self_progress_dialog_on_scan_lab_r2_config(text=fnumber(files_q) + '/' + fnumber(librer_core.stdout_files_cde_quant_sum))
+                        self_progress_dialog_on_scan_lab_r1_config(text=f'{local_bytes_to_str(librer_core.stdout_files_cde_size)} / {local_bytes_to_str(librer_core.stdout_files_cde_size_sum)}')
+                        self_progress_dialog_on_scan_lab_r2_config(text=f'{fnumber(files_q)} / {fnumber(librer_core.stdout_files_cde_quant_sum)}')
 
                         if change3 or change4:
                             time_to_show_busy_sign=now+1.0
@@ -3376,7 +3538,6 @@ class Gui:
 
             gc_collect()
             gc_enable()
-
 
         self_progress_dialog_on_scan.hide(True)
 
@@ -3566,7 +3727,6 @@ class Gui:
     def kill_test(self):
         if self.subprocess and self.subprocess!=True:
             kill_subprocess(self.subprocess)
-            #    self.output_list.append(str(e))
 
     def cde_test(self,e):
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -3757,7 +3917,9 @@ class Gui:
             self_ico_empty = self.ico_empty
 
             record_find_results = record.find_results
-            self.FOUND = self.FOUND
+            record_find_results_tuples_set = record.find_results_tuples_set
+
+            self_FOUND = self.FOUND
             if top_has_files:
                 for data_tuple in top_data_tuple[4]:
 
@@ -3793,11 +3955,8 @@ class Gui:
                         tags=self_SYMLINK
                     else:
                         tags=''
-                        if record_find_results:
-                            for find_result in record_find_results:
-                                if find_result[0]==entry_subpath_tuple:
-                                    tags=self.FOUND
-                                    break
+                        if entry_subpath_tuple in record_find_results_tuples_set:
+                            tags=self_FOUND
 
                     #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
                     values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(mtime)),kind)
@@ -3835,8 +3994,6 @@ class Gui:
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
 
-        #self.item_to_data[record_item] = record.filestructure
-
         self.tree.focus(record_item)
         self.tree.selection_set(record_item)
         self.tree.see(record_item)
@@ -3850,7 +4007,7 @@ class Gui:
             sum_size+=record_temp.header.sum_size
             quant_files+=record_temp.header.quant_files
 
-        self.widget_tooltip(self.status_records_all,f'All records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}\n\nClick to unload (free memory) data of selected record\nDouble click to unload data of all records.')
+        self.widget_tooltip(self.status_records_all,f'Records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}\n\nClick to unload (free memory) data of selected record\nDouble click to unload data of all records.')
 
         self.main_update()
 
@@ -3875,7 +4032,7 @@ class Gui:
             record = self.item_to_record[record_item]
 
             self.main.clipboard_clear()
-            self.main.clipboard_append(record.header.scan_path + sep + sep.join(subpath_list))
+            self.main.clipboard_append(normpath(sep.join([record.header.scan_path,sep.join(subpath_list)])))
 
             self.status('Full path copied to clipboard')
 
@@ -3900,6 +4057,7 @@ class Gui:
         if self.actions_processing:
             item=self.tree.focus()
             if item:
+                error_infos=[]
                 try:
                     if self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
                         self.record_info()
@@ -3915,10 +4073,12 @@ class Gui:
 
                             if has_cd: #wiec nie has_files
                                 cd_index = data_tuple[4]
+                                error_infos.append(f'{cd_index=},type:{type(cd_index)}')
 
                                 self.access_customdata(record)
-
                                 cd_field = record.customdata[cd_index]
+
+                                error_infos.append(' '.join(str(cd_field)))
                                 if cd_data := cd_field[2]:
                                     rule_nr=cd_field[0]
                                     returncode=cd_field[1]
@@ -3927,7 +4087,7 @@ class Gui:
 
                                     file_path = normpath(sep.join([record.header.scan_path,sep.join(subpath_list)]))
 
-                                    cd_txt = cd_data
+                                    cd_txt = str(cd_data)
 
                                     command,command_info = get_command(executable,parameters,file_path,shell)
 
@@ -3939,7 +4099,7 @@ class Gui:
                             self.info_dialog_on_main.show('Information','No Custom data.')
 
                 except Exception as e:
-                    self.info_dialog_on_main.show(e)
+                    self.info_dialog_on_main.show('Custom Data Info Error',str(e) + ('\n' + '\n'.join(error_infos)) if error_infos else '')
 
     def record_info(self):
         if self.actions_processing:
