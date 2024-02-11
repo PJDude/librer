@@ -28,7 +28,7 @@
 
 from os import name as os_name
 from tkinter import Frame,Label,BooleanVar,DoubleVar,StringVar,Toplevel,Canvas,Text
-from tkinter.ttk import Button,Scrollbar,Progressbar,Checkbutton,Entry
+from tkinter.ttk import Button,Scrollbar,Progressbar,Checkbutton,Entry,Combobox
 
 def set_geometry_by_parent(widget,parent):
     x_offset = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -516,6 +516,79 @@ class TextDialogQuestion(TextDialogInfo):
 
     def show(self,title='',message='',uplabel_text=''):
         super().show(title,message,uplabel_text)
+
+class EntryDialogQuestion(LabelDialog):
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
+
+        self.cancel_button.configure(text='Cancel')
+
+        self.entry_val=StringVar()
+
+        self.entry = Entry(self.area_main, textvariable=self.entry_val,justify='left')
+        self.entry.grid(row=2,column=0,padx=5,pady=5,sticky="wens")
+
+        self.button_ok = Button(self.area_buttons, text='OK', width=14, command=self.ok )
+        self.button_ok.pack(side='left', anchor='n',padx=5,pady=5)
+
+        self.cancel_button.pack(side='right')
+
+        self.focus=self.entry
+
+    def return_bind(self,event):
+        widget=event.widget
+        if widget==self.entry:
+            self.button_ok.invoke()
+        else:
+            super().return_bind(event)
+
+    def ok(self):
+        self.res_bool= True
+        self.res_str = self.entry_val.get()
+        super().hide()
+
+    def show(self,title='',message='',initial=''):
+        self.entry_val.set(initial)
+
+        self.res_str=''
+        super().show(title,message)
+
+class ComboboxDialogQuestion(LabelDialog):
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
+
+        self.cancel_button.configure(text='Cancel')
+
+        self.entry_val=StringVar()
+
+        self.combobox = Combobox(self.area_main, textvariable=self.entry_val,justify='left')
+        self.combobox.grid(row=2,column=0,padx=5,pady=5,sticky="wens")
+
+        self.button_ok = Button(self.area_buttons, text='OK', width=14, command=self.ok )
+        self.button_ok.pack(side='left', anchor='n',padx=5,pady=5)
+
+        self.cancel_button.pack(side='right')
+
+        self.focus=self.combobox
+
+    def return_bind(self,event):
+        widget=event.widget
+        if widget==self.entry:
+            self.button_ok.invoke()
+        else:
+            super().return_bind(event)
+
+    def ok(self):
+        self.res_bool= True
+        self.res_str = self.entry_val.get()
+        super().hide()
+
+    def show(self,title='',message='',initial=''):
+        self.entry_val.set(initial)
+
+        self.res_str=''
+        super().show(title,message)
+
 
 class SFrame(Frame):
     def __init__(self, parent,bg,width=200,height=100):

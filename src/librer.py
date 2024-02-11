@@ -276,6 +276,10 @@ class Gui:
         self.ico_drive = self_ico['drive']
         self.ico_up = self_ico['up']
         self.ico_info = self_ico['info']
+        self.ico_group = self_ico['group']
+        self.ico_group_new = self_ico['group']
+        self.ico_group_remove = self_ico['group']
+        self.ico_group_assign = self_ico['group']
 
         #self.ico_delete = self_ico['delete']
 
@@ -285,6 +289,8 @@ class Gui:
 
         #self_main.iconphoto(True, self_ico_librer,self.ico_record)
         self_main.iconphoto(True, self_ico_librer,self.ico_librer_small)
+
+        self.main_icon_tuple = (self.ico_librer,self.ico_librer_small)
 
         self.RECORD_RAW='r'
         self.RECORD='R'
@@ -297,6 +303,8 @@ class Gui:
         self.SYMLINK='S'
 
         self.FOUND = 'X'
+
+        self.GROUP = 'z'
 
         #self.defaultFont = font.nametofont("TkDefaultFont")
         #self.defaultFont.configure(family="Monospace regular",size=8,weight=font.BOLD)
@@ -470,9 +478,9 @@ class Gui:
 
         #######################################################################
 
-        self.info_dialog_on_main = LabelDialog(self_main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+        self.info_dialog_on_main = LabelDialog(self_main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
-        self.progress_dialog_on_load = ProgressDialog(self_main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+        self.progress_dialog_on_load = ProgressDialog(self_main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
         self.widget_tooltip(self.progress_dialog_on_load.abort_button,'')
@@ -611,6 +619,8 @@ class Gui:
         records_quant,records_size = librer_core.read_records_pre()
 
         load_errors = []
+
+        self.groups_show()
 
         if records_quant:
             self.status_info.configure(image='',text = 'Loading records ...')
@@ -928,7 +938,7 @@ class Gui:
         if not self.text_info_dialog_created:
             self.status("Creating dialog ...")
 
-            self.text_info_dialog = TextDialogInfo(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.text_info_dialog = TextDialogInfo(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.fix_text_dialog(self.text_info_dialog)
 
@@ -1272,7 +1282,7 @@ class Gui:
         if not self.progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
             self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
@@ -1289,7 +1299,7 @@ class Gui:
         if not self.simple_progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.simple_progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),ShowProgress=False,min_width=400,min_height=200)
+            self.simple_progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),ShowProgress=False,min_width=400,min_height=200)
 
             self.simple_progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
@@ -1310,7 +1320,7 @@ class Gui:
         if not self.info_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.info_dialog_on_scan_created = True
 
         return self.info_dialog_on_scan
@@ -1323,7 +1333,7 @@ class Gui:
         if not self.text_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.text_dialog_on_scan = TextDialogInfo(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.text_dialog_on_scan = TextDialogInfo(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
             self.fix_text_dialog(self.text_dialog_on_scan)
 
@@ -1339,7 +1349,7 @@ class Gui:
         if not self.text_ask_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.text_ask_dialog_on_scan = TextDialogQuestion(self.scan_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
+            self.text_ask_dialog_on_scan = TextDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
 
             self.fix_text_dialog(self.text_ask_dialog_on_scan)
 
@@ -1355,7 +1365,7 @@ class Gui:
         if not self.text_ask_dialog_on_main_created:
             self.status("Creating dialog ...")
 
-            self.text_ask_dialog_on_main = TextDialogQuestion(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.text_ask_dialog_on_main = TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
             self.fix_text_dialog(self.text_ask_dialog_on_main)
             #,image=self.ico_warning
@@ -1371,7 +1381,7 @@ class Gui:
         if not self.progress_dialog_on_find_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_find = ProgressDialog(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.progress_dialog_on_find = ProgressDialog(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
             self.widget_tooltip(self.progress_dialog_on_find.abort_button,'Abort searching.')
 
@@ -1398,7 +1408,7 @@ class Gui:
 
         if not self.repack_dialog_created:
 
-            self.repack_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Rename / Repack record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.repack_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Rename / Repack record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.repack_cd_var = BooleanVar()
             #self.repack_crc_var = BooleanVar()
             self.repack_compr_var = IntVar()
@@ -1451,7 +1461,7 @@ class Gui:
         self.wii_import_dialog_do_it=False
 
         if not self.wii_import_dialog_created:
-            self.wii_import_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Where Is It ? import records',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.wii_import_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Where Is It ? import records',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.wii_import_separate = BooleanVar()
             self.wii_import_separate.set(False)
             self.wii_import_compr_var = IntVar()
@@ -1502,6 +1512,26 @@ class Gui:
 
         return self.wii_import_dialog
 
+    new_group_dialog_created = False
+    @restore_status_line
+    @gui_block
+    def get_new_group_dialog(self):
+        if not self.new_group_dialog_created:
+            self.status("Creating dialog ...")
+            self.new_group_dialog = EntryDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.new_group_dialog_created = True
+        return self.new_group_dialog
+
+    assign_group_dialog_created = False
+    @restore_status_line
+    @gui_block
+    def get_assign_group_dialog(self):
+        if not self.assign_group_dialog_created:
+            self.status("Creating dialog ...")
+            self.assign_group_dialog = ComboboxDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.assign_group_dialog_created = True
+        return self.assign_group_dialog
+
     find_dialog_created = False
     @restore_status_line
     @block_actions_processing
@@ -1511,7 +1541,7 @@ class Gui:
             self.status("Creating dialog ...")
 
             ###################################
-            self.find_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'Search records',pre_show=self.pre_show,post_close=self.post_close)
+            self.find_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Search records',pre_show=self.pre_show,post_close=self.post_close)
 
             #self.find_size_use_var = BooleanVar()
             self.find_filename_search_kind_var = StringVar()
@@ -1737,12 +1767,12 @@ class Gui:
             sfdma.grid_rowconfigure(5, weight=1)
             sfdma.grid_columnconfigure(0, weight=1)
 
-            self.info_dialog_on_find = LabelDialog(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
-            self.text_dialog_on_find = TextDialogInfo(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.info_dialog_on_find = LabelDialog(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.text_dialog_on_find = TextDialogInfo(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
             self.fix_text_dialog(self.text_dialog_on_find)
 
-            self.results_on_find = LabelDialogQuestion(self.find_dialog.widget,(self.ico_librer,self.ico_librer_small),self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.results_on_find = LabelDialogQuestion(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
             self.results_on_find.cancel_button.configure(text='Continue search',width=20)
             self.results_on_find.ok_button.configure(text='Close Search dialog',width=20)
@@ -1759,7 +1789,7 @@ class Gui:
         if not self.about_dialog_created:
             self.status("Creating dialog ...")
 
-            self.aboout_dialog=GenericDialog(self.main,(self.ico_librer,self.ico_librer_small),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
+            self.aboout_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
 
             frame1 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
@@ -2069,40 +2099,44 @@ class Gui:
             elif item := tree.identify('item', event.x, event.y):
                 if col=="#0" :
                     record_item,record_name,subpath_list = self.get_item_record(item)
-                    record = self.item_to_record[record_item]
 
-                    raw_record_it_is = tree.tag_has(self.RECORD_RAW,item)
-                    record_it_is = tree.tag_has(self.RECORD,item)
+                    if record_item in self.item_to_record:
+                        record = self.item_to_record[record_item]
 
-                    if raw_record_it_is or record_it_is:
-                        self.tooltip_lab_configure(text=record.txtinfo_basic + '\n\n(Double click to show full record info)')
+                        raw_record_it_is = tree.tag_has(self.RECORD_RAW,item)
+                        record_it_is = tree.tag_has(self.RECORD,item)
+
+                        if raw_record_it_is or record_it_is:
+                            self.tooltip_lab_configure(text=record.txtinfo_basic + '\n\n(Double click to show full record info)')
+                        else:
+                            scan_path = record.header.scan_path
+                            subpath = sep + sep.join(subpath_list)
+
+                            tooltip_list = [f'scan path : {scan_path}']
+                            tooltip_list.append(f'subpath   : {subpath}')
+
+                            if item in self.item_to_data:
+                                data_tuple = self.item_to_data[item]
+                                code = data_tuple[1]
+                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
+
+                                if is_symlink:
+                                    tooltip_list.append('')
+                                    tooltip_list.append('Symlink')
+
+                                if is_bind:
+                                    tooltip_list.append('')
+                                    tooltip_list.append('Binding (another device)')
+
+                                if has_cd:
+                                    tooltip_list.append('')
+                                    tooltip_list.append('(Double click to show Custom Data.)')
+
+                            self.tooltip_lab_configure(text='\n'.join(tooltip_list))
+
+                        self.tooltip_deiconify()
                     else:
-                        scan_path = record.header.scan_path
-                        subpath = sep + sep.join(subpath_list)
-
-                        tooltip_list = [f'scan path : {scan_path}']
-                        tooltip_list.append(f'subpath   : {subpath}')
-
-                        if item in self.item_to_data:
-                            data_tuple = self.item_to_data[item]
-                            code = data_tuple[1]
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
-
-                            if is_symlink:
-                                tooltip_list.append('')
-                                tooltip_list.append('Symlink')
-
-                            if is_bind:
-                                tooltip_list.append('')
-                                tooltip_list.append('Binding (another device)')
-
-                            if has_cd:
-                                tooltip_list.append('')
-                                tooltip_list.append('(Double click to show Custom Data.)')
-
-                        self.tooltip_lab_configure(text='\n'.join(tooltip_list))
-
-                    self.tooltip_deiconify()
+                        self.tooltip_lab_configure(text='label')
 
                 elif col:
                     coldata=tree.set(item,col)
@@ -2932,18 +2966,24 @@ class Gui:
 
         if item:
             record_item,record_name,subpath_list = self.get_item_record(item)
-            record = self.item_to_record[record_item]
-            if record != self.current_record:
-                self.current_record = record
-                if not self.cfg.get(CFG_KEY_find_range_all):
-                    self.external_find_params_change = True
+            if record_item in self.item_to_record:
+                record = self.item_to_record[record_item]
+                if record != self.current_record:
+                    self.current_record = record
+                    if not self.cfg.get(CFG_KEY_find_range_all):
+                        self.external_find_params_change = True
 
-            record_name = self.tree.item(record_item,'text')
-            image=self.tree.item(record_item,'image')
+                record_name = self.tree.item(record_item,'text')
+                image=self.tree.item(record_item,'image')
 
-            self.status_record.configure(image = image, text = record_name,compound='left')
-            self.widget_tooltip(self.status_record,record.txtinfo_basic + '\n\n(Click to show full record info)')
-            #\nsingle click to unload data of current record.\n
+                self.status_record.configure(image = image, text = record_name,compound='left')
+                self.widget_tooltip(self.status_record,record.txtinfo_basic + '\n\n(Click to show full record info)')
+                #\nsingle click to unload data of current record.\n
+            else:
+                self.status_record.configure(image = '', text = '')
+                self.widget_tooltip(self.status_record,'')
+                self.current_record = None
+                self.status_record_configure('---')
         else:
             self.current_record = None
             self.status_record_configure('---')
@@ -3105,6 +3145,10 @@ class Gui:
             pop_add_separator()
             pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico_record_delete,compound='left',state=state_on_records)
             pop_add_separator()
+            pop_add_command(label = 'New group ...',  command = self.new_group,image = self.ico_group_new,compound='left')
+            pop_add_command(label = 'Remove group ...',  command = self.remove_group,image = self.ico_group_remove,compound='left')
+            pop_add_command(label = 'Assign record to group ...',  command = self.assign_group,image = self.ico_group_assign,compound='left')
+            pop_add_separator()
             pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=('disabled','normal')[self.item_has_cd(self.tree.focus())])
             pop_add_separator()
             pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_empty,compound='left')
@@ -3128,6 +3172,52 @@ class Gui:
                 print(e)
 
             pop.grab_release()
+
+    def new_group(self):
+        self.get_new_group_dialog().show('New group','Enter New group:')
+
+        res = self.new_group_dialog.entry_val.get()
+        print(res)
+        if res:
+            res2=librer_core.create_new_group(res,self.single_group_show)
+
+    def remove_group(self):
+        item=self.tree.focus()
+        if self.tree.tag_has(self.GROUP,item):
+            group = 1
+            librer_core.remove_group(group)
+            self.tree.delete(self.group_to_item[group])
+
+    @logwrapper
+    def assign_group(self):
+        curr_group = librer_core.get_record_group(self.current_record)
+
+        dial = self.get_assign_group_dialog()
+        #dial.entry_var.set(curr_group)
+
+        values = list(librer_core.groups.keys())
+        dial.combobox.configure(values=values)
+        record = self.current_record
+        current = librer_core.get_record_group(record)
+        print(record, current)
+
+        if current:
+            dial.entry_val.set(current)
+            index = values.index(current)
+            print(f'{index=}')
+            dial.combobox.current(index)
+
+        dial.show('Assign to group','Select group for record:',current)
+        group = dial.entry_val.get()
+        print('group:',group)
+        if group:
+            res2=librer_core.assign_new_group(record,group)
+            if res2:
+                self.info_dialog_on_main().show('Error',res2)
+            else:
+                group_item = self.group_to_item[group]
+                record_item = self.record_to_item[record]
+                self.tree.move(record_item,group_item,0)
 
     @logwrapper
     def column_sort_click(self, tree, colname):
@@ -3868,114 +3958,130 @@ class Gui:
         if not item:
             item=tree.focus()
 
-        children=tree.get_children(item)
-        opened = tree.set(item,'opened')
+        if tree.tag_has(self.GROUP,item):
+            pass
+        else:
+            children=tree.get_children(item)
+            opened = tree.set(item,'opened')
 
-        LUT_decode_loc = LUT_decode
+            LUT_decode_loc = LUT_decode
+            if opened=='0' and children:
+                colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
+                sort_index_local=sort_index
 
-        if opened=='0' and children:
-            colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
-            sort_index_local=sort_index
+                sort_val_func = int if is_numeric else lambda x : x
 
-            sort_val_func = int if is_numeric else lambda x : x
+                tree.delete(*children)
 
-            tree.delete(*children)
+                self_FILE = self.FILE
+                self_DIR = self.DIR
+                self_SYMLINK = self.SYMLINK
+                local_bytes_to_str = bytes_to_str
 
-            self_FILE = self.FILE
-            self_DIR = self.DIR
-            self_SYMLINK = self.SYMLINK
-            local_bytes_to_str = bytes_to_str
+                new_items_values = {}
 
-            new_items_values = {}
+                ###############################################
+                record_item,record_name,subpath_list = self.get_item_record(item)
 
-            ###############################################
-            record_item,record_name,subpath_list = self.get_item_record(item)
+                record = self.item_to_record[record_item]
 
-            record = self.item_to_record[record_item]
+                self_item_to_data = self.item_to_data
 
-            self_item_to_data = self.item_to_data
+                if tree.tag_has(self.RECORD_RAW,item):
+                    self.access_filestructure(record)
+                    self_item_to_data[item] = record.filestructure
+                    self.tree.item(item,tags=self.RECORD, image=self.ico_record_cd if record.has_cd() else self.ico_record)
+                    self.tree_select() #tylko dla aktualizacja ikony
 
-            if tree.tag_has(self.RECORD_RAW,item):
-                self.access_filestructure(record)
-                self_item_to_data[item] = record.filestructure
-                self.tree.item(item,tags=self.RECORD, image=self.ico_record_cd if record.has_cd() else self.ico_record)
-                self.tree_select() #tylko dla aktualizacja ikony
+                top_data_tuple = self_item_to_data[item]
 
-            top_data_tuple = self_item_to_data[item]
+                (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple[0:4]
 
-            (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple[0:4]
+                top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_aux0,top_aux1,top_aux2 = LUT_decode_loc[top_code]
 
-            top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_aux0,top_aux1,top_aux2 = LUT_decode_loc[top_code]
+                record_filenames = record.filenames
 
-            record_filenames = record.filenames
+                self_ico_folder_error = self.ico_folder_error
+                self_ico_folder_link = self.ico_folder_link
+                self_ico_folder = self.ico_folder
+                self_ico_cd_ok = self.ico_cd_ok
+                self_ico_cd_error = self.ico_cd_error
+                self_ico_empty = self.ico_empty
 
-            self_ico_folder_error = self.ico_folder_error
-            self_ico_folder_link = self.ico_folder_link
-            self_ico_folder = self.ico_folder
-            self_ico_cd_ok = self.ico_cd_ok
-            self_ico_cd_error = self.ico_cd_error
-            self_ico_empty = self.ico_empty
+                record_find_results = record.find_results
+                record_find_results_tuples_set = record.find_results_tuples_set
 
-            record_find_results = record.find_results
-            record_find_results_tuples_set = record.find_results_tuples_set
+                self_FOUND = self.FOUND
+                if top_has_files:
+                    for data_tuple in top_data_tuple[4]:
 
-            self_FOUND = self.FOUND
-            if top_has_files:
-                for data_tuple in top_data_tuple[4]:
+                        (entry_name_nr,code,size,mtime) = data_tuple[0:4]
 
-                    (entry_name_nr,code,size,mtime) = data_tuple[0:4]
+                        entry_name = record_filenames[entry_name_nr]
 
-                    entry_name = record_filenames[entry_name_nr]
+                        entry_subpath_tuple = tuple(subpath_list + [entry_name])
 
-                    entry_subpath_tuple = tuple(subpath_list + [entry_name])
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode_loc[code]
 
-                    is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode_loc[code]
+                        sub_data_tuple = None
 
-                    sub_data_tuple = None
+                        elem_index = 4
+                        if has_files:
+                            sub_dictionary = True
+                            sub_data_tuple = data_tuple[elem_index]
+                            elem_index+=1
+                        else:
+                            sub_dictionary = False
 
-                    elem_index = 4
-                    if has_files:
-                        sub_dictionary = True
-                        sub_data_tuple = data_tuple[elem_index]
-                        elem_index+=1
-                    else:
-                        sub_dictionary = False
+                        if has_cd:
+                            elem_index+=1
 
-                    if has_cd:
-                        elem_index+=1
+                        #if has_crc:
+                        #    pass
+                        kind = self_DIR if is_dir else self_FILE
 
-                    #if has_crc:
-                    #    pass
-                    kind = self_DIR if is_dir else self_FILE
+                        #image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd and not has_crc else (self_ico_cd_ok_crc if cd_ok else self_ico_cd_error_crc) if has_cd and has_crc else self.ico_crc if has_crc else self_ico_empty
+                        image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd else self_ico_empty
 
-                    #image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd and not has_crc else (self_ico_cd_ok_crc if cd_ok else self_ico_cd_error_crc) if has_cd and has_crc else self.ico_crc if has_crc else self_ico_empty
-                    image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd else self_ico_empty
+                        if is_symlink or is_bind:
+                            tags=self_SYMLINK
+                        else:
+                            tags=''
+                            if entry_subpath_tuple in record_find_results_tuples_set:
+                                tags=self_FOUND
 
-                    if is_symlink or is_bind:
-                        tags=self_SYMLINK
-                    else:
-                        tags=''
-                        if entry_subpath_tuple in record_find_results_tuples_set:
-                            tags=self_FOUND
+                        #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
+                        values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(mtime)),kind)
+                        sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
+                        new_items_values[ ( sort_index,values,entry_name,image,bool(has_files) ) ] = (has_files,tags,data_tuple)
 
-                    #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-                    values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(mtime)),kind)
-                    sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
-                    new_items_values[ ( sort_index,values,entry_name,image,bool(has_files) ) ] = (has_files,tags,data_tuple)
+                    tree_insert = tree.insert
+                    for (sort_index,values,entry_name,image,sub_dictionary_bool),(has_files,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
+                        new_item=tree_insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
+                        self_item_to_data[new_item] = data_tuple
+                        if sub_dictionary_bool:
+                            tree_insert(new_item,'end') #dummy_sub_item
+                            #if to_the_bottom:
+                            #    self.open_item(new_item,to_the_bottom)
 
-                tree_insert = tree.insert
-                for (sort_index,values,entry_name,image,sub_dictionary_bool),(has_files,tags,data_tuple) in sorted(new_items_values.items(),key = lambda x : x[0][0],reverse=reverse) :
-                    new_item=tree_insert(item,'end',iid=None,values=values,open=False,text=entry_name,image=image,tags=tags)
-                    self_item_to_data[new_item] = data_tuple
-                    if sub_dictionary_bool:
-                        tree_insert(new_item,'end') #dummy_sub_item
-                        #if to_the_bottom:
-                        #    self.open_item(new_item,to_the_bottom)
-
-                tree.set(item,'opened','1')
+                    tree.set(item,'opened','1')
 
     def get_record_raw_icon(self,record):
         return self.ico_record_raw_cd if record.has_cd() else self.ico_record_raw
+
+    @logwrapper
+    def groups_show(self):
+        #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
+        self.group_to_item = {}
+        self.group_to_item[None]=''
+
+        for group in librer_core.groups:
+            self.single_group_show(group)
+
+    def single_group_show(self,group):
+        values = (group,group,0,'',0,'',0,'',self.GROUP)
+        group_item=self.tree.insert('','end',iid=None,values=values,open=False,text=group,image=self.ico_group,tags=self.GROUP)
+        self.group_to_item[group] = group_item
 
     @block_actions_processing
     @gui_block
@@ -3986,7 +4092,11 @@ class Gui:
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         values = (record.header.label,record.header.label,0,record.header.scan_path,size,bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(record.header.creation_time)),self.RECORD)
 
-        record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
+        #record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
+        group = librer_core.get_record_group(record)
+        group_item = self.group_to_item[group]
+
+        record_item=self.tree.insert(group_item,'end',iid=None,values=values,open=False,text=record.header.label,image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
         self.tree_sort_item(None)
@@ -4059,7 +4169,9 @@ class Gui:
             if item:
                 error_infos=[]
                 try:
-                    if self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
+                    if self.tree.tag_has(self.GROUP,item):
+                        return
+                    elif self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
                         self.record_info()
                     else:
                         record_item,record_name,subpath_list = self.get_item_record(item)
@@ -4183,7 +4295,7 @@ if __name__ == "__main__":
         LIBRER_FILE = normpath(__file__)
         LIBRER_DIR = dirname(LIBRER_FILE)
 
-        LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]))
+        LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.executable if getattr(sys, 'frozen', False) or "__compiled__" in globals() else sys.argv[0]))
         LIBRER_EXECUTABLE_DIR = dirname(LIBRER_EXECUTABLE_FILE)
         DATA_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'data'])
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'logs'])

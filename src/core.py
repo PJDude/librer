@@ -1300,6 +1300,7 @@ class LibrerCore:
         self.records_perc_info = 0
 
         self.records_sorted = []
+        self.groups=defaultdict(set)
 
     def update_sorted(self):
         self.records_sorted = sorted(self.records,key = lambda x : x.header.creation_time)
@@ -1312,14 +1313,80 @@ class LibrerCore:
         self.update_sorted()
         return new_record
 
+    def write_groups(self):
+        print(f'write_groups:{self.groups}')
+        self.groups_file_path = self.db_dir + sep + 'repo.dat'
+
+        compressor = ZstdCompressor(level=9,threads=-1)
+        compressor_compress = compressor.compress
+
+        with ZipFile(self.groups_file_path, "w") as zip_file:
+            groups_ser = dumps(self.groups)
+            groups_ser_compr = compressor_compress(groups_ser)
+            zip_file.writestr('groups',groups_ser_compr)
+
+    def create_new_group(self,group,callback):
+        if group not in self.groups:
+            self.groups[group]=set()
+            callback(group)
+            self.write_groups()
+            return None
+        else:
+            return "group name error"
+
+    def remove_group(self, group):
+        try:
+            del self.groups[group]
+            print('remove_group:',group)
+        except :
+            pass
+
+    def get_record_group(self, record):
+        try:
+            for group,group_set in self.groups.items():
+                if record.file_name in group_set:
+                    return group
+            return None
+        except:
+            return None
+
+    def assign_new_group(self,record,group):
+        filename = record.file_name
+
+        try:
+            current = self.get_record_group(record)
+            print('assign_new_group',record,group,current)
+            if current:
+                self.groups[current].remove(filename)
+
+            self.groups[group].add(filename)
+            self.write_groups()
+            return None
+        except Exception as e:
+            return str(e)
+
     def read_records_pre(self):
+        #self.groups={}
+        self.groups_file_path = self.db_dir + sep + 'repo.dat'
+
+        try:
+            with ZipFile(self.groups_file_path, "r") as zip_file:
+                groups_ser_comp = zip_file.read('groups')
+                groups_ser = ZstdDecompressor().decompress(groups_ser_comp)
+                self.groups = loads( groups_ser )
+        except Exception as e:
+            print(f'groups scan error:{e}')
+        else:
+            print(f'groups loaded:{self.groups}')
+            print(f'groups loaded:{self.groups}')
+
         try:
             with scandir(self.db_dir) as res:
                 size_sum=0
                 self.record_files_list=[]
                 for entry in res:
                     filename = entry.name
-                    if filename.endswith('.dat'):
+                    if filename.endswith('.dat') and filename != 'repo.dat':
                         try:
                             stat_res = stat(entry)
                             size = int(stat_res.st_size)
@@ -2148,7 +2215,8 @@ class LibrerCore:
         return True
 
     def record_exe(self):
-        is_frozen = bool(getattr(sys, 'frozen', False))
+        is_frozen = bool(getattr(sys, 'frozen', False) or "__compiled__" in globals())
+
         if windows:
             if is_frozen:
                return(['record.exe'])
