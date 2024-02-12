@@ -191,7 +191,160 @@ class Config:
 ###########################################################
 
 class Gui:
-    actions_processing=False
+    #actions_processing=False
+
+    block_processing_stack=['init']
+
+    block_processing_stack_append = block_processing_stack.append
+    block_processing_stack_pop = block_processing_stack.pop
+
+    ################################################
+    def processing_off(self,caller_id=None):
+        gc_disable()
+        self.block_processing_stack_append(caller_id)
+
+        disable = lambda menu : self.menubar_entryconfig(menu, state="disabled")
+
+        _ = {disable(menu) for menu in ("File","Help") }
+
+        self.menubar_config(cursor='watch')
+        self.main_config(cursor='watch')
+
+    ################################################
+    def processing_on(self,caller_id=None):
+        self.block_processing_stack_pop()
+
+        if not self.block_processing_stack:
+            norm = lambda menu : self.menubar_entryconfig(menu, state="normal")
+
+            _ = {norm(menu) for menu in ("File","Help") }
+
+            self.main_config(cursor='')
+            self.menubar_config(cursor='')
+            gc_collect()
+            gc_enable()
+
+    ################################################
+    def block(func):
+        def block_wrapp(self,*args,**kwargs):
+            self.processing_off(f'block_wrapp:{func.__name__}')
+
+            try:
+                res=func(self,*args,**kwargs)
+            except Exception as e:
+                self.status('block_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
+                l_error('block_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
+                self.info_dialog_on_main.show('INTERNAL ERROR block_wrapp',f'{func.__name__}\n' + str(e))
+                res=None
+
+            self.processing_on()
+
+            return res
+        return block_wrapp
+    ################################################
+
+    #def block_actions_processing(func):
+    #    def block_actions_processing_wrapp(self,*args,**kwargs):
+    #        if self.actions_processing:
+    #            gc_disable()
+    #            gc_collect()
+
+    #        prev_active=self.actions_processing
+    #        self.actions_processing=False
+
+    #        try:
+    #            res=func(self,*args,**kwargs)
+    #        except Exception as e:
+    #            self.status('block_actions_processing_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
+    #            l_error('block_actions_processing_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
+    #            l_error(''.join(format_stack()))
+    #            self.info_dialog_on_main.show('INTERNAL ERROR block_actions_processing_wrapp',str(e))
+    #            res=None
+
+    #        self.actions_processing=prev_active
+
+    #        if self.actions_processing:
+    #            gc_collect()
+    #            gc_enable()
+
+    #        return res
+    #    return block_actions_processing_wrapp
+
+    def gui_block(func):
+        def gui_block_wrapp(self,*args,**kwargs):
+            prev_cursor=self.menubar_cget('cursor')
+            self_menubar_config = self.menubar_config
+            self_main_config = self.main_config
+
+            self.menu_disable()
+
+            self_menubar_config(cursor='watch')
+            self_main_config(cursor='watch')
+
+            try:
+                res=func(self,*args,**kwargs)
+            except Exception as e:
+                self.status('gui_block_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
+                l_error('gui_block_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
+                self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',func.__name__ + '\n' + str(e))
+                res=None
+
+            self.menu_enable()
+            self_main_config(cursor=prev_cursor)
+            self_menubar_config(cursor=prev_cursor)
+
+            return res
+        return gui_block_wrapp
+
+    def catched(func):
+        def catched_wrapp(self,*args,**kwargs):
+            try:
+                res=func(self,*args,**kwargs)
+            except Exception as e:
+                self.status('catched_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
+                l_error('catched_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
+                self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%s %s' % (func.__name__,str(e)) )
+                res=None
+            return res
+        return catched_wrapp
+
+    def logwrapper(func):
+        def logwrapper_wrapp(self,*args,**kwargs):
+            l_info("logwrapper '%s' start",func.__name__)
+            start = time()
+            try:
+                res=func(self,*args,**kwargs)
+            except Exception as e:
+                self.status('logwrapper_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
+                l_error('logwrapper_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
+                self.info_dialog_on_main.show('INTERNAL ERROR logwrapper_wrapp','%s %s' % (func.__name__,str(e)) )
+                res=None
+
+            l_info("logwrapper '%s' end. BENCHMARK TIME:%s",func.__name__,time()-start)
+            return res
+        return logwrapper_wrapp
+
+    def restore_status_line(func):
+        def restore_status_line_wrapp(self,*args,**kwargs):
+
+            prev=self.status_curr_text
+            try:
+                res=func(self,*args,**kwargs)
+            except Exception as e:
+                self.status('restore_status_line_wrapp:%s:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
+                l_error('restore_status_line_wrapp:%s:%s args:%s kwargs:%s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
+                self.info_dialog_on_main.show('INTERNAL ERROR restore_status_line_wrapp',str(e))
+                res=None
+            else:
+                self.status(prev)
+
+            return res
+        return restore_status_line_wrapp
 
     def __init__(self,cwd):
         gc_disable()
@@ -491,7 +644,7 @@ class Gui:
             item_actions_state=('disabled','normal')[self.sel_item is not None]
 
             self.file_cascade.delete(0,'end')
-            if self.actions_processing:
+            if not self.block_processing_stack:
                 self_file_cascade_add_command = self.file_cascade.add_command
                 self_file_cascade_add_separator = self.file_cascade.add_separator
                 state_on_records = 'normal' if librer_core.records else 'disabled'
@@ -505,7 +658,7 @@ class Gui:
                 self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
                 self_file_cascade_add_command(label = 'Import "Where Is It?" xml ...', command = self.record_import_wii,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled')
+                self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
                 self_file_cascade_add_separator()
@@ -516,7 +669,7 @@ class Gui:
 
         def help_cascade_post():
             self.help_cascade.delete(0,'end')
-            if self.actions_processing:
+            if not self.block_processing_stack:
 
                 self_help_cascade_add_command = self.help_cascade.add_command
                 self_help_cascade_add_separator = self.help_cascade.add_separator
@@ -590,6 +743,7 @@ class Gui:
 
         self.item_to_record={}
         self.record_to_item={}
+        self.record_filename_to_record={}
         self.item_to_data={}
 
         #############################
@@ -696,7 +850,7 @@ class Gui:
         self.menubar_config(cursor='')
         self.main_config(cursor='')
 
-        self.actions_processing=True
+        #self.actions_processing=True
 
         self.tree_semi_focus()
         self.status_info.configure(image='',text = 'Ready')
@@ -753,6 +907,8 @@ class Gui:
         self.temp_dir = mkdtemp()
         #print(f'{self.temp_dir=}')
 
+        self.processing_on()
+
         self_main.mainloop()
 
     def tree_scrollbar_set(self,v1,v2):
@@ -770,33 +926,6 @@ class Gui:
 
             is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
         return has_cd
-
-    def block_actions_processing(func):
-        def block_actions_processing_wrapp(self,*args,**kwargs):
-            if self.actions_processing:
-                gc_disable()
-                gc_collect()
-
-            prev_active=self.actions_processing
-            self.actions_processing=False
-
-            try:
-                res=func(self,*args,**kwargs)
-            except Exception as e:
-                self.status('block_actions_processing_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
-                l_error('block_actions_processing_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
-                l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR block_actions_processing_wrapp',str(e))
-                res=None
-
-            self.actions_processing=prev_active
-
-            if self.actions_processing:
-                gc_collect()
-                gc_enable()
-
-            return res
-        return block_actions_processing_wrapp
 
     def gui_block(func):
         def gui_block_wrapp(self,*args,**kwargs):
@@ -908,6 +1037,8 @@ class Gui:
 
     @restore_status_line
     def pre_show(self,on_main_window_dialog=True,new_widget=None):
+        self.processing_off(f'pre_show:{new_widget}')
+
         #self.status("Opening dialog ...")
         self.menubar_unpost()
         self.hide_tooltip()
@@ -917,23 +1048,24 @@ class Gui:
             if new_widget:
                 self.main_locked_by_child=new_widget
 
-            self.actions_processing=False
-            self.menu_disable()
-            self.menubar_config(cursor="watch")
+            #self.actions_processing=False
+            #self.menu_disable()
+            #self.menubar_config(cursor="watch")
 
     def post_close(self,on_main_window_dialog=True):
         self.main.focus_set()
 
         if on_main_window_dialog:
             self.main_locked_by_child=None
-            self.actions_processing=True
-            self.menu_enable()
-            self.menubar_config(cursor="")
+            #self.actions_processing=True
+            #self.menu_enable()
+            #self.menubar_config(cursor="")
+
+        self.processing_on()
 
     text_info_dialog_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_text_info_dialog(self):
         if not self.text_info_dialog_created:
             self.status("Creating dialog ...")
@@ -949,8 +1081,7 @@ class Gui:
 
     delete_record_dialog_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_delete_record_dialog(self):
         if not self.delete_record_dialog_created:
             self.status("Creating dialog ...")
@@ -1025,8 +1156,7 @@ class Gui:
 
     scan_dialog_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_scan_dialog(self):
         if not self.scan_dialog_created:
             self.status("Creating dialog ...")
@@ -1276,8 +1406,7 @@ class Gui:
 
     progress_dialog_on_scan_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_progress_dialog_on_scan(self):
         if not self.progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
@@ -1293,8 +1422,7 @@ class Gui:
 
     simple_progress_dialog_on_scan_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_simple_progress_dialog_on_scan(self):
         if not self.simple_progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
@@ -1314,8 +1442,7 @@ class Gui:
 
     info_dialog_on_scan_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_info_dialog_on_scan(self):
         if not self.info_dialog_on_scan_created:
             self.status("Creating dialog ...")
@@ -1327,8 +1454,7 @@ class Gui:
 
     text_dialog_on_scan_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_text_dialog_on_scan(self):
         if not self.text_dialog_on_scan_created:
             self.status("Creating dialog ...")
@@ -1343,8 +1469,7 @@ class Gui:
 
     text_ask_dialog_on_scan_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_text_ask_dialog_on_scan(self):
         if not self.text_ask_dialog_on_scan_created:
             self.status("Creating dialog ...")
@@ -1359,8 +1484,7 @@ class Gui:
 
     text_ask_dialog_on_main_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_text_ask_dialog_on_main(self):
         if not self.text_ask_dialog_on_main_created:
             self.status("Creating dialog ...")
@@ -1375,8 +1499,7 @@ class Gui:
 
     progress_dialog_on_find_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_progress_dialog_on_find(self):
         if not self.progress_dialog_on_find_created:
             self.status("Creating dialog ...")
@@ -1401,8 +1524,7 @@ class Gui:
 
     repack_dialog_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_repack_dialog(self):
         self.repack_dialog_do_it=False
 
@@ -1455,8 +1577,7 @@ class Gui:
 
     wii_import_dialog_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_wii_import_dialog(self):
         self.wii_import_dialog_do_it=False
 
@@ -1522,20 +1643,19 @@ class Gui:
             self.new_group_dialog_created = True
         return self.new_group_dialog
 
-    assign_group_dialog_created = False
+    assign_to_group_dialog_created = False
     @restore_status_line
     @gui_block
-    def get_assign_group_dialog(self):
-        if not self.assign_group_dialog_created:
+    def get_assign_to_group_dialog(self):
+        if not self.assign_to_group_dialog_created:
             self.status("Creating dialog ...")
-            self.assign_group_dialog = ComboboxDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-            self.assign_group_dialog_created = True
-        return self.assign_group_dialog
+            self.assign_to_group_dialog = ComboboxDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.assign_to_group_dialog_created = True
+        return self.assign_to_group_dialog
 
     find_dialog_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_find_dialog(self):
         if not self.find_dialog_created:
             self.status("Creating dialog ...")
@@ -1783,8 +1903,7 @@ class Gui:
 
     about_dialog_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_about_dialog(self):
         if not self.about_dialog_created:
             self.status("Creating dialog ...")
@@ -1821,8 +1940,7 @@ class Gui:
 
     license_dialog_created = False
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def get_license_dialog(self):
         if not self.license_dialog_created:
             self.status("Creating dialog ...")
@@ -1859,8 +1977,7 @@ class Gui:
         return self.license_dialog
 
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def record_repack(self):
         if self.current_record:
             dialog = self.get_repack_dialog()
@@ -1886,8 +2003,7 @@ class Gui:
         self.wii_import_dialog.hide()
 
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def record_import_wii(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         self.wii_import_dialog_do_it= False
@@ -1962,8 +2078,7 @@ class Gui:
                             self.info_dialog_on_main.show('Where Is It? Import failed',res)
 
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def record_import(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
 
@@ -1976,8 +2091,7 @@ class Gui:
                 self.find_clear()
 
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def record_export(self):
         if self.current_record:
             if export_file_path := asksaveasfilename(initialdir=self.last_dir,parent = self.main, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
@@ -2015,7 +2129,7 @@ class Gui:
         self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
 
     def motion_on_tree(self,event):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             self.tooltip_show_after_tree = event.widget.after(1, self.show_tooltips_tree(event))
 
     def configure_tooltip(self,widget):
@@ -2212,7 +2326,7 @@ class Gui:
         #self.sel_kind = None
 
     def delete_window_wrapper(self):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             self.exit()
         else:
             self.status('WM_DELETE_WINDOW NOT exiting ...')
@@ -2239,9 +2353,10 @@ class Gui:
 
     find_params_changed=True
 
-    @block_actions_processing
+    @block
     def finder_wrapper_show(self):
-        if self.current_record:
+        #if self.current_record:
+        if librer_core.records:
             dialog = self.get_find_dialog()
 
             self.find_dialog_shown=True
@@ -2257,8 +2372,7 @@ class Gui:
         self.find_dialog.hide()
 
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def find_clear(self):
         self.status('Cleaning search results ...')
 
@@ -2313,20 +2427,15 @@ class Gui:
 
                 _ = {nodes_set_add(child) for child in self_tree_get_children(item)}
 
-    #@restore_status_line
-    #@block_actions_processing
-    @gui_block
     def find_prev(self):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             if not self.any_valid_find_results:
                 self.finder_wrapper_show()
             else:
                 self.select_find_result(-1)
 
-    #@restore_status_line
-    @gui_block
     def find_next(self):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             if not self.any_valid_find_results:
                 self.finder_wrapper_show()
             else:
@@ -2538,8 +2647,12 @@ class Gui:
             search_info_lines_append = self.search_info_lines.append
             if find_range_all:
                 search_info_lines_append('Search in all records')
-            else:
+            elif self.current_record:
                 search_info_lines_append(f'Search in record:{self.current_record.header.label}')
+            elif self.current_group:
+                search_info_lines_append(f'Search in group:{self.current_group}')
+            else:
+                print('imposible1')
 
             range_par = self.current_record if not find_range_all else None
 
@@ -2843,7 +2956,7 @@ class Gui:
                 return child
         return None
 
-    @block_actions_processing
+    @block
     def select_find_result(self,mod):
         status_to_set=None
         self_tree = self.tree
@@ -2930,8 +3043,7 @@ class Gui:
     KEY_DIRECTION['Home']=0
     KEY_DIRECTION['End']=-1
 
-    @block_actions_processing
-    @gui_block
+    @block
     def goto_next_prev_record(self,direction):
         #status ='selecting next record' if direction==1 else 'selecting prev record'
 
@@ -2959,39 +3071,51 @@ class Gui:
                 self.select_and_focus(next_item)
 
     current_record=None
+    current_group=None
+
     def tree_select(self):
 
         item=self.tree.focus()
         parent = self.tree.parent(item)
 
+        self.current_group = None
+
         if item:
-            record_item,record_name,subpath_list = self.get_item_record(item)
-            if record_item in self.item_to_record:
-                record = self.item_to_record[record_item]
-                if record != self.current_record:
-                    self.current_record = record
-                    if not self.cfg.get(CFG_KEY_find_range_all):
-                        self.external_find_params_change = True
+            if self.tree.tag_has(self.GROUP,item):
+                values = self.tree.item(item,'values')
+                if values:
+                    self.current_group=values[0]
 
-                record_name = self.tree.item(record_item,'text')
-                image=self.tree.item(record_item,'image')
-
-                self.status_record.configure(image = image, text = record_name,compound='left')
-                self.widget_tooltip(self.status_record,record.txtinfo_basic + '\n\n(Click to show full record info)')
-                #\nsingle click to unload data of current record.\n
-            else:
-                self.status_record.configure(image = '', text = '')
-                self.widget_tooltip(self.status_record,'')
-                self.current_record = None
                 self.status_record_configure('---')
+            else:
+                record_item,record_name,subpath_list = self.get_item_record(item)
+                if record_item in self.item_to_record:
+                    record = self.item_to_record[record_item]
+                    if record != self.current_record:
+                        self.current_record = record
+                        if not self.cfg.get(CFG_KEY_find_range_all):
+                            self.external_find_params_change = True
+
+                    record_name = self.tree.item(record_item,'text')
+                    image=self.tree.item(record_item,'image')
+
+                    self.status_record.configure(image = image, text = record_name,compound='left')
+                    self.widget_tooltip(self.status_record,record.txtinfo_basic + '\n\n(Click to show full record info)')
+                    #\nsingle click to unload data of current record.\n
+                else:
+                    self.status_record.configure(image = '', text = '')
+                    self.widget_tooltip(self.status_record,'')
+                    self.current_record = None
+                    self.status_record_configure('---')
         else:
             self.current_record = None
+            self.current_group = None
             self.status_record_configure('---')
 
     def key_press(self,event):
         #print('key_press',event.keysym)
 
-        if self.actions_processing:
+        if not self.block_processing_stack:
             self.hide_tooltip()
             self.menubar_unpost()
             self.popup_unpost()
@@ -3029,7 +3153,7 @@ class Gui:
         self.tree_sel_change(item)
 
     def tree_on_mouse_button_press(self,event):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             self.menubar_unpost()
             self.hide_tooltip()
             self.popup_unpost()
@@ -3103,7 +3227,7 @@ class Gui:
             l_error(e)
 
     def context_menu_show(self,event):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             tree=self.tree
 
             if tree.identify("region", event.x, event.y) == 'heading':
@@ -3115,6 +3239,19 @@ class Gui:
 
             item_actions_state=('disabled','normal')[self.sel_item is not None]
 
+
+            item=self.tree.focus()
+
+            is_group = bool(self.tree.tag_has(self.GROUP,item))
+            is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
+
+            record_in_group = False
+            if is_record:
+                if librer_core.get_record_group(self.current_record):
+                    record_in_group = True
+
+            there_are_groups = bool(librer_core.groups)
+
             pop=self.popup
 
             pop.delete(0,'end')
@@ -3123,7 +3260,8 @@ class Gui:
             pop_add_cascade = pop.add_cascade
             pop_add_command = pop.add_command
             self_ico = self.ico
-            state_on_records = 'normal' if librer_core.records else 'disabled'
+            #state_on_records = 'normal' if librer_core.records else 'disabled'
+            state_on_records = 'normal' if self.current_record else 'disabled'
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
@@ -3146,15 +3284,17 @@ class Gui:
             pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico_record_delete,compound='left',state=state_on_records)
             pop_add_separator()
             pop_add_command(label = 'New group ...',  command = self.new_group,image = self.ico_group_new,compound='left')
-            pop_add_command(label = 'Remove group ...',  command = self.remove_group,image = self.ico_group_remove,compound='left')
-            pop_add_command(label = 'Assign record to group ...',  command = self.assign_group,image = self.ico_group_assign,compound='left')
+            pop_add_command(label = 'Remove group ...',  command = self.remove_group,image = self.ico_group_remove,compound='left',state=('disabled','normal')[is_group] )
+            pop_add_command(label = 'Assign record to group ...',  command = self.assign_to_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[is_record and there_are_groups] )
+            pop_add_command(label = 'Remove record from group ...',  command = self.remove_from_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[record_in_group])
             pop_add_separator()
             pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=('disabled','normal')[self.item_has_cd(self.tree.focus())])
             pop_add_separator()
             pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_empty,compound='left')
             pop_add_separator()
 
-            can_search = bool(self.sel_item is not None and self.current_record)
+            #can_search = bool(self.sel_item is not None and self.current_record)
+            can_search = bool(librer_core.records)
             search_state = 'normal' if can_search else 'disabled'
 
             pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = search_state, image = self.ico_find,compound='left')
@@ -3174,50 +3314,76 @@ class Gui:
             pop.grab_release()
 
     def new_group(self):
-        self.get_new_group_dialog().show('New group','Enter New group:')
+        self.get_new_group_dialog().show('New group','New group name:')
 
-        res = self.new_group_dialog.entry_val.get()
-        print(res)
-        if res:
-            res2=librer_core.create_new_group(res,self.single_group_show)
+        if self.new_group_dialog.res_bool:
+            res = self.new_group_dialog.entry_val.get()
+            if res:
+                res2=librer_core.create_new_group(res,self.single_group_show)
 
     def remove_group(self):
-        item=self.tree.focus()
-        if self.tree.tag_has(self.GROUP,item):
-            group = 1
+        tree = self.tree
+        item=tree.focus()
+        if tree.tag_has(self.GROUP,item):
+            values = tree.item(item,'values')
+            if values:
+                group=values[0]
+
+            for record_filename in librer_core.groups[group]:
+                if record_filename in self.record_filename_to_record:
+                    record = self.record_filename_to_record[record_filename]
+                    record_item = self.record_to_item[record]
+                    self.tree.move(record_item,'',0)
+                else:
+                    print(f'zombie record filename: {record_filename}')
+
             librer_core.remove_group(group)
-            self.tree.delete(self.group_to_item[group])
+
+            tree.delete(self.group_to_item[group])
+
+    def remove_from_group(self):
+        print('remove_from_group')
 
     @logwrapper
-    def assign_group(self):
+    def assign_to_group(self):
         curr_group = librer_core.get_record_group(self.current_record)
 
-        dial = self.get_assign_group_dialog()
+        dial = self.get_assign_to_group_dialog()
         #dial.entry_var.set(curr_group)
 
         values = list(librer_core.groups.keys())
         dial.combobox.configure(values=values)
         record = self.current_record
         current = librer_core.get_record_group(record)
-        print(record, current)
 
-        if current:
-            dial.entry_val.set(current)
-            index = values.index(current)
-            print(f'{index=}')
-            dial.combobox.current(index)
+        if not current:
+            #dial.entry_val.set(current)
+            #index = values.index(current)
+            #print(f'{index=}')
+            #dial.combobox.current(index)
+            current = values[0]
+            #dial.entry_val.set(values[0])
+            #dial.combobox.current(0)
 
-        dial.show('Assign to group','Select group for record:',current)
-        group = dial.entry_val.get()
-        print('group:',group)
-        if group:
-            res2=librer_core.assign_new_group(record,group)
-            if res2:
-                self.info_dialog_on_main().show('Error',res2)
-            else:
-                group_item = self.group_to_item[group]
-                record_item = self.record_to_item[record]
-                self.tree.move(record_item,group_item,0)
+        dial.show('Assign to group','Assign record to group:',current)
+
+        if dial.res_bool:
+            group = dial.entry_val.get()
+
+            if group:
+                res2=librer_core.assign_new_group(record,group)
+                if res2:
+                    self.info_dialog_on_main().show('Error',res2)
+                else:
+                    group_item = self.group_to_item[group]
+                    record_item = self.record_to_item[record]
+                    self.tree.move(record_item,group_item,0)
+                    #self.tree.open(group_item)
+                    self.open_item(group_item)
+                    self.tree.focus(record_item)
+                    self.tree.see(record_item)
+                    self.tree.update()
+
 
     @logwrapper
     def column_sort_click(self, tree, colname):
@@ -3283,8 +3449,7 @@ class Gui:
         _ = {self.tree_sort_item(item_temp) for (val_tuple,item_temp) in tlist }
 
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     @logwrapper
     def column_sort(self, tree):
         self.status('Sorting...')
@@ -3652,7 +3817,7 @@ class Gui:
         return True
 
     def delete_data_record(self):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             if self.current_record:
                 label = self.current_record.header.label
                 path = self.current_record.header.scan_path
@@ -3926,8 +4091,7 @@ class Gui:
             self.CDE_executable_var_list[e].set(expr)
 
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def access_filestructure(self,record):
         self.hide_tooltip()
         self.popup_unpost()
@@ -3936,8 +4100,7 @@ class Gui:
         record.decompress_filestructure()
 
     @restore_status_line
-    @block_actions_processing
-    @gui_block
+    @block
     def access_customdata(self,record):
         self.hide_tooltip()
         self.popup_unpost()
@@ -3950,8 +4113,7 @@ class Gui:
         self.tree.item(item,image=self.ico_record_cd_loaded)
         #tags=self.RECORD
 
-    @block_actions_processing
-    @gui_block
+    @block
     def open_item(self,item=None):
         tree=self.tree
 
@@ -4083,8 +4245,7 @@ class Gui:
         group_item=self.tree.insert('','end',iid=None,values=values,open=False,text=group,image=self.ico_group,tags=self.GROUP)
         self.group_to_item[group] = group_item
 
-    @block_actions_processing
-    @gui_block
+    @block
     @logwrapper
     def single_record_show(self,record):
         size=record.header.sum_size
@@ -4110,6 +4271,8 @@ class Gui:
 
         records_len=len(librer_core.records)
         self.status_records_all_configure(f'Records:{records_len}')
+
+        self.record_filename_to_record[record.file_name] = record
 
         sum_size=0
         quant_files=0
@@ -4153,7 +4316,7 @@ class Gui:
         self.status('Copied to clipboard: "%s"' % what)
 
     def double_left_button(self,event):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             tree=event.widget
             if tree.identify("region", event.x, event.y) != 'heading':
                 if item:=tree.identify('item',event.x,event.y):
@@ -4164,7 +4327,7 @@ class Gui:
         return "break"
 
     def show_customdata(self):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             item=self.tree.focus()
             if item:
                 error_infos=[]
@@ -4214,13 +4377,12 @@ class Gui:
                     self.info_dialog_on_main.show('Custom Data Info Error',str(e) + ('\n' + '\n'.join(error_infos)) if error_infos else '')
 
     def record_info(self):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             if self.current_record:
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
                 self.get_text_info_dialog().show('Record Info.',self.current_record.txtinfo)
 
-    @block_actions_processing
-    @gui_block
+    @block
     @logwrapper
     def unload_record(self,record=None):
         if not record:
@@ -4244,8 +4406,7 @@ class Gui:
             self_tree.selection_set(record_item)
             self.tree_select()
 
-    @block_actions_processing
-    @gui_block
+    @block
     @logwrapper
     def unload_all_recods(self):
         for record in librer_core.records:

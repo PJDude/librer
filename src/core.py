@@ -1314,7 +1314,7 @@ class LibrerCore:
         return new_record
 
     def write_groups(self):
-        print(f'write_groups:{self.groups}')
+        #print(f'write_groups:{self.groups}')
         self.groups_file_path = self.db_dir + sep + 'repo.dat'
 
         compressor = ZstdCompressor(level=9,threads=-1)
@@ -1337,7 +1337,8 @@ class LibrerCore:
     def remove_group(self, group):
         try:
             del self.groups[group]
-            print('remove_group:',group)
+            #print('remove_group:',group)
+            self.write_groups()
         except :
             pass
 
@@ -1355,7 +1356,7 @@ class LibrerCore:
 
         try:
             current = self.get_record_group(record)
-            print('assign_new_group',record,group,current)
+            #print('assign_new_group',record,group,current)
             if current:
                 self.groups[current].remove(filename)
 
@@ -1376,9 +1377,8 @@ class LibrerCore:
                 self.groups = loads( groups_ser )
         except Exception as e:
             print(f'groups scan error:{e}')
-        else:
-            print(f'groups loaded:{self.groups}')
-            print(f'groups loaded:{self.groups}')
+        #else:
+            #print(f'groups loaded:{self.groups}')
 
         try:
             with scandir(self.db_dir) as res:
