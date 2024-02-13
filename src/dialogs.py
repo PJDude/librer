@@ -561,7 +561,7 @@ class ComboboxDialogQuestion(LabelDialog):
 
         self.entry_val=StringVar()
 
-        self.combobox = Combobox(self.area_main, textvariable=self.entry_val,justify='left')
+        self.combobox = Combobox(self.area_main, textvariable=self.entry_val,justify='left',state='readonly')
         self.combobox.grid(row=2,column=0,padx=5,pady=5,sticky="wens")
 
         self.button_ok = Button(self.area_buttons, text='OK', width=14, command=self.ok )
@@ -573,7 +573,7 @@ class ComboboxDialogQuestion(LabelDialog):
 
     def return_bind(self,event):
         widget=event.widget
-        if widget==self.entry:
+        if widget==self.combobox:
             self.button_ok.invoke()
         else:
             super().return_bind(event)

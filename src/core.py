@@ -1093,9 +1093,15 @@ class LibrerRecord:
             print('prepare_info stat error:%s' % e )
         else:
             self_header = self.header
+            file_name = self.file_name
 
             local_time = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self_header.creation_time))
+
             info_list.append(f'record label    : {self_header.label}')
+            #if file_name in self.aliases:
+            #    info_list.append(f'record label    : {self_header.label}   alias:{file_name}')
+            #else:
+
             info_list.append('')
             info_list.append(f'scanned path    : {self_header.scan_path}')
             info_list.append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
@@ -1110,7 +1116,7 @@ class LibrerRecord:
             self.txtinfo_basic = '\n'.join(info_list)
 
             info_list.append('')
-            info_list.append(f'record file     : {self.file_name} ({bytes_to_str(file_size)}, compression level:{self.header.compression_level})')
+            info_list.append(f'record file     : {file_name} ({bytes_to_str(file_size)}, compression level:{self.header.compression_level})')
             info_list.append('')
             info_list.append( 'data collection times:')
             info_list.append(f'filesystem      : {str(round(self_header.scanning_time,2))}s')
@@ -1301,6 +1307,7 @@ class LibrerCore:
 
         self.records_sorted = []
         self.groups=defaultdict(set)
+        self.aliases={}
 
     def update_sorted(self):
         self.records_sorted = sorted(self.records,key = lambda x : x.header.creation_time)
@@ -1313,32 +1320,66 @@ class LibrerCore:
         self.update_sorted()
         return new_record
 
-    def write_groups(self):
-        #print(f'write_groups:{self.groups}')
+    def write_repo_info(self):
+        #print(f'write_repo_info:{self.groups}')
         self.groups_file_path = self.db_dir + sep + 'repo.dat'
 
         compressor = ZstdCompressor(level=9,threads=-1)
         compressor_compress = compressor.compress
 
         with ZipFile(self.groups_file_path, "w") as zip_file:
-            groups_ser = dumps(self.groups)
-            groups_ser_compr = compressor_compress(groups_ser)
-            zip_file.writestr('groups',groups_ser_compr)
+            zip_file.writestr('groups',compressor_compress(dumps(self.groups)))
+            zip_file.writestr('aliases',compressor_compress(dumps(self.aliases)))
+
+    def get_record_alias(self,record):
+        try:
+            return self.aliases[record.file_name]
+        except:
+            return None
+
+    def get_record_name(self,record):
+        try:
+            return self.aliases[record.file_name]
+        except:
+            return record.header.label
+
+    def alias_record_name(self,record,alias):
+        self.aliases[record.file_name]=alias
+        self.write_repo_info()
+
+    def rename_group(self,group,rename):
+        if rename in self.groups:
+            return f"Group name '{rename}' already used"
+        else:
+            self.groups[rename]=self.groups[group]
+            del self.groups[group]
+            self.write_repo_info()
+            return None
 
     def create_new_group(self,group,callback):
-        if group not in self.groups:
+        if group in self.groups:
+            return f"Group name '{group}' already used"
+        else:
             self.groups[group]=set()
             callback(group)
-            self.write_groups()
+            self.write_repo_info()
             return None
-        else:
-            return "group name error"
+
+    def get_records_of_group(self,group):
+        res = []
+        for key_group,filenames in self.groups.items():
+            if key_group==group:
+                for file_name in filenames:
+                    for record in self.records:
+                        if record.file_name == file_name:
+                            res.append(record)
+        return res
 
     def remove_group(self, group):
         try:
             del self.groups[group]
             #print('remove_group:',group)
-            self.write_groups()
+            self.write_repo_info()
         except :
             pass
 
@@ -1356,12 +1397,25 @@ class LibrerCore:
 
         try:
             current = self.get_record_group(record)
-            #print('assign_new_group',record,group,current)
+
             if current:
                 self.groups[current].remove(filename)
 
             self.groups[group].add(filename)
-            self.write_groups()
+            self.write_repo_info()
+            return None
+        except Exception as e:
+            return str(e)
+
+    def remove_record_from_group(self,record):
+        try:
+            current = self.get_record_group(record)
+
+            if current:
+                filename = record.file_name
+                self.groups[current].remove(filename)
+
+            self.write_repo_info()
             return None
         except Exception as e:
             return str(e)
@@ -1372,9 +1426,10 @@ class LibrerCore:
 
         try:
             with ZipFile(self.groups_file_path, "r") as zip_file:
-                groups_ser_comp = zip_file.read('groups')
-                groups_ser = ZstdDecompressor().decompress(groups_ser_comp)
-                self.groups = loads( groups_ser )
+                decompressor_decompress = ZstdDecompressor().decompress
+                zip_file_read = zip_file.read
+                self.groups = loads( decompressor_decompress(zip_file_read('groups')) )
+                self.aliases = loads( decompressor_decompress(zip_file_read('aliases')) )
         except Exception as e:
             print(f'groups scan error:{e}')
         #else:
@@ -2230,7 +2285,8 @@ class LibrerCore:
 
     def find_items_in_records(self,
             temp_dir,
-            range_par,
+            #range_par,
+            records_to_process_par,
             size_min,size_max,
             t_min,t_max,
             find_filename_search_kind,name_expr,name_case_sens,
@@ -2241,9 +2297,10 @@ class LibrerCore:
 
         self.find_results_clean()
 
-        records_to_process = [range_par] if range_par else list(self.records)
+        #records_to_process = [range_par] if range_par else list(self.records)
 
-        records_to_process.sort(reverse = True,key = lambda x : x.header.quant_files)
+        records_to_process = sorted(records_to_process_par,reverse = True,key = lambda x : x.header.quant_files)
+        #print(f'{records_to_process=}')
 
         params = (size_min,size_max,
             t_min,t_max,
@@ -2400,7 +2457,14 @@ class LibrerCore:
 
     def delete_record(self,record):
         file_path = record.file_path
+        file_name = record.file_name
+
         self.records.remove(record)
+        self.remove_record_from_group(record)
+
+        if file_name in self.aliases:
+            del self.aliases[file_name]
+            print('removed from aliases')
 
         self.log.info('removing file to trash:%s',file_path)
         try:

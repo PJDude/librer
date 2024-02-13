@@ -191,8 +191,6 @@ class Config:
 ###########################################################
 
 class Gui:
-    #actions_processing=False
-
     block_processing_stack=['init']
 
     block_processing_stack_append = block_processing_stack.append
@@ -243,33 +241,6 @@ class Gui:
             return res
         return block_wrapp
     ################################################
-
-    #def block_actions_processing(func):
-    #    def block_actions_processing_wrapp(self,*args,**kwargs):
-    #        if self.actions_processing:
-    #            gc_disable()
-    #            gc_collect()
-
-    #        prev_active=self.actions_processing
-    #        self.actions_processing=False
-
-    #        try:
-    #            res=func(self,*args,**kwargs)
-    #        except Exception as e:
-    #            self.status('block_actions_processing_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
-    #            l_error('block_actions_processing_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
-    #            l_error(''.join(format_stack()))
-    #            self.info_dialog_on_main.show('INTERNAL ERROR block_actions_processing_wrapp',str(e))
-    #            res=None
-
-    #        self.actions_processing=prev_active
-
-    #        if self.actions_processing:
-    #            gc_collect()
-    #            gc_enable()
-
-    #        return res
-    #    return block_actions_processing_wrapp
 
     def gui_block(func):
         def gui_block_wrapp(self,*args,**kwargs):
@@ -850,8 +821,6 @@ class Gui:
         self.menubar_config(cursor='')
         self.main_config(cursor='')
 
-        #self.actions_processing=True
-
         self.tree_semi_focus()
         self.status_info.configure(image='',text = 'Ready')
 
@@ -892,9 +861,18 @@ class Gui:
         self_main_bind('<Alt-Return>', lambda event : self.record_info())
         self_main_bind('<Return>', lambda event : self.show_customdata())
 
-        self_main_bind('<KeyPress-Delete>', lambda event : self.delete_data_record())
-        self_main_bind('<F3>', lambda event : self.find_next())
+        self_main_bind('<KeyPress-Delete>', lambda event : self.delete_action())
+        self_main_bind('<F8>', lambda event : self.delete_action() )
+
+        self_main_bind('<F7>', lambda event : self.new_group())
+
+        self_main_bind('<F6>', lambda event : self.assign_to_group() )
+        self_main_bind('<F5>', lambda event : self.record_repack() )
+
+        self_main_bind('<F3>', lambda event : self.find_next() )
         self_main_bind('<Shift-F3>', lambda event : self.find_prev())
+
+        self_main_bind('<F2>', lambda event : self.alias_name() )
 
         self_main_bind('<BackSpace>', lambda event : self.unload_record())
 
@@ -1048,18 +1026,11 @@ class Gui:
             if new_widget:
                 self.main_locked_by_child=new_widget
 
-            #self.actions_processing=False
-            #self.menu_disable()
-            #self.menubar_config(cursor="watch")
-
     def post_close(self,on_main_window_dialog=True):
         self.main.focus_set()
 
         if on_main_window_dialog:
             self.main_locked_by_child=None
-            #self.actions_processing=True
-            #self.menu_enable()
-            #self.menubar_config(cursor="")
 
         self.processing_on()
 
@@ -1079,27 +1050,27 @@ class Gui:
         return self.text_info_dialog
 
 
-    delete_record_dialog_created = False
+    simple_question_dialog_created = False
     @restore_status_line
     @block
-    def get_delete_record_dialog(self):
-        if not self.delete_record_dialog_created:
+    def get_simple_question_dialog(self):
+        if not self.simple_question_dialog_created:
             self.status("Creating dialog ...")
 
-            self.delete_record_dialog = LabelDialogQuestion(self.main,(self.ico_record_delete,self.ico_record_delete),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
+            self.simple_question_dialog = LabelDialogQuestion(self.main,(self.ico_record_delete,self.ico_record_delete),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
 
-            self.delete_record_dialog.label.configure(justify='left')
+            self.simple_question_dialog.label.configure(justify='left')
             try:
-                self.delete_record_dialog.label.configure(font=('Courier', 10))
+                self.simple_question_dialog.label.configure(font=('Courier', 10))
             except:
                 try:
-                    self.delete_record_dialog.label.configure(font=('TkFixedFont', 10))
+                    self.simple_question_dialog.label.configure(font=('TkFixedFont', 10))
                 except:
                     pass
 
-            self.delete_record_dialog_created = True
+            self.simple_question_dialog_created = True
 
-        return self.delete_record_dialog
+        return self.simple_question_dialog
 
     def configure_scan_button(self):
         self.scan_button.configure(image=self.ico_start if all(bool(self.CDE_use_var_list[e_local].get())==False for e_local in range(self.CDE_ENTRIES_MAX) ) else self.ico_warning)
@@ -1633,15 +1604,15 @@ class Gui:
 
         return self.wii_import_dialog
 
-    new_group_dialog_created = False
+    entry_ask_dialog_created = False
     @restore_status_line
     @gui_block
-    def get_new_group_dialog(self):
-        if not self.new_group_dialog_created:
+    def get_entry_ask_dialog(self):
+        if not self.entry_ask_dialog_created:
             self.status("Creating dialog ...")
-            self.new_group_dialog = EntryDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-            self.new_group_dialog_created = True
-        return self.new_group_dialog
+            self.entry_ask_dialog = EntryDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.entry_ask_dialog_created = True
+        return self.entry_ask_dialog
 
     assign_to_group_dialog_created = False
     @restore_status_line
@@ -1730,7 +1701,7 @@ class Gui:
             sfdma = self.find_dialog.area_main
 
             (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
-            (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record',variable=self.find_range_all,value=False,command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record / group',variable=self.find_range_all,value=False,command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
             (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
             (find_filename_frame := LabelFrame(sfdma,text='Path elements',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
@@ -1976,13 +1947,60 @@ class Gui:
 
         return self.license_dialog
 
+    @block
+    def alias_name(self):
+        item = self.sel_item
+
+        is_group = bool(self.tree.tag_has(self.GROUP,item))
+        is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
+
+        if self.current_record and is_record:
+
+            alias = librer_core.get_record_alias(self.current_record)
+
+            alias_info = f' ({alias})' if alias else ''
+            alias_init = alias if alias else self.current_record.header.label
+
+            self.get_entry_ask_dialog().show('Alias record name',f"New alias name for record '{self.current_record.header.label}' {alias_info} :",alias_init)
+
+            if self.entry_ask_dialog.res_bool:
+                alias = self.entry_ask_dialog.entry_val.get()
+                if alias:
+                    res2=librer_core.alias_record_name(self.current_record,alias)
+                    #item = self.record_to_item[self.current_record]
+                    self.tree.item(item,text=alias)
+        elif self.current_group and is_group:
+            self.get_entry_ask_dialog().show('Rename group',f"Group '{self.current_group}' rename :",self.current_group)
+
+            if self.entry_ask_dialog.res_bool:
+                rename = self.entry_ask_dialog.entry_val.get()
+                if rename:
+                    res2=librer_core.rename_group(self.current_group,rename)
+                    if res2:
+                        self.info_dialog_on_main.show('Rename failed.',res2)
+                        self.alias_name()
+                    else:
+                        self.tree.item(item,text=rename)
+                        self.current_group = rename
+                        values = list(self.tree.item(item,'values'))
+                        values[0]=rename
+                        self.tree.item(item,values=values)
+
+                        self.group_to_item[rename] = item
+        else:
+            pass
+            #files/folders
+
+        self.column_sort(self.tree)
+
     @restore_status_line
     @block
     def record_repack(self):
         if self.current_record:
             dialog = self.get_repack_dialog()
 
-            self.repack_label_var.set(self.current_record.header.label)
+            #librer_core.get_record_name(record)
+            self.repack_label_var.set(self.current_record.header.label + "(" + librer_core.get_record_name(self.current_record) + ")")
             self.repack_compr_var.set(self.current_record.header.compression_level)
             self.repack_compr_var_int.set(self.current_record.header.compression_level)
 
@@ -2077,6 +2095,8 @@ class Gui:
                         else:
                             self.info_dialog_on_main.show('Where Is It? Import failed',res)
 
+                self.column_sort(self.tree)
+
     @restore_status_line
     @block
     def record_import(self):
@@ -2089,6 +2109,8 @@ class Gui:
             else:
                 self.info_dialog_on_main.show('Import','Successful.')
                 self.find_clear()
+
+                self.column_sort(self.tree)
 
     @restore_status_line
     @block
@@ -2451,7 +2473,7 @@ class Gui:
                 report_file_write('# ' + ('\n# ').join(self.search_info_lines) + '\n\n')
                 for record in librer_core.records:
                     if record.find_results:
-                        report_file_write(f'record:{record.header.label}\n')
+                        report_file_write(f'record:{librer_core.get_record_name(record)}\n')
                         for res_item,res_size,res_mtime in record.find_results:
                             report_file_write(f'  {sep.join(res_item)}\n')
 
@@ -2465,7 +2487,7 @@ class Gui:
 
         for record in librer_core.records:
             if record.find_results:
-                rest_txt_list.append(f'record:{record.header.label}')
+                rest_txt_list.append(f'record:{librer_core.get_record_name(record)}')
                 for res_item,res_size,res_mtime in record.find_results:
                     rest_txt_list.append(f'  {sep.join(res_item)}')
 
@@ -2647,16 +2669,21 @@ class Gui:
             search_info_lines_append = self.search_info_lines.append
             if find_range_all:
                 search_info_lines_append('Search in all records')
+                sel_range = librer_core.records
             elif self.current_record:
-                search_info_lines_append(f'Search in record:{self.current_record.header.label}')
+                search_info_lines_append(f'Search in record:{librer_core.get_record_name(self.current_record)}')
+                sel_range = [self.current_record]
             elif self.current_group:
                 search_info_lines_append(f'Search in group:{self.current_group}')
+                sel_range = librer_core.get_records_of_group(self.current_group)
             else:
                 print('imposible1')
+                sel_range=[]
 
-            range_par = self.current_record if not find_range_all else None
+            #print(f'{sel_range=}')
+            #range_par = self.current_record if not find_range_all else None
 
-            sel_range = [range_par] if range_par else librer_core.records
+            #sel_range = [range_par] if range_par else librer_core.records
             sel_range_len = len(sel_range)
             files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
 
@@ -2801,7 +2828,8 @@ class Gui:
             #gc_disable()
             #gc_collect()
 
-            search_thread=Thread(target=lambda : librer_core.find_items_in_records(self.temp_dir,range_par,
+            #search_thread=Thread(target=lambda : librer_core.find_items_in_records(self.temp_dir,range_par,
+            search_thread=Thread(target=lambda : librer_core.find_items_in_records(self.temp_dir,sel_range,
                 min_num,max_num,
                 t_min,t_max,
                 find_filename_search_kind,find_name,find_name_case_sens,
@@ -3074,8 +3102,10 @@ class Gui:
     current_group=None
 
     def tree_select(self):
+        #self.find_clear()
 
         item=self.tree.focus()
+        self.sel_item = item
         parent = self.tree.parent(item)
 
         self.current_group = None
@@ -3087,10 +3117,15 @@ class Gui:
                     self.current_group=values[0]
 
                 self.status_record_configure('---')
+                self.current_record=None
             else:
                 record_item,record_name,subpath_list = self.get_item_record(item)
                 if record_item in self.item_to_record:
                     record = self.item_to_record[record_item]
+                    #if not record:
+                    #    if not self.cfg.get(CFG_KEY_find_range_all):
+                    #        self.external_find_params_change = True
+
                     if record != self.current_record:
                         self.current_record = record
                         if not self.cfg.get(CFG_KEY_find_range_all):
@@ -3178,6 +3213,8 @@ class Gui:
                     self.tree_semi_focus()
 
                     self.tree_sel_change(item)
+        else:
+            return "break"
 
     sel_item = None
     def tree_semi_focus(self):
@@ -3206,6 +3243,7 @@ class Gui:
             tree.selection_set(item)
 
             self.tree_sel_change(item)
+            self.sel_item = item
         else:
             self.sel_item = None
 
@@ -3261,7 +3299,9 @@ class Gui:
             pop_add_command = pop.add_command
             self_ico = self.ico
             #state_on_records = 'normal' if librer_core.records else 'disabled'
-            state_on_records = 'normal' if self.current_record else 'disabled'
+            state_on_records = 'normal' if is_record else 'disabled'
+
+            state_on_records_or_groups = 'normal' if is_record or is_group else 'disabled'
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
@@ -3277,16 +3317,16 @@ class Gui:
             pop_add_separator()
             pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_record_export,compound='left',state=state_on_records)
             pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
-            pop_add_command(label = 'Rename / Repack ...', command = self.record_repack,image = self.ico_empty,compound='left',state=state_on_records)
-            pop_add_separator()
+            pop_add_command(label = 'Rename / Repack ...',accelerator="F5" , command = self.record_repack,image = self.ico_empty,compound='left',state=state_on_records)
             pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_info,compound='left',state=state_on_records)
+            pop_add_command(label = 'Delete record ...',accelerator="Delete, F8",command = self.delete_action,image = self.ico_record_delete,compound='left',state=state_on_records)
             pop_add_separator()
-            pop_add_command(label = 'Delete record ...',command = self.delete_data_record,accelerator="Delete",image = self.ico_record_delete,compound='left',state=state_on_records)
-            pop_add_separator()
-            pop_add_command(label = 'New group ...',  command = self.new_group,image = self.ico_group_new,compound='left')
-            pop_add_command(label = 'Remove group ...',  command = self.remove_group,image = self.ico_group_remove,compound='left',state=('disabled','normal')[is_group] )
-            pop_add_command(label = 'Assign record to group ...',  command = self.assign_to_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[is_record and there_are_groups] )
+            pop_add_command(label = 'New group ...',accelerator="F7",  command = self.new_group,image = self.ico_group_new,compound='left')
+            pop_add_command(label = 'Remove group ...',accelerator="Delete" ,  command = self.remove_group,image = self.ico_group_remove,compound='left',state=('disabled','normal')[is_group] )
+            pop_add_command(label = 'Assign record to group ...',accelerator="F6" ,  command = self.assign_to_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[is_record and there_are_groups] )
             pop_add_command(label = 'Remove record from group ...',  command = self.remove_from_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[record_in_group])
+            pop_add_separator()
+            pop_add_command(label = 'Rename / Alias name ...', accelerator='F2', command = self.alias_name,image = self.ico_empty,compound='left',state=state_on_records_or_groups )
             pop_add_separator()
             pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=('disabled','normal')[self.item_has_cd(self.tree.focus())])
             pop_add_separator()
@@ -3297,7 +3337,7 @@ class Gui:
             can_search = bool(librer_core.records)
             search_state = 'normal' if can_search else 'disabled'
 
-            pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="Ctrl+F",state = search_state, image = self.ico_find,compound='left')
+            pop_add_command(label = 'Find ...',accelerator="Ctrl+F" ,command = self.finder_wrapper_show,state = search_state, image = self.ico_find,compound='left')
             pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = search_state, image = self.ico_empty,compound='left')
             pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = search_state, image = self.ico_empty,compound='left')
             pop_add_separator()
@@ -3314,14 +3354,18 @@ class Gui:
             pop.grab_release()
 
     def new_group(self):
-        self.get_new_group_dialog().show('New group','New group name:')
+        self.get_entry_ask_dialog().show('New group','New group name:')
 
-        if self.new_group_dialog.res_bool:
-            res = self.new_group_dialog.entry_val.get()
+        if self.entry_ask_dialog.res_bool:
+            res = self.entry_ask_dialog.entry_val.get()
             if res:
                 res2=librer_core.create_new_group(res,self.single_group_show)
+                if res2:
+                    self.info_dialog_on_main.show('Error',res2)
+                    self.new_group()
 
     def remove_group(self):
+        sort_cl
         tree = self.tree
         item=tree.focus()
         if tree.tag_has(self.GROUP,item):
@@ -3329,27 +3373,46 @@ class Gui:
             if values:
                 group=values[0]
 
-            for record_filename in librer_core.groups[group]:
-                if record_filename in self.record_filename_to_record:
-                    record = self.record_filename_to_record[record_filename]
-                    record_item = self.record_to_item[record]
-                    self.tree.move(record_item,'',0)
-                else:
-                    print(f'zombie record filename: {record_filename}')
+            dialog = self.get_simple_question_dialog()
+            dialog.show('Delete selected group ?', 'group: ' + group + '\n\n(Records assigned to group will remain untouched)')
 
-            librer_core.remove_group(group)
+            if dialog.res_bool:
+                for record_filename in librer_core.groups[group]:
+                    if record_filename in self.record_filename_to_record:
+                        record = self.record_filename_to_record[record_filename]
+                        record_item = self.record_to_item[record]
+                        self.tree.move(record_item,'',0)
+                    else:
+                        print(f'zombie record filename: {record_filename}')
 
-            tree.delete(self.group_to_item[group])
+                librer_core.remove_group(group)
+
+                tree.delete(self.group_to_item[group])
+                self.tree.focus(tree.get_children()[0])
+                self.tree_semi_focus()
+
+                self.find_clear()
 
     def remove_from_group(self):
         print('remove_from_group')
+        record = self.current_record
+
+        res = librer_core.remove_record_from_group(record)
+        if res :
+            self.info_dialog_on_main.show('Error',res)
+        else:
+            record_item = self.record_to_item[record]
+            self.tree.move(record_item,'',0)
+
+            self.find_clear()
+
+            self.column_sort(self.tree)
 
     @logwrapper
     def assign_to_group(self):
         curr_group = librer_core.get_record_group(self.current_record)
 
         dial = self.get_assign_to_group_dialog()
-        #dial.entry_var.set(curr_group)
 
         values = list(librer_core.groups.keys())
         dial.combobox.configure(values=values)
@@ -3357,13 +3420,7 @@ class Gui:
         current = librer_core.get_record_group(record)
 
         if not current:
-            #dial.entry_val.set(current)
-            #index = values.index(current)
-            #print(f'{index=}')
-            #dial.combobox.current(index)
             current = values[0]
-            #dial.entry_val.set(values[0])
-            #dial.combobox.current(0)
 
         dial.show('Assign to group','Assign record to group:',current)
 
@@ -3373,7 +3430,7 @@ class Gui:
             if group:
                 res2=librer_core.assign_new_group(record,group)
                 if res2:
-                    self.info_dialog_on_main().show('Error',res2)
+                    self.info_dialog_on_main.show('assign_new_group Error',res2)
                 else:
                     group_item = self.group_to_item[group]
                     record_item = self.record_to_item[record]
@@ -3384,6 +3441,9 @@ class Gui:
                     self.tree.see(record_item)
                     self.tree.update()
 
+                    self.find_clear()
+
+                    self.column_sort(self.tree)
 
     @logwrapper
     def column_sort_click(self, tree, colname):
@@ -3494,7 +3554,6 @@ class Gui:
         self.scanning_in_progress=False
         gc_collect()
         gc_enable()
-
 
     def scan_dialog_hide_wrapper(self):
         self.scan_dialog.hide()
@@ -3816,37 +3875,48 @@ class Gui:
 
         return True
 
-    def delete_data_record(self):
+    def remove_record(self):
+        label = librer_core.get_record_name(self.current_record)
+        path = self.current_record.header.scan_path
+        creation_time = self.current_record.header.creation_time
+
+        dialog = self.get_simple_question_dialog()
+
+        dialog.show('Delete selected data record ?',self.current_record.txtinfo_short)
+
+        if dialog.res_bool:
+            record_item = self.record_to_item[self.current_record]
+            self.tree.delete(record_item)
+
+            del self.record_to_item[self.current_record]
+            del self.item_to_record[record_item]
+
+            res=librer_core.delete_record(self.current_record)
+            l_info(f'deleted file:{res}')
+
+            self.find_clear()
+
+            self.status_record_configure('')
+            if remaining_records := self.tree.get_children():
+                if new_sel_record := remaining_records[0]:
+                    self.tree.selection_set(new_sel_record)
+                    self.tree.focus(new_sel_record)
+
+                self.tree_semi_focus()
+            self.tree.focus_set()
+
+    def delete_action(self):
         if not self.block_processing_stack:
-            if self.current_record:
-                label = self.current_record.header.label
-                path = self.current_record.header.scan_path
-                creation_time = self.current_record.header.creation_time
+            item = self.sel_item
 
-                dialog = self.get_delete_record_dialog()
+            is_group = bool(self.tree.tag_has(self.GROUP,item))
+            is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
 
-                dialog.show('Delete selected data record ?',self.current_record.txtinfo_short)
+            if self.current_record and is_record:
+                self.remove_record()
 
-                if dialog.res_bool:
-                    record_item = self.record_to_item[self.current_record]
-                    self.tree.delete(record_item)
-
-                    del self.record_to_item[self.current_record]
-                    del self.item_to_record[record_item]
-
-                    res=librer_core.delete_record(self.current_record)
-                    l_info(f'deleted file:{res}')
-
-                    self.find_clear()
-
-                    self.status_record_configure('')
-                    if remaining_records := self.tree.get_children():
-                        if new_sel_record := remaining_records[0]:
-                            self.tree.selection_set(new_sel_record)
-                            self.tree.focus(new_sel_record)
-
-                        self.tree_semi_focus()
-                    self.tree.focus_set()
+            elif self.current_group and is_group:
+                self.remove_group()
 
     def scan_dialog_show(self):
         dialog = self.get_scan_dialog()
@@ -4245,19 +4315,20 @@ class Gui:
         group_item=self.tree.insert('','end',iid=None,values=values,open=False,text=group,image=self.ico_group,tags=self.GROUP)
         self.group_to_item[group] = group_item
 
+        self.column_sort(self.tree)
+
     @block
     @logwrapper
     def single_record_show(self,record):
         size=record.header.sum_size
 
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-        values = (record.header.label,record.header.label,0,record.header.scan_path,size,bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(record.header.creation_time)),self.RECORD)
+        values = (librer_core.get_record_name(record),librer_core.get_record_name(record),0,record.header.scan_path,size,bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(record.header.creation_time)),self.RECORD)
 
-        #record_item=self.tree.insert('','end',iid=None,values=values,open=False,text=record.header.label,image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
         group = librer_core.get_record_group(record)
         group_item = self.group_to_item[group]
 
-        record_item=self.tree.insert(group_item,'end',iid=None,values=values,open=False,text=record.header.label,image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
+        record_item=self.tree.insert(group_item,'end',iid=None,values=values,open=False,text=librer_core.get_record_name(record),image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
         self.tree_sort_item(None)
@@ -4283,6 +4354,11 @@ class Gui:
         self.widget_tooltip(self.status_records_all,f'Records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}\n\nClick to unload (free memory) data of selected record\nDouble click to unload data of all records.')
 
         self.main_update()
+
+        self.find_clear()
+
+        self.column_sort(self.tree)
+
 
     def tree_update_none(self):
         self.tree.selection_remove(self.tree.selection())
