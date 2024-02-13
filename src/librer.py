@@ -401,9 +401,9 @@ class Gui:
         self.ico_up = self_ico['up']
         self.ico_info = self_ico['info']
         self.ico_group = self_ico['group']
-        self.ico_group_new = self_ico['group']
-        self.ico_group_remove = self_ico['group']
-        self.ico_group_assign = self_ico['group']
+        self.ico_group_new = self_ico['group_new']
+        self.ico_group_remove = self_ico['group_delete']
+        self.ico_group_assign = self_ico['group_assign']
 
         #self.ico_delete = self_ico['delete']
 
@@ -3324,7 +3324,7 @@ class Gui:
             pop_add_command(label = 'New group ...',accelerator="F7",  command = self.new_group,image = self.ico_group_new,compound='left')
             pop_add_command(label = 'Remove group ...',accelerator="Delete" ,  command = self.remove_group,image = self.ico_group_remove,compound='left',state=('disabled','normal')[is_group] )
             pop_add_command(label = 'Assign record to group ...',accelerator="F6" ,  command = self.assign_to_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[is_record and there_are_groups] )
-            pop_add_command(label = 'Remove record from group ...',  command = self.remove_from_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[record_in_group])
+            pop_add_command(label = 'Remove record from group ...',  command = self.remove_from_group,image = self.ico_empty,compound='left',state=('disabled','normal')[record_in_group])
             pop_add_separator()
             pop_add_command(label = 'Rename / Alias name ...', accelerator='F2', command = self.alias_name,image = self.ico_empty,compound='left',state=state_on_records_or_groups )
             pop_add_separator()
@@ -3365,7 +3365,6 @@ class Gui:
                     self.new_group()
 
     def remove_group(self):
-        sort_cl
         tree = self.tree
         item=tree.focus()
         if tree.tag_has(self.GROUP,item):
@@ -3394,7 +3393,6 @@ class Gui:
                 self.find_clear()
 
     def remove_from_group(self):
-        print('remove_from_group')
         record = self.current_record
 
         res = librer_core.remove_record_from_group(record)
@@ -4314,7 +4312,9 @@ class Gui:
         values = (group,group,0,'',0,'',0,'',self.GROUP)
         group_item=self.tree.insert('','end',iid=None,values=values,open=False,text=group,image=self.ico_group,tags=self.GROUP)
         self.group_to_item[group] = group_item
-
+        self.tree.selection_set(group_item)
+        self.tree.focus(group_item)
+        self.tree.see(group_item)
         self.column_sort(self.tree)
 
     @block
