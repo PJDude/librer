@@ -1331,6 +1331,12 @@ class LibrerCore:
             zip_file.writestr('groups',compressor_compress(dumps(self.groups)))
             zip_file.writestr('aliases',compressor_compress(dumps(self.aliases)))
 
+    def record_info_alias_wrapper(self,record,orginfo):
+        if record.file_name in self.aliases:
+            return f'record alias    : {self.aliases[record.file_name]}\n\n' + orginfo
+        else:
+            return orginfo
+
     def get_record_alias(self,record):
         try:
             return self.aliases[record.file_name]
@@ -2138,7 +2144,7 @@ class LibrerCore:
 
     ########################################################################################################################
 
-    def create_new_record(self,temp_dir,update_callback):
+    def create_new_record(self,temp_dir,update_callback,group=None):
         self.log.info(f'create_new_record')
         self_log_info = self.log.info
 
@@ -2265,6 +2271,9 @@ class LibrerCore:
             self.records.remove(new_record)
             self_log_info(res)
         else:
+            if group:
+                self.assign_new_group(new_record,group)
+
             update_callback(new_record)
 
         return True

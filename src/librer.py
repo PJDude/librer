@@ -66,7 +66,6 @@ l_error = logging.error
 
 ###########################################################################################################################################
 
-CFG_KEY_USE_REG_EXPR='use_reg_expr'
 CFG_KEY_CDE_SETTINGS = 'cde_settings'
 CFG_KEY_SINGLE_DEVICE = 'single_device'
 
@@ -106,7 +105,6 @@ CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
 
 cfg_defaults={
-    CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_CDE_SETTINGS:[],
 
@@ -170,6 +168,28 @@ class Config:
                 l_error(e)
         else:
             l_warning('no config file: %s',self.file)
+            l_info('setting defaults')
+            #use,mask,smin,smax,exe,pars,shell,timeout,crc
+
+            if windows:
+                line_list1 =  ['0','*.rar,*.zip,*.xz,*.z,*.gzip,*.iso','','','C:\\Program Files\\WinRAR\\UnRAR.exe','l %','0','5','0']
+                line_list1a = ['0','*.7z,*.zip,*.bzip2,*.xz,*.z,*.gzip,*.iso,*.rar','','','C:\\Program Files\\7-Zip\\7z.exe l % | more +12','','1','5','0']
+                line_list2 =  ['0','*.txt,*.nfo','1','256kB','more %','','1','5','0']
+                line_list3 =  ['0','*.pls,*.m3u,*.cue','','','more %','','1','5','0']
+                line_list4 =  ['0','*.mp3,*.mp4,*.mpeg','','','ffprobe.exe -hide_banner %','','1','5','0']
+                line_list5 =  ['0','*.jpg','','','exif.exe','%','0','5','0']
+
+                cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list5]
+            else:
+                line_list1 =  ['0','*.7z,*.zip,*.bzip2,*.xz,*.z,*.gzip,*.iso,*.rar','','','7z l % | tail -n+10','','1','5','0']
+                line_list2 =  ['0','*.txt,*.nfo','1','256kB','cat','%','0','5','0']
+                line_list3 =  ['0','*.pls,*.m3u,*.cue','','','cat','%','0','5','0']
+                line_list4 =  ['0','*.mp3,*.mp4,*.mpeg','','','ffprobe','-hide_banner %','0','5','0']
+                line_list5 =  ['0','*.jpg','','','exif','%','0','5','0']
+
+                cde_sklejka_list=[line_list1,line_list2,line_list3,line_list4,line_list5]
+            self.set(CFG_KEY_CDE_SETTINGS,cde_sklejka_list)
+            self.write()
 
     def set(self,key,val):
         self.cfg[key]=val
@@ -242,32 +262,6 @@ class Gui:
         return block_wrapp
     ################################################
 
-    def gui_block(func):
-        def gui_block_wrapp(self,*args,**kwargs):
-            prev_cursor=self.menubar_cget('cursor')
-            self_menubar_config = self.menubar_config
-            self_main_config = self.main_config
-
-            self.menu_disable()
-
-            self_menubar_config(cursor='watch')
-            self_main_config(cursor='watch')
-
-            try:
-                res=func(self,*args,**kwargs)
-            except Exception as e:
-                self.status('gui_block_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
-                l_error('gui_block_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
-                l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',func.__name__ + '\n' + str(e))
-                res=None
-
-            self.menu_enable()
-            self_main_config(cursor=prev_cursor)
-            self_menubar_config(cursor=prev_cursor)
-
-            return res
-        return gui_block_wrapp
 
     def catched(func):
         def catched_wrapp(self,*args,**kwargs):
@@ -905,81 +899,6 @@ class Gui:
             is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
         return has_cd
 
-    def gui_block(func):
-        def gui_block_wrapp(self,*args,**kwargs):
-            prev_cursor=self.menubar_cget('cursor')
-            self_menubar_config = self.menubar_config
-            self_main_config = self.main_config
-
-            self.menu_disable()
-
-            self_menubar_config(cursor='watch')
-            self_main_config(cursor='watch')
-
-            try:
-                res=func(self,*args,**kwargs)
-            except Exception as e:
-                self.status('gui_block_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
-                l_error('gui_block_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
-                l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',func.__name__ + '\n' + str(e))
-                res=None
-
-            self.menu_enable()
-            self_main_config(cursor=prev_cursor)
-            self_menubar_config(cursor=prev_cursor)
-
-            return res
-        return gui_block_wrapp
-
-    def catched(func):
-        def catched_wrapp(self,*args,**kwargs):
-            try:
-                res=func(self,*args,**kwargs)
-            except Exception as e:
-                self.status('catched_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
-                l_error('catched_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
-                l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%s %s' % (func.__name__,str(e)) )
-                res=None
-            return res
-        return catched_wrapp
-
-    def logwrapper(func):
-        def logwrapper_wrapp(self,*args,**kwargs):
-            l_info("logwrapper '%s' start",func.__name__)
-            start = time()
-            try:
-                res=func(self,*args,**kwargs)
-            except Exception as e:
-                self.status('logwrapper_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
-                l_error('logwrapper_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
-                l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR logwrapper_wrapp','%s %s' % (func.__name__,str(e)) )
-                res=None
-
-            l_info("logwrapper '%s' end. BENCHMARK TIME:%s",func.__name__,time()-start)
-            return res
-        return logwrapper_wrapp
-
-    def restore_status_line(func):
-        def restore_status_line_wrapp(self,*args,**kwargs):
-
-            prev=self.status_curr_text
-            try:
-                res=func(self,*args,**kwargs)
-            except Exception as e:
-                self.status('restore_status_line_wrapp:%s:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
-                l_error('restore_status_line_wrapp:%s:%s args:%s kwargs:%s',func.__name__,e,args,kwargs)
-                l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR restore_status_line_wrapp',str(e))
-                res=None
-            else:
-                self.status(prev)
-
-            return res
-        return restore_status_line_wrapp
-
     def widget_tooltip_cget(self,widget,tooltip):
         widget.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,tooltip))
         widget.bind("<Leave>", lambda event : self.widget_leave())
@@ -1134,7 +1053,7 @@ class Gui:
 
             self_ico_librer = self.ico_librer
 
-            self.scan_dialog=dialog=GenericDialog(self.main,(self.ico_record_new,self.ico_record_new),self.bg_color,'Create new data record',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=550)
+            self.scan_dialog=dialog=GenericDialog(self.main,(self.ico_record_new,self.ico_record_new),self.bg_color,'---',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=550)
 
             self_ico = self.ico
 
@@ -1149,15 +1068,16 @@ class Gui:
             dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
             dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
 
+            self.scan_dialog_group = None
             ##############
 
             temp_frame = Frame(dialog.area_main,borderwidth=2,bg=self.bg_color)
             temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
 
-            ul_lab=Label(temp_frame,text="Label:",bg=self.bg_color,anchor='w')
+            ul_lab=Label(temp_frame,text="Internal Label:",bg=self.bg_color,anchor='w')
             ul_lab.grid(row=0, column=0, sticky='news',padx=4,pady=4)\
 
-            label_tooltip = "Label of record to be created."
+            label_tooltip = "Internal Label of record to be created."
             self.widget_tooltip(ul_lab,label_tooltip)
 
             self.scan_label_entry_var=StringVar(value='')
@@ -1606,7 +1526,7 @@ class Gui:
 
     entry_ask_dialog_created = False
     @restore_status_line
-    @gui_block
+    @block
     def get_entry_ask_dialog(self):
         if not self.entry_ask_dialog_created:
             self.status("Creating dialog ...")
@@ -1616,7 +1536,7 @@ class Gui:
 
     assign_to_group_dialog_created = False
     @restore_status_line
-    @gui_block
+    @block
     def get_assign_to_group_dialog(self):
         if not self.assign_to_group_dialog_created:
             self.status("Creating dialog ...")
@@ -1701,7 +1621,9 @@ class Gui:
             sfdma = self.find_dialog.area_main
 
             (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
-            (find_range_cb1 := Radiobutton(find_filename_frame,text='Selected record / group',variable=self.find_range_all,value=False,command=self.find_mod)).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            self.find_range_cb1 = Radiobutton(find_filename_frame,text='Selected record / group',variable=self.find_range_all,value=False,command=self.find_mod)
+            self.find_range_cb1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+
             (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
             (find_filename_frame := LabelFrame(sfdma,text='Path elements',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
@@ -2243,7 +2165,7 @@ class Gui:
                         record_it_is = tree.tag_has(self.RECORD,item)
 
                         if raw_record_it_is or record_it_is:
-                            self.tooltip_lab_configure(text=record.txtinfo_basic + '\n\n(Double click to show full record info)')
+                            self.tooltip_lab_configure(text=librer_core.record_info_alias_wrapper(record,record.txtinfo_basic + '\n\n(Double click to show full record info)') )
                         else:
                             scan_path = record.header.scan_path
                             subpath = sep + sep.join(subpath_list)
@@ -2508,15 +2430,21 @@ class Gui:
         if key=='Return':
             self.find_items()
         else:
-            return self.find_mod()
+            self.find_mod()
 
     def find_mod(self):
         try:
             self.find_params_changed=self.external_find_params_change
 
+            sel_range = self.get_selected_records()
+            sel_range_info = '\n'.join([librer_core.get_record_name(rec) for rec in sel_range])
+
+            self.widget_tooltip(self.find_range_cb1,'records:\n\n' + sel_range_info)
+
             if not self.find_params_changed:
                 if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
                     self.find_params_changed=True
+
                 elif self.cfg.get(CFG_KEY_find_filename_search_kind) != self.find_filename_search_kind_var.get():
                     self.find_params_changed=True
                 elif self.cfg.get(CFG_KEY_find_range_all) != self.find_range_all.get():
@@ -2630,6 +2558,14 @@ class Gui:
     def invalidate_find_results(self):
         self.any_valid_find_results=Fale
 
+    def get_selected_records(self):
+        if self.current_group:
+            return librer_core.get_records_of_group(self.current_group)
+        elif self.current_record:
+            return [self.current_record]
+        else:
+            return []
+
     #@restore_status_line
     def find_items(self):
         if self.find_params_changed:
@@ -2670,15 +2606,20 @@ class Gui:
             if find_range_all:
                 search_info_lines_append('Search in all records')
                 sel_range = librer_core.records
-            elif self.current_record:
-                search_info_lines_append(f'Search in record:{librer_core.get_record_name(self.current_record)}')
-                sel_range = [self.current_record]
-            elif self.current_group:
-                search_info_lines_append(f'Search in group:{self.current_group}')
-                sel_range = librer_core.get_records_of_group(self.current_group)
             else:
-                print('imposible1')
-                sel_range=[]
+                sel_range = self.get_selected_records()
+                sel_range_info = ','.join([librer_core.get_record_name(rec) for rec in sel_range])
+                search_info_lines_append(f'Search in records:{sel_range_info}')
+
+            #if self.current_record:
+            #    search_info_lines_append(f'Search in record:{librer_core.get_record_name(self.current_record)}')
+            #    sel_range = [self.current_record]
+            #elif self.current_group:
+            #    search_info_lines_append(f'Search in group:{self.current_group}')
+            #    sel_range = librer_core.get_records_of_group(self.current_group)
+            #else:
+            #    print('imposible1')
+            #    sel_range=[]
 
             #print(f'{sel_range=}')
             #range_par = self.current_record if not find_range_all else None
@@ -3091,7 +3032,7 @@ class Gui:
             if item_to_sel:
                 self.select_and_focus(item_to_sel)
 
-    @catched
+    @block
     def goto_first_last_record(self,index):
         #print('goto_first_last_record',index)
         if children := self.tree_get_children():
@@ -3135,7 +3076,7 @@ class Gui:
                     image=self.tree.item(record_item,'image')
 
                     self.status_record.configure(image = image, text = record_name,compound='left')
-                    self.widget_tooltip(self.status_record,record.txtinfo_basic + '\n\n(Click to show full record info)')
+                    self.widget_tooltip(self.status_record,librer_core.record_info_alias_wrapper(record,record.txtinfo_basic + '\n\n(Click to show full record info)') )
                     #\nsingle click to unload data of current record.\n
                 else:
                     self.status_record.configure(image = '', text = '')
@@ -3530,6 +3471,8 @@ class Gui:
         gc_disable()
         gc_collect()
 
+        group = self.scan_dialog_group
+
         if self.scanning_in_progress:
             l_warning('scan_wrapper collision')
             return
@@ -3542,7 +3485,7 @@ class Gui:
 
         compression_level = self.scan_compr_var_int.get()
         try:
-            if self.scan(compression_level):
+            if self.scan(compression_level,group):
                 self.scan_dialog_hide_wrapper()
         except Exception as e:
             l_error(f'scan_wraper: {e}')
@@ -3560,7 +3503,7 @@ class Gui:
 
     @restore_status_line
     @logwrapper
-    def scan(self,compression_level):
+    def scan(self,compression_level,group=None):
         path_to_scan_from_entry = abspath(self.path_to_scan_entry_var.get())
 
         if not path_to_scan_from_entry:
@@ -3718,7 +3661,7 @@ class Gui:
             gc_disable()
             gc_collect()
 
-            creation_thread=Thread(target=lambda : librer_core.create_new_record(self.temp_dir,self.single_record_show),daemon=True)
+            creation_thread=Thread(target=lambda : librer_core.create_new_record(self.temp_dir,self.single_record_show,group),daemon=True)
             creation_thread.start()
 
             creation_thread_is_alive = creation_thread.is_alive
@@ -3880,7 +3823,7 @@ class Gui:
 
         dialog = self.get_simple_question_dialog()
 
-        dialog.show('Delete selected data record ?',self.current_record.txtinfo_short)
+        dialog.show('Delete selected data record ?',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo_short) )
 
         if dialog.res_bool:
             record_item = self.record_to_item[self.current_record]
@@ -3918,6 +3861,20 @@ class Gui:
 
     def scan_dialog_show(self):
         dialog = self.get_scan_dialog()
+
+        group = None
+        if self.current_group:
+            group = self.current_group
+        elif self.current_record :
+            if group_temp:=librer_core.get_record_group(self.current_record):
+                group = group_temp
+
+        if group:
+            dialog.widget.title(f'Create new data record in group: {group}' )
+            self.scan_dialog_group = group
+        else:
+            dialog.widget.title('Create new data record' )
+            self.scan_dialog_group = None
 
         self.status("Opening dialog ...")
         e=0
@@ -4402,17 +4359,21 @@ class Gui:
                         self.main.after_idle(self.show_customdata)
         return "break"
 
+    @logwrapper
     def show_customdata(self):
         if not self.block_processing_stack:
             item=self.tree.focus()
             if item:
                 error_infos=[]
                 try:
-                    if self.tree.tag_has(self.GROUP,item):
+                    kind = self.tree.set(item,'kind')
+
+                    if kind in (self.GROUP,self.DIR,self.DIRLINK):
                         return
                     elif self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
                         self.record_info()
                     else:
+                        #print('jedziemy')
                         record_item,record_name,subpath_list = self.get_item_record(item)
                         record = self.item_to_record[record_item]
 
@@ -4456,7 +4417,7 @@ class Gui:
         if not self.block_processing_stack:
             if self.current_record:
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
-                self.get_text_info_dialog().show('Record Info.',self.current_record.txtinfo)
+                self.get_text_info_dialog().show('Record Info.',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
 
     @block
     @logwrapper
