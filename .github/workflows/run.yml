@@ -218,7 +218,7 @@ jobs:
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
     - name: rename linux distro
-      run: mv ./build-pyinstaller/librer.lin.zip ./librer_devel.${{ steps.version.outputs.version }}.portable.linux.zip
+      run: mv ./build-pyinstaller/librer.lin.zip ./librer.${{ steps.version.outputs.version }}.portable.linux.zip
 
     #####################################
     - name: download windows pyinstaller distro
@@ -228,7 +228,7 @@ jobs:
         path: ./
 
     - name: rename windows distro
-      run: mv ./librer.win.zip ./librer_devel.${{ steps.version.outputs.version }}.portable.windows.zip
+      run: mv ./librer.win.zip ./librer.${{ steps.version.outputs.version }}.portable.windows.zip
 
     #####################################
     - name: download windows nuitka distro
@@ -238,7 +238,7 @@ jobs:
         path: ./
 
     - name: rename windows distro
-      run: mv ./librer.win.zip ./librer_devel.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
+      run: mv ./librer.win.zip ./librer.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
 
     #####################################
     - name: download linux nuitka distro
@@ -248,7 +248,7 @@ jobs:
         path: ./
 
     - name: rename linux distro
-      run: mv ./librer.lin.zip ./librer_devel.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
+      run: mv ./librer.lin.zip ./librer.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
 
     #####################################
     - name: Create GitHub release
@@ -257,12 +257,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.version.outputs.version }}
-        name: librer-devel Release ${{ steps.version.outputs.version }}
+        name: librer Release ${{ steps.version.outputs.version }}
         draft: false
-        prerelease: true
+        prerelease: false
         files: |
-            librer_devel.${{ steps.version.outputs.version }}.portable.linux.zip
-            librer_devel.${{ steps.version.outputs.version }}.portable.windows.zip
-            librer_devel.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
-            librer_devel.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
+            librer.${{ steps.version.outputs.version }}.portable.linux.zip
+            librer.${{ steps.version.outputs.version }}.portable.windows.zip
+            librer.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
+            librer.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
 
