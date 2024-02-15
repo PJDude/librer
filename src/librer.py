@@ -176,10 +176,12 @@ class Config:
                 line_list1a = ['0','*.7z,*.zip,*.bzip2,*.xz,*.z,*.gzip,*.iso,*.rar','','','C:\\Program Files\\7-Zip\\7z.exe l % | more +12','','1','5','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','more %','','1','5','0']
                 line_list3 =  ['0','*.pls,*.m3u,*.cue','','','more %','','1','5','0']
-                line_list4 =  ['0','*.mp3,*.mp4,*.mpeg','','','ffprobe.exe -hide_banner %','','1','5','0']
-                line_list5 =  ['0','*.jpg','','','exif.exe','%','0','5','0']
+                line_list4 =  ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','ffprobe.exe -hide_banner %','','1','5','0']
+                line_list4a =  ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','MediaInfo.exe','%','0','5','0']
+                line_list5 =  ['0','*.jpg','','','exiftool.exe','%','0','5','0']
+                line_list5a =  ['0','*.exe','','','exiftool.exe','%','0','5','0']
 
-                cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list5]
+                cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list4a,line_list5,line_list5a]
             else:
                 line_list1 =  ['0','*.7z,*.zip,*.bzip2,*.xz,*.z,*.gzip,*.iso,*.rar','','','7z l % | tail -n+10','','1','5','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','cat','%','0','5','0']
@@ -1074,36 +1076,38 @@ class Gui:
             temp_frame = Frame(dialog.area_main,borderwidth=2,bg=self.bg_color)
             temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
 
-            ul_lab=Label(temp_frame,text="Internal Label:",bg=self.bg_color,anchor='w')
-            ul_lab.grid(row=0, column=0, sticky='news',padx=4,pady=4)\
+            ul_lab=Label(temp_frame,text="Label:",bg=self.bg_color,anchor='w')
+            ul_lab.grid(row=0, column=4, sticky='news',padx=4,pady=4)\
 
-            label_tooltip = "Internal Label of record to be created."
+            label_tooltip = "Internal Label of the record to be created"
             self.widget_tooltip(ul_lab,label_tooltip)
 
             self.scan_label_entry_var=StringVar(value='')
-            scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
-            scan_label_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+            self.scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
+            self.scan_label_entry.grid(row=0, column=5, sticky='news',padx=4,pady=4)
 
-            self.widget_tooltip(scan_label_entry,label_tooltip)
+            self.widget_tooltip(self.scan_label_entry,label_tooltip)
 
-            Label(temp_frame,text="Path to scan:",bg=self.bg_color,anchor='w').grid(row=0, column=2, sticky='news',padx=4,pady=4)
+            (path_to_scan_label := Label(temp_frame,text="Path:",bg=self.bg_color,anchor='w')).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            self.widget_tooltip(path_to_scan_label,"Path to scan")
 
             self.path_to_scan_entry_var=StringVar(value=self.last_dir)
             path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
-            path_to_scan_entry.grid(row=0, column=3, sticky='news',padx=4,pady=4)
+            path_to_scan_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+            self.widget_tooltip(path_to_scan_entry,"Path to scan")
 
             self.add_path_button = Button(temp_frame,width=18,image = self.ico_open, command=self.set_path_to_scan,underline=0)
-            self.add_path_button.grid(row=0, column=4, sticky='news',padx=4,pady=4)
+            self.add_path_button.grid(row=0, column=2, sticky='news',padx=4,pady=4)
             self.widget_tooltip(self.add_path_button,"Set path to scan.")
 
             self.add_dev_button = Menubutton(temp_frame,width=18,image = self.ico_drive,underline=0)
-            self.add_dev_button.grid(row=0, column=5, sticky='news',padx=4,pady=4)
+            self.add_dev_button.grid(row=0, column=3, sticky='news',padx=4,pady=4)
             self.widget_tooltip(self.add_dev_button,"Select device to scan.")
 
             self.drives_menu = Menu(self.add_dev_button, tearoff=0,postcommand=self.set_dev_to_scan_menu)
             self.add_dev_button["menu"] = self.drives_menu
 
-            temp_frame.grid_columnconfigure(3, weight=1)
+            temp_frame.grid_columnconfigure(1, weight=1)
 
             ##############
             self.scan_button = Button(dialog.area_buttons,width=12,text="Scan",compound='left',command=self.scan_wrapper,underline=0)
@@ -1918,6 +1922,13 @@ class Gui:
     @restore_status_line
     @block
     def record_repack(self):
+        group = None
+        if self.current_group:
+            group = self.current_group
+        elif self.current_record :
+            if group_temp:=librer_core.get_record_group(self.current_record):
+                group = group_temp
+
         if self.current_record:
             dialog = self.get_repack_dialog()
 
@@ -1932,7 +1943,7 @@ class Gui:
             dialog.show()
 
             if self.repack_dialog_do_it:
-                if messages := librer_core.repack_record(self.current_record,self.repack_label_var.get(),self.repack_compr_var.get(),self.repack_cd_var.get(),self.single_record_show):
+                if messages := librer_core.repack_record(self.current_record,self.repack_label_var.get(),self.repack_compr_var.get(),self.repack_cd_var.get(),self.single_record_show,group):
                     self.info_dialog_on_main.show('Repacking failed','\n'.join(messages) )
                 else:
                     self.find_clear()
@@ -1947,7 +1958,17 @@ class Gui:
     def record_import_wii(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         self.wii_import_dialog_do_it= False
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml files to import', defaultextension=".xml",filetypes=[("XML Files","*.xml"),("All Files","*.*")]):
+
+        group = None
+        if self.current_group:
+            group = self.current_group
+        elif self.current_record :
+            if group_temp:=librer_core.get_record_group(self.current_record):
+                group = group_temp
+
+        postfix = f' to group:{group}' if group else ''
+
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml files to import' + postfix, defaultextension=".xml",filetypes=[("XML Files","*.xml"),("All Files","*.*")]):
             self.status('Parsing WII files ... ')
             self.main.update()
 
@@ -1992,7 +2013,7 @@ class Gui:
                             quant_folders=3
 
                             label = disk_name
-                            sub_res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set_per_disk[disk_name],wii_path_tuple_to_data_curr,wii_paths_dict_per_disk[disk_name],cd_set_per_disk[disk_name],self.single_record_show)
+                            sub_res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set_per_disk[disk_name],wii_path_tuple_to_data_curr,wii_paths_dict_per_disk[disk_name],cd_set_per_disk[disk_name],self.single_record_show,group)
                             postfix+=1
                             if sub_res:
                                 res.append(sub_res)
@@ -2008,7 +2029,7 @@ class Gui:
                         label = self.wii_import_label_var.get()
                         self.status(f'importing {label} ... ')
 
-                        res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,self.single_record_show)
+                        res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,self.single_record_show,group)
 
                         if not res:
                             ###########################
@@ -2024,9 +2045,18 @@ class Gui:
     def record_import(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
 
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose record file(s) to import', defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
+        group = None
+        if self.current_group:
+            group = self.current_group
+        elif self.current_record :
+            if group_temp:=librer_core.get_record_group(self.current_record):
+                group = group_temp
+
+        postfix = f' to group:{group}' if group else ''
+
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose record files to import' + postfix, defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
             self.last_dir = dirname(import_filenames[0])
-            if import_res := librer_core.import_records(import_filenames,self.single_record_show):
+            if import_res := librer_core.import_records(import_filenames,self.single_record_show,group):
                 self.info_dialog_on_main.show('Import failed',import_res)
             else:
                 self.info_dialog_on_main.show('Import','Successful.')
@@ -3349,40 +3379,46 @@ class Gui:
 
     @logwrapper
     def assign_to_group(self):
-        curr_group = librer_core.get_record_group(self.current_record)
+        #item=self.tree.focus()
 
-        dial = self.get_assign_to_group_dialog()
+        #is_group = bool(self.tree.tag_has(self.GROUP,item))
+        #is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
 
-        values = list(librer_core.groups.keys())
-        dial.combobox.configure(values=values)
-        record = self.current_record
-        current = librer_core.get_record_group(record)
+        if self.current_record:
+            curr_group = librer_core.get_record_group(self.current_record)
 
-        if not current:
-            current = values[0]
+            dial = self.get_assign_to_group_dialog()
 
-        dial.show('Assign to group','Assign record to group:',current)
+            values = list(librer_core.groups.keys())
+            dial.combobox.configure(values=values)
+            record = self.current_record
+            current = librer_core.get_record_group(record)
 
-        if dial.res_bool:
-            group = dial.entry_val.get()
+            if not current:
+                current = values[0]
 
-            if group:
-                res2=librer_core.assign_new_group(record,group)
-                if res2:
-                    self.info_dialog_on_main.show('assign_new_group Error',res2)
-                else:
-                    group_item = self.group_to_item[group]
-                    record_item = self.record_to_item[record]
-                    self.tree.move(record_item,group_item,0)
-                    #self.tree.open(group_item)
-                    self.open_item(group_item)
-                    self.tree.focus(record_item)
-                    self.tree.see(record_item)
-                    self.tree.update()
+            dial.show('Assign to group','Assign record to group:',current)
 
-                    self.find_clear()
+            if dial.res_bool:
+                group = dial.entry_val.get()
 
-                    self.column_sort(self.tree)
+                if group:
+                    res2=librer_core.assign_new_group(record,group)
+                    if res2:
+                        self.info_dialog_on_main.show('assign_new_group Error',res2)
+                    else:
+                        group_item = self.group_to_item[group]
+                        record_item = self.record_to_item[record]
+                        self.tree.move(record_item,group_item,0)
+                        #self.tree.open(group_item)
+                        self.open_item(group_item)
+                        self.tree.focus(record_item)
+                        self.tree.see(record_item)
+                        self.tree.update()
+
+                        self.find_clear()
+
+                        self.column_sort(self.tree)
 
     @logwrapper
     def column_sort_click(self, tree, colname):
@@ -3478,8 +3514,9 @@ class Gui:
             return
 
         if self.scan_label_entry_var.get()=='':
-            self.get_info_dialog_on_scan().show('Error. Empty label.','Set user label.')
-            return
+            self.scan_label_entry_var.set(platform_node() + ':' + str(abspath(self.path_to_scan_entry_var.get())) )
+            #self.get_info_dialog_on_scan().show('Error. Empty label.','Set internal label.')
+            #return
 
         self.scanning_in_progress=True
 
@@ -3962,12 +3999,16 @@ class Gui:
     def set_dev_to_scan(self,dev,label=None):
         self.path_to_scan_entry_var.set(dev)
         self.scan_label_entry_var.set(label if label else dev)
+        self.scan_label_entry.selection_range(0, 'end')
 
     def set_path_to_scan(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir = res
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
+            self.scan_label_entry.focus_set()
+            self.scan_label_entry_var.set( platform_node() + ':' + str(abspath(self.path_to_scan_entry_var.get())) )
+            self.scan_label_entry.selection_range(0, 'end')
 
     def threaded_simple_run(self,command_list,shell):
         l_info(f'threaded_simple_run {command_list=}')

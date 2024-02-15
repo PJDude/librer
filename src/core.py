@@ -1829,7 +1829,7 @@ class LibrerCore:
         else:
             return res
 
-    def import_records_wii_do(self,compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,update_callback):
+    def import_records_wii_do(self,compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,update_callback,group=None):
         import_res=[]
 
         self.wii_path_tuple_to_data = wii_path_tuple_to_data
@@ -1904,6 +1904,9 @@ class LibrerCore:
 
         new_record.save(print,file_path=new_file_path,compression_level=compr)
 
+        if group:
+            self.assign_new_group(new_record,group)
+
         update_callback(new_record)
 
         if import_res:
@@ -1911,7 +1914,7 @@ class LibrerCore:
         else:
             return None
 
-    def import_records(self,import_filenames,update_callback):
+    def import_records(self,import_filenames,update_callback,group):
         self.log.info(f"import {','.join(import_filenames)}")
 
         import_res=[]
@@ -1944,6 +1947,7 @@ class LibrerCore:
                             zip_file.writestr('customdata',src_zip_file.read('customdata'))
 
                     new_record = self.create()
+
                     if res:=new_record.load(new_file_path) :
                         #self.log.warning('removing:%s',file_name)
                         self.records.remove(new_record)
@@ -1952,6 +1956,9 @@ class LibrerCore:
                         import_res.append(str(res))
                     else:
                         #self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
+                        if group:
+                            self.assign_new_group(new_record,group)
+
                         update_callback(new_record)
 
             except Exception as ex_in:
@@ -1996,7 +2003,7 @@ class LibrerCore:
         else:
             return None
 
-    def repack_record(self,record,new_label,new_compression,keep_cd,update_callback):
+    def repack_record(self,record,new_label,new_compression,keep_cd,update_callback,group=None):
         self.log.info(f'repack_record {record.header.label}->{new_label},{new_compression},{keep_cd}')
 
         messages = []
@@ -2074,6 +2081,8 @@ class LibrerCore:
                     send2trash_delete(new_file_path)
                     messages.append(str(res))
                 else:
+                    if group:
+                        self.assign_new_group(new_record,group)
                     update_callback(new_record)
 
         except Exception as ex_in:

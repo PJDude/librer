@@ -23,11 +23,20 @@ Portable executable packages created with [PyInstaller](https://pyinstaller.org/
 
 ## [SOFTPEDIA review](https://www.softpedia.com/get/Others/File-CD-DVD-Catalog/Librer.shtml) ##
 
-## [Tutorial](./info/tutorial.md) ##
-
-## Guidelines for crafting custom data extractors
+## Guidelines for crafting Custom Data Extractors
 Custom data extractor is a command that can be invoked with a single parameter - the full path to a specific file from which data is extracted. The command should provide the expected data in any textual format to the standard output (stdout). CDE can be an executable file (e.g., 7z, zip, ffmpeg, md5sum etc.) or an executable shell script (extract.sh, extract.bat etc.). The conditions it should meet are reasonably short execution time and reasonably limited information output. The criteria allowing the execution of a particular **Custom data extractor** include the glob expression (on file name) and the file size range.
 
+### [Custom Data Extractor - Tutorial](./info/tutorial.md) ##
+
+### Examples of software suitable for creating Custom Data Extractors:
+
+[7-zip](https://www.7-zip.org/) -  lists the contents of the most popular archives, etc.
+
+[exiftool](https://exiftool.sourceforge.net/) - get exif data from images like *.jpg, info on executables, and many more
+
+[ffprobe](https://ffmpeg.org/ffprobe.html), [MediaInfo](https://mediaarea.net/en/MediaInfo) - both get tags and other metadata from multimedia files like mp3, mp4, mkv, etc.
+
+system shell basic commands like: [type](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/type), [more](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/more), [cat](https://linuxize.com/post/linux-cat-command/)
 
 ## Usage tips:
 - do not put any destructive actions in your Custom Data Extractor scripts

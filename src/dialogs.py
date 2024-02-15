@@ -549,6 +549,7 @@ class EntryDialogQuestion(LabelDialog):
 
     def show(self,title='',message='',initial=''):
         self.entry_val.set(initial)
+        self.entry.selection_range(0, 'end')
 
         self.res_str=''
         super().show(title,message)
@@ -585,6 +586,7 @@ class ComboboxDialogQuestion(LabelDialog):
 
     def show(self,title='',message='',initial=''):
         self.entry_val.set(initial)
+        self.combobox.selection_range(0, 'end')
 
         self.res_str=''
         super().show(title,message)

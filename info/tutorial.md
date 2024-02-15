@@ -50,16 +50,3 @@ All of the above will apply to Linux as well, with consideration of obvious diff
 Once we have the full set of custom data extractors set up and tested, we can start scanning the media we want to catalog. Once a new record is created, files with successfully collected custom data will be shown with a small green dot. A double click or menu action allows you to view the data and commands used to extract. The collected data is searchable 
 
 ![image info](../info/tutorial_08.png)
-
-## Examples of other Custom Data extractors
-
-> "more"  - Listing the contents of the entire file. May be applied to *.cue files or media playlists *.m3u or any text files (windows). Similarly on Linux we can use "cat"
-![image info](../info/example_01.png)
-
-> "[ffprobe](https://ffmpeg.org/ffprobe.html) -hide_banner" - get media tags and other metadata from media files like *.mp3 etc.
-
-> "[exiftool](https://exiftool.sourceforge.net/)" get exif data from images like *.jpg and many more
-
-> "[pdftotext](https://linux.die.net/man/1/pdftotext) - - <" - get text content of pdf file
-
-> "strings" - get printable strings from any file
