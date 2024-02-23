@@ -384,7 +384,7 @@ class TextDialogInfo(GenericDialog):
         self.text_search_pool_index=0
 
         self.find_lab=Label(self.area_mark)
-        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
+        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5,expand='yes', fill='both')
 
         try:
             self.find_lab.configure(text='Mark:',compound='left')
