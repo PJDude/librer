@@ -172,21 +172,21 @@ class Config:
             #use,mask,smin,smax,exe,pars,shell,timeout,crc
 
             if windows:
-                line_list1 =  ['0','*.rar,*.zip,*.xz,*.z,*.gzip,*.iso','','','C:\\Program Files\\WinRAR\\UnRAR.exe','l %','0','5','0']
-                line_list1a = ['0','*.7z,*.zip,*.bzip2,*.xz,*.z,*.gzip,*.iso,*.rar','','','C:\\Program Files\\7-Zip\\7z.exe l % | more +12','','1','5','0']
+                line_list1 =  ['0','*.rar,*.zip,*.cab,*.arj,*.lzh,*.uue,*.z,*.bz2,*.gzip,*.iso,*.7z','','','C:\\Program Files\\WinRAR\\UnRAR.exe','l %','0','10','0']
+                line_list1a = ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.cab,*.lzh,*.lzma,*.vdi,*.vhd','','','C:\\Program Files\\7-Zip\\7z.exe','l %','0','10','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','more %','','1','5','0']
-                line_list3 =  ['0','*.pls,*.m3u,*.cue','','','more %','','1','5','0']
-                line_list4 =  ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','ffprobe.exe -hide_banner %','','1','5','0']
+                line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl','','','more %','','1','5','0']
+                line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe.exe','-hide_banner %','0','5','0']
                 line_list4a = ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','MediaInfo.exe','%','0','5','0']
                 line_list5 =  ['0','*.jpg','','','exiftool.exe','%','0','5','0']
                 line_list5a = ['0','*.exe','','','exiftool.exe','%','0','5','0']
 
                 cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list4a,line_list5,line_list5a]
             else:
-                line_list1 =  ['0','*.7z,*.zip,*.bzip2,*.xz,*.z,*.gzip,*.iso,*.rar','','','7z l % | tail -n+10','','1','5','0']
+                line_list1 =  ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.cab,*.lzh,*.lzma,*.vdi,*.vhd','','','7z','l %','0','10','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','cat','%','0','5','0']
-                line_list3 =  ['0','*.pls,*.m3u,*.cue','','','cat','%','0','5','0']
-                line_list4 =  ['0','*.mp3,*.mp4,*.mpeg','','','ffprobe','-hide_banner %','0','5','0']
+                line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl','','','cat','%','0','5','0']
+                line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe','-hide_banner %','0','5','0']
                 line_list5 =  ['0','*.jpg','','','exif','%','0','5','0']
 
                 cde_sklejka_list=[line_list1,line_list2,line_list3,line_list4,line_list5]
@@ -515,7 +515,7 @@ class Gui:
 
         (status_frame := Frame(self_main,bg=self.bg_color)).pack(side='bottom', fill='both')
 
-        self.status_records_all=Label(status_frame,image=self.ico_record,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_records_all=Label(status_frame,image=self.ico_records_all,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_records_all.pack(fill='x',expand=0,side='left')
         self.status_records_all_configure = lambda x : self.status_records_all.configure(image = self.ico_records_all, text = x,compound='left')
         self.widget_tooltip(self.status_records_all,'All records in repository')
@@ -1313,8 +1313,12 @@ class Gui:
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
-        self.widget_tooltip(dialog.find_prev_butt,'Find Prev (Shift+F3)')
-        self.widget_tooltip(dialog.find_next_butt,'Find Next (F3)')
+        self.widget_tooltip(dialog.find_prev_butt,'Select Prev (Shift+F3)')
+        self.widget_tooltip(dialog.find_next_butt,'Select Next (F3)')
+        self.widget_tooltip(dialog.find_cs,'Case Sensitive')
+        self.widget_tooltip(dialog.find_info_lab,'index of the selected search result / search results total ')
+
+        dialog.find_cs_var.set(False if windows else True)
 
     progress_dialog_on_scan_created = False
     @restore_status_line
