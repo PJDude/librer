@@ -78,6 +78,11 @@ SCAN_DAT_FILE = 'scaninfo'
 SEARCH_DAT_FILE = 'searchinfo'
 SIGNAL_FILE = 'signal'
 
+CD_OK_ID = 0
+CD_INDEX_ID = 1
+CD_DATA_ID = 2
+
+
 def get_dev_labes_dict():
     lsblk = subprocess_run(['lsblk','-fJ'],capture_output = True,text = True)
     lsblk.dict = json_loads(lsblk.stdout)
@@ -597,11 +602,11 @@ class LibrerRecord:
                 #print('prepare_customdata_pool_rec',e,entry_name,size,is_dir,is_file,is_symlink,is_bind,has_files,mtime)
                 print_func( ('error','prepare_customdata_pool_rec:{e},{entry_name},{size},{is_dir},{is_file},{is_symlink},{is_bind},{has_files},{mtime}') )
 
-    def extract_customdata(self,print_func,abort_list):
+    def extract_customdata(self,print_func,abort_list,threads_quant=0):
         self_header = self.header
         scan_path = self_header.scan_path
 
-        print_func( ('info','custom data extraction ...'),True)
+        print_func( ('info',f'custom data extraction {threads_quant=}...'),True)
 
         self_header.files_cde_quant = 0
         self_header.files_cde_size = 0
@@ -614,33 +619,63 @@ class LibrerRecord:
 
         print_func( ('cdeinit',files_cde_quant_sum,files_cde_size_sum),True)
 
-        customdata_helper={}
-
         customdata_stats_size=defaultdict(int)
         customdata_stats_uniq=defaultdict(int)
         customdata_stats_refs=defaultdict(int)
         customdata_stats_time=defaultdict(float)
 
         customdata_stats_time_all=[0]
-        #############################################################
-        def threaded_cde(timeout_semi_list):
-            cd_index=0
-            self_customdata_append = self.customdata.append
 
-            time_start_all = perf_counter()
+        if threads_quant==0:
+            threads_quant = cpu_count()
+
+        customdata_pool_per_thread = defaultdict(list)
+        timeout_semi_list_per_thread = { thread_index:[None] for thread_index in range(threads_quant) }
+        self.killed = { thread_index:False for thread_index in range(threads_quant) }
+
+        #per_thread_customdata_dict={}
+        thread_index = 0
+        for val_tuple in self.customdata_pool.values():
+            customdata_pool_per_thread[thread_index].append(val_tuple)
+            thread_index+=1
+            thread_index %= threads_quant
+            #per_thread_customdata_dict[thread_index]={}
+
+            #print(f'{thread_index=}')
+
+        CD_OK_ID_loc = CD_OK_ID
+        CD_DATA_ID_loc = CD_DATA_ID
+
+        all_threads_data_list={}
+        #files_cde_errors_quant={}
+        all_threads_files_cde_errors_quant = {}
+
+        for thread_index in range(threads_quant):
+            all_threads_data_list[thread_index]=[0,0,0,0]
+            #files_cde_errors_quant[thread_index]=defaultdict(int)
+            all_threads_files_cde_errors_quant[thread_index]=defaultdict(int)
+
+        time_start_all = perf_counter()
+
+        #############################################################
+        def threaded_cde(timeout_semi_list,thread_index,thread_data_list,files_cde_errors_quant):
+
+            #curr_per_thread_customdata_dict = per_thread_customdata_dict[thread_index]
+            #cd_index_per_thread = 0
 
             aborted_string = 'Custom data extraction was aborted.'
 
-            files_cde_errors_quant = defaultdict(int)
+            #files_cde_errors_quant = defaultdict(int)
 
             files_cde_quant = 0
             files_cde_size = 0
             files_cde_size_extracted = 0
 
             files_cde_errors_quant_all = 0
-            for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
+            #for (scan_like_list,subpath,rule_nr,size) in self.customdata_pool.values():
+            for (scan_like_list,subpath,rule_nr,size) in customdata_pool_per_thread[thread_index]:
 
-                self.killed=False
+                self.killed[thread_index]=False
 
                 time_start = perf_counter()
                 if abort_list[0] : #wszystko
@@ -656,7 +691,7 @@ class LibrerRecord:
                     command,command_info = get_command(executable,parameters,full_file_path,shell)
 
                     #print_func( ('cde',f'{full_file_path} ({bytes_to_str(size)})',size,files_cde_size_extracted,files_cde_errors_quant_all,files_cde_quant,files_cde_quant_sum,files_cde_size,files_cde_size_sum) )
-                    print_func( ('cde',f'{full_file_path} ({bytes_to_str(size)})',size,files_cde_size_extracted,files_cde_errors_quant_all,files_cde_quant,files_cde_size) )
+                    #print_func( ('cde',f'{full_file_path} ({bytes_to_str(size)})',size,files_cde_size_extracted,files_cde_errors_quant_all,files_cde_quant,files_cde_size) )
 
                     timeout_val=time()+timeout if timeout else None
                     #####################################
@@ -685,7 +720,7 @@ class LibrerRecord:
                                 timeout_semi_list[0] = None
                                 break
 
-                        if self.killed:
+                        if self.killed[thread_index]:
                             output_list_append('Killed.')
 
                         output = '\n'.join(output_list).strip()
@@ -698,7 +733,7 @@ class LibrerRecord:
                 time_end = perf_counter()
                 customdata_stats_time[rule_nr]+=time_end-time_start
 
-                if returncode or self.killed or aborted:
+                if returncode or self.killed[thread_index] or aborted:
                     files_cde_errors_quant[rule_nr]+=1
                     files_cde_errors_quant_all+=1
 
@@ -707,13 +742,112 @@ class LibrerRecord:
                     files_cde_size += size
                     files_cde_size_extracted += asizeof(output)
 
-                new_elem={}
-                new_elem['cd_ok']= bool(returncode==0 and not self.killed and not aborted)
+                thread_data_list[0]=files_cde_size_extracted
+                thread_data_list[1]=files_cde_errors_quant_all
+                thread_data_list[2]=files_cde_quant
+                thread_data_list[3]=files_cde_size
 
-                cd_field=(rule_nr,returncode,output)
-                if cd_field not in customdata_helper:
-                    customdata_helper[cd_field]=cd_index
-                    new_elem['cd_index']=cd_index
+                new_elem={
+                            CD_OK_ID_loc:bool(returncode==0 and not self.killed[thread_index] and not aborted),
+                            CD_DATA_ID_loc:(rule_nr,returncode,output)
+                        }
+
+                scan_like_list.append(new_elem) #dostep z wielu watkow
+
+            sys.exit() #thread
+
+        #timeout_semi_list = [None]
+
+        cde_threads = {}
+        cde_thread_is_alive = {}
+        any_thread_alive = True
+
+        for thread_index in range(threads_quant):
+            cde_threads[thread_index] = cde_thread = Thread(target = lambda : threaded_cde(timeout_semi_list_per_thread[thread_index],thread_index,all_threads_data_list[thread_index],all_threads_files_cde_errors_quant[thread_index]),daemon=True)
+            cde_thread.start()
+
+        #rules
+        files_cde_errors_quant = defaultdict(int)
+
+        while any_thread_alive:
+            any_thread_alive = False
+            now = time()
+            for thread_index in range(threads_quant):
+                #cde_thread = cde_threads[thread_index]
+                #cde_threads[thread_index] = cde_thread = Thread(target = lambda : threaded_cde(timeout_semi_list_per_thread[thread_index]),daemon=True)
+                #cde_thread.start()
+                #cde_thread_is_alive[thread_index] = cde_thread.is_alive
+
+                if cde_threads[thread_index].is_alive():
+                    any_thread_alive = True
+                    if timeout_semi_list_per_thread[thread_index][0]:
+                        timeout_val,subprocess = timeout_semi_list_per_thread[thread_index][0]
+                        if any(abort_list) or (timeout_val and now>timeout_val):
+                            kill_subprocess(subprocess,print_func)
+                            self.killed[thread_index]=True
+                            abort_list[1]=False
+                        #sleep(0.2)
+                    #else:
+                        #sleep(0.4)
+
+                #print_func( ('cde',f'{full_file_path} ({bytes_to_str(size)})',size,files_cde_size_extracted,files_cde_errors_quant_all,files_cde_quant,files_cde_size) )
+
+            files_cde_size_extracted=0
+            files_cde_errors_quant_all=0
+            files_cde_quant=0
+            files_cde_size=0
+
+            for thread_index in range(threads_quant):
+                thread_data_list = all_threads_data_list[thread_index]
+
+                files_cde_size_extracted+=thread_data_list[0]
+                files_cde_errors_quant_all+=thread_data_list[1]
+                files_cde_quant+=thread_data_list[2]
+                files_cde_size+=thread_data_list[3]
+
+                for rule_nr,val in all_threads_files_cde_errors_quant[thread_index].items():
+                    files_cde_errors_quant[rule_nr] += val
+
+
+            print_func( ('cde',f'(multithread run)',0,files_cde_size_extracted,files_cde_errors_quant_all,files_cde_quant,files_cde_size) )
+
+            sleep(0.4)
+
+
+
+        time_end_all = perf_counter()
+
+        self_header.files_cde_errors_quant=files_cde_errors_quant
+        self_header.files_cde_errors_quant_all = files_cde_errors_quant_all
+
+        self_header.files_cde_quant = files_cde_quant
+        self_header.files_cde_size = files_cde_size
+        self_header.files_cde_size_extracted = files_cde_size_extracted
+
+        customdata_stats_time_all[0]=time_end_all-time_start_all
+
+
+
+
+
+        print_func( ('info','custom data extraction finished.'),True)
+
+        customdata_helper={}
+        cd_index=0
+        self_customdata_append = self.customdata.append
+
+        CD_INDEX_ID_loc = CD_INDEX_ID
+        for thread_index in range(threads_quant):
+            for (scan_like_list,subpath,rule_nr,size) in customdata_pool_per_thread[thread_index]:
+                new_elem = scan_like_list[-1]
+                cd_field = new_elem[CD_DATA_ID_loc]
+
+                try:
+                    used_cd_index = customdata_helper[cd_field]
+                    new_elem[CD_INDEX_ID_loc]=used_cd_index
+                    customdata_stats_refs[rule_nr]+=1
+                except:
+                    customdata_helper[cd_field] = new_elem[CD_INDEX_ID_loc] = cd_index
                     cd_index+=1
 
                     self_customdata_append(cd_field)
@@ -721,46 +855,32 @@ class LibrerRecord:
                     customdata_stats_size[rule_nr]+=asizeof(cd_field)
                     customdata_stats_uniq[rule_nr]+=1
                     customdata_stats_refs[rule_nr]+=1
-                else:
-                    new_elem['cd_index']=customdata_helper[cd_field]
-                    customdata_stats_refs[rule_nr]+=1
 
-                #if do_crc:
-                #    new_elem['crc_val']=crc_val
-                scan_like_list.append(new_elem)
 
-            time_end_all = perf_counter()
+                #if cd_field not in customdata_helper:
+                #    customdata_helper[cd_field]=cd_index
+                #    new_elem[CD_INDEX_ID_loc] = cd_index
+                #    new_elem['cd_index']=cd_index
+                #    cd_index+=1
 
-            self_header.files_cde_errors_quant=files_cde_errors_quant
-            self_header.files_cde_errors_quant_all = files_cde_errors_quant_all
+                #    self_customdata_append(cd_field)
 
-            self_header.files_cde_quant = files_cde_quant
-            self_header.files_cde_size = files_cde_size
-            self_header.files_cde_size_extracted = files_cde_size_extracted
+                #    customdata_stats_size[rule_nr]+=asizeof(cd_field)
+                #    customdata_stats_uniq[rule_nr]+=1
+                #    customdata_stats_refs[rule_nr]+=1
+                #else:
+                #    new_elem['cd_index']=customdata_helper[cd_field]
+                #    new_elem[CD_INDEX_ID_loc]=customdata_helper[cd_field]
+                #    customdata_stats_refs[rule_nr]+=1
 
-            customdata_stats_time_all[0]=time_end_all-time_start_all
-            sys.exit() #thread
 
-        timeout_semi_list = [None]
+        print_func( ('info','custom data post-processing finished.'),True)
 
-        cde_thread = Thread(target = lambda : threaded_cde(timeout_semi_list),daemon=True)
-        cde_thread.start()
-        cde_thread_is_alive = cde_thread.is_alive
+        for thread_index in range(threads_quant):
+            cde_threads[thread_index].join()
 
-        while cde_thread_is_alive():
-            if timeout_semi_list[0]:
-                timeout_val,subprocess = timeout_semi_list[0]
-                if any(abort_list) or (timeout_val and time()>timeout_val):
-                    kill_subprocess(subprocess,print_func)
-                    self.killed=True
-                    abort_list[1]=False
-                sleep(0.2)
-            else:
-                sleep(0.4)
-
-        print_func( ('info','custom data extraction finished.'),True)
-
-        cde_thread.join()
+        #print(f'{customdata_helper=}')
+        #print(f'{self.customdata=}')
 
         del self.customdata_pool
         del customdata_helper
@@ -834,19 +954,21 @@ class LibrerRecord:
                         cd_ok = False
                         has_crc = False
                     else:
-                        if 'cd_ok' in info_dict:
-                            cd_ok = info_dict['cd_ok']
-                            cd_index = info_dict['cd_index']
+                        #if 'cd_ok' in info_dict:
+                        if CD_OK_ID in info_dict:
+                            cd_ok = info_dict[CD_OK_ID]
+                            cd_index = info_dict[CD_INDEX_ID]
                             has_cd = True
                         else:
                             cd_ok = False
                             has_cd = False
 
-                        if 'crc_val' in info_dict:
-                            crc_val = info_dict['crc_val']
-                            has_crc = True
-                        else:
-                            has_crc = False
+                        #if 'crc_val' in info_dict:
+                        #    crc_val = info_dict['crc_val']
+                        #    has_crc = True
+                        #else:
+                        #    has_crc = False
+                        has_crc = False
 
                     code_new = LUT_encode_loc[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,False,False) ]
 
@@ -961,6 +1083,17 @@ class LibrerRecord:
 
         self_customdata = self.customdata
 
+        name_func_to_call_bool = bool(name_func_to_call)
+        cd_func_to_call_bool = bool(cd_func_to_call)
+
+        size_min_bool = bool(size_min)
+        size_max_bool = bool(size_max)
+        timestamp_min_bool = bool(timestamp_min)
+        timestamp_max_bool = bool(timestamp_max)
+
+        name_func_to_call_res_cache = {}
+        cd_func_to_call_res_cache = {}
+
         while search_list:
             filestructure,parent_path_components = search_list_pop()
 
@@ -995,8 +1128,17 @@ class LibrerRecord:
                 if is_dir :
                     if when_folder_may_apply:
                         #katalog moze spelniac kryteria naazwy pliku ale nie ma rozmiaru i custom data
-                        if name_func_to_call:
-                            if name_func_to_call(name):
+                        if name_func_to_call_bool:
+                            try:
+                                name_func_to_call_res = name_func_to_call_res_cache[name_nr]
+                            except:
+                                try:
+                                    name_func_to_call_res = name_func_to_call_res_cache[name_nr] = name_func_to_call(name)
+                                except Exception as e:
+                                    print_info_fn(f'find_items(1a):{e}' )
+                                    continue
+
+                            if name_func_to_call_res:
                                 print_func( (search_progress,size,mtime,*next_level) )
 
                     if sub_data:
@@ -1008,26 +1150,31 @@ class LibrerRecord:
                         if size<0:
                             continue
 
-                        if size_min:
+                        if size_min_bool:
                             if size<size_min:
                                 continue
-                        if size_max:
+                        if size_max_bool:
                             if size>size_max:
                                 continue
                     if use_timestamp:
-                        if timestamp_min:
+                        if timestamp_min_bool:
                             if mtime<timestamp_min:
                                 continue
-                        if timestamp_max:
+                        if timestamp_max_bool:
                             if mtime>timestamp_max:
                                 continue
 
                     if name_func_to_call:
                         try:
-                            if not name_func_to_call(name):
+                            name_func_to_call_res = name_func_to_call_res_cache[name_nr]
+                        except:
+                            try:
+                                name_func_to_call_res = name_func_to_call_res_cache[name_nr] = name_func_to_call(name)
+                            except Exception as e:
+                                print_info_fn(f'find_items(1b):{e}' )
                                 continue
-                        except Exception as e:
-                            print_info_fn(f'find_items(1):{e}' )
+
+                        if not name_func_to_call_res:
                             continue
 
                     #oczywistosc
@@ -1043,12 +1190,17 @@ class LibrerRecord:
                         else:
                             continue
 
-                        if cd_func_to_call:
+                        if cd_func_to_call_bool:
                             try:
-                                if not cd_func_to_call(cd_data):
+                                cd_func_to_call_res = cd_func_to_call_res_cache[cd_nr]
+                            except:
+                                try:
+                                    cd_func_to_call_res = cd_func_to_call_res_cache[cd_nr] = cd_func_to_call(cd_data)
+                                except Exception as e:
+                                    print_info_fn(f'find_items(2):{e}' )
                                     continue
-                            except Exception as e:
-                                print_info_fn(f'find_items(2):{e}' )
+
+                            if not cd_func_to_call_res:
                                 continue
 
                         else:
@@ -1794,8 +1946,8 @@ class LibrerCore:
 
                 if cd:
                     new_elem={}
-                    new_elem['cd_index']=cd_index
-                    new_elem['cd_ok']=True
+                    new_elem[CD_INDEX_ID]=cd_index
+                    new_elem[CD_OK_ID]=True
 
                     temp_list_ref.append(new_elem)
 
@@ -2183,6 +2335,8 @@ class LibrerCore:
         self.stdout_files_cde_size_sum=0
 
         def threaded_run(command,results_semi_list,info_semi_list,processes_semi_list):
+            command_str = ' '.join(command)
+            print(f'create_new_record - threaded_run {command_str=}')
             try:
                 subprocess = uni_popen(command,stdin=PIPE)
             except Exception as re:

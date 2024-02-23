@@ -26,7 +26,7 @@
 #
 ####################################################################################
 
-from os import sep,system,getcwd,name as os_name
+from os import sep,system,getcwd,name as os_name,cpu_count
 from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect
 
@@ -177,9 +177,9 @@ class Config:
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','more %','','1','5','0']
                 line_list3 =  ['0','*.pls,*.m3u,*.cue','','','more %','','1','5','0']
                 line_list4 =  ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','ffprobe.exe -hide_banner %','','1','5','0']
-                line_list4a =  ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','MediaInfo.exe','%','0','5','0']
+                line_list4a = ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','MediaInfo.exe','%','0','5','0']
                 line_list5 =  ['0','*.jpg','','','exiftool.exe','%','0','5','0']
-                line_list5a =  ['0','*.exe','','','exiftool.exe','%','0','5','0']
+                line_list5a = ['0','*.exe','','','exiftool.exe','%','0','5','0']
 
                 cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list4a,line_list5,line_list5a]
             else:
@@ -1046,6 +1046,9 @@ class Gui:
     def scan_comp_set(self):
         self.scan_compr_var_int.set(int(self.scan_compr_var.get()))
 
+    def scan_threads_set(self):
+        self.scan_threads_var_int.set(int(self.scan_threads_var.get()))
+
     scan_dialog_created = False
     @restore_status_line
     @block
@@ -1124,16 +1127,30 @@ class Gui:
             self.scan_compr_var = IntVar()
             self.scan_compr_var_int = IntVar()
 
+            self.scan_threads_var = IntVar()
+            self.scan_threads_var_int = IntVar()
+
             self.scan_compr_var.set(9)
             self.scan_compr_var_int.set(9)
 
-            (compr_in_label := Label(scan_options_frame, textvariable=self.scan_compr_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='right',padx=2,pady=2)
-            (compr_scale := Scale(scan_options_frame, variable=self.scan_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.scan_comp_set(),style="TScale",length=200)).pack(fill='x',side='right',expand=1,padx=2)
+            self.scan_threads_var.set(1)
+            self.scan_threads_var_int.set(1)
+
             (compr_label := Label(scan_options_frame, text='Compression:',bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
+            (compr_scale := Scale(scan_options_frame, variable=self.scan_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.scan_comp_set(),style="TScale",length=160)).pack(fill='x',side='left',expand=1,padx=2)
+            (compr_in_label := Label(scan_options_frame, textvariable=self.scan_compr_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='left',padx=2,pady=2)
             compr_tooltip = "Data record internal compression. A higher value\nmeans a smaller file and longer compression time.\nvalues above 20 may result in extremely long compression\nand memory consumption. The default value is 9."
             self.widget_tooltip(compr_scale,compr_tooltip)
             self.widget_tooltip(compr_label,compr_tooltip)
             self.widget_tooltip(compr_in_label,compr_tooltip)
+
+            (threads_in_label := Label(scan_options_frame, textvariable=self.scan_threads_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='right',padx=2,pady=2)
+            (threads_scale := Scale(scan_options_frame, variable=self.scan_threads_var, orient='horizontal',from_=0, to=cpu_count(),command=lambda x : self.scan_threads_set(),style="TScale",length=160)).pack(fill='x',side='right',expand=1,padx=2)
+            (threads_label := Label(scan_options_frame, text='CDE Threads:',bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
+            threads_tooltip = "Number of threads used to extract Custom Data\n\n0 - all available CPU cores\n1 - single thread (default value)\n\nThe optimal value depends on the CPU cores performace,\nIO subsystem performance and Custom Data Extractor specifics.\n\nConsider limitations of parallel CDE execution e.g.\nnumber of licenses of used software,\nused working directory, needed memory etc."
+            self.widget_tooltip(threads_scale,threads_tooltip)
+            self.widget_tooltip(threads_label,threads_tooltip)
+            self.widget_tooltip(threads_in_label,threads_tooltip)
 
             self.single_device=BooleanVar()
             single_device_button = Checkbutton(dialog.area_buttons,text='one device mode',variable=self.single_device)
@@ -3521,8 +3538,10 @@ class Gui:
         self.scanning_in_progress=True
 
         compression_level = self.scan_compr_var_int.get()
+        threads = self.scan_threads_var_int.get()
+
         try:
-            if self.scan(compression_level,group):
+            if self.scan(compression_level,threads,group):
                 self.scan_dialog_hide_wrapper()
         except Exception as e:
             l_error(f'scan_wraper: {e}')
@@ -3540,7 +3559,7 @@ class Gui:
 
     @restore_status_line
     @logwrapper
-    def scan(self,compression_level,group=None):
+    def scan(self,compression_level,threads,group=None):
         path_to_scan_from_entry = abspath(self.path_to_scan_entry_var.get())
 
         if not path_to_scan_from_entry:
@@ -3691,7 +3710,11 @@ class Gui:
 
         try:
             with open(sep.join([self.temp_dir,SCAN_DAT_FILE]), "wb") as f:
-                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,cde_list])))
+                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
+
+            #debug
+            #with open(sep.join(['/home/xy/private/essential/librer-devel/tmp1',SCAN_DAT_FILE]), "wb") as f:
+            #    f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
         except Exception as e:
             print(e)
         else:

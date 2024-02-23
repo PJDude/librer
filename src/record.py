@@ -334,7 +334,7 @@ if __name__ == "__main__":
                 with open(sep.join([comm_dir,SCAN_DAT_FILE]),"rb") as f:
                     create_list = loads(ZstdDecompressor().decompress(f.read()))
 
-                label,path_to_scan,check_dev,cde_list = create_list
+                label,path_to_scan,check_dev,compression_level,threads,cde_list = create_list
             except Exception as e:
                 print_info(f'create error:{e}')
                 proper_exit(2)
@@ -351,14 +351,14 @@ if __name__ == "__main__":
                         if cde_list :
                             try:
                                 print_func(['stage',1],True)
-                                new_record.extract_customdata(print_func,abort_list)
+                                new_record.extract_customdata(print_func,abort_list,threads_quant=threads)
                             except Exception as cde:
                                 print_info(f'cde error:{cde}')
 
                         print_func(['stage',2],True)
                         new_record.pack_data(print_func)
                         print_func(['stage',3],True)
-                        new_record.save(print_func,file_path=args.file,compression_level=9)
+                        new_record.save(print_func,file_path=args.file,compression_level=compression_level)
                         print_func(['stage',4],True)
 
         #####################################################################
