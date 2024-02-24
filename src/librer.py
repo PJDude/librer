@@ -28,7 +28,7 @@
 
 from os import sep,system,getcwd,name as os_name,cpu_count
 from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile
-from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect
+from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
 from pathlib import Path
 from time import strftime,time,mktime
@@ -172,8 +172,8 @@ class Config:
             #use,mask,smin,smax,exe,pars,shell,timeout,crc
 
             if windows:
-                line_list1 =  ['0','*.rar,*.zip,*.cab,*.arj,*.lzh,*.uue,*.z,*.bz2,*.gzip,*.iso,*.7z','','','C:\\Program Files\\WinRAR\\UnRAR.exe','l %','0','10','0']
-                line_list1a = ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.cab,*.lzh,*.lzma,*.vdi,*.vhd','','','C:\\Program Files\\7-Zip\\7z.exe','l %','0','10','0']
+                line_list1  = ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.lzh,*.lzma,*.vdi,*.vhd','','','C:\\Program Files\\7-Zip\\7z.exe','l %','0','10','0']
+                line_list1a = ['0','*.rar','','','C:\\Program Files\\WinRAR\\UnRAR.exe','l %','0','10','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','more %','','1','5','0']
                 line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl','','','more %','','1','5','0']
                 line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe.exe','-hide_banner %','0','5','0']
@@ -183,7 +183,7 @@ class Config:
 
                 cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list4a,line_list5,line_list5a]
             else:
-                line_list1 =  ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.cab,*.lzh,*.lzma,*.vdi,*.vhd','','','7z','l %','0','10','0']
+                line_list1 =  ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.lzh,*.lzma,*.vdi,*.vhd','','','7z','l %','0','10','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','cat','%','0','5','0']
                 line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl','','','cat','%','0','5','0']
                 line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe','-hide_banner %','0','5','0']
@@ -3570,7 +3570,7 @@ class Gui:
             self.get_info_dialog_on_scan().show('Error. No paths to scan.','Add paths to scan.')
             return False
 
-        #wryfikacja
+        #weryfikacja
         for e in range(self.CDE_ENTRIES_MAX):
             if self.CDE_use_var_list[e].get():
                 mask = self.CDE_mask_var_list[e].get().strip()
@@ -3589,6 +3589,24 @@ class Gui:
                 shell = self.CDE_shell_var_list[e].get()
 
                 command,command_info = get_command(executable,parameters,'dummy full_file_path',shell)
+
+        all_timeout_set = True
+        for e in range(self.CDE_ENTRIES_MAX):
+            if self.CDE_use_var_list[e].get():
+                timeout = self.CDE_timeout_var_list[e].get().strip()
+
+                try:
+                    timeout_int = int(timeout)
+                except:
+                    all_timeout_set = False
+
+        if not all_timeout_set:
+            ask_dialog = self.get_text_ask_dialog_on_scan()
+            ask_dialog.show('CDE Timeout not set?','Continue without Custom Data Extractor timeout ?')
+
+            if not ask_dialog.res_bool:
+                return False
+
 
         self.last_dir = path_to_scan_from_entry
 
@@ -3717,7 +3735,7 @@ class Gui:
                 f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
 
             #debug
-            #with open(sep.join(['/home/xy/private/essential/librer-devel/tmp1',SCAN_DAT_FILE]), "wb") as f:
+            #with open(sep.join(['./tmp1',SCAN_DAT_FILE]), "wb") as f:
             #    f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
         except Exception as e:
             print(e)
@@ -3795,16 +3813,20 @@ class Gui:
                         if not switch_done:
                             self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
                             self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
-                            self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single(),state='normal')
+
+                            if threads==1:
+                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single(),state='normal')
+                            else:
+                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,state='disabled')
 
                             self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Abort',compound='left',width=15,state='normal')
 
                             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom Data will be incomplete.'
-                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]='Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.'
+                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]='Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.\n\nAvailable only for single thread mode.'
                             switch_done=True
 
-                        change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(librer_core.stdout_files_cde_size_extracted) )
-                        change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_files_cde_errors_quant_all) )
+                        change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(librer_core.stdout_cde_size_extracted) )
+                        change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_cde_errors_quant_all) )
 
                         files_q = librer_core.stdout_files_cde_quant
 
@@ -3817,24 +3839,11 @@ class Gui:
                         self_progress_dialog_on_scan_lab_r1_config(text=f'{local_bytes_to_str(librer_core.stdout_files_cde_size)} / {local_bytes_to_str(librer_core.stdout_files_cde_size_sum)}')
                         self_progress_dialog_on_scan_lab_r2_config(text=f'{fnumber(files_q)} / {fnumber(librer_core.stdout_files_cde_quant_sum)}')
 
-                        if change3 or change4:
-                            time_to_show_busy_sign=now+1.0
-
-                            if update_once:
-                                update_once=False
-                                self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
-                                self_progress_dialog_on_scan_update_lab_text(0,'')
-                        else :
-                            if now>time_to_show_busy_sign:
-                                if len(librer_core.stdout_info_line_current)>50:
-                                    change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
-                                else:
-                                    change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
-
-                                self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
-                                update_once=True
 
                     else:
+                        change3 = False
+                        change4 = False
+
                         self_progress_dialog_on_scan.abort_button.configure(state='disabled')
                         self_progress_dialog_on_scan.abort_single_button.configure(state='disabled')
 
@@ -3842,6 +3851,25 @@ class Gui:
                             change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
                         else:
                             change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
+
+                    ###############################################
+                    if change3 or change4:
+                        time_to_show_busy_sign=now+1.0
+
+                        if update_once:
+                            update_once=False
+                            self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+                            self_progress_dialog_on_scan_update_lab_text(0,'')
+                    else :
+                        if now>time_to_show_busy_sign:
+                            if len(librer_core.stdout_info_line_current)>50:
+                                change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
+                            else:
+                                change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
+
+                            self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
+                            update_once=True
+                    ###############################################
 
                 except Exception as e:
                     print(e)
@@ -4558,6 +4586,9 @@ class Gui:
 
 if __name__ == "__main__":
     try:
+        allocs, g1, g2 = gc_get_threshold()
+        gc_set_threshold(100_000, g1*5, g2*10)
+
         LIBRER_FILE = normpath(__file__)
         LIBRER_DIR = dirname(LIBRER_FILE)
 
