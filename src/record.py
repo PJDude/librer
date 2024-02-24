@@ -126,17 +126,21 @@ def caretaker(signal_file):
     sys_stdout_flush = sys.stdout.flush
     lines_non_stop=0
 
+    json_dumps_loc = json_dumps
+    stdout_data_queue_loc = stdout_data_queue
+    path_exists_loc = path_exists
+
     def flush_last_data_not_printed(flush):
         nonlocal last_data_not_printed
         if last_data_not_printed:
-            print(json_dumps(last_data_not_printed),flush=flush)
+            print(json_dumps_loc(last_data_not_printed),flush=flush)
             last_data_not_printed=None
 
     while True:
         now=perf_counter()
         now_grater_than_next_time_print = bool(now>next_time_print)
 
-        if stdout_data_queue:
+        if stdout_data_queue_loc:
             data,always=stdout_data_queue_get()
 
             if data==True:
@@ -146,7 +150,7 @@ def caretaker(signal_file):
                 flush_last_data_not_printed(False)
 
             if always or now_grater_than_next_time_print:
-                print(json_dumps(data),flush=True)
+                print(json_dumps_loc(data),flush=True)
                 next_time_print=now+print_min_time_period
                 lines_non_stop+=1
                 last_data_not_printed=None
@@ -163,7 +167,7 @@ def caretaker(signal_file):
 
         if now>next_signal_file_check:
             next_signal_file_check=now+signal_file_check_period
-            if path_exists(signal_file):
+            if path_exists_loc(signal_file):
                 try:
                     with open(signal_file,'r') as sf:
                         got_int = int(sf.read().strip())
@@ -174,7 +178,7 @@ def caretaker(signal_file):
                 except Exception as pe:
                     print_info(f'check_abort error:{pe}')
 
-        sleep(0.01)
+        sleep(0.001)
 
     sys.exit(0) #thread
 
@@ -342,7 +346,7 @@ if __name__ == "__main__":
                 new_record = LibrerRecord(label=label,scan_path=path_to_scan)
 
                 try:
-                    print_func(['stage',0],True)
+                    print_func(('stage',0),True)
                     new_record.scan(print_func,abort_list,tuple(cde_list),check_dev)
                 except Exception as fe:
                     print_info(f'scan error:{fe}')
@@ -350,16 +354,16 @@ if __name__ == "__main__":
                     if not abort_list[0]:
                         if cde_list :
                             try:
-                                print_func(['stage',1],True)
-                                new_record.extract_customdata(print_func,abort_list,threads_quant=threads)
+                                print_func(('stage',1),True)
+                                new_record.extract_customdata(print_func,abort_list,threads=threads)
                             except Exception as cde:
                                 print_info(f'cde error:{cde}')
 
-                        print_func(['stage',2],True)
+                        print_func(('stage',2),True)
                         new_record.pack_data(print_func)
-                        print_func(['stage',3],True)
+                        print_func(('stage',3),True)
                         new_record.save(print_func,file_path=args.file,compression_level=compression_level)
-                        print_func(['stage',4],True)
+                        print_func(('stage',4),True)
 
         #####################################################################
     else:
