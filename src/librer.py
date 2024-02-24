@@ -1661,17 +1661,33 @@ class Gui:
             (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
             self.find_range_cb1 = Radiobutton(find_filename_frame,text='Selected record / group',variable=self.find_range_all,value=False,command=self.find_mod)
             self.find_range_cb1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            self.find_range_cb1.bind('<Return>', lambda event : self.find_items())
 
-            (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
+
+            find_range_cb2 = Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)
+            find_range_cb2.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+            find_range_cb2.bind('<Return>', lambda event : self.find_items())
 
             (find_filename_frame := LabelFrame(sfdma,text='Path elements',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
-            Radiobutton(find_filename_frame,text="Don't use this criterion",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod)
+            r_dont = Radiobutton(find_filename_frame,text="Don't use this criterion",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30)
+            r_dont.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            r_dont.bind('<Return>', lambda event : self.find_items())
+
+            #Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod)
             #.grid(row=1, column=0, sticky='news',padx=4,pady=4)
-            (regexp_radio_name:=Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
-            (glob_radio_name:=Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-            (fuzzy_radio_name:=Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
+
+            regexp_radio_name=Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)
+            regexp_radio_name.grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            regexp_radio_name.bind('<Return>', lambda event : self.find_items())
+
+            glob_radio_name=Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)
+            glob_radio_name.grid(row=3, column=0, sticky='news',padx=4,pady=4)
+            glob_radio_name.bind('<Return>', lambda event : self.find_items())
+
+            fuzzy_radio_name=Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)
+            fuzzy_radio_name.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            fuzzy_radio_name.bind('<Return>', lambda event : self.find_items())
 
             regexp_tooltip = "Regular expression\n"
             regexp_tooltip_name = "Checked on the file\nor folder name."
@@ -1720,13 +1736,33 @@ class Gui:
 
             (find_cd_frame := LabelFrame(sfdma,text='Custom Data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
 
-            Radiobutton(find_cd_frame,text="Don't use this criterion",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="files without Custom Data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="files with any correct Custom Data ",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-            (regexp_radio_cd:=Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
-            (glob_radio_cd:=Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)).grid(row=5, column=0, sticky='news',padx=4,pady=4)
-            (fuzzy_radio_cd:=Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod)).grid(row=6, column=0, sticky='news',padx=4,pady=4)
+            r_dont2 = Radiobutton(find_cd_frame,text="Don't use this criterion",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30)
+            r_dont2.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            r_dont2.bind('<Return>', lambda event : self.find_items())
+
+            r_without = Radiobutton(find_cd_frame,text="files without Custom Data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod)
+            r_without.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+            r_without.bind('<Return>', lambda event : self.find_items())
+
+            r_correct = Radiobutton(find_cd_frame,text="files with any correct Custom Data ",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod)
+            r_correct.grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            r_correct.bind('<Return>', lambda event : self.find_items())
+
+            r_error = Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod)
+            r_error.grid(row=3, column=0, sticky='news',padx=4,pady=4)
+            r_error.bind('<Return>', lambda event : self.find_items())
+
+            regexp_radio_cd = Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)
+            regexp_radio_cd.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            regexp_radio_cd.bind('<Return>', lambda event : self.find_items())
+
+            glob_radio_cd = Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)
+            glob_radio_cd.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            glob_radio_cd.bind('<Return>', lambda event : self.find_items())
+
+            fuzzy_radio_cd = Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod)
+            fuzzy_radio_cd.grid(row=6, column=0, sticky='news',padx=4,pady=4)
+            fuzzy_radio_cd.bind('<Return>', lambda event : self.find_items())
 
             self.find_cd_regexp_entry = Entry(find_cd_frame,textvariable=self.find_cd_regexp_var,validate="key")
             self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
@@ -3922,25 +3958,27 @@ class Gui:
         return True
 
     def remove_record(self):
-        label = librer_core.get_record_name(self.current_record)
-        path = self.current_record.header.scan_path
-        creation_time = self.current_record.header.creation_time
+        record = self.current_record
+        label = librer_core.get_record_name(record)
+        path = record.header.scan_path
+        creation_time = record.header.creation_time
 
         dialog = self.get_simple_question_dialog()
 
-        dialog.show('Delete selected data record ?',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo_short) )
+        dialog.show('Delete selected data record ?',librer_core.record_info_alias_wrapper(record,record.txtinfo_short) )
 
         if dialog.res_bool:
-            record_item = self.record_to_item[self.current_record]
+            record_item = self.record_to_item[record]
             self.tree.delete(record_item)
 
-            del self.record_to_item[self.current_record]
+            del self.record_to_item[record]
             del self.item_to_record[record_item]
 
-            res=librer_core.delete_record(self.current_record)
+            res=librer_core.delete_record(record)
             l_info(f'deleted file:{res}')
 
             self.find_clear()
+            #record.find_results_clean()
 
             self.status_record_configure('')
             if remaining_records := self.tree.get_children():
@@ -4285,6 +4323,7 @@ class Gui:
 
                 if tree.tag_has(self.RECORD_RAW,item):
                     self.access_filestructure(record)
+
                     self_item_to_data[item] = record.filestructure
                     self.tree.item(item,tags=self.RECORD, image=self.ico_record_cd if record.has_cd() else self.ico_record)
                     self.tree_select() #tylko dla aktualizacja ikony
@@ -4528,6 +4567,15 @@ class Gui:
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
                 self.get_text_info_dialog().show('Record Info.',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
 
+    def purify_items_cache(self):
+        self_item_to_data = self.item_to_data
+        self_tree_exists = self.tree.exists
+        for item in list(self_item_to_data):
+            if not self_tree_exists(item):
+                del self_item_to_data[item]
+
+        #print('self_item_to_data:',len(self_item_to_data.keys()),asizeof(self_item_to_data))
+
     @block
     @logwrapper
     def unload_record(self,record=None):
@@ -4540,12 +4588,19 @@ class Gui:
             self_tree = self.tree
 
             self_tree.delete(*self_tree.get_children(record_item))
+
+            if record_item in self.item_to_data:
+                del self.item_to_data[record_item]
+                self.purify_items_cache()
+
+            record.unload_filestructure()
+            record.unload_customdata()
+            #self.find_clear()
+
             self_tree.insert(record_item,'end',text='dummy') #dummy_sub_item
             self_tree.set(record_item,'opened','0')
             self_tree.item(record_item, open=False)
 
-            record.unload_filestructure()
-            record.unload_customdata()
             self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
             self_tree.focus(record_item)
             self_tree.see(record_item)

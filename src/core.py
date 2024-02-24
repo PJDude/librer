@@ -1366,11 +1366,10 @@ class LibrerRecord:
             with ZipFile(self.file_path, "r") as zip_file:
                 decompressor = ZstdDecompressor()
 
-                filestructure_ser = decompressor.decompress(zip_file.read('filestructure'))
-                self.filestructure = loads( filestructure_ser )
+                self.filestructure = loads( decompressor.decompress(zip_file.read('filestructure')) )
+                self.filenames = loads( decompressor.decompress(zip_file.read('filenames')) )
 
-                filenames_ser = decompressor.decompress(zip_file.read('filenames'))
-                self.filenames = loads(filenames_ser)
+                del decompressor
 
             self.decompressed_filestructure = True
             self.prepare_info()
@@ -1381,6 +1380,8 @@ class LibrerRecord:
 
     def unload_filestructure(self):
         self.decompressed_filestructure = False
+        del self.filestructure
+        gc_collect()
         self.filestructure = ()
         self.prepare_info()
 
@@ -1388,12 +1389,14 @@ class LibrerRecord:
     def decompress_customdata(self):
         if not self.decompressed_customdata:
             with ZipFile(self.file_path, "r") as zip_file:
+                decompressor = ZstdDecompressor()
                 try:
-                    customdata_ser_comp = zip_file.read('customdata')
-                    customdata_ser = ZstdDecompressor().decompress(customdata_ser_comp)
-                    self.customdata = loads( customdata_ser )
+                    self.customdata = loads( decompressor.decompress( zip_file.read('customdata') ) )
                 except:
                     self.customdata = []
+
+                del decompressor
+                gc_collect()
 
             self.decompressed_customdata = True
             self.prepare_info()
@@ -1404,6 +1407,8 @@ class LibrerRecord:
 
     def unload_customdata(self):
         self.decompressed_customdata = False
+        del self.customdata
+        gc_collect()
         self.customdata = []
         self.prepare_info()
 
