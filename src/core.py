@@ -751,6 +751,8 @@ class LibrerRecord:
             cde_threads[thread_index] = cde_thread = Thread(target = lambda : threaded_cde(timeout_semi_list_per_thread[thread_index],thread_index,all_threads_data_list[thread_index],all_threads_files_cde_errors_quant[thread_index],all_threads_customdata_stats_time[thread_index]),daemon=True)
             cde_thread.start()
 
+        self_killed = self.killed
+
         while any_thread_alive:
             any_thread_alive = False
             now = time()
@@ -842,8 +844,6 @@ class LibrerRecord:
         self_header.cde_stats_uniq=customdata_stats_uniq
         self_header.cde_stats_refs=customdata_stats_refs
         self_header.cde_stats_time=customdata_stats_time
-
-
 
     #############################################################
     def sld_recalc_rec(self,scan_like_data):

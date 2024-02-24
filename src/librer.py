@@ -1398,6 +1398,19 @@ class Gui:
 
         return self.text_ask_dialog_on_scan
 
+    ask_dialog_on_scan_created = False
+    @restore_status_line
+    @block
+    def get_ask_dialog_on_scan(self):
+        if not self.ask_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.ask_dialog_on_scan = LabelDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
+
+            self.ask_dialog_on_scan_created = True
+
+        return self.ask_dialog_on_scan
+
     text_ask_dialog_on_main_created = False
     @restore_status_line
     @block
@@ -3601,8 +3614,8 @@ class Gui:
                     all_timeout_set = False
 
         if not all_timeout_set:
-            ask_dialog = self.get_text_ask_dialog_on_scan()
-            ask_dialog.show('CDE Timeout not set?','Continue without Custom Data Extractor timeout ?')
+            ask_dialog = self.get_ask_dialog_on_scan()
+            ask_dialog.show('CDE Timeout not set','Continue without Custom Data Extractor timeout ?')
 
             if not ask_dialog.res_bool:
                 return False
