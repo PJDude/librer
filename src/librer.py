@@ -1250,7 +1250,7 @@ class Gui:
 
                 self.up_button[e] = Button(cde_frame,image=self.ico_up,command = lambda x=e : self.cde_up(x) )
 
-                if row>1:
+                if row>2:
                     self.up_button[e].grid(row=row,column=0,sticky='news')
 
                 self.use_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
