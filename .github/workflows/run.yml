@@ -238,7 +238,7 @@ jobs:
         path: ./
 
     - name: rename windows distro
-      run: mv ./librer.win.zip ./librer_devel.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
+      run: mv ./librer.win.zip ./librer_devel.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
 
     #####################################
     - name: download linux nuitka distro
@@ -248,7 +248,7 @@ jobs:
         path: ./
 
     - name: rename linux distro
-      run: mv ./librer.lin.zip ./librer_devel.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
+      run: mv ./librer.lin.zip ./librer_devel.${{ steps.version.outputs.version }}.portable.linux.nuitka.zip
 
     #####################################
     - name: Create GitHub release
@@ -262,7 +262,7 @@ jobs:
         prerelease: true
         files: |
             librer_devel.${{ steps.version.outputs.version }}.portable.linux.zip
+            librer_devel.${{ steps.version.outputs.version }}.portable.linux.nuitka.zip
             librer_devel.${{ steps.version.outputs.version }}.portable.windows.zip
-            librer_devel.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
-            librer_devel.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
+            librer_devel.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
 
