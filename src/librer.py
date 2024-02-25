@@ -103,6 +103,8 @@ CFG_KEY_import_crc = 'export_crc'
 
 CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
+CFG_KEY_show_popups = 'show_popups'
+CFG_KEY_groups_collapse = 'groups_collapse'
 
 cfg_defaults={
     CFG_KEY_SINGLE_DEVICE:True,
@@ -138,7 +140,9 @@ cfg_defaults={
     CFG_KEY_import_crc:True,
 
     CFG_last_dir:'.',
-    CFG_geometry:''
+    CFG_geometry:'',
+    CFG_KEY_show_popups:True,
+    CFG_KEY_groups_collapse:True
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -487,9 +491,9 @@ class Gui:
 
         bg_focus='#90DD90'
         bg_focus_off='#90AA90'
-        bg_sel='#AAAAAA'
+        #bg_sel='#AAAAAA'
 
-        style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
+        style_map('Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
 
         #style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
 
@@ -626,6 +630,8 @@ class Gui:
                 self_file_cascade_add_command(label = 'Import "Where Is It?" xml ...', command = self.record_import_wii,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
+                self_file_cascade_add_separator()
+                self_file_cascade_add_command(label = 'Settings ...',command = self.settings_show, accelerator="F4",image = self.ico_empty,compound='left',state = 'normal')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
                 self_file_cascade_add_separator()
@@ -806,9 +812,9 @@ class Gui:
             self_progress_dialog_on_load.hide(True)
             read_thread.join()
 
-
             if self.action_abort:
                 self.info_dialog_on_main.show('Records loading aborted','Restart Librer to gain full access to the recordset.')
+
 
         if load_errors:
             self.get_text_info_dialog().show('Loading errors','\n\n'.join(load_errors) )
@@ -818,6 +824,10 @@ class Gui:
         self.main_config(cursor='')
 
         self.tree_semi_focus()
+
+        #for child in self.tree.get_children():
+        #    self.tree.item(child, open=False)
+
         self.status_info.configure(image='',text = 'Ready')
 
         tree_bind = tree.bind
@@ -834,6 +844,9 @@ class Gui:
         tree_bind("<<TreeviewSelect>>", lambda event : self.tree_select())
 
         self_main_bind = self_main.bind
+
+        self.tree.bind("<FocusOut>",lambda event : self.tree_focus_out() )
+        self.tree.bind("<FocusIn>",lambda event : self.tree_focus_in() )
 
         self_main_bind("<FocusOut>",lambda event : self.menubar_unpost() )
         self_main_bind("<FocusIn>",lambda event : self.focusin() )
@@ -866,6 +879,8 @@ class Gui:
         self_main_bind('<F5>', lambda event : self.record_repack() )
 
         self_main_bind('<F3>', lambda event : self.find_next() )
+        self_main_bind('<F4>', lambda event : self.settings_show() )
+
         self_main_bind('<Shift-F3>', lambda event : self.find_prev())
 
         self_main_bind('<F2>', lambda event : self.alias_name() )
@@ -884,6 +899,29 @@ class Gui:
         self.processing_on()
 
         self_main.mainloop()
+
+    def tree_focus_out(self):
+        tree = self.tree
+        item=tree.focus()
+        if item:
+            tree.selection_set(item)
+            self.selected=item
+
+    selected=None
+
+    def tree_focus_in(self):
+        try:
+            if selection := self.tree.selection():
+                item=selection[0]
+                tree.selection_remove(item)
+                tree.focus(item)
+                self.tree_sel_change(item,True)
+            elif item:=self.selected:
+                tree.focus(item)
+                self.tree_sel_change(item,True)
+
+        except Exception as e:
+            l_error(f'groups_tree_focus_in:{e}')
 
     def tree_scrollbar_set(self,v1,v2):
         if v1=='0.0' and v2=='1.0':
@@ -1582,6 +1620,45 @@ class Gui:
             self.assign_to_group_dialog_created = True
         return self.assign_to_group_dialog
 
+    settings_dialog_created = False
+    @restore_status_line
+    @block
+    def get_settings_dialog(self):
+        if not self.settings_dialog_created:
+            self.status("Creating dialog ...")
+
+            self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show,post_close=self.post_close)
+
+            sfdma = self.settings_dialog.area_main
+
+            self.show_popups_var = BooleanVar()
+            self.popups_cb = Checkbutton(sfdma,text='Show tooltips',variable=self.show_popups_var,command=self.popups_show_mod)
+            self.popups_cb.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+
+            self.groups_collapsed_var = BooleanVar()
+            self.popups_cb = Checkbutton(sfdma,text='Groups collapsed at startup',variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
+            self.popups_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+
+            sfdma.grid_columnconfigure( 0, weight=1)
+
+            Button(self.settings_dialog.area_buttons, text='Close', width=14, command=self.settings_close ).pack(side='right', anchor='n',padx=5,pady=5)
+
+            self.settings_dialog_created = True
+
+        self.show_popups_var.set(self.cfg.get(CFG_KEY_show_popups))
+        self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
+
+        return self.settings_dialog
+
+    def popups_show_mod(self):
+        self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
+
+    def groups_collapse_mod(self):
+        self.cfg.set(CFG_KEY_groups_collapse,self.groups_collapsed_var.get())
+
+    def settings_close(self):
+        self.settings_dialog.hide()
+
     find_dialog_created = False
     @restore_status_line
     @block
@@ -1662,7 +1739,6 @@ class Gui:
             self.find_range_cb1 = Radiobutton(find_filename_frame,text='Selected record / group',variable=self.find_range_all,value=False,command=self.find_mod)
             self.find_range_cb1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
             self.find_range_cb1.bind('<Return>', lambda event : self.find_items())
-
 
             find_range_cb2 = Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)
             find_range_cb2.grid(row=0, column=1, sticky='news',padx=4,pady=4)
@@ -2211,7 +2287,7 @@ class Gui:
 
         self.configure_tooltip(event.widget)
 
-        self.tooltip_deiconify()
+        self.tooltip_deiconify_wrapp()
 
         self.adaptive_tooltip_geometry(event)
 
@@ -2239,6 +2315,10 @@ class Gui:
         subpath_list.reverse()
         return (item,current_record_name,subpath_list)
 
+    def tooltip_deiconify_wrapp(self):
+        if self.cfg.get(CFG_KEY_show_popups):
+            self.tooltip_deiconify()
+
     def show_tooltips_tree(self,event):
         self.unschedule_tooltips_tree(event)
         self.menubar_unpost()
@@ -2250,7 +2330,7 @@ class Gui:
             if tree.identify("region", event.x, event.y) == 'heading':
                 if colname in ('path','size_h','ctime_h'):
                     self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
-                    self.tooltip_deiconify()
+                    self.tooltip_deiconify_wrapp()
                 else:
                     self.hide_tooltip()
 
@@ -2292,7 +2372,7 @@ class Gui:
 
                             self.tooltip_lab_configure(text='\n'.join(tooltip_list))
 
-                        self.tooltip_deiconify()
+                        self.tooltip_deiconify_wrapp()
                     else:
                         self.tooltip_lab_configure(text='label')
 
@@ -2301,7 +2381,7 @@ class Gui:
 
                     if coldata:
                         self.tooltip_lab_configure(text=coldata)
-                        self.tooltip_deiconify()
+                        self.tooltip_deiconify_wrapp()
 
                     else:
                         self.hide_tooltip()
@@ -2396,6 +2476,13 @@ class Gui:
     any_valid_find_results=False
 
     find_params_changed=True
+
+    @block
+    def settings_show(self):
+        dialog = self.get_settings_dialog()
+        dialog.show('Settings')
+
+        self.tree_semi_focus()
 
     @block
     def finder_wrapper_show(self):
@@ -2708,8 +2795,8 @@ class Gui:
                 sel_range = librer_core.records
             else:
                 sel_range = self.get_selected_records()
-                sel_range_info = ','.join([librer_core.get_record_name(rec) for rec in sel_range])
-                search_info_lines_append(f'Search in records:{sel_range_info}')
+                sel_range_info = '\n'.join([librer_core.get_record_name(rec) for rec in sel_range])
+                search_info_lines_append(f'Search in records:\n{sel_range_info}')
 
             #if self.current_record:
             #    search_info_lines_append(f'Search in record:{librer_core.get_record_name(self.current_record)}')
@@ -3092,7 +3179,7 @@ class Gui:
             self.tree.see(current_item)
             self.tree.update()
 
-            self_tree.selection_set(current_item)
+            #self_tree.selection_set(current_item)
 
             self_tree.focus(current_item)
 
@@ -3216,8 +3303,8 @@ class Gui:
                 l_error(e)
                 self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
 
-            if tree_focus:=tree.focus():
-                tree.selection_set(tree_focus)
+            #if tree_focus:=tree.focus():
+            #    tree.selection_set(tree_focus)
 
 #################################################
     def select_and_focus(self,item):
@@ -3250,7 +3337,7 @@ class Gui:
                     tree.selection_remove(tree.selection())
 
                     tree.focus(item)
-                    tree.selection_set(item)
+                    #tree.selection_set(item)
                     self.tree_semi_focus()
 
                     self.tree_sel_change(item)
@@ -3281,7 +3368,7 @@ class Gui:
 
             #tree.focus(item)
             tree.see(item)
-            tree.selection_set(item)
+            #tree.selection_set(item)
 
             self.tree_sel_change(item)
             self.sel_item = item
@@ -3447,6 +3534,7 @@ class Gui:
 
             self.column_sort(self.tree)
 
+    last_assign_to_group_group = None
     @logwrapper
     def assign_to_group(self):
         #item=self.tree.focus()
@@ -3465,7 +3553,10 @@ class Gui:
             current = librer_core.get_record_group(record)
 
             if not current:
-                current = values[0]
+                if self.last_assign_to_group_group in values:
+                    current = self.last_assign_to_group_group
+                else:
+                    current = values[0]
 
             dial.show('Assign to group','Assign record to group:',current)
 
@@ -3473,6 +3564,7 @@ class Gui:
                 group = dial.entry_val.get()
 
                 if group:
+                    self.last_assign_to_group_group = group
                     res2=librer_core.assign_new_group(record,group)
                     if res2:
                         self.info_dialog_on_main.show('assign_new_group Error',res2)
@@ -3983,7 +4075,7 @@ class Gui:
             self.status_record_configure('')
             if remaining_records := self.tree.get_children():
                 if new_sel_record := remaining_records[0]:
-                    self.tree.selection_set(new_sel_record)
+                    #self.tree.selection_set(new_sel_record)
                     self.tree.focus(new_sel_record)
 
                 self.tree_semi_focus()
@@ -4415,9 +4507,10 @@ class Gui:
 
     def single_group_show(self,group):
         values = (group,group,0,'',0,'',0,'',self.GROUP)
+
         group_item=self.tree.insert('','end',iid=None,values=values,open=False,text=group,image=self.ico_group,tags=self.GROUP)
         self.group_to_item[group] = group_item
-        self.tree.selection_set(group_item)
+        #self.tree.selection_set(group_item)
         self.tree.focus(group_item)
         self.tree.see(group_item)
         self.column_sort(self.tree)
@@ -4436,14 +4529,25 @@ class Gui:
         record_item=self.tree.insert(group_item,'end',iid=None,values=values,open=False,text=librer_core.get_record_name(record),image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
+        groups_collapse = self.cfg.get(CFG_KEY_groups_collapse)
+
+        #print(self.cfg.get(CFG_KEY_groups_collapse),group_item)
+        self.tree.item(group_item, open = False)
+        #self.cfg.get(CFG_KEY_groups_collapse)
+
         self.tree_sort_item(None)
 
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
 
-        self.tree.focus(record_item)
-        self.tree.selection_set(record_item)
-        self.tree.see(record_item)
+        if groups_collapse:
+            self.tree.focus(group_item)
+            #self.tree.selection_set(group_item)
+            self.tree.see(group_item)
+        else:
+            self.tree.focus(record_item)
+            #self.tree.selection_set(record_item)
+            self.tree.see(record_item)
 
         records_len=len(librer_core.records)
         self.status_records_all_configure(f'Records:{records_len}')
@@ -4463,7 +4567,6 @@ class Gui:
         self.find_clear()
 
         self.column_sort(self.tree)
-
 
     def tree_update_none(self):
         self.tree.selection_remove(self.tree.selection())
@@ -4565,7 +4668,7 @@ class Gui:
         if not self.block_processing_stack:
             if self.current_record:
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
-                self.get_text_info_dialog().show('Record Info.',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
+                self.get_text_info_dialog().show('Record Info',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
 
     def purify_items_cache(self):
         self_item_to_data = self.item_to_data
@@ -4604,7 +4707,7 @@ class Gui:
             self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
             self_tree.focus(record_item)
             self_tree.see(record_item)
-            self_tree.selection_set(record_item)
+            #self_tree.selection_set(record_item)
             self.tree_select()
 
     @block
