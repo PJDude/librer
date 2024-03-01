@@ -374,6 +374,10 @@ class Gui:
         self.ico_cd_ok_crc = self_ico['cd_ok_crc']
         self.ico_cd_error = self_ico['cd_error']
         self.ico_cd_error_crc = self_ico['cd_error_crc']
+
+        self.ico_cd_aborted = self_ico['cd_aborted']
+        self.ico_cd_empty = self_ico['cd_empty']
+
         self.ico_crc = self_ico['crc']
         self.ico_license = self_ico['license']
         self.ico_timeout = self_ico['timeout']
@@ -631,7 +635,7 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Settings ...',command = self.settings_show, accelerator="F4",image = self.ico_empty,compound='left',state = 'normal')
+                self_file_cascade_add_command(label = 'Settings ...',command = self.settings_show, accelerator="F12",image = self.ico_empty,compound='left',state = 'normal')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
                 self_file_cascade_add_separator()
@@ -879,7 +883,7 @@ class Gui:
         self_main_bind('<F5>', lambda event : self.record_repack() )
 
         self_main_bind('<F3>', lambda event : self.find_next() )
-        self_main_bind('<F4>', lambda event : self.settings_show() )
+        self_main_bind('<F12>', lambda event : self.settings_show() )
 
         self_main_bind('<Shift-F3>', lambda event : self.find_prev())
 
@@ -910,15 +914,16 @@ class Gui:
     selected=None
 
     def tree_focus_in(self):
+        tree = self.tree
         try:
-            if selection := self.tree.selection():
+            if selection := tree.selection():
+                tree.selection_remove(*selection)
                 item=selection[0]
-                tree.selection_remove(item)
                 tree.focus(item)
-                self.tree_sel_change(item,True)
+                tree_sel_change(item,True)
             elif item:=self.selected:
                 tree.focus(item)
-                self.tree_sel_change(item,True)
+                tree_sel_change(item,True)
 
         except Exception as e:
             l_error(f'groups_tree_focus_in:{e}')
@@ -936,7 +941,7 @@ class Gui:
             data_tuple = self.item_to_data[item]
             code = data_tuple[1]
 
-            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
+            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode[code]
         return has_cd
 
     def widget_tooltip_cget(self,widget,tooltip):
@@ -2356,7 +2361,7 @@ class Gui:
                             if item in self.item_to_data:
                                 data_tuple = self.item_to_data[item]
                                 code = data_tuple[1]
-                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
+                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode[code]
 
                                 if is_symlink:
                                     tooltip_list.append('')
@@ -2745,13 +2750,21 @@ class Gui:
     def invalidate_find_results(self):
         self.any_valid_find_results=Fale
 
+    def get_range_name(self):
+        if self.current_group:
+            return f'group: {self.current_group}'
+        elif self.current_record:
+            return f'record: {self.current_record}'
+        else:
+            return ()
+
     def get_selected_records(self):
         if self.current_group:
             return librer_core.get_records_of_group(self.current_group)
         elif self.current_record:
             return [self.current_record]
         else:
-            return []
+            return ()
 
     #@restore_status_line
     def find_items(self):
@@ -2795,7 +2808,8 @@ class Gui:
                 sel_range = librer_core.records
             else:
                 sel_range = self.get_selected_records()
-                sel_range_info = '\n'.join([librer_core.get_record_name(rec) for rec in sel_range])
+                #sel_range_info = '\n'.join([librer_core.get_record_name(rec) for rec in sel_range])
+                sel_range_info = self.get_range_name()
                 search_info_lines_append(f'Search in records:\n{sel_range_info}')
 
             #if self.current_record:
@@ -3179,8 +3193,6 @@ class Gui:
             self.tree.see(current_item)
             self.tree.update()
 
-            #self_tree.selection_set(current_item)
-
             self_tree.focus(current_item)
 
             self.tree_semi_focus()
@@ -3303,9 +3315,6 @@ class Gui:
                 l_error(e)
                 self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
 
-            #if tree_focus:=tree.focus():
-            #    tree.selection_set(tree_focus)
-
 #################################################
     def select_and_focus(self,item):
         self.tree_see(item)
@@ -3337,7 +3346,6 @@ class Gui:
                     tree.selection_remove(tree.selection())
 
                     tree.focus(item)
-                    #tree.selection_set(item)
                     self.tree_semi_focus()
 
                     self.tree_sel_change(item)
@@ -3364,11 +3372,7 @@ class Gui:
 
         if item:
             tree.focus_set()
-            #tree.configure(style='semi_focus.Treeview')
-
-            #tree.focus(item)
             tree.see(item)
-            #tree.selection_set(item)
 
             self.tree_sel_change(item)
             self.sel_item = item
@@ -4075,7 +4079,6 @@ class Gui:
             self.status_record_configure('')
             if remaining_records := self.tree.get_children():
                 if new_sel_record := remaining_records[0]:
-                    #self.tree.selection_set(new_sel_record)
                     self.tree.focus(new_sel_record)
 
                 self.tree_semi_focus()
@@ -4424,7 +4427,7 @@ class Gui:
 
                 (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple[0:4]
 
-                top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_aux0,top_aux1,top_aux2 = LUT_decode_loc[top_code]
+                top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_cd_aborted,top_cd_empty,top_aux2 = LUT_decode_loc[top_code]
 
                 record_filenames = record.filenames
 
@@ -4433,6 +4436,10 @@ class Gui:
                 self_ico_folder = self.ico_folder
                 self_ico_cd_ok = self.ico_cd_ok
                 self_ico_cd_error = self.ico_cd_error
+
+                self_cd_ico_aborted = self.ico_cd_aborted
+                self_cd_ico_empty = self.ico_cd_empty
+
                 self_ico_empty = self.ico_empty
 
                 record_find_results = record.find_results
@@ -4448,7 +4455,7 @@ class Gui:
 
                         entry_subpath_tuple = tuple(subpath_list + [entry_name])
 
-                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode_loc[code]
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode_loc[code]
 
                         sub_data_tuple = None
 
@@ -4463,12 +4470,9 @@ class Gui:
                         if has_cd:
                             elem_index+=1
 
-                        #if has_crc:
-                        #    pass
                         kind = self_DIR if is_dir else self_FILE
 
-                        #image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd and not has_crc else (self_ico_cd_ok_crc if cd_ok else self_ico_cd_error_crc) if has_cd and has_crc else self.ico_crc if has_crc else self_ico_empty
-                        image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd else self_ico_empty
+                        image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_cd_ico_aborted if cd_aborted else self_cd_ico_empty if cd_empty else self_ico_cd_error) if has_cd else self_ico_empty
 
                         if is_symlink or is_bind:
                             tags=self_SYMLINK
@@ -4510,7 +4514,6 @@ class Gui:
 
         group_item=self.tree.insert('','end',iid=None,values=values,open=False,text=group,image=self.ico_group,tags=self.GROUP)
         self.group_to_item[group] = group_item
-        #self.tree.selection_set(group_item)
         self.tree.focus(group_item)
         self.tree.see(group_item)
         self.column_sort(self.tree)
@@ -4542,11 +4545,9 @@ class Gui:
 
         if groups_collapse:
             self.tree.focus(group_item)
-            #self.tree.selection_set(group_item)
             self.tree.see(group_item)
         else:
             self.tree.focus(record_item)
-            #self.tree.selection_set(record_item)
             self.tree.see(record_item)
 
         records_len=len(librer_core.records)
@@ -4632,7 +4633,7 @@ class Gui:
                             data_tuple = self.item_to_data[item]
                             (entry_name,code,size,mtime) = data_tuple[0:4]
 
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode[code]
 
                             if has_cd: #wiec nie has_files
                                 cd_index = data_tuple[4]
@@ -4707,7 +4708,6 @@ class Gui:
             self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
             self_tree.focus(record_item)
             self_tree.see(record_item)
-            #self_tree.selection_set(record_item)
             self.tree_select()
 
     @block

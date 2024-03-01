@@ -81,6 +81,8 @@ SIGNAL_FILE = 'signal'
 CD_OK_ID = 0
 CD_INDEX_ID = 1
 CD_DATA_ID = 2
+CD_ABORTED_ID = 3
+CD_EMPTY_ID = 4
 
 def get_dev_labes_dict():
     lsblk = subprocess_run(['lsblk','-fJ'],capture_output = True,text = True)
@@ -637,6 +639,8 @@ class LibrerRecord:
 
         CD_OK_ID_loc = CD_OK_ID
         CD_DATA_ID_loc = CD_DATA_ID
+        CD_ABORTED_ID_loc = CD_ABORTED_ID
+        CD_EMPTY_ID_loc = CD_EMPTY_ID
 
         all_threads_data_list={}
         all_threads_files_cde_errors_quant = {}
@@ -667,6 +671,8 @@ class LibrerRecord:
             for (scan_like_list,subpath,rule_nr,size) in customdata_pool_per_thread[thread_index]:
 
                 self_killed[thread_index]=False
+
+                empty=False
 
                 time_start = perf_counter_loc()
                 if abort_list[0] : #wszystko
@@ -718,6 +724,7 @@ class LibrerRecord:
                         if not output:
                             output = 'No output collected.'
                             returncode=203
+                            empty=True
 
                     #####################################
 
@@ -736,7 +743,9 @@ class LibrerRecord:
 
                 new_elem={
                             CD_OK_ID_loc:bool(returncode==0 and not self_killed[thread_index] and not aborted),
-                            CD_DATA_ID_loc:(rule_nr,returncode,output)
+                            CD_DATA_ID_loc:(rule_nr,returncode,output),
+                            CD_ABORTED_ID_loc:aborted,
+                            CD_EMPTY_ID_loc:empty
                         }
 
                 scan_like_list.append(new_elem) #dostep z wielu watkow
@@ -820,7 +829,6 @@ class LibrerRecord:
                 try:
                     used_cd_index = customdata_helper[cd_field]
                     new_elem[CD_INDEX_ID_loc]=used_cd_index
-                    customdata_stats_refs[rule_nr]+=1
                 except:
                     customdata_helper[cd_field] = new_elem[CD_INDEX_ID_loc] = cd_index
                     cd_index+=1
@@ -829,7 +837,8 @@ class LibrerRecord:
 
                     customdata_stats_size[rule_nr]+=asizeof(cd_field)
                     customdata_stats_uniq[rule_nr]+=1
-                    customdata_stats_refs[rule_nr]+=1
+
+                customdata_stats_refs[rule_nr]+=1
 
 
         print_func( ('info','Custom data post-processing finished.'),True)
@@ -906,7 +915,8 @@ class LibrerRecord:
                     except:
                         has_cd = False
                         cd_ok = False
-                        has_crc = False
+                        cd_aborted = False
+                        cd_empty = False
                     else:
                         #if 'cd_ok' in info_dict:
                         if CD_OK_ID in info_dict:
@@ -917,14 +927,17 @@ class LibrerRecord:
                             cd_ok = False
                             has_cd = False
 
-                        #if 'crc_val' in info_dict:
-                        #    crc_val = info_dict['crc_val']
-                        #    has_crc = True
-                        #else:
-                        #    has_crc = False
-                        has_crc = False
+                        if CD_ABORTED_ID in info_dict:
+                            cd_aborted = info_dict[CD_ABORTED_ID]
+                        else:
+                            cd_aborted = False
 
-                    code_new = LUT_encode_loc[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,False,False) ]
+                        if CD_EMPTY_ID in info_dict:
+                            cd_empty = info_dict[CD_EMPTY_ID]
+                        else:
+                            cd_empty = False
+
+                    code_new = LUT_encode_loc[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,False) ]
 
                     sub_list_elem=[entry_name_index,code_new,size,mtime]
 
@@ -934,8 +947,6 @@ class LibrerRecord:
                     if has_cd: #only files
                         self.header.references_cd+=1
                         sub_list_elem.append( cd_index )
-                    if has_crc: #only files
-                        sub_list_elem.append( crc_val )
 
                     sub_list.append( tuple(sub_list_elem) )
 
@@ -956,12 +967,11 @@ class LibrerRecord:
         has_cd = False
         has_files = True
         cd_ok = False
-        has_crc = False
 
         self.header.references_names=0
         self.header.references_cd=0
 
-        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,False,False) ]
+        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,False,False,False) ]
         self.filestructure = ('',code,size,mtime,self.tupelize_rec(self.scan_data,results_queue_put))
 
         self.header.items_names=len(self.filenames)
@@ -975,12 +985,12 @@ class LibrerRecord:
 
         self_remove_cd_rec = self.remove_cd_rec
 
-        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode_loc[tuple_like_data[1]]
+        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode_loc[tuple_like_data[1]]
 
         has_cd=False
         cd_ok=False
 
-        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2) ]
+        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2) ]
 
         new_list = [tuple_like_data[0],code,tuple_like_data[2],tuple_like_data[3]]
 
@@ -1058,7 +1068,7 @@ class LibrerRecord:
 
                 name = filenames_loc[name_nr]
 
-                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,aux1,aux2 = LUT_decode_loc[code]
+                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode_loc[code]
 
                 elem_index=4
                 if has_files:
@@ -1070,9 +1080,6 @@ class LibrerRecord:
                 if has_cd:
                     cd_nr = data_entry[elem_index]
                     elem_index+=1
-
-                #if has_crc:
-                #    crc = data_entry[elem_index]
 
                 next_level = parent_path_components + [name]
                 if name_search_kind_is_error:
@@ -2004,8 +2011,6 @@ class LibrerCore:
         has_cd = bool(new_record.customdata)
         has_files = True
         cd_ok = False
-        has_crc = False
-
 
         new_record.header.references_names=0
         new_record.header.references_cd=0
@@ -2013,7 +2018,7 @@ class LibrerCore:
         sub_size,sub_quant,sub_folders_quant = new_record.sld_recalc_rec(scan_like_data)
         #print('ccc',sub_size,sub_quant,sub_folders_quant,flush=True)
 
-        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,has_crc,False,False) ]
+        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,False,False,False) ]
 
         new_record.header.sum_size = sub_size
         new_record.header.quant_files = sub_quant
