@@ -126,17 +126,21 @@ def caretaker(signal_file):
     sys_stdout_flush = sys.stdout.flush
     lines_non_stop=0
 
+    json_dumps_loc = json_dumps
+    stdout_data_queue_loc = stdout_data_queue
+    path_exists_loc = path_exists
+
     def flush_last_data_not_printed(flush):
         nonlocal last_data_not_printed
         if last_data_not_printed:
-            print(json_dumps(last_data_not_printed),flush=flush)
+            print(json_dumps_loc(last_data_not_printed),flush=flush)
             last_data_not_printed=None
 
     while True:
         now=perf_counter()
         now_grater_than_next_time_print = bool(now>next_time_print)
 
-        if stdout_data_queue:
+        if stdout_data_queue_loc:
             data,always=stdout_data_queue_get()
 
             if data==True:
@@ -146,7 +150,7 @@ def caretaker(signal_file):
                 flush_last_data_not_printed(False)
 
             if always or now_grater_than_next_time_print:
-                print(json_dumps(data),flush=True)
+                print(json_dumps_loc(data),flush=True)
                 next_time_print=now+print_min_time_period
                 lines_non_stop+=1
                 last_data_not_printed=None
@@ -163,7 +167,7 @@ def caretaker(signal_file):
 
         if now>next_signal_file_check:
             next_signal_file_check=now+signal_file_check_period
-            if path_exists(signal_file):
+            if path_exists_loc(signal_file):
                 try:
                     with open(signal_file,'r') as sf:
                         got_int = int(sf.read().strip())
@@ -174,7 +178,7 @@ def caretaker(signal_file):
                 except Exception as pe:
                     print_info(f'check_abort error:{pe}')
 
-        sleep(0.01)
+        sleep(0.001)
 
     sys.exit(0) #thread
 
@@ -265,12 +269,13 @@ if __name__ == "__main__":
             cd_glob=bool(find_cd_search_kind=='glob')
             cd_fuzzy=bool(find_cd_search_kind=='fuzzy')
             cd_error=bool(find_cd_search_kind=='error')
+            cd_empty=bool(find_cd_search_kind=='empty')
+            cd_aborted=bool(find_cd_search_kind=='aborted')
             cd_without=bool(find_cd_search_kind=='without')
             cd_ok=bool(find_cd_search_kind=='any')
 
             if cd_regexp:
                 custom_data_needed=True
-                cd_search_kind='regexp'
                 if res := test_regexp(cd_expr):
                     proper_exit(res)
                 re_obj_cd=re_compile(cd_expr, MULTILINE | DOTALL)
@@ -278,7 +283,6 @@ if __name__ == "__main__":
 
             elif cd_glob:
                 custom_data_needed=True
-                cd_search_kind='glob'
                 if cd_case_sens:
                     re_obj_cd=re_compile(translate(cd_expr), MULTILINE | DOTALL)
                     cd_func_to_call = lambda x : re_obj_cd.match(x)
@@ -287,19 +291,17 @@ if __name__ == "__main__":
                     cd_func_to_call = lambda x : re_obj_cd.match(x)
             elif cd_fuzzy:
                 custom_data_needed=True
-                cd_search_kind='fuzzy'
                 cd_func_to_call = lambda x : bool(SequenceMatcher(None,cd_expr, x).ratio()>cd_fuzzy_threshold)
             elif cd_without:
-                cd_search_kind='without'
+                cd_func_to_call = None
+            elif cd_empty:
                 cd_func_to_call = None
             elif cd_error:
-                cd_search_kind='error'
                 cd_func_to_call = None
             elif cd_ok:
-                cd_search_kind='any'
                 cd_func_to_call = None
             else:
-                cd_search_kind='dont'
+                #cd_search_kind='dont'
                 cd_func_to_call = None
 
             #####################################################################
@@ -319,7 +321,7 @@ if __name__ == "__main__":
                         size_min,size_max,
                         t_min,t_max,
                         name_search_kind,name_func_to_call,
-                        cd_search_kind,cd_func_to_call,
+                        find_cd_search_kind,cd_func_to_call,
                         print_info)
             except Exception as fe:
                 print_info(f'find_items error:{fe}')
@@ -334,7 +336,7 @@ if __name__ == "__main__":
                 with open(sep.join([comm_dir,SCAN_DAT_FILE]),"rb") as f:
                     create_list = loads(ZstdDecompressor().decompress(f.read()))
 
-                label,path_to_scan,check_dev,cde_list = create_list
+                label,path_to_scan,check_dev,compression_level,threads,cde_list = create_list
             except Exception as e:
                 print_info(f'create error:{e}')
                 proper_exit(2)
@@ -342,7 +344,7 @@ if __name__ == "__main__":
                 new_record = LibrerRecord(label=label,scan_path=path_to_scan)
 
                 try:
-                    print_func(['stage',0],True)
+                    print_func(('stage',0),True)
                     new_record.scan(print_func,abort_list,tuple(cde_list),check_dev)
                 except Exception as fe:
                     print_info(f'scan error:{fe}')
@@ -350,16 +352,16 @@ if __name__ == "__main__":
                     if not abort_list[0]:
                         if cde_list :
                             try:
-                                print_func(['stage',1],True)
-                                new_record.extract_customdata(print_func,abort_list)
+                                print_func(('stage',1),True)
+                                new_record.extract_customdata(print_func,abort_list,threads=threads)
                             except Exception as cde:
                                 print_info(f'cde error:{cde}')
 
-                        print_func(['stage',2],True)
+                        print_func(('stage',2),True)
                         new_record.pack_data(print_func)
-                        print_func(['stage',3],True)
-                        new_record.save(print_func,file_path=args.file,compression_level=9)
-                        print_func(['stage',4],True)
+                        print_func(('stage',3),True)
+                        new_record.save(print_func,file_path=args.file,compression_level=compression_level)
+                        print_func(('stage',4),True)
 
         #####################################################################
     else:

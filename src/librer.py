@@ -26,9 +26,9 @@
 #
 ####################################################################################
 
-from os import sep,system,getcwd,name as os_name
+from os import sep,system,getcwd,name as os_name,cpu_count
 from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile
-from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect
+from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
 from pathlib import Path
 from time import strftime,time,mktime
@@ -103,6 +103,9 @@ CFG_KEY_import_crc = 'export_crc'
 
 CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
+CFG_SORTING = 'sorting'
+CFG_KEY_show_popups = 'show_popups'
+CFG_KEY_groups_collapse = 'groups_collapse'
 
 cfg_defaults={
     CFG_KEY_SINGLE_DEVICE:True,
@@ -138,7 +141,9 @@ cfg_defaults={
     CFG_KEY_import_crc:True,
 
     CFG_last_dir:'.',
-    CFG_geometry:''
+    CFG_geometry:'',
+    CFG_KEY_show_popups:True,
+    CFG_KEY_groups_collapse:True
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -172,21 +177,21 @@ class Config:
             #use,mask,smin,smax,exe,pars,shell,timeout,crc
 
             if windows:
-                line_list1 =  ['0','*.rar,*.zip,*.xz,*.z,*.gzip,*.iso','','','C:\\Program Files\\WinRAR\\UnRAR.exe','l %','0','5','0']
-                line_list1a = ['0','*.7z,*.zip,*.bzip2,*.xz,*.z,*.gzip,*.iso,*.rar','','','C:\\Program Files\\7-Zip\\7z.exe l % | more +12','','1','5','0']
+                line_list1  = ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.lzh,*.lzma,*.vdi,*.vhd','','','C:\\Program Files\\7-Zip\\7z.exe','l %','0','10','0']
+                line_list1a = ['0','*.rar','','','C:\\Program Files\\WinRAR\\UnRAR.exe','l %','0','10','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','more %','','1','5','0']
-                line_list3 =  ['0','*.pls,*.m3u,*.cue','','','more %','','1','5','0']
-                line_list4 =  ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','ffprobe.exe -hide_banner %','','1','5','0']
-                line_list4a =  ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','MediaInfo.exe','%','0','5','0']
+                line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl','','','more %','','1','5','0']
+                line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe.exe','-hide_banner %','0','5','0']
+                line_list4a = ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','MediaInfo.exe','%','0','5','0']
                 line_list5 =  ['0','*.jpg','','','exiftool.exe','%','0','5','0']
-                line_list5a =  ['0','*.exe','','','exiftool.exe','%','0','5','0']
+                line_list5a = ['0','*.exe','','','exiftool.exe','%','0','5','0']
 
                 cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list4a,line_list5,line_list5a]
             else:
-                line_list1 =  ['0','*.7z,*.zip,*.bzip2,*.xz,*.z,*.gzip,*.iso,*.rar','','','7z l % | tail -n+10','','1','5','0']
+                line_list1 =  ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.lzh,*.lzma,*.vdi,*.vhd','','','7z','l %','0','10','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','cat','%','0','5','0']
-                line_list3 =  ['0','*.pls,*.m3u,*.cue','','','cat','%','0','5','0']
-                line_list4 =  ['0','*.mp3,*.mp4,*.mpeg','','','ffprobe','-hide_banner %','0','5','0']
+                line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl','','','cat','%','0','5','0']
+                line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe','-hide_banner %','0','5','0']
                 line_list5 =  ['0','*.jpg','','','exif','%','0','5','0']
 
                 cde_sklejka_list=[line_list1,line_list2,line_list3,line_list4,line_list5]
@@ -370,6 +375,10 @@ class Gui:
         self.ico_cd_ok_crc = self_ico['cd_ok_crc']
         self.ico_cd_error = self_ico['cd_error']
         self.ico_cd_error_crc = self_ico['cd_error_crc']
+
+        self.ico_cd_aborted = self_ico['cd_aborted']
+        self.ico_cd_empty = self_ico['cd_empty']
+
         self.ico_crc = self_ico['crc']
         self.ico_license = self_ico['license']
         self.ico_timeout = self_ico['timeout']
@@ -487,9 +496,9 @@ class Gui:
 
         bg_focus='#90DD90'
         bg_focus_off='#90AA90'
-        bg_sel='#AAAAAA'
+        #bg_sel='#AAAAAA'
 
-        style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
+        style_map('Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
 
         #style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
 
@@ -515,7 +524,7 @@ class Gui:
 
         (status_frame := Frame(self_main,bg=self.bg_color)).pack(side='bottom', fill='both')
 
-        self.status_records_all=Label(status_frame,image=self.ico_record,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_records_all=Label(status_frame,image=self.ico_records_all,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_records_all.pack(fill='x',expand=0,side='left')
         self.status_records_all_configure = lambda x : self.status_records_all.configure(image = self.ico_records_all, text = x,compound='left')
         self.widget_tooltip(self.status_records_all,'All records in repository')
@@ -568,7 +577,8 @@ class Gui:
         tree_column('ctime_h', width=150, minwidth=100, stretch='no',anchor='e')
 
         tree_heading = tree.heading
-        tree_heading('#0',text='Name \u25B2',anchor='w')
+        #tree_heading('#0',text='Name \u25B2',anchor='w')
+        tree_heading('#0',text='Name',anchor='w')
         tree_heading('size_h',anchor='w',text=self_org_label['size_h'])
         tree_heading('ctime_h',anchor='n',text=self_org_label['ctime_h'])
 
@@ -627,6 +637,8 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
                 self_file_cascade_add_separator()
+                self_file_cascade_add_command(label = 'Settings ...',command = self.settings_show, accelerator="F12",image = self.ico_empty,compound='left',state = 'normal')
+                self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
@@ -674,8 +686,11 @@ class Gui:
         self_REAL_SORT_COLUMN_IS_NUMERIC['size_h'] = True
         self_REAL_SORT_COLUMN_IS_NUMERIC['ctime_h'] = True
 
-        #colname,sort_index,is_numeric,reverse,dir_code,non_dir_code
-        self.column_sort_last_params=self.column_groups_sort_params_default=('#0',self_REAL_SORT_COLUMN_INDEX['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1)
+        try:
+            self.column_sort_last_params = self.cfg_get(CFG_SORTING)
+        except:
+            #colname,sort_index,is_numeric,reverse,dir_code,non_dir_code
+            self.column_sort_last_params=('#0',self_REAL_SORT_COLUMN_INDEX['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1)
 
         #######################################################################
 
@@ -806,9 +821,9 @@ class Gui:
             self_progress_dialog_on_load.hide(True)
             read_thread.join()
 
-
             if self.action_abort:
                 self.info_dialog_on_main.show('Records loading aborted','Restart Librer to gain full access to the recordset.')
+
 
         if load_errors:
             self.get_text_info_dialog().show('Loading errors','\n\n'.join(load_errors) )
@@ -817,7 +832,13 @@ class Gui:
         self.menubar_config(cursor='')
         self.main_config(cursor='')
 
+
+        if items := self.tree.get_children():
+            self.tree.focus(items[0])
+
+        self.tree.focus_set()
         self.tree_semi_focus()
+
         self.status_info.configure(image='',text = 'Ready')
 
         tree_bind = tree.bind
@@ -834,6 +855,9 @@ class Gui:
         tree_bind("<<TreeviewSelect>>", lambda event : self.tree_select())
 
         self_main_bind = self_main.bind
+
+        self.tree.bind("<FocusOut>",lambda event : self.tree_focus_out() )
+        self.tree.bind("<FocusIn>",lambda event : self.tree_focus_in() )
 
         self_main_bind("<FocusOut>",lambda event : self.menubar_unpost() )
         self_main_bind("<FocusIn>",lambda event : self.focusin() )
@@ -866,6 +890,8 @@ class Gui:
         self_main_bind('<F5>', lambda event : self.record_repack() )
 
         self_main_bind('<F3>', lambda event : self.find_next() )
+        self_main_bind('<F12>', lambda event : self.settings_show() )
+
         self_main_bind('<Shift-F3>', lambda event : self.find_prev())
 
         self_main_bind('<F2>', lambda event : self.alias_name() )
@@ -885,6 +911,30 @@ class Gui:
 
         self_main.mainloop()
 
+    def tree_focus_out(self):
+        tree = self.tree
+        item=tree.focus()
+        if item:
+            tree.selection_set(item)
+            self.selected=item
+
+    selected=None
+
+    def tree_focus_in(self):
+        tree = self.tree
+        try:
+            if selection := tree.selection():
+                tree.selection_remove(*selection)
+                item=selection[0]
+                tree.focus(item)
+                self.tree_sel_change(item,True)
+            elif item:=self.selected:
+                tree.focus(item)
+                self.tree_sel_change(item,True)
+
+        except Exception as e:
+            l_error(f'groups_tree_focus_in:{e}')
+
     def tree_scrollbar_set(self,v1,v2):
         if v1=='0.0' and v2=='1.0':
             self.tree_scrollbar.pack_forget()
@@ -898,7 +948,7 @@ class Gui:
             data_tuple = self.item_to_data[item]
             code = data_tuple[1]
 
-            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
+            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode[code]
         return has_cd
 
     def widget_tooltip_cget(self,widget,tooltip):
@@ -1046,6 +1096,9 @@ class Gui:
     def scan_comp_set(self):
         self.scan_compr_var_int.set(int(self.scan_compr_var.get()))
 
+    def scan_threads_set(self):
+        self.scan_threads_var_int.set(int(self.scan_threads_var.get()))
+
     scan_dialog_created = False
     @restore_status_line
     @block
@@ -1124,16 +1177,30 @@ class Gui:
             self.scan_compr_var = IntVar()
             self.scan_compr_var_int = IntVar()
 
+            self.scan_threads_var = IntVar()
+            self.scan_threads_var_int = IntVar()
+
             self.scan_compr_var.set(9)
             self.scan_compr_var_int.set(9)
 
-            (compr_in_label := Label(scan_options_frame, textvariable=self.scan_compr_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='right',padx=2,pady=2)
-            (compr_scale := Scale(scan_options_frame, variable=self.scan_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.scan_comp_set(),style="TScale",length=200)).pack(fill='x',side='right',expand=1,padx=2)
+            self.scan_threads_var.set(1)
+            self.scan_threads_var_int.set(1)
+
             (compr_label := Label(scan_options_frame, text='Compression:',bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
+            (compr_scale := Scale(scan_options_frame, variable=self.scan_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.scan_comp_set(),style="TScale",length=160)).pack(fill='x',side='left',expand=1,padx=2)
+            (compr_in_label := Label(scan_options_frame, textvariable=self.scan_compr_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='left',padx=2,pady=2)
             compr_tooltip = "Data record internal compression. A higher value\nmeans a smaller file and longer compression time.\nvalues above 20 may result in extremely long compression\nand memory consumption. The default value is 9."
             self.widget_tooltip(compr_scale,compr_tooltip)
             self.widget_tooltip(compr_label,compr_tooltip)
             self.widget_tooltip(compr_in_label,compr_tooltip)
+
+            (threads_in_label := Label(scan_options_frame, textvariable=self.scan_threads_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='right',padx=2,pady=2)
+            (threads_scale := Scale(scan_options_frame, variable=self.scan_threads_var, orient='horizontal',from_=0, to=cpu_count(),command=lambda x : self.scan_threads_set(),style="TScale",length=160)).pack(fill='x',side='right',expand=1,padx=2)
+            (threads_label := Label(scan_options_frame, text='CDE Threads:',bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
+            threads_tooltip = "Number of threads used to extract Custom Data\n\n0 - all available CPU cores\n1 - single thread (default value)\n\nThe optimal value depends on the CPU cores performace,\nIO subsystem performance and Custom Data Extractor specifics.\n\nConsider limitations of parallel CDE execution e.g.\nnumber of licenses of used software,\nused working directory, needed memory etc."
+            self.widget_tooltip(threads_scale,threads_tooltip)
+            self.widget_tooltip(threads_label,threads_tooltip)
+            self.widget_tooltip(threads_in_label,threads_tooltip)
 
             self.single_device=BooleanVar()
             single_device_button = Checkbutton(dialog.area_buttons,text='one device mode',variable=self.single_device)
@@ -1233,7 +1300,7 @@ class Gui:
 
                 self.up_button[e] = Button(cde_frame,image=self.ico_up,command = lambda x=e : self.cde_up(x) )
 
-                if row>1:
+                if row>2:
                     self.up_button[e].grid(row=row,column=0,sticky='news')
 
                 self.use_checkbutton[e] = Checkbutton(cde_frame,variable=self.CDE_use_var_list[e],command = lambda x=e : self.use_checkbutton_mod(x))
@@ -1296,8 +1363,12 @@ class Gui:
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
-        self.widget_tooltip(dialog.find_prev_butt,'Find Prev (Shift+F3)')
-        self.widget_tooltip(dialog.find_next_butt,'Find Next (F3)')
+        self.widget_tooltip(dialog.find_prev_butt,'Select Prev (Shift+F3)')
+        self.widget_tooltip(dialog.find_next_butt,'Select Next (F3)')
+        self.widget_tooltip(dialog.find_cs,'Case Sensitive')
+        self.widget_tooltip(dialog.find_info_lab,'index of the selected search result / search results total ')
+
+        dialog.find_cs_var.set(False if windows else True)
 
     progress_dialog_on_scan_created = False
     @restore_status_line
@@ -1376,6 +1447,19 @@ class Gui:
             self.text_ask_dialog_on_scan_created = True
 
         return self.text_ask_dialog_on_scan
+
+    ask_dialog_on_scan_created = False
+    @restore_status_line
+    @block
+    def get_ask_dialog_on_scan(self):
+        if not self.ask_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.ask_dialog_on_scan = LabelDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
+
+            self.ask_dialog_on_scan_created = True
+
+        return self.ask_dialog_on_scan
 
     text_ask_dialog_on_main_created = False
     @restore_status_line
@@ -1548,6 +1632,45 @@ class Gui:
             self.assign_to_group_dialog_created = True
         return self.assign_to_group_dialog
 
+    settings_dialog_created = False
+    @restore_status_line
+    @block
+    def get_settings_dialog(self):
+        if not self.settings_dialog_created:
+            self.status("Creating dialog ...")
+
+            self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show,post_close=self.post_close)
+
+            sfdma = self.settings_dialog.area_main
+
+            self.show_popups_var = BooleanVar()
+            self.popups_cb = Checkbutton(sfdma,text='Show tooltips',variable=self.show_popups_var,command=self.popups_show_mod)
+            self.popups_cb.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+
+            self.groups_collapsed_var = BooleanVar()
+            self.popups_cb = Checkbutton(sfdma,text='Groups collapsed at startup',variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
+            self.popups_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+
+            sfdma.grid_columnconfigure( 0, weight=1)
+
+            Button(self.settings_dialog.area_buttons, text='Close', width=14, command=self.settings_close ).pack(side='right', anchor='n',padx=5,pady=5)
+
+            self.settings_dialog_created = True
+
+        self.show_popups_var.set(self.cfg.get(CFG_KEY_show_popups))
+        self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
+
+        return self.settings_dialog
+
+    def popups_show_mod(self):
+        self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
+
+    def groups_collapse_mod(self):
+        self.cfg.set(CFG_KEY_groups_collapse,self.groups_collapsed_var.get())
+
+    def settings_close(self):
+        self.settings_dialog.hide()
+
     find_dialog_created = False
     @restore_status_line
     @block
@@ -1627,17 +1750,32 @@ class Gui:
             (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
             self.find_range_cb1 = Radiobutton(find_filename_frame,text='Selected record / group',variable=self.find_range_all,value=False,command=self.find_mod)
             self.find_range_cb1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            self.find_range_cb1.bind('<Return>', lambda event : self.find_items())
 
-            (find_range_cb2 := Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)).grid(row=0, column=1, sticky='news',padx=4,pady=4)
+            find_range_cb2 = Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)
+            find_range_cb2.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+            find_range_cb2.bind('<Return>', lambda event : self.find_items())
 
             (find_filename_frame := LabelFrame(sfdma,text='Path elements',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
-            Radiobutton(find_filename_frame,text="Don't use this criterion",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod)
+            r_dont = Radiobutton(find_filename_frame,text="Don't use this criterion",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30)
+            r_dont.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            r_dont.bind('<Return>', lambda event : self.find_items())
+
+            #Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod)
             #.grid(row=1, column=0, sticky='news',padx=4,pady=4)
-            (regexp_radio_name:=Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)).grid(row=2, column=0, sticky='news',padx=4,pady=4)
-            (glob_radio_name:=Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-            (fuzzy_radio_name:=Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
+
+            regexp_radio_name=Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)
+            regexp_radio_name.grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            regexp_radio_name.bind('<Return>', lambda event : self.find_items())
+
+            glob_radio_name=Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)
+            glob_radio_name.grid(row=3, column=0, sticky='news',padx=4,pady=4)
+            glob_radio_name.bind('<Return>', lambda event : self.find_items())
+
+            fuzzy_radio_name=Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)
+            fuzzy_radio_name.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            fuzzy_radio_name.bind('<Return>', lambda event : self.find_items())
 
             regexp_tooltip = "Regular expression\n"
             regexp_tooltip_name = "Checked on the file\nor folder name."
@@ -1686,13 +1824,41 @@ class Gui:
 
             (find_cd_frame := LabelFrame(sfdma,text='Custom Data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
 
-            Radiobutton(find_cd_frame,text="Don't use this criterion",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="files without Custom Data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod).grid(row=1, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="files with any correct Custom Data ",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod).grid(row=2, column=0, sticky='news',padx=4,pady=4)
-            Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod).grid(row=3, column=0, sticky='news',padx=4,pady=4)
-            (regexp_radio_cd:=Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)).grid(row=4, column=0, sticky='news',padx=4,pady=4)
-            (glob_radio_cd:=Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)).grid(row=5, column=0, sticky='news',padx=4,pady=4)
-            (fuzzy_radio_cd:=Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod)).grid(row=6, column=0, sticky='news',padx=4,pady=4)
+            r_dont2 = Radiobutton(find_cd_frame,text="Don't use this criterion",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30)
+            r_dont2.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            r_dont2.bind('<Return>', lambda event : self.find_items())
+
+            r_without = Radiobutton(find_cd_frame,text="No Custom Data",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod)
+            r_without.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+            r_without.bind('<Return>', lambda event : self.find_items())
+
+            r_correct = Radiobutton(find_cd_frame,text="Any correct Custom Data",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod)
+            r_correct.grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            r_correct.bind('<Return>', lambda event : self.find_items())
+
+            r_error = Radiobutton(find_cd_frame,text="Error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod)
+            r_error.grid(row=3, column=0, sticky='news',padx=4,pady=4)
+            r_error.bind('<Return>', lambda event : self.find_items())
+
+            r_error_empty = Radiobutton(find_cd_frame,text="No CD extracted (empty value)",variable=self.find_cd_search_kind_var,value='empty',command=self.find_mod)
+            r_error_empty.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            r_error_empty.bind('<Return>', lambda event : self.find_items())
+
+            r_error_empty = Radiobutton(find_cd_frame,text="CD extraction aborted",variable=self.find_cd_search_kind_var,value='aborted',command=self.find_mod)
+            r_error_empty.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            r_error_empty.bind('<Return>', lambda event : self.find_items())
+
+            regexp_radio_cd = Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)
+            regexp_radio_cd.grid(row=6, column=0, sticky='news',padx=4,pady=4)
+            regexp_radio_cd.bind('<Return>', lambda event : self.find_items())
+
+            glob_radio_cd = Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)
+            glob_radio_cd.grid(row=7, column=0, sticky='news',padx=4,pady=4)
+            glob_radio_cd.bind('<Return>', lambda event : self.find_items())
+
+            fuzzy_radio_cd = Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod)
+            fuzzy_radio_cd.grid(row=8, column=0, sticky='news',padx=4,pady=4)
+            fuzzy_radio_cd.bind('<Return>', lambda event : self.find_items())
 
             self.find_cd_regexp_entry = Entry(find_cd_frame,textvariable=self.find_cd_regexp_var,validate="key")
             self.find_cd_glob_entry = Entry(find_cd_frame,textvariable=self.find_cd_glob_var,validate="key")
@@ -1702,17 +1868,17 @@ class Gui:
             self.find_cd_glob_entry.bind("<KeyRelease>", self.find_mod_keypress)
             self.find_cd_fuzz_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
-            self.find_cd_regexp_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
-            self.find_cd_glob_entry.grid(row=5, column=1, sticky='we',padx=4,pady=4)
-            self.find_cd_fuzz_entry.grid(row=6, column=1, sticky='we',padx=4,pady=4)
+            self.find_cd_regexp_entry.grid(row=6, column=1, sticky='we',padx=4,pady=4)
+            self.find_cd_glob_entry.grid(row=7, column=1, sticky='we',padx=4,pady=4)
+            self.find_cd_fuzz_entry.grid(row=8, column=1, sticky='we',padx=4,pady=4)
 
             self.cd_case_sens_cb = Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod)
-            self.cd_case_sens_cb.grid(row=5, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
+            self.cd_case_sens_cb.grid(row=7, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
 
             self.find_cd_fuzzy_threshold_lab = Label(find_cd_frame,text='Threshold:',bg=self.bg_color,anchor='e')
             self.find_cd_fuzzy_threshold_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzzy_threshold)
-            self.find_cd_fuzzy_threshold_lab.grid(row=6, column=2, sticky='wens',padx=4,pady=4)
-            self.find_cd_fuzzy_threshold_entry.grid(row=6, column=3, sticky='wens',padx=4,pady=4)
+            self.find_cd_fuzzy_threshold_lab.grid(row=8, column=2, sticky='wens',padx=4,pady=4)
+            self.find_cd_fuzzy_threshold_entry.grid(row=8, column=3, sticky='wens',padx=4,pady=4)
 
             self.find_cd_fuzzy_threshold_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
@@ -2141,7 +2307,7 @@ class Gui:
 
         self.configure_tooltip(event.widget)
 
-        self.tooltip_deiconify()
+        self.tooltip_deiconify_wrapp()
 
         self.adaptive_tooltip_geometry(event)
 
@@ -2169,6 +2335,10 @@ class Gui:
         subpath_list.reverse()
         return (item,current_record_name,subpath_list)
 
+    def tooltip_deiconify_wrapp(self):
+        if self.cfg.get(CFG_KEY_show_popups):
+            self.tooltip_deiconify()
+
     def show_tooltips_tree(self,event):
         self.unschedule_tooltips_tree(event)
         self.menubar_unpost()
@@ -2180,7 +2350,7 @@ class Gui:
             if tree.identify("region", event.x, event.y) == 'heading':
                 if colname in ('path','size_h','ctime_h'):
                     self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
-                    self.tooltip_deiconify()
+                    self.tooltip_deiconify_wrapp()
                 else:
                     self.hide_tooltip()
 
@@ -2206,7 +2376,7 @@ class Gui:
                             if item in self.item_to_data:
                                 data_tuple = self.item_to_data[item]
                                 code = data_tuple[1]
-                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
+                                is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode[code]
 
                                 if is_symlink:
                                     tooltip_list.append('')
@@ -2218,20 +2388,39 @@ class Gui:
 
                                 if has_cd:
                                     tooltip_list.append('')
-                                    tooltip_list.append('(Double click to show Custom Data.)')
+                                    if not cd_ok:
+                                        tooltip_list.append('Custom Data Extraction ended with error')
+                                        tooltip_list.append('(Double click to show Custom Data.)')
+                                    elif cd_aborted:
+                                        tooltip_list.append('Custom Data Extraction was aborted')
+                                        tooltip_list.append('(Double click to show Custom Data.)')
+                                    elif cd_empty:
+                                        tooltip_list.append('Custom Data is empty')
+                                    else:
+                                        tooltip_list.append('(Double click to show Custom Data.)')
+
 
                             self.tooltip_lab_configure(text='\n'.join(tooltip_list))
 
-                        self.tooltip_deiconify()
+                        self.tooltip_deiconify_wrapp()
+
+                    elif tree.tag_has(self.GROUP,item):
+                        if values := tree.item(item,'values'):
+                            name = values[0]
+                            self.tooltip_lab_configure(text=f'group   :{name}')
+                        else:
+                            self.tooltip_lab_configure(text='')
+
+
                     else:
-                        self.tooltip_lab_configure(text='label')
+                        self.tooltip_lab_configure(text='unknown_label')
 
                 elif col:
                     coldata=tree.set(item,col)
 
                     if coldata:
                         self.tooltip_lab_configure(text=coldata)
-                        self.tooltip_deiconify()
+                        self.tooltip_deiconify_wrapp()
 
                     else:
                         self.hide_tooltip()
@@ -2326,6 +2515,13 @@ class Gui:
     any_valid_find_results=False
 
     find_params_changed=True
+
+    @block
+    def settings_show(self):
+        dialog = self.get_settings_dialog()
+        dialog.show('Settings')
+
+        self.tree_semi_focus()
 
     @block
     def finder_wrapper_show(self):
@@ -2588,13 +2784,21 @@ class Gui:
     def invalidate_find_results(self):
         self.any_valid_find_results=Fale
 
+    def get_range_name(self):
+        if self.current_group:
+            return f'group: {self.current_group}'
+        elif self.current_record:
+            return f'record: {self.current_record}'
+        else:
+            return ()
+
     def get_selected_records(self):
         if self.current_group:
             return librer_core.get_records_of_group(self.current_group)
         elif self.current_record:
             return [self.current_record]
         else:
-            return []
+            return ()
 
     #@restore_status_line
     def find_items(self):
@@ -2638,8 +2842,9 @@ class Gui:
                 sel_range = librer_core.records
             else:
                 sel_range = self.get_selected_records()
-                sel_range_info = ','.join([librer_core.get_record_name(rec) for rec in sel_range])
-                search_info_lines_append(f'Search in records:{sel_range_info}')
+                #sel_range_info = '\n'.join([librer_core.get_record_name(rec) for rec in sel_range])
+                sel_range_info = self.get_range_name()
+                search_info_lines_append(f'Search in records:\n{sel_range_info}')
 
             #if self.current_record:
             #    search_info_lines_append(f'Search in record:{librer_core.get_record_name(self.current_record)}')
@@ -2699,6 +2904,10 @@ class Gui:
                 search_info_lines_append(f'Files with any correct Custom Data')
             elif find_cd_search_kind == 'error':
                 search_info_lines_append('Files with error on CD extraction')
+            elif find_cd_search_kind == 'empty':
+                search_info_lines_append('Files with empty CD value')
+            elif find_cd_search_kind == 'aborted':
+                search_info_lines_append('Files with aborted CD extraction')
             elif find_cd_search_kind == 'regexp':
                 if find_cd_regexp:
                     if res := test_regexp(find_cd_regexp):
@@ -3022,8 +3231,6 @@ class Gui:
             self.tree.see(current_item)
             self.tree.update()
 
-            self_tree.selection_set(current_item)
-
             self_tree.focus(current_item)
 
             self.tree_semi_focus()
@@ -3146,9 +3353,6 @@ class Gui:
                 l_error(e)
                 self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
 
-            if tree_focus:=tree.focus():
-                tree.selection_set(tree_focus)
-
 #################################################
     def select_and_focus(self,item):
         self.tree_see(item)
@@ -3180,7 +3384,6 @@ class Gui:
                     tree.selection_remove(tree.selection())
 
                     tree.focus(item)
-                    tree.selection_set(item)
                     self.tree_semi_focus()
 
                     self.tree_sel_change(item)
@@ -3207,11 +3410,7 @@ class Gui:
 
         if item:
             tree.focus_set()
-            #tree.configure(style='semi_focus.Treeview')
-
-            #tree.focus(item)
             tree.see(item)
-            tree.selection_set(item)
 
             self.tree_sel_change(item)
             self.sel_item = item
@@ -3248,10 +3447,10 @@ class Gui:
 
             item_actions_state=('disabled','normal')[self.sel_item is not None]
 
-
             item=self.tree.focus()
 
             is_group = bool(self.tree.tag_has(self.GROUP,item))
+            is_record_loaded = bool(self.tree.tag_has(self.RECORD,item))
             is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
 
             record_in_group = False
@@ -3314,6 +3513,8 @@ class Gui:
             pop_add_separator()
             pop_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
             pop_add_separator()
+            pop_add_command(label = 'Unload record data',command = self.unload_record, accelerator="Backspace", image = self.ico_empty,compound='left',state = 'normal' if is_record_loaded else 'disabled')
+            pop_add_separator()
 
             pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
 
@@ -3366,6 +3567,8 @@ class Gui:
     def remove_from_group(self):
         record = self.current_record
 
+        group = librer_core.get_record_group(record)
+
         res = librer_core.remove_record_from_group(record)
         if res :
             self.info_dialog_on_main.show('Error',res)
@@ -3373,29 +3576,34 @@ class Gui:
             record_item = self.record_to_item[record]
             self.tree.move(record_item,'',0)
 
+            if group:
+                size=record.header.sum_size
+                self.group_to_size_sum[group]-=size
+                self.single_group_update_size(group)
+
             self.find_clear()
 
             self.column_sort(self.tree)
 
+    last_assign_to_group_group = None
     @logwrapper
     def assign_to_group(self):
-        #item=self.tree.focus()
-
-        #is_group = bool(self.tree.tag_has(self.GROUP,item))
-        #is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
-
         if self.current_record:
-            curr_group = librer_core.get_record_group(self.current_record)
+            record = self.current_record
+            current = prev_group = librer_core.get_record_group(record)
+            #print(f'{current=}')
 
             dial = self.get_assign_to_group_dialog()
-
             values = list(librer_core.groups.keys())
             dial.combobox.configure(values=values)
-            record = self.current_record
-            current = librer_core.get_record_group(record)
+
+            size=record.header.sum_size
 
             if not current:
-                current = values[0]
+                if self.last_assign_to_group_group in values:
+                    current = self.last_assign_to_group_group
+                else:
+                    current = values[0]
 
             dial.show('Assign to group','Assign record to group:',current)
 
@@ -3403,14 +3611,23 @@ class Gui:
                 group = dial.entry_val.get()
 
                 if group:
+
+                    self.last_assign_to_group_group = group
                     res2=librer_core.assign_new_group(record,group)
                     if res2:
                         self.info_dialog_on_main.show('assign_new_group Error',res2)
                     else:
+                        if prev_group:
+                            self.group_to_size_sum[current] -= size
+                            self.single_group_update_size(current)
+
                         group_item = self.group_to_item[group]
                         record_item = self.record_to_item[record]
                         self.tree.move(record_item,group_item,0)
-                        #self.tree.open(group_item)
+
+                        self.group_to_size_sum[group] += size
+                        self.single_group_update_size(group)
+
                         self.open_item(group_item)
                         self.tree.focus(record_item)
                         self.tree.see(record_item)
@@ -3431,6 +3648,7 @@ class Gui:
         sort_index=self.REAL_SORT_COLUMN_INDEX[colname]
         is_numeric=self.REAL_SORT_COLUMN_IS_NUMERIC[colname]
         self.column_sort_last_params=(colname,sort_index,is_numeric,reverse,dir_code,non_dir_code)
+        self.cfg.set(CFG_SORTING,self.column_sort_last_params)
 
         #print('\npre sort info colname:',colname,'is_numeric',is_numeric,'reverse:',reverse)
         colname_real = self.REAL_SORT_COLUMN[colname]
@@ -3521,8 +3739,10 @@ class Gui:
         self.scanning_in_progress=True
 
         compression_level = self.scan_compr_var_int.get()
+        threads = self.scan_threads_var_int.get()
+
         try:
-            if self.scan(compression_level,group):
+            if self.scan(compression_level,threads,group):
                 self.scan_dialog_hide_wrapper()
         except Exception as e:
             l_error(f'scan_wraper: {e}')
@@ -3540,14 +3760,14 @@ class Gui:
 
     @restore_status_line
     @logwrapper
-    def scan(self,compression_level,group=None):
+    def scan(self,compression_level,threads,group=None):
         path_to_scan_from_entry = abspath(self.path_to_scan_entry_var.get())
 
         if not path_to_scan_from_entry:
             self.get_info_dialog_on_scan().show('Error. No paths to scan.','Add paths to scan.')
             return False
 
-        #wryfikacja
+        #weryfikacja
         for e in range(self.CDE_ENTRIES_MAX):
             if self.CDE_use_var_list[e].get():
                 mask = self.CDE_mask_var_list[e].get().strip()
@@ -3566,6 +3786,24 @@ class Gui:
                 shell = self.CDE_shell_var_list[e].get()
 
                 command,command_info = get_command(executable,parameters,'dummy full_file_path',shell)
+
+        all_timeout_set = True
+        for e in range(self.CDE_ENTRIES_MAX):
+            if self.CDE_use_var_list[e].get():
+                timeout = self.CDE_timeout_var_list[e].get().strip()
+
+                try:
+                    timeout_int = int(timeout)
+                except:
+                    all_timeout_set = False
+
+        if not all_timeout_set:
+            ask_dialog = self.get_ask_dialog_on_scan()
+            ask_dialog.show('CDE Timeout not set','Continue without Custom Data Extractor timeout ?')
+
+            if not ask_dialog.res_bool:
+                return False
+
 
         self.last_dir = path_to_scan_from_entry
 
@@ -3691,7 +3929,11 @@ class Gui:
 
         try:
             with open(sep.join([self.temp_dir,SCAN_DAT_FILE]), "wb") as f:
-                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,cde_list])))
+                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
+
+            #debug
+            #with open(sep.join(['./tmp1',SCAN_DAT_FILE]), "wb") as f:
+            #    f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
         except Exception as e:
             print(e)
         else:
@@ -3768,16 +4010,20 @@ class Gui:
                         if not switch_done:
                             self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
                             self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
-                            self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single(),state='normal')
+
+                            if threads==1:
+                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single(),state='normal')
+                            else:
+                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,state='disabled')
 
                             self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Abort',compound='left',width=15,state='normal')
 
                             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom Data will be incomplete.'
-                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]='Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.'
+                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]='Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.\n\nAvailable only for single thread mode.'
                             switch_done=True
 
-                        change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(librer_core.stdout_files_cde_size_extracted) )
-                        change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_files_cde_errors_quant_all) )
+                        change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(librer_core.stdout_cde_size_extracted) )
+                        change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_cde_errors_quant_all) )
 
                         files_q = librer_core.stdout_files_cde_quant
 
@@ -3790,24 +4036,11 @@ class Gui:
                         self_progress_dialog_on_scan_lab_r1_config(text=f'{local_bytes_to_str(librer_core.stdout_files_cde_size)} / {local_bytes_to_str(librer_core.stdout_files_cde_size_sum)}')
                         self_progress_dialog_on_scan_lab_r2_config(text=f'{fnumber(files_q)} / {fnumber(librer_core.stdout_files_cde_quant_sum)}')
 
-                        if change3 or change4:
-                            time_to_show_busy_sign=now+1.0
-
-                            if update_once:
-                                update_once=False
-                                self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
-                                self_progress_dialog_on_scan_update_lab_text(0,'')
-                        else :
-                            if now>time_to_show_busy_sign:
-                                if len(librer_core.stdout_info_line_current)>50:
-                                    change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
-                                else:
-                                    change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
-
-                                self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
-                                update_once=True
 
                     else:
+                        change3 = False
+                        change4 = False
+
                         self_progress_dialog_on_scan.abort_button.configure(state='disabled')
                         self_progress_dialog_on_scan.abort_single_button.configure(state='disabled')
 
@@ -3815,6 +4048,25 @@ class Gui:
                             change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
                         else:
                             change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
+
+                    ###############################################
+                    if change3 or change4:
+                        time_to_show_busy_sign=now+1.0
+
+                        if update_once:
+                            update_once=False
+                            self_progress_dialog_on_scan_update_lab_image(2,self_ico_empty)
+                            self_progress_dialog_on_scan_update_lab_text(0,'')
+                    else :
+                        if now>time_to_show_busy_sign:
+                            if len(librer_core.stdout_info_line_current)>50:
+                                change0 = self_progress_dialog_on_scan_update_lab_text(0,f'...{librer_core.stdout_info_line_current[-50:]}')
+                            else:
+                                change0 = self_progress_dialog_on_scan_update_lab_text(0,librer_core.stdout_info_line_current)
+
+                            self_progress_dialog_on_scan_update_lab_image(2,self_get_hg_ico())
+                            update_once=True
+                    ###############################################
 
                 except Exception as e:
                     print(e)
@@ -3854,30 +4106,37 @@ class Gui:
         return True
 
     def remove_record(self):
-        label = librer_core.get_record_name(self.current_record)
-        path = self.current_record.header.scan_path
-        creation_time = self.current_record.header.creation_time
+        record = self.current_record
+        label = librer_core.get_record_name(record)
+        path = record.header.scan_path
+        creation_time = record.header.creation_time
+        group = librer_core.get_record_group(record)
+        size=record.header.sum_size
 
         dialog = self.get_simple_question_dialog()
 
-        dialog.show('Delete selected data record ?',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo_short) )
+        dialog.show('Delete selected data record ?',librer_core.record_info_alias_wrapper(record,record.txtinfo_short) )
 
         if dialog.res_bool:
-            record_item = self.record_to_item[self.current_record]
+            record_item = self.record_to_item[record]
             self.tree.delete(record_item)
 
-            del self.record_to_item[self.current_record]
+            del self.record_to_item[record]
             del self.item_to_record[record_item]
 
-            res=librer_core.delete_record(self.current_record)
+            res=librer_core.delete_record(record)
             l_info(f'deleted file:{res}')
 
+            if group:
+                self.group_to_size_sum[group]-=size
+                self.single_group_update_size(group)
+
             self.find_clear()
+            #record.find_results_clean()
 
             self.status_record_configure('')
             if remaining_records := self.tree.get_children():
                 if new_sel_record := remaining_records[0]:
-                    self.tree.selection_set(new_sel_record)
                     self.tree.focus(new_sel_record)
 
                 self.tree_semi_focus()
@@ -4217,6 +4476,7 @@ class Gui:
 
                 if tree.tag_has(self.RECORD_RAW,item):
                     self.access_filestructure(record)
+
                     self_item_to_data[item] = record.filestructure
                     self.tree.item(item,tags=self.RECORD, image=self.ico_record_cd if record.has_cd() else self.ico_record)
                     self.tree_select() #tylko dla aktualizacja ikony
@@ -4225,7 +4485,7 @@ class Gui:
 
                 (top_entry_name_nr,top_code,top_size,top_mtime) = top_data_tuple[0:4]
 
-                top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_aux0,top_aux1,top_aux2 = LUT_decode_loc[top_code]
+                top_is_dir,top_is_file,top_is_symlink,top_is_bind,top_has_cd,top_has_files,top_cd_ok,top_cd_aborted,top_cd_empty,top_aux2 = LUT_decode_loc[top_code]
 
                 record_filenames = record.filenames
 
@@ -4234,6 +4494,10 @@ class Gui:
                 self_ico_folder = self.ico_folder
                 self_ico_cd_ok = self.ico_cd_ok
                 self_ico_cd_error = self.ico_cd_error
+
+                self_cd_ico_aborted = self.ico_cd_aborted
+                self_cd_ico_empty = self.ico_cd_empty
+
                 self_ico_empty = self.ico_empty
 
                 record_find_results = record.find_results
@@ -4249,7 +4513,7 @@ class Gui:
 
                         entry_subpath_tuple = tuple(subpath_list + [entry_name])
 
-                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode_loc[code]
+                        is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode_loc[code]
 
                         sub_data_tuple = None
 
@@ -4264,12 +4528,9 @@ class Gui:
                         if has_cd:
                             elem_index+=1
 
-                        #if has_crc:
-                        #    pass
                         kind = self_DIR if is_dir else self_FILE
 
-                        #image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd and not has_crc else (self_ico_cd_ok_crc if cd_ok else self_ico_cd_error_crc) if has_cd and has_crc else self.ico_crc if has_crc else self_ico_empty
-                        image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_ico_cd_error) if has_cd else self_ico_empty
+                        image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_cd_ico_aborted if cd_aborted else self_cd_ico_empty if cd_empty else self_ico_cd_error) if has_cd else self_ico_empty
 
                         if is_symlink or is_bind:
                             tags=self_SYMLINK
@@ -4301,16 +4562,25 @@ class Gui:
     def groups_show(self):
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         self.group_to_item = {}
+        self.group_to_size_sum = {}
+
+        self.group_to_size_sum[None]=0
         self.group_to_item[None]=''
 
         for group in librer_core.groups:
             self.single_group_show(group)
 
+    def single_group_update_size(self, group):
+        sum_size = self.group_to_size_sum[group]
+        self.tree.item(self.group_to_item[group],values=(group,group,0,'',sum_size,bytes_to_str(sum_size),0,'',self.GROUP))
+
     def single_group_show(self,group):
-        values = (group,group,0,'',0,'',0,'',self.GROUP)
-        group_item=self.tree.insert('','end',iid=None,values=values,open=False,text=group,image=self.ico_group,tags=self.GROUP)
+        self.group_to_size_sum[group]=0
+        group_item=self.tree.insert('','end',iid=None,open=False,text=group,image=self.ico_group,tags=self.GROUP)
+
         self.group_to_item[group] = group_item
-        self.tree.selection_set(group_item)
+        self.single_group_update_size(group)
+
         self.tree.focus(group_item)
         self.tree.see(group_item)
         self.column_sort(self.tree)
@@ -4329,14 +4599,26 @@ class Gui:
         record_item=self.tree.insert(group_item,'end',iid=None,values=values,open=False,text=librer_core.get_record_name(record),image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
         self.tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
+        groups_collapse = self.cfg.get(CFG_KEY_groups_collapse)
+
+        #print(self.cfg.get(CFG_KEY_groups_collapse),group_item)
+        self.tree.item(group_item, open = False)
+
+        self.group_to_size_sum[group]+=size
+        self.single_group_update_size(group)
+        #self.cfg.get(CFG_KEY_groups_collapse)
+
         self.tree_sort_item(None)
 
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
 
-        self.tree.focus(record_item)
-        self.tree.selection_set(record_item)
-        self.tree.see(record_item)
+        if groups_collapse:
+            self.tree.focus(group_item)
+            self.tree.see(group_item)
+        else:
+            self.tree.focus(record_item)
+            self.tree.see(record_item)
 
         records_len=len(librer_core.records)
         self.status_records_all_configure(f'Records:{records_len}')
@@ -4356,7 +4638,6 @@ class Gui:
         self.find_clear()
 
         self.column_sort(self.tree)
-
 
     def tree_update_none(self):
         self.tree.selection_remove(self.tree.selection())
@@ -4422,7 +4703,7 @@ class Gui:
                             data_tuple = self.item_to_data[item]
                             (entry_name,code,size,mtime) = data_tuple[0:4]
 
-                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,aux0,aux1,aux2 = LUT_decode[code]
+                            is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode[code]
 
                             if has_cd: #wiec nie has_files
                                 cd_index = data_tuple[4]
@@ -4458,7 +4739,16 @@ class Gui:
         if not self.block_processing_stack:
             if self.current_record:
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
-                self.get_text_info_dialog().show('Record Info.',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
+                self.get_text_info_dialog().show('Record Info',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
+
+    def purify_items_cache(self):
+        self_item_to_data = self.item_to_data
+        self_tree_exists = self.tree.exists
+        for item in list(self_item_to_data):
+            if not self_tree_exists(item):
+                del self_item_to_data[item]
+
+        #print('self_item_to_data:',len(self_item_to_data.keys()),asizeof(self_item_to_data))
 
     @block
     @logwrapper
@@ -4472,16 +4762,22 @@ class Gui:
             self_tree = self.tree
 
             self_tree.delete(*self_tree.get_children(record_item))
+
+            if record_item in self.item_to_data:
+                del self.item_to_data[record_item]
+                self.purify_items_cache()
+
+            record.unload_filestructure()
+            record.unload_customdata()
+            #self.find_clear()
+
             self_tree.insert(record_item,'end',text='dummy') #dummy_sub_item
             self_tree.set(record_item,'opened','0')
             self_tree.item(record_item, open=False)
 
-            record.unload_filestructure()
-            record.unload_customdata()
             self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
             self_tree.focus(record_item)
             self_tree.see(record_item)
-            self_tree.selection_set(record_item)
             self.tree_select()
 
     @block
@@ -4531,6 +4827,9 @@ class Gui:
 
 if __name__ == "__main__":
     try:
+        allocs, g1, g2 = gc_get_threshold()
+        gc_set_threshold(100_000, g1*5, g2*10)
+
         LIBRER_FILE = normpath(__file__)
         LIBRER_DIR = dirname(LIBRER_FILE)
 
