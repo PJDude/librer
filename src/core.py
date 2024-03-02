@@ -672,17 +672,13 @@ class LibrerRecord:
 
                 self_killed[thread_index]=False
 
-                empty=False
-
                 time_start = perf_counter_loc()
                 if abort_list[0] : #wszystko
                     returncode=200
                     output = aborted_string
                     aborted = True
+                    empty=True
                 else:
-                    aborted = False
-
-                    returncode=202
                     expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,do_crc = cde_list[rule_nr]
                     full_file_path = normpath(abspath(sep.join([scan_path,subpath]))).replace('/',sep)
                     command,command_info = get_command(executable,parameters,full_file_path,shell)
@@ -693,6 +689,7 @@ class LibrerRecord:
                     timeout_val=time()+timeout if timeout else None
                     #####################################
 
+                    empty=False
                     try:
                         subprocess = uni_popen(command,shell)
                         timeout_semi_list[0]=(timeout_val,subprocess)
@@ -700,6 +697,7 @@ class LibrerRecord:
                         timeout_semi_list[0]=None
                         returncode=201
                         output = f'Exception: {re}'
+                        aborted = False
                     else:
                         subprocess_stdout_readline = subprocess.stdout.readline
                         subprocess_poll = subprocess.poll
@@ -707,6 +705,7 @@ class LibrerRecord:
                         output_list = []
                         output_list_append = output_list.append
 
+                        returncode=202
                         while True:
                             line = subprocess_stdout_readline()
 
@@ -719,6 +718,9 @@ class LibrerRecord:
 
                         if self_killed[thread_index]:
                             output_list_append('Killed.')
+                            aborted = True
+                        else:
+                            aborted = False
 
                         output = '\n'.join(output_list).strip()
                         if not output:
@@ -733,6 +735,7 @@ class LibrerRecord:
                 if returncode or self_killed[thread_index] or aborted:
                     cde_errors_quant[rule_nr]+=1
                     cde_errors_quant_all+=1
+
 
                 if not aborted:
                     files_cde_quant += 1
@@ -1042,6 +1045,8 @@ class LibrerRecord:
         cd_search_kind_is_any = bool(cd_search_kind=='any')
         cd_search_kind_is_without = bool(cd_search_kind=='without')
         cd_search_kind_is_error = bool(cd_search_kind=='error')
+        cd_search_kind_is_empty = bool(cd_search_kind=='empty')
+        cd_search_kind_is_aborted = bool(cd_search_kind=='aborted')
 
         name_search_kind_is_error = bool(name_search_kind=='error')
 
@@ -1172,6 +1177,18 @@ class LibrerRecord:
                     elif cd_search_kind_is_error:
                         if has_cd:
                             if cd_ok:
+                                continue
+                        else:
+                            continue
+                    elif cd_search_kind_is_empty:
+                        if has_cd:
+                            if not cd_empty:
+                                continue
+                        else:
+                            continue
+                    elif cd_search_kind_is_aborted:
+                        if has_cd:
+                            if not cd_aborted:
                                 continue
                         else:
                             continue

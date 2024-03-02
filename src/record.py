@@ -269,12 +269,13 @@ if __name__ == "__main__":
             cd_glob=bool(find_cd_search_kind=='glob')
             cd_fuzzy=bool(find_cd_search_kind=='fuzzy')
             cd_error=bool(find_cd_search_kind=='error')
+            cd_empty=bool(find_cd_search_kind=='empty')
+            cd_aborted=bool(find_cd_search_kind=='aborted')
             cd_without=bool(find_cd_search_kind=='without')
             cd_ok=bool(find_cd_search_kind=='any')
 
             if cd_regexp:
                 custom_data_needed=True
-                cd_search_kind='regexp'
                 if res := test_regexp(cd_expr):
                     proper_exit(res)
                 re_obj_cd=re_compile(cd_expr, MULTILINE | DOTALL)
@@ -282,7 +283,6 @@ if __name__ == "__main__":
 
             elif cd_glob:
                 custom_data_needed=True
-                cd_search_kind='glob'
                 if cd_case_sens:
                     re_obj_cd=re_compile(translate(cd_expr), MULTILINE | DOTALL)
                     cd_func_to_call = lambda x : re_obj_cd.match(x)
@@ -291,19 +291,17 @@ if __name__ == "__main__":
                     cd_func_to_call = lambda x : re_obj_cd.match(x)
             elif cd_fuzzy:
                 custom_data_needed=True
-                cd_search_kind='fuzzy'
                 cd_func_to_call = lambda x : bool(SequenceMatcher(None,cd_expr, x).ratio()>cd_fuzzy_threshold)
             elif cd_without:
-                cd_search_kind='without'
+                cd_func_to_call = None
+            elif cd_empty:
                 cd_func_to_call = None
             elif cd_error:
-                cd_search_kind='error'
                 cd_func_to_call = None
             elif cd_ok:
-                cd_search_kind='any'
                 cd_func_to_call = None
             else:
-                cd_search_kind='dont'
+                #cd_search_kind='dont'
                 cd_func_to_call = None
 
             #####################################################################
@@ -323,7 +321,7 @@ if __name__ == "__main__":
                         size_min,size_max,
                         t_min,t_max,
                         name_search_kind,name_func_to_call,
-                        cd_search_kind,cd_func_to_call,
+                        find_cd_search_kind,cd_func_to_call,
                         print_info)
             except Exception as fe:
                 print_info(f'find_items error:{fe}')

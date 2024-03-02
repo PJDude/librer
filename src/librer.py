@@ -103,6 +103,7 @@ CFG_KEY_import_crc = 'export_crc'
 
 CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
+CFG_SORTING = 'sorting'
 CFG_KEY_show_popups = 'show_popups'
 CFG_KEY_groups_collapse = 'groups_collapse'
 
@@ -684,8 +685,11 @@ class Gui:
         self_REAL_SORT_COLUMN_IS_NUMERIC['size_h'] = True
         self_REAL_SORT_COLUMN_IS_NUMERIC['ctime_h'] = True
 
-        #colname,sort_index,is_numeric,reverse,dir_code,non_dir_code
-        self.column_sort_last_params=self.column_groups_sort_params_default=('#0',self_REAL_SORT_COLUMN_INDEX['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1)
+        try:
+            self.column_sort_last_params = self.cfg_get(CFG_SORTING)
+        except:
+            #colname,sort_index,is_numeric,reverse,dir_code,non_dir_code
+            self.column_sort_last_params=('#0',self_REAL_SORT_COLUMN_INDEX['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1)
 
         #######################################################################
 
@@ -1821,28 +1825,36 @@ class Gui:
             r_dont2.grid(row=0, column=0, sticky='news',padx=4,pady=4)
             r_dont2.bind('<Return>', lambda event : self.find_items())
 
-            r_without = Radiobutton(find_cd_frame,text="files without Custom Data ",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod)
+            r_without = Radiobutton(find_cd_frame,text="No Custom Data",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod)
             r_without.grid(row=1, column=0, sticky='news',padx=4,pady=4)
             r_without.bind('<Return>', lambda event : self.find_items())
 
-            r_correct = Radiobutton(find_cd_frame,text="files with any correct Custom Data ",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod)
+            r_correct = Radiobutton(find_cd_frame,text="Any correct Custom Data",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod)
             r_correct.grid(row=2, column=0, sticky='news',padx=4,pady=4)
             r_correct.bind('<Return>', lambda event : self.find_items())
 
-            r_error = Radiobutton(find_cd_frame,text="files with error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod)
+            r_error = Radiobutton(find_cd_frame,text="Error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod)
             r_error.grid(row=3, column=0, sticky='news',padx=4,pady=4)
             r_error.bind('<Return>', lambda event : self.find_items())
 
+            r_error_empty = Radiobutton(find_cd_frame,text="No CD extracted (empty value)",variable=self.find_cd_search_kind_var,value='empty',command=self.find_mod)
+            r_error_empty.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            r_error_empty.bind('<Return>', lambda event : self.find_items())
+
+            r_error_empty = Radiobutton(find_cd_frame,text="CD extraction aborted",variable=self.find_cd_search_kind_var,value='aborted',command=self.find_mod)
+            r_error_empty.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            r_error_empty.bind('<Return>', lambda event : self.find_items())
+
             regexp_radio_cd = Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)
-            regexp_radio_cd.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            regexp_radio_cd.grid(row=6, column=0, sticky='news',padx=4,pady=4)
             regexp_radio_cd.bind('<Return>', lambda event : self.find_items())
 
             glob_radio_cd = Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)
-            glob_radio_cd.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            glob_radio_cd.grid(row=7, column=0, sticky='news',padx=4,pady=4)
             glob_radio_cd.bind('<Return>', lambda event : self.find_items())
 
             fuzzy_radio_cd = Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod)
-            fuzzy_radio_cd.grid(row=6, column=0, sticky='news',padx=4,pady=4)
+            fuzzy_radio_cd.grid(row=8, column=0, sticky='news',padx=4,pady=4)
             fuzzy_radio_cd.bind('<Return>', lambda event : self.find_items())
 
             self.find_cd_regexp_entry = Entry(find_cd_frame,textvariable=self.find_cd_regexp_var,validate="key")
@@ -1853,17 +1865,17 @@ class Gui:
             self.find_cd_glob_entry.bind("<KeyRelease>", self.find_mod_keypress)
             self.find_cd_fuzz_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
-            self.find_cd_regexp_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
-            self.find_cd_glob_entry.grid(row=5, column=1, sticky='we',padx=4,pady=4)
-            self.find_cd_fuzz_entry.grid(row=6, column=1, sticky='we',padx=4,pady=4)
+            self.find_cd_regexp_entry.grid(row=6, column=1, sticky='we',padx=4,pady=4)
+            self.find_cd_glob_entry.grid(row=7, column=1, sticky='we',padx=4,pady=4)
+            self.find_cd_fuzz_entry.grid(row=8, column=1, sticky='we',padx=4,pady=4)
 
             self.cd_case_sens_cb = Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod)
-            self.cd_case_sens_cb.grid(row=5, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
+            self.cd_case_sens_cb.grid(row=7, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
 
             self.find_cd_fuzzy_threshold_lab = Label(find_cd_frame,text='Threshold:',bg=self.bg_color,anchor='e')
             self.find_cd_fuzzy_threshold_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzzy_threshold)
-            self.find_cd_fuzzy_threshold_lab.grid(row=6, column=2, sticky='wens',padx=4,pady=4)
-            self.find_cd_fuzzy_threshold_entry.grid(row=6, column=3, sticky='wens',padx=4,pady=4)
+            self.find_cd_fuzzy_threshold_lab.grid(row=8, column=2, sticky='wens',padx=4,pady=4)
+            self.find_cd_fuzzy_threshold_entry.grid(row=8, column=3, sticky='wens',padx=4,pady=4)
 
             self.find_cd_fuzzy_threshold_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
@@ -2870,6 +2882,10 @@ class Gui:
                 search_info_lines_append(f'Files with any correct Custom Data')
             elif find_cd_search_kind == 'error':
                 search_info_lines_append('Files with error on CD extraction')
+            elif find_cd_search_kind == 'empty':
+                search_info_lines_append('Files with empty CD value')
+            elif find_cd_search_kind == 'aborted':
+                search_info_lines_append('Files with aborted CD extraction')
             elif find_cd_search_kind == 'regexp':
                 if find_cd_regexp:
                     if res := test_regexp(find_cd_regexp):
@@ -3597,6 +3613,7 @@ class Gui:
         sort_index=self.REAL_SORT_COLUMN_INDEX[colname]
         is_numeric=self.REAL_SORT_COLUMN_IS_NUMERIC[colname]
         self.column_sort_last_params=(colname,sort_index,is_numeric,reverse,dir_code,non_dir_code)
+        self.cfg.set(CFG_SORTING,self.column_sort_last_params)
 
         #print('\npre sort info colname:',colname,'is_numeric',is_numeric,'reverse:',reverse)
         colname_real = self.REAL_SORT_COLUMN[colname]
