@@ -832,10 +832,12 @@ class Gui:
         self.menubar_config(cursor='')
         self.main_config(cursor='')
 
-        self.tree_semi_focus()
 
-        #for child in self.tree.get_children():
-        #    self.tree.item(child, open=False)
+        if items := self.tree.get_children():
+            self.tree.focus(items[0])
+
+        self.tree.focus_set()
+        self.tree_semi_focus()
 
         self.status_info.configure(image='',text = 'Ready')
 
@@ -2386,13 +2388,32 @@ class Gui:
 
                                 if has_cd:
                                     tooltip_list.append('')
-                                    tooltip_list.append('(Double click to show Custom Data.)')
+                                    if not cd_ok:
+                                        tooltip_list.append('Custom Data Extraction ended with error')
+                                        tooltip_list.append('(Double click to show Custom Data.)')
+                                    elif cd_aborted:
+                                        tooltip_list.append('Custom Data Extraction was aborted')
+                                        tooltip_list.append('(Double click to show Custom Data.)')
+                                    elif cd_empty:
+                                        tooltip_list.append('Custom Data is empty')
+                                    else:
+                                        tooltip_list.append('(Double click to show Custom Data.)')
+
 
                             self.tooltip_lab_configure(text='\n'.join(tooltip_list))
 
                         self.tooltip_deiconify_wrapp()
+
+                    elif tree.tag_has(self.GROUP,item):
+                        if values := tree.item(item,'values'):
+                            name = values[0]
+                            self.tooltip_lab_configure(text=f'group   :{name}')
+                        else:
+                            self.tooltip_lab_configure(text='')
+
+
                     else:
-                        self.tooltip_lab_configure(text='label')
+                        self.tooltip_lab_configure(text='unknown_label')
 
                 elif col:
                     coldata=tree.set(item,col)
@@ -3426,10 +3447,10 @@ class Gui:
 
             item_actions_state=('disabled','normal')[self.sel_item is not None]
 
-
             item=self.tree.focus()
 
             is_group = bool(self.tree.tag_has(self.GROUP,item))
+            is_record_loaded = bool(self.tree.tag_has(self.RECORD,item))
             is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
 
             record_in_group = False
@@ -3491,6 +3512,8 @@ class Gui:
             pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = search_state, image = self.ico_empty,compound='left')
             pop_add_separator()
             pop_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
+            pop_add_separator()
+            pop_add_command(label = 'Unload record data',command = self.unload_record, accelerator="Backspace", image = self.ico_empty,compound='left',state = 'normal' if is_record_loaded else 'disabled')
             pop_add_separator()
 
             pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
@@ -3565,20 +3588,15 @@ class Gui:
     last_assign_to_group_group = None
     @logwrapper
     def assign_to_group(self):
-        #item=self.tree.focus()
-
-        #is_group = bool(self.tree.tag_has(self.GROUP,item))
-        #is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
-
         if self.current_record:
-            curr_group = librer_core.get_record_group(self.current_record)
+            record = self.current_record
+            current = prev_group = librer_core.get_record_group(record)
+            #print(f'{current=}')
 
             dial = self.get_assign_to_group_dialog()
-
             values = list(librer_core.groups.keys())
             dial.combobox.configure(values=values)
-            record = self.current_record
-            current = librer_core.get_record_group(record)
+
             size=record.header.sum_size
 
             if not current:
@@ -3599,15 +3617,15 @@ class Gui:
                     if res2:
                         self.info_dialog_on_main.show('assign_new_group Error',res2)
                     else:
-                        if current:
-                            self.group_to_size_sum[current]-=size
+                        if prev_group:
+                            self.group_to_size_sum[current] -= size
                             self.single_group_update_size(current)
 
                         group_item = self.group_to_item[group]
                         record_item = self.record_to_item[record]
                         self.tree.move(record_item,group_item,0)
 
-                        self.group_to_size_sum[group]+=size
+                        self.group_to_size_sum[group] += size
                         self.single_group_update_size(group)
 
                         self.open_item(group_item)
@@ -4553,9 +4571,8 @@ class Gui:
             self.single_group_show(group)
 
     def single_group_update_size(self, group):
-        values = (group,group,0,'',self.group_to_size_sum[group],bytes_to_str(self.group_to_size_sum[group]),0,'',self.GROUP)
-
-        self.tree.item(self.group_to_item[group],values=values)
+        sum_size = self.group_to_size_sum[group]
+        self.tree.item(self.group_to_item[group],values=(group,group,0,'',sum_size,bytes_to_str(sum_size),0,'',self.GROUP))
 
     def single_group_show(self,group):
         self.group_to_size_sum[group]=0
