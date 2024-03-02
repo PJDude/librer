@@ -577,7 +577,8 @@ class Gui:
         tree_column('ctime_h', width=150, minwidth=100, stretch='no',anchor='e')
 
         tree_heading = tree.heading
-        tree_heading('#0',text='Name \u25B2',anchor='w')
+        #tree_heading('#0',text='Name \u25B2',anchor='w')
+        tree_heading('#0',text='Name',anchor='w')
         tree_heading('size_h',anchor='w',text=self_org_label['size_h'])
         tree_heading('ctime_h',anchor='n',text=self_org_label['ctime_h'])
 
@@ -924,10 +925,10 @@ class Gui:
                 tree.selection_remove(*selection)
                 item=selection[0]
                 tree.focus(item)
-                tree_sel_change(item,True)
+                self.tree_sel_change(item,True)
             elif item:=self.selected:
                 tree.focus(item)
-                tree_sel_change(item,True)
+                self.tree_sel_change(item,True)
 
         except Exception as e:
             l_error(f'groups_tree_focus_in:{e}')
@@ -3543,12 +3544,19 @@ class Gui:
     def remove_from_group(self):
         record = self.current_record
 
+        group = librer_core.get_record_group(record)
+
         res = librer_core.remove_record_from_group(record)
         if res :
             self.info_dialog_on_main.show('Error',res)
         else:
             record_item = self.record_to_item[record]
             self.tree.move(record_item,'',0)
+
+            if group:
+                size=record.header.sum_size
+                self.group_to_size_sum[group]-=size
+                self.single_group_update_size(group)
 
             self.find_clear()
 
@@ -3571,6 +3579,7 @@ class Gui:
             dial.combobox.configure(values=values)
             record = self.current_record
             current = librer_core.get_record_group(record)
+            size=record.header.sum_size
 
             if not current:
                 if self.last_assign_to_group_group in values:
@@ -3584,15 +3593,23 @@ class Gui:
                 group = dial.entry_val.get()
 
                 if group:
+
                     self.last_assign_to_group_group = group
                     res2=librer_core.assign_new_group(record,group)
                     if res2:
                         self.info_dialog_on_main.show('assign_new_group Error',res2)
                     else:
+                        if current:
+                            self.group_to_size_sum[current]-=size
+                            self.single_group_update_size(current)
+
                         group_item = self.group_to_item[group]
                         record_item = self.record_to_item[record]
                         self.tree.move(record_item,group_item,0)
-                        #self.tree.open(group_item)
+
+                        self.group_to_size_sum[group]+=size
+                        self.single_group_update_size(group)
+
                         self.open_item(group_item)
                         self.tree.focus(record_item)
                         self.tree.see(record_item)
@@ -4075,6 +4092,8 @@ class Gui:
         label = librer_core.get_record_name(record)
         path = record.header.scan_path
         creation_time = record.header.creation_time
+        group = librer_core.get_record_group(record)
+        size=record.header.sum_size
 
         dialog = self.get_simple_question_dialog()
 
@@ -4089,6 +4108,10 @@ class Gui:
 
             res=librer_core.delete_record(record)
             l_info(f'deleted file:{res}')
+
+            if group:
+                self.group_to_size_sum[group]-=size
+                self.single_group_update_size(group)
 
             self.find_clear()
             #record.find_results_clean()
@@ -4521,16 +4544,26 @@ class Gui:
     def groups_show(self):
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         self.group_to_item = {}
+        self.group_to_size_sum = {}
+
+        self.group_to_size_sum[None]=0
         self.group_to_item[None]=''
 
         for group in librer_core.groups:
             self.single_group_show(group)
 
-    def single_group_show(self,group):
-        values = (group,group,0,'',0,'',0,'',self.GROUP)
+    def single_group_update_size(self, group):
+        values = (group,group,0,'',self.group_to_size_sum[group],bytes_to_str(self.group_to_size_sum[group]),0,'',self.GROUP)
 
-        group_item=self.tree.insert('','end',iid=None,values=values,open=False,text=group,image=self.ico_group,tags=self.GROUP)
+        self.tree.item(self.group_to_item[group],values=values)
+
+    def single_group_show(self,group):
+        self.group_to_size_sum[group]=0
+        group_item=self.tree.insert('','end',iid=None,open=False,text=group,image=self.ico_group,tags=self.GROUP)
+
         self.group_to_item[group] = group_item
+        self.single_group_update_size(group)
+
         self.tree.focus(group_item)
         self.tree.see(group_item)
         self.column_sort(self.tree)
@@ -4553,6 +4586,9 @@ class Gui:
 
         #print(self.cfg.get(CFG_KEY_groups_collapse),group_item)
         self.tree.item(group_item, open = False)
+
+        self.group_to_size_sum[group]+=size
+        self.single_group_update_size(group)
         #self.cfg.get(CFG_KEY_groups_collapse)
 
         self.tree_sort_item(None)
