@@ -1669,11 +1669,16 @@ class LibrerCore:
 
         cd_set_add = cd_set.add
 
+        counter = 0
         try:
             for import_filename in import_filenames:
                 with open(import_filename,"rt", encoding='utf-8', errors='ignore') as f:
+                    self.wii_import_core_info1 = import_filename
                     for line in f:
+                        self.wii_import_core_info2 = f'{line=}'
                         try:
+                            self.wii_import_core_info0 = str(counter)
+                            counter+=1
                             if in_report:
                                 if in_item:
                                     if in_description:
@@ -1953,8 +1958,10 @@ class LibrerCore:
 
         return anything
 
-    def import_records_wii_scan(self,import_filenames):
+    def import_records_wii_scan(self,import_filenames,res_list):
         self.log.info(f'import_records_wii:{",".join(import_filenames)}')
+
+        self.wii_import_core_info2 = 'init0'
 
         gc_disable()
         res = self.get_wii_files_dict(import_filenames)
@@ -1974,9 +1981,11 @@ class LibrerCore:
                 elif is_file:
                     quant_files+=1
 
-            return quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
+            #return quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
+            res_list[0]= quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
         else:
-            return res
+            #return res
+            res_list[0]= res
 
     def import_records_wii_do(self,compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,update_callback,group=None):
         import_res=[]
@@ -2631,7 +2640,7 @@ class LibrerCore:
 
         if file_name in self.aliases:
             del self.aliases[file_name]
-            print('removed from aliases')
+            #print('removed from aliases')
 
         self.log.info('removing file to trash:%s',file_path)
         try:
