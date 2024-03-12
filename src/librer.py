@@ -41,17 +41,18 @@ from threading import Thread
 from traceback import format_stack
 import sys
 import logging
+from shutil import rmtree
+
 from pickle import dumps, loads
-from zstandard import ZstdCompressor,ZstdDecompressor
 from ciso8601 import parse_datetime
+from zstandard import ZstdCompressor,ZstdDecompressor
 from psutil import disk_partitions
 from librer_images import librer_image
 
-from shutil import rmtree
-from re import compile as re_compile
-
 from dialogs import *
 from core import *
+
+from tempfile import mkdtemp
 
 windows = bool(os_name=='nt')
 
@@ -59,7 +60,6 @@ if windows:
     from os import startfile
     from win32api import GetVolumeInformation
 
-#l_debug = logging.debug
 l_info = logging.info
 l_warning = logging.warning
 l_error = logging.error
@@ -236,7 +236,7 @@ class Gui:
         self.main_config(cursor='watch')
 
     ################################################
-    def processing_on(self,caller_id=None):
+    def processing_on(self):
         self.block_processing_stack_pop()
 
         if not self.block_processing_stack:
@@ -685,7 +685,7 @@ class Gui:
         menubar.add_cascade(label = 'Help',menu = self.help_cascade)
 
         #######################################################################
-        self.reset_sels()
+        self.sel_item = None
 
         self_REAL_SORT_COLUMN = self.REAL_SORT_COLUMN = self.REAL_SORT_COLUMN={}
 
@@ -859,8 +859,6 @@ class Gui:
             self.tree_item_focused(item)
 
         self.tree.focus_set()
-        #TODO
-        #self.tree_semi_focus()
 
         self.status_info.configure(image='',text = 'Ready')
 
@@ -875,7 +873,7 @@ class Gui:
         tree_bind('<<TreeviewOpen>>', lambda event : self.open_item())
         tree_bind('<ButtonPress-3>', self.context_menu_show)
 
-        tree_bind("<<TreeviewSelect>>", self.tree_on_select)
+        tree_bind("<<TreeviewSelect>>", lambda event : self.tree_on_select() )
 
         self_main_bind = self_main.bind
 
@@ -941,8 +939,6 @@ class Gui:
             tree.selection_set(item)
             self.sel_item=item
 
-    #selected=None
-
     def tree_focus_in(self):
         tree = self.tree
         try:
@@ -956,19 +952,7 @@ class Gui:
                     item = selection[0]
 
             if item:
-                #tree.focus(item)
-                #self.tree_sel_change(item,True)
-                #self.tree_on_select()
                 self.select_and_focus(item)
-
-
-
-                #item=selection[0]
-
-                #tree.focus(item)
-                #self.tree_sel_change(item,True)
-                #self.select_and_focus(item)
-
 
         except Exception as e:
             l_error(f'groups_tree_focus_in:{e}')
@@ -1406,7 +1390,7 @@ class Gui:
         self.widget_tooltip(dialog.find_cs,'Case Sensitive')
         self.widget_tooltip(dialog.find_info_lab,'index of the selected search result / search results total ')
 
-        dialog.find_cs_var.set(False if windows else True)
+        dialog.find_cs_var.set(not windows)
 
     progress_dialog_on_scan_created = False
     @restore_status_line
@@ -1524,7 +1508,17 @@ class Gui:
             self.progress_dialog_on_main = ProgressDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.progress_dialog_on_main.command_on_close = self.progress_dialog_abort
 
-            self.progress_dialog_on_main.abort_button.pack_forget()
+            #self.progress_dialog_on_main.abort_button.pack_forget()
+            #self.progress_dialog_on_main.cancel_button.pack_forget()
+
+            self.progress_dialog_on_main.progr1.grid_forget()
+            self.progress_dialog_on_main.progr2.grid_forget()
+
+            self.progress_dialog_on_main.lab_l1.grid_forget()
+            self.progress_dialog_on_main.lab_l2.grid_forget()
+
+            self.progress_dialog_on_main.lab_r1.grid_forget()
+            self.progress_dialog_on_main.lab_r2.grid_forget()
 
             self.progress_dialog_on_main_created = True
 
@@ -1957,8 +1951,6 @@ class Gui:
             def validate_size_str(val):
                 return bool(val == "" or val.isdigit())
 
-            #entry_validator = self.main.register(validate_size_str)
-            #,validate="key",validatecommand=(entry_validator,"%P")
             find_size_min_entry=Entry(find_size_frame,textvariable=self.find_size_min_var)
             find_size_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
             find_size_max_entry=Entry(find_size_frame,textvariable=self.find_size_max_var)
@@ -2113,8 +2105,7 @@ class Gui:
             if self.entry_ask_dialog.res_bool:
                 alias = self.entry_ask_dialog.entry_val.get()
                 if alias:
-                    res2=librer_core.alias_record_name(self.current_record,alias)
-                    #item = self.record_to_item[self.current_record]
+                    librer_core.alias_record_name(self.current_record,alias)
                     self.tree.item(item,text=alias)
         elif self.current_group and is_group:
             self.get_entry_ask_dialog().show('Rename group',f"Group '{self.current_group}' rename :",self.current_group)
@@ -2153,13 +2144,12 @@ class Gui:
         if self.current_record:
             dialog = self.get_repack_dialog()
 
-            #librer_core.get_record_name(record)
             self.repack_label_var.set(self.current_record.header.label + "(" + librer_core.get_record_name(self.current_record) + ")")
             self.repack_compr_var.set(self.current_record.header.compression_level)
             self.repack_compr_var_int.set(self.current_record.header.compression_level)
 
             self.repack_cd_cb.configure(state='normal' if self.current_record.header.items_cd else 'disabled')
-            self.repack_cd_var.set(True if self.current_record.header.items_cd else False)
+            self.repack_cd_var.set(bool(self.current_record.header.items_cd))
 
             dialog.show()
 
@@ -2196,7 +2186,6 @@ class Gui:
 
             self.last_dir = dirname(import_filenames[0])
 
-            #wiis_res = librer_core.import_records_wii_scan(import_filenames)
             res_list = [None]
             wii_import_thread=Thread(target=lambda : librer_core.import_records_wii_scan(import_filenames,res_list) ,daemon=True)
             wii_import_thread_is_alive = wii_import_thread.is_alive
@@ -2208,43 +2197,31 @@ class Gui:
             wait_var_get = wait_var.get
 
             dialog.show('Parsing file(s)')
-            #,now=False
-
-            dialog_lab_r1_configure = dialog.lab_r1.configure
-            dialog_lab_r2_configure = dialog.lab_r2.configure
 
             self_main_after = self.main.after
             self_main_wait_variable = self.main.wait_variable
 
-            dialog_update_lab_text = dialog.update_lab_text
+            dialog_update_lab_text = lambda par : dialog.lab[0].configure(text=par)
 
+            dialog_update_lab_text('dupa1')
             dialog_area_main_update = dialog.area_main.update
 
             while wii_import_thread_is_alive():
-                dialog_update_lab_text(0,librer_core.wii_import_core_info0)
-                dialog_update_lab_text(1,librer_core.wii_import_core_info1)
-                dialog_update_lab_text(2, f'...{librer_core.wii_import_core_info2[-50:0]}')
+                dialog_update_lab_text(f'disks: {librer_core.wii_import_known_disk_names_len}')
 
-                #dialog_progr1var_set(self.wii_import_core_perc_1)
-                #dialog_progr2var_set(self.wii_import_core_perc_2)
-
-                #dialog_lab_r1_configure(text = f'{bytes_to_str(self.wii_import_size_sum)} / {self.wii_import_total_size_str}')
-                #dialog_lab_r2_configure(text = f'{self.wii_import_counter} / {self.wii_import_total}')
-
-                self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+                self_main_after(25,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
 
                 dialog_area_main_update()
+                #dialog.update()
 
             wii_import_thread.join()
 
             dialog.hide(True)
 
-
             if len(res_list[0])!=11:
                 self.info_dialog_on_main.show('Where Is It? Import failed',f"Format error.\n{res_list[0][1]}")
                 return
-
 
             quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk = res_list[0]
 
@@ -2255,7 +2232,7 @@ class Gui:
                 dialog = self.get_wii_import_dialog()
 
                 if len(import_filenames)>1:
-                    self.wii_import_label_var.set(f'WII-imported-multiple-files')
+                    self.wii_import_label_var.set('WII-imported-multiple-files')
                 else:
                     self.wii_import_label_var.set(f'WII-imported-{Path(import_filenames[0]).stem}')
 
@@ -2270,12 +2247,10 @@ class Gui:
 
                     if self.wii_import_separate.get():
                         res= []
-                        #wii_path_tuple_to_data_per_disk[(disk_name,tuple(filenames_set_sd)][tuple(path_splitted)] = sld_tuple
 
                         for disk_name,wii_path_tuple_to_data_curr in wii_path_tuple_to_data_per_disk.items():
-                            print(f'{disk_name=}')
                             self.status(f'importing {disk_name} ... ')
-                            #sld_tuple = sub_dict[path_splitted_tuple]
+
                             quant_files=3
                             quant_folders=3
 
@@ -2344,7 +2319,6 @@ class Gui:
                     self.info_dialog_on_main.show('Export','Successful.')
 
     def focusin(self):
-        #print('focusin')
         if self.main_locked_by_child:
             self.main_locked_by_child.focus_set()
 
@@ -2500,7 +2474,6 @@ class Gui:
                                     else:
                                         tooltip_list.append('(Double click to show Custom Data.)')
 
-
                             self.tooltip_lab_configure(text='\n'.join(tooltip_list))
 
                         self.tooltip_deiconify_wrapp()
@@ -2511,7 +2484,6 @@ class Gui:
                             self.tooltip_lab_configure(text=f'group   :{name}')
                         else:
                             self.tooltip_lab_configure(text='')
-
 
                     else:
                         self.tooltip_lab_configure(text='unknown_label')
@@ -2570,7 +2542,6 @@ class Gui:
             self.menu_state_stack_pop()
             if not self.menu_state_stack:
                 norm("File")
-                #norm("Navigation")
                 norm("Help")
         except Exception as e:
             l_error(e)
@@ -2582,12 +2553,6 @@ class Gui:
         disable("File")
         disable("Help")
         #self.menubar.update()
-
-    def reset_sels(self):
-        self.sel_path = None
-        self.sel_item = None
-
-        #self.sel_kind = None
 
     def delete_window_wrapper(self):
         if not self.block_processing_stack:
@@ -2622,12 +2587,8 @@ class Gui:
         dialog = self.get_settings_dialog()
         dialog.show('Settings')
 
-        #TODO
-        #self.tree_semi_focus()
-
     @block
     def finder_wrapper_show(self):
-        #if self.current_record:
         if librer_core.records:
             dialog = self.get_find_dialog()
 
@@ -2637,12 +2598,6 @@ class Gui:
 
             dialog.show('Find')
             self.find_dialog_shown=False
-
-            #if self.any_valid_find_results:
-            #    self.select_find_result(1)
-
-            #TODO
-            #self.tree_semi_focus()
 
     def find_close(self):
         self.find_dialog.hide()
@@ -2889,23 +2844,25 @@ class Gui:
         return True #for entry validation
 
     def invalidate_find_results(self):
-        self.any_valid_find_results=Fale
+        self.any_valid_find_results=False
 
     def get_range_name(self):
         if self.current_group:
             return f'group: {self.current_group}'
-        elif self.current_record:
+
+        if self.current_record:
             return f'record: {self.current_record.header.label}'
-        else:
-            return ()
+
+        return ()
 
     def get_selected_records(self):
         if self.current_group:
             return librer_core.get_records_of_group(self.current_group)
-        elif self.current_record:
+
+        if self.current_record:
             return [self.current_record]
-        else:
-            return ()
+
+        return ()
 
     #@restore_status_line
     def find_items(self):
@@ -2949,24 +2906,10 @@ class Gui:
                 sel_range = librer_core.records
             else:
                 sel_range = self.get_selected_records()
-                #sel_range_info = '\n'.join([librer_core.get_record_name(rec) for rec in sel_range])
+
                 sel_range_info = self.get_range_name()
                 search_info_lines_append(f'Search in {sel_range_info}')
 
-            #if self.current_record:
-            #    search_info_lines_append(f'Search in record:{librer_core.get_record_name(self.current_record)}')
-            #    sel_range = [self.current_record]
-            #elif self.current_group:
-            #    search_info_lines_append(f'Search in group:{self.current_group}')
-            #    sel_range = librer_core.get_records_of_group(self.current_group)
-            #else:
-            #    print('imposible1')
-            #    sel_range=[]
-
-            #print(f'{sel_range=}')
-            #range_par = self.current_record if not find_range_all else None
-
-            #sel_range = [range_par] if range_par else librer_core.records
             sel_range_len = len(sel_range)
             files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
 
@@ -3112,10 +3055,6 @@ class Gui:
 
             self_progress_dialog_on_find = self.get_progress_dialog_on_find()
 
-            #gc_disable()
-            #gc_collect()
-
-            #search_thread=Thread(target=lambda : librer_core.find_items_in_records(self.temp_dir,range_par,
             search_thread=Thread(target=lambda : librer_core.find_items_in_records(self.temp_dir,sel_range,
                 min_num,max_num,
                 t_min,t_max,
@@ -3333,18 +3272,11 @@ class Gui:
                 if child_item:
                     current_item = child_item
                     self_open_item(current_item)
-                    #self_tree.see(current_item)
                     self_tree_update()
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
 
-            #self.tree.see(current_item)
-            #self.tree.update()
-
-            #self_tree.focus(current_item)
-
-            #self.tree_on_select()
             if self.find_dialog_shown:
                 self.tree.selection_set(current_item)
             else:
@@ -3354,12 +3286,6 @@ class Gui:
 
             self.select_and_focus(current_item)
 
-            #TODO
-            #self.tree_semi_focus()
-
-            #self.tree_sel_change(current_item,change_status_line=False)
-
-            #self.tree.see(current_item)
             self.tree.update()
 
         if status_to_set:
@@ -3373,8 +3299,6 @@ class Gui:
 
     @block
     def goto_next_prev_record(self,direction):
-        #status ='selecting next record' if direction==1 else 'selecting prev record'
-
         tree=self.tree
         current_item=self.sel_item
 
@@ -3384,10 +3308,6 @@ class Gui:
 
             item_to_sel = tree.next(record_item) if direction==1 else tree.prev(record_item)
 
-            #if children := self.tree_get_children():
-                #if next_item:=children[index]:
-                #    self.select_and_focus(next_item)
-            #    pass
             if item_to_sel:
                 self.select_and_focus(item_to_sel)
 
@@ -3412,9 +3332,8 @@ class Gui:
                 if values:
                     self.current_group=values[0]
                 else:
-                    sel.current_group=None
+                    self.current_group=None
 
-                #self.status_record_configure('---')
                 self.status_record.configure(image = self.ico_empty, text = '---',compound='left')
                 self.current_record=None
             else:
@@ -3429,33 +3348,23 @@ class Gui:
                         if not self.cfg.get(CFG_KEY_find_range_all):
                             self.external_find_params_change = True
 
-                    #record_name = self.tree.item(record_item,'text')
                     image=self.tree.item(record_item,'image')
 
                     self.status_record.configure(image = image, text = record_name,compound='left')
                     self.widget_tooltip(self.status_record,librer_core.record_info_alias_wrapper(record,record.txtinfo_basic + '\n\n(Click to show full record info)') )
-                    #\nsingle click to unload data of current record.\n
                 else:
                     self.status_record.configure(image = '', text = '')
                     self.widget_tooltip(self.status_record,'')
                     self.current_record = None
-                    #self.status_record_configure('---')
                     self.status_record.configure(image = self.ico_empty, text = '---',compound='left')
         else:
-            #self.status_record_configure('---')
             self.status_record.configure(image = self.ico_empty, text = '---',compound='left')
             self.current_record = None
             self.current_group = None
 
-    def tree_on_select(self,event=None):
-        #print('tree_on_select:',event)
-
-        #self.find_clear()
-
+    def tree_on_select(self):
         item=self.tree.focus()
-        #item = event.item
         self.sel_item = item
-        #parent = self.tree.parent(item)
 
         self.status('')
 
@@ -3493,12 +3402,9 @@ class Gui:
     def select_and_focus(self,item):
         #print('select_and_focus',item)
 
-        #self.tree_see(item)
         self.tree_focus(item)
         self.tree_item_focused(item)
         self.tree.update()
-
-        #self.tree_sel_change(item)
 
     def tree_on_mouse_button_press(self,event):
         if not self.block_processing_stack:
@@ -3521,59 +3427,12 @@ class Gui:
                 elif item:=tree.identify('item',event.x,event.y):
                     tree.selection_remove(tree.selection())
 
-                    #self.tree_semi_focus()
                     tree.focus(item)
                     self.tree_on_select()
-
-                    #tree.see(item)
-                    #self.tree_sel_change(item)
-                    #self.tree_on_select()
-                    #self.sel_item = item
-
         else:
             return "break"
 
-    #def tree_semi_focus(self):
-    #    tree = self.tree
-
-    #    item=None
-
-    #    if sel:=tree.selection():
-    #        item=sel[0]
-    #        print('ff1')
-
-    #    if not item:
-    #        item=tree.focus()
-    #        print('ff2')
-
-    #    if not item:
-    #        print('ff3')
-    #        try:
-    #            item = tree.get_children()[0]
-    #        except :
-    #            pass
-
-    #    if item:
-    #        #tree.focus_set()
-    #        tree.see(item)
-
-    #        self.tree_sel_change(item)
-    #        self.sel_item = item
-    #    else:
-    #        self.sel_item = None
-
     sel_item = None
-
-    #@catched
-    #def tree_sel_change(self,item,change_status_line=True):
-    #    self.sel_item = item
-
-    #    if change_status_line :
-    #        self.status('')
-
-        #self_tree_set_item=lambda x : self.tree_set(item,x)
-
-    #    self.tree_on_select()
 
     def menubar_unpost(self):
         try:
@@ -3606,10 +3465,7 @@ class Gui:
 
             is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
 
-            record_in_group = False
-            if is_record:
-                if librer_core.get_record_group(self.current_record):
-                    record_in_group = True
+            record_in_group = is_record and bool(librer_core.get_record_group(self.current_record))
 
             there_are_groups = bool(librer_core.groups)
 
@@ -3620,8 +3476,7 @@ class Gui:
             pop_add_separator = pop.add_separator
             pop_add_cascade = pop.add_cascade
             pop_add_command = pop.add_command
-            self_ico = self.ico
-            #state_on_records = 'normal' if librer_core.records else 'disabled'
+
             state_on_records = 'normal' if is_record else 'disabled'
 
             state_on_records_or_groups = 'normal' if is_record or is_group else 'disabled'
@@ -3719,12 +3574,6 @@ class Gui:
                     self.tree_item_focused(item)
                 else:
                     self.tree_on_select(None)
-
-                #tree.focus(item)
-
-                #self.tree_item_focused(item)
-
-                #self.tree_semi_focus()
 
                 self.find_clear()
 
@@ -3920,10 +3769,6 @@ class Gui:
         self.scan_dialog.hide()
         self.tree.focus_set()
 
-        #TODO
-        #self.tree_semi_focus()
-
-        #tree.focus(item)
         self.tree_on_select()
 
     @restore_status_line
@@ -4023,8 +3868,6 @@ class Gui:
 
         self_progress_dialog_on_scan.show('Creating new data record (scanning)')
 
-        update_once=True
-
         self_hg_ico = self.hg_ico
 
         local_bytes_to_str = bytes_to_str
@@ -4099,15 +3942,9 @@ class Gui:
             with open(sep.join([self.temp_dir,SCAN_DAT_FILE]), "wb") as f:
                 f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
 
-            #debug
-            #with open(sep.join(['./tmp1',SCAN_DAT_FILE]), "wb") as f:
-            #    f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
         except Exception as e:
             print(e)
         else:
-            #gc_disable()
-            #gc_collect()
-
             creation_thread=Thread(target=lambda : librer_core.create_new_record(self.temp_dir,self.single_record_show,group),daemon=True)
             creation_thread.start()
 
@@ -4247,9 +4084,6 @@ class Gui:
 
             creation_thread.join
 
-            #gc_collect()
-            #gc_enable()
-
         self_progress_dialog_on_scan.hide(True)
 
         #################################################################################################################################################
@@ -4299,9 +4133,7 @@ class Gui:
                 self.single_group_update_size(group)
 
             self.find_clear()
-            #record.find_results_clean()
 
-            #self.status_record_configure('')
             self.status_record.configure(image = self.ico_empty, text = '---',compound='left')
 
             if remaining_items := self.tree.get_children():
@@ -4311,7 +4143,6 @@ class Gui:
             else:
                 self.sel_item = None
 
-                #self.tree_semi_focus()
             self.tree.focus_set()
 
     def delete_action(self):
@@ -4367,7 +4198,7 @@ class Gui:
                 except Exception as e:
                     print(e,e_section)
                     do_clear_settings=True
-                    #print('clearing settings')
+
                     break
         else:
             do_clear_settings=True
@@ -4540,7 +4371,6 @@ class Gui:
 
                 timeout_val=time()+float(timeout_int) if timeout_int else None
 
-
                 while test_thread.is_alive():
                     simple_progress_dialog_scan_update_lab_image(2,self.get_hg_ico())
 
@@ -4608,7 +4438,6 @@ class Gui:
 
         item = self.record_to_item[record]
         self.tree.item(item,image=self.ico_record_cd_loaded)
-        #tags=self.RECORD
 
     @block
     def open_item(self,item=None):
@@ -4750,8 +4579,6 @@ class Gui:
         self.group_to_size_sum[group]=0
         group_item=self.tree.insert('','end',iid=None,open=False,text=group,image=self.ico_group,tags=self.GROUP)
 
-        #print('group_item:',group_item,group)
-
         self.group_to_item[group] = group_item
         self.single_group_update_size(group)
 
@@ -4759,7 +4586,6 @@ class Gui:
         self.tree.focus(group_item)
         self.tree.see(group_item)
 
-        #self.tree_on_select()
         self.tree_item_focused(group_item)
 
         self.column_sort(self.tree)
@@ -4790,14 +4616,9 @@ class Gui:
         self.record_to_item[record]=record_item
 
         if expand_groups:
-            #print('focus on record')
             self_tree.focus(record_item)
             self_tree.see(record_item)
-
-            #self.tree_sel_change(record_item,True)
-
         else:
-            #print('focus on group',group_item)
             self_tree.focus(group_item)
             self_tree.see(group_item)
 
@@ -4821,9 +4642,6 @@ class Gui:
         self.find_clear()
 
         self.column_sort(self_tree)
-
-    #def tree_update_none(self):
-    #    self.tree.selection_remove(self.tree.selection())
 
     def tree_update(self,item):
         self_tree = self.tree
@@ -4875,10 +4693,10 @@ class Gui:
 
                     if kind in (self.GROUP,self.DIR,self.DIRLINK):
                         return
-                    elif self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
+
+                    if self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
                         self.record_info()
                     else:
-                        #print('jedziemy')
                         record_item,record_name,subpath_list = self.get_item_record(item)
                         record = self.item_to_record[record_item]
 
@@ -4931,8 +4749,6 @@ class Gui:
             if not self_tree_exists(item):
                 del self_item_to_data[item]
 
-        #print('self_item_to_data:',len(self_item_to_data.keys()),asizeof(self_item_to_data))
-
     @block_and_log
     def unload_record(self,record=None):
         if not record:
@@ -4951,7 +4767,6 @@ class Gui:
 
             record.unload_filestructure()
             record.unload_customdata()
-            #self.find_clear()
 
             self_tree.insert(record_item,'end',text='dummy') #dummy_sub_item
             self_tree.set(record_item,'opened','0')

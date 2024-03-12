@@ -317,7 +317,7 @@ if __name__ == "__main__":
             print_info(f'args:{args}')
 
             try:
-                record.find_items(print_func_always,abort_list,
+                record.find_items(print_func_always,
                         size_min,size_max,
                         t_min,t_max,
                         name_search_kind,name_func_to_call,

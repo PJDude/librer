@@ -33,9 +33,9 @@ from subprocess import Popen, STDOUT,DEVNULL,PIPE, run as subprocess_run
 
 from time import sleep, perf_counter,time,strftime,localtime,mktime
 from threading import Thread
-from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove,kill,rename
+from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove,rename
+from fnmatch import fnmatch
 
-from tempfile import mkdtemp
 windows = bool(os_name=='nt')
 
 if windows:
@@ -48,25 +48,22 @@ from os.path import abspath,normpath,basename,dirname,join as path_join
 from zipfile import ZipFile
 from platform import system as platform_system,release as platform_release,node as platform_node
 
-from ciso8601 import parse_datetime
-from fnmatch import fnmatch
 from re import search as re_search
 import sys
 from collections import defaultdict
 from pathlib import Path as pathlib_Path
-from signal import SIGTERM,SIGINT,SIGABRT
-if windows:
-    from signal import CTRL_C_EVENT
+from signal import SIGTERM
 
 from re import compile as re_compile
+from copy import deepcopy
 
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 from pympler.asizeof import asizeof
 from send2trash import send2trash as send2trash_delete
 from psutil import Process
+from ciso8601 import parse_datetime
 
-from copy import deepcopy
 
 PARAM_INDICATOR_SIGN = '%'
 
@@ -198,15 +195,14 @@ def get_command(executable,parameters,full_file_path,shell):
             res = executable.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN).replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN).replace(PARAM_INDICATOR_SIGN,f'"{full_file_path}"')
         else:
             res = executable + ' ' + f'"{full_file_path}"'
-
         return res,res
+
+    if not parameters:
+        res = [executable.strip()] + [full_file_path]
+    elif PARAM_INDICATOR_SIGN not in parameters:
+        res = [executable.strip()] + parameters.strip().split() + [full_file_path]
     else:
-        if not parameters:
-            res = [executable.strip()] + [full_file_path]
-        elif PARAM_INDICATOR_SIGN not in parameters:
-            res = [executable.strip()] + parameters.strip().split() + [full_file_path]
-        else:
-            res = [executable.strip()] + [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN).replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN).strip().split() if p_elem]
+        res = [executable.strip()] + [p_elem.replace(PARAM_INDICATOR_SIGN,full_file_path) for p_elem in parameters.replace(f'"{PARAM_INDICATOR_SIGN}"',PARAM_INDICATOR_SIGN).replace(f"'{PARAM_INDICATOR_SIGN}'",PARAM_INDICATOR_SIGN).strip().split() if p_elem]
 
     return res,' '.join(res)
 
@@ -314,7 +310,7 @@ class Header :
 
 #######################################################################
 class LibrerRecord:
-    def __init__(self,label=None,scan_path=None,file_path=None):
+    def __init__(self,label=None,scan_path=None):
         self.header = Header(label,scan_path)
 
         self.filestructure = ()
@@ -389,22 +385,6 @@ class LibrerRecord:
                 self_header.zipinfo['customdata'] = (0,0,0)
 
             compress_with_header_update_wrapp(self.header,'header')
-
-        if False:
-            with open(file_path+'.debug.txt', "w") as txt_file:
-                #txt_file.write(str(self.header) + '\n')
-
-                txt_file.write('-------------------------------\nheader:\n\n')
-                for k,v in vars(self.header).items():
-                    txt_file.write(f'  {k}:{v}\n')
-
-                txt_file.write('\n\n-------------------------------\nfilestructure:\n\n')
-                txt_file.write(str(self.filestructure))
-                txt_file.write('\n\n-------------------------------\nfilenames:\n\n')
-                txt_file.write(str(self.filenames))
-                if self.customdata:
-                    txt_file.write('\n-------------------------------\ncustomdata\n')
-                    txt_file.write(self.customdata)
 
         self.prepare_info()
 
@@ -1012,7 +992,7 @@ class LibrerRecord:
 
     ########################################################################################
     def find_items(self,
-            print_func,abort_list,
+            print_func,
             size_min,size_max,
             timestamp_min,timestamp_max,
             name_search_kind,name_func_to_call,
@@ -1483,8 +1463,8 @@ class LibrerCore:
     def record_info_alias_wrapper(self,record,orginfo):
         if record.file_name in self.aliases:
             return f'record alias    : {self.aliases[record.file_name]}\n\n' + orginfo
-        else:
-            return orginfo
+
+        return orginfo
 
     def get_record_alias(self,record):
         try:
@@ -1505,20 +1485,20 @@ class LibrerCore:
     def rename_group(self,group,rename):
         if rename in self.groups:
             return f"Group name '{rename}' already used"
-        else:
-            self.groups[rename]=self.groups[group]
-            del self.groups[group]
-            self.write_repo_info()
-            return None
+
+        self.groups[rename]=self.groups[group]
+        del self.groups[group]
+        self.write_repo_info()
+        return None
 
     def create_new_group(self,group,callback):
         if group in self.groups:
             return f"Group name '{group}' already used"
-        else:
-            self.groups[group]=set()
-            callback(group)
-            self.write_repo_info()
-            return None
+
+        self.groups[group]=set()
+        callback(group)
+        self.write_repo_info()
+        return None
 
     def get_records_of_group(self,group):
         res = []
@@ -1669,16 +1649,15 @@ class LibrerCore:
 
         cd_set_add = cd_set.add
 
-        counter = 0
+        known_disk_names=set()
+
+        self.wii_import_known_disk_names_len = 0
         try:
             for import_filename in import_filenames:
                 with open(import_filename,"rt", encoding='utf-8', errors='ignore') as f:
-                    self.wii_import_core_info1 = import_filename
+                    self.wii_import_info_filename = import_filename
                     for line in f:
-                        self.wii_import_core_info2 = f'{line=}'
                         try:
-                            self.wii_import_core_info0 = str(counter)
-                            counter+=1
                             if in_report:
                                 if in_item:
                                     if in_description:
@@ -1726,7 +1705,10 @@ class LibrerCore:
 
                                     if not item['disk_name']:
                                         if match := re_obj_disk_name_search(line):
-                                            item['disk_name']=match.group(1)
+                                            disk_name = match.group(1)
+                                            item['disk_name'] = disk_name
+                                            known_disk_names.add(disk_name)
+                                            self.wii_import_known_disk_names_len = len(known_disk_names)
                                             continue
 
                                     if not item['disk_type']:
@@ -2028,7 +2010,6 @@ class LibrerCore:
         new_record.header.quant_folders = quant_folders
 
         ##################################
-        #size,mtime = 0,0
         mtime = 0
         is_dir = True
         is_file = False
@@ -2042,7 +2023,6 @@ class LibrerCore:
         new_record.header.references_cd=0
 
         sub_size,sub_quant,sub_folders_quant = new_record.sld_recalc_rec(scan_like_data)
-        #print('ccc',sub_size,sub_quant,sub_folders_quant,flush=True)
 
         code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,False,False,False) ]
 
@@ -2056,7 +2036,6 @@ class LibrerCore:
         new_record.filestructure = ('',code,sub_size,mtime,new_record.tupelize_rec(scan_like_data,print))
 
         new_file_path = sep.join([self.db_dir,f'wii.{int(time())}.{postfix}.dat'])
-        #print(f'{new_file_path=}')
 
         new_record.save(print,file_path=new_file_path,compression_level=compr)
 
@@ -2067,8 +2046,8 @@ class LibrerCore:
 
         if import_res:
             return '\n'.join(import_res)
-        else:
-            return None
+
+        return None
 
     def import_records(self,import_filenames,update_callback,group):
         self.log.info(f"import {','.join(import_filenames)}")
@@ -2132,8 +2111,8 @@ class LibrerCore:
 
         if import_res:
             return '\n'.join(import_res)
-        else:
-            return None
+
+        return None
 
     def export_record(self,record,new_file_path):
         self.log.info(f'export {record.header.label} -> {new_file_path}')
@@ -2156,8 +2135,8 @@ class LibrerCore:
         except Exception as ex_ex:
             self.log.error(f'export error {ex_ex}')
             return str(ex_ex)
-        else:
-            return None
+
+        return None
 
     def repack_record(self,record,new_label,new_compression,keep_cd,update_callback,group=None):
         self.log.info(f'repack_record {record.header.label}->{new_label},{new_compression},{keep_cd}')
@@ -2310,7 +2289,7 @@ class LibrerCore:
     ########################################################################################################################
 
     def create_new_record(self,temp_dir,update_callback,group=None):
-        self.log.info(f'create_new_record')
+        self.log.info('create_new_record')
         self_log_info = self.log.info
 
         new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
@@ -2338,7 +2317,7 @@ class LibrerCore:
         self.stdout_files_cde_size=0
         self.stdout_files_cde_size_sum=0
 
-        def threaded_run(command,results_semi_list,info_semi_list,processes_semi_list):
+        def threaded_run(command,info_semi_list,processes_semi_list):
             command_str = ' '.join(command)
 
             try:
@@ -2408,10 +2387,9 @@ class LibrerCore:
                     sleep(0.001)
             sys.exit() #thread
 
-        results_semi_list=[None]
         info_semi_list=[None]
         processes_semi_list=[None]
-        job = Thread(target=lambda : threaded_run(command,results_semi_list,info_semi_list,processes_semi_list),daemon=True)
+        job = Thread(target=lambda : threaded_run(command,info_semi_list,processes_semi_list),daemon=True)
         job.start()
         job_is_alive = job.is_alive
 
@@ -2450,14 +2428,14 @@ class LibrerCore:
 
         if windows:
             if is_frozen:
-               return(['record.exe'])
-            else:
-                return(['python','src\\record.py'])
-        else:
-            if is_frozen:
-                return(['./record'])
-            else:
-                return(['python3','./src/record.py'])
+                return(['record.exe'])
+
+            return(['python','src\\record.py'])
+
+        if is_frozen:
+            return(['./record'])
+
+        return(['python3','./src/record.py'])
 
     def find_items_in_records(self,
             temp_dir,
