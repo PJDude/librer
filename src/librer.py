@@ -95,11 +95,8 @@ CFG_KEY_find_cd_case_sens = 'cd_case_sens'
 CFG_KEY_filename_fuzzy_threshold = 'filename_fuzzy_threshold'
 CFG_KEY_cd_fuzzy_threshold = 'cd_fuzzy_threshold'
 
-CFG_KEY_export_cd = 'export_cd'
-CFG_KEY_export_crc = 'export_crc'
-
-CFG_KEY_import_cd = 'export_cd'
-CFG_KEY_import_crc = 'export_crc'
+CFG_KEY_SEARCH_TXT_STRING = 'search_txt_string'
+CFG_KEY_SEARCH_TXT_CS = 'search_txt_cs'
 
 CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
@@ -134,11 +131,8 @@ cfg_defaults={
     CFG_KEY_filename_fuzzy_threshold:'0.95',
     CFG_KEY_cd_fuzzy_threshold:'0.95',
 
-    CFG_KEY_export_cd:True,
-    CFG_KEY_export_crc:True,
-
-    CFG_KEY_import_cd:True,
-    CFG_KEY_import_crc:True,
+    CFG_KEY_SEARCH_TXT_STRING:'',
+    CFG_KEY_SEARCH_TXT_CS:False,
 
     CFG_last_dir:'.',
     CFG_geometry:'',
@@ -847,6 +841,7 @@ class Gui:
 
         if load_errors:
             self.get_text_info_dialog().show('Loading errors','\n\n'.join(load_errors) )
+            self.store_text_dialog_fields(self.text_info_dialog)
 
         self.menu_enable()
         self.menubar_config(cursor='')
@@ -1035,7 +1030,6 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.text_info_dialog = TextDialogInfo(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-
             self.fix_text_dialog(self.text_info_dialog)
 
             self.text_info_dialog_created = True
@@ -1390,7 +1384,14 @@ class Gui:
         self.widget_tooltip(dialog.find_cs,'Case Sensitive')
         self.widget_tooltip(dialog.find_info_lab,'index of the selected search result / search results total ')
 
-        dialog.find_cs_var.set(not windows)
+        #dialog.find_cs_var.set(not windows)
+
+        dialog.find_var.set( self.cfg_get(CFG_KEY_SEARCH_TXT_STRING) )
+        dialog.find_cs_var.set( self.cfg_get(CFG_KEY_SEARCH_TXT_CS) )
+
+    def store_text_dialog_fields(self,dialog):
+        self.cfg.set(CFG_KEY_SEARCH_TXT_STRING,dialog.find_var.get())
+        self.cfg.set(CFG_KEY_SEARCH_TXT_CS,dialog.find_cs_var.get())
 
     progress_dialog_on_scan_created = False
     @restore_status_line
@@ -1448,7 +1449,6 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.text_dialog_on_scan = TextDialogInfo(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
-
             self.fix_text_dialog(self.text_dialog_on_scan)
 
             self.text_dialog_on_scan_created = True
@@ -1463,7 +1463,6 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.text_ask_dialog_on_scan = TextDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
-
             self.fix_text_dialog(self.text_ask_dialog_on_scan)
 
             self.text_ask_dialog_on_scan_created = True
@@ -1478,25 +1477,23 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.ask_dialog_on_scan = LabelDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
-
             self.ask_dialog_on_scan_created = True
 
         return self.ask_dialog_on_scan
 
-    text_ask_dialog_on_main_created = False
-    @restore_status_line
-    @block
-    def get_text_ask_dialog_on_main(self):
-        if not self.text_ask_dialog_on_main_created:
-            self.status("Creating dialog ...")
+    #text_ask_dialog_on_main_created = False
+    #@restore_status_line
+    #@block
+    #def get_text_ask_dialog_on_main(self):
+    #    if not self.text_ask_dialog_on_main_created:
+    #        self.status("Creating dialog ...")
 
-            self.text_ask_dialog_on_main = TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+    #        self.text_ask_dialog_on_main = TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+    #        self.fix_text_dialog(self.text_ask_dialog_on_main)
 
-            self.fix_text_dialog(self.text_ask_dialog_on_main)
-            #,image=self.ico_warning
-            self.text_ask_dialog_on_main_created = True
+    #        self.text_ask_dialog_on_main_created = True
 
-        return self.text_ask_dialog_on_main
+    #    return self.text_ask_dialog_on_main
 
     progress_dialog_on_main_created = False
     @restore_status_line
@@ -1506,10 +1503,10 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.progress_dialog_on_main = ProgressDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_main.set_mins(300, 100)
             self.progress_dialog_on_main.command_on_close = self.progress_dialog_abort
 
-            #self.progress_dialog_on_main.abort_button.pack_forget()
-            #self.progress_dialog_on_main.cancel_button.pack_forget()
+            self.progress_dialog_on_main.abort_button.configure(command=librer_core.abort)
 
             self.progress_dialog_on_main.progr1.grid_forget()
             self.progress_dialog_on_main.progr2.grid_forget()
@@ -1519,6 +1516,9 @@ class Gui:
 
             self.progress_dialog_on_main.lab_r1.grid_forget()
             self.progress_dialog_on_main.lab_r2.grid_forget()
+
+            self.progress_dialog_on_main.progr1.grid_forget()
+            self.progress_dialog_on_main.progr2.grid_forget()
 
             self.progress_dialog_on_main_created = True
 
@@ -1620,7 +1620,6 @@ class Gui:
             self.wii_import_compr_var.set(9)
             self.wii_import_compr_var_int.set(9)
 
-
             self.wii_import_brief_label=Label(self.wii_import_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False,relief='groove',anchor='w',justify='left')
             self.wii_import_brief_label.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             try:
@@ -1642,11 +1641,10 @@ class Gui:
             self.wii_import_separate_cb = Checkbutton(wii_import_frame,text=' Separate record per each disk (not recommended)',variable=self.wii_import_separate,command = self.wii_import_dialog_name_state)
             self.wii_import_separate_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4,columnspan=2)
 
-            Label(wii_import_frame,text='Common record label:',anchor='w').grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            Label(wii_import_frame,text='Common record label:',bg=self.bg_color,anchor='w').grid(row=1, column=0, sticky='wens',padx=4,pady=4)
             self.wii_import_label_entry = Entry(wii_import_frame,textvariable=self.wii_import_label_var)
             self.wii_import_label_entry.grid(row=1, column=1, sticky='wens',padx=4,pady=4)
 
-            wii_import_frame.grid_columnconfigure( 0, weight=1)
             wii_import_frame.grid_columnconfigure( 1, weight=1)
 
             (wii_import_frame_compr := LabelFrame(self.wii_import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=2)
@@ -2144,7 +2142,11 @@ class Gui:
         if self.current_record:
             dialog = self.get_repack_dialog()
 
-            self.repack_label_var.set(self.current_record.header.label + "(" + librer_core.get_record_name(self.current_record) + ")")
+            record_label = self.current_record.header.label
+            record_name = librer_core.get_record_name(self.current_record)
+
+            self.repack_label_var.set(record_label if record_label==record_name else record_label + "(" + record_name + ")")
+
             self.repack_compr_var.set(self.current_record.header.compression_level)
             self.repack_compr_var_int.set(self.current_record.header.compression_level)
 
@@ -2162,7 +2164,7 @@ class Gui:
 
     def wii_import_to_local(self):
         self.wii_import_dialog_do_it=True
-        self.wii_import_dialog.hide()
+        self.wii_import_dialog.hide(True)
 
     @restore_status_line
     @block
@@ -2187,6 +2189,7 @@ class Gui:
             self.last_dir = dirname(import_filenames[0])
 
             res_list = [None]
+            #self.abort_list = [False]
             wii_import_thread=Thread(target=lambda : librer_core.import_records_wii_scan(import_filenames,res_list) ,daemon=True)
             wii_import_thread_is_alive = wii_import_thread.is_alive
             wii_import_thread.start()
@@ -2201,26 +2204,24 @@ class Gui:
             self_main_after = self.main.after
             self_main_wait_variable = self.main.wait_variable
 
-            dialog_update_lab_text = lambda par : dialog.lab[0].configure(text=par)
-
-            dialog_update_lab_text('dupa1')
+            dialog_update_lab_text = dialog.update_lab_text
             dialog_area_main_update = dialog.area_main.update
 
             while wii_import_thread_is_alive():
-                dialog_update_lab_text(f'disks: {librer_core.wii_import_known_disk_names_len}')
+                dialog_update_lab_text(0,f'disks:{fnumber(librer_core.wii_import_known_disk_names_len).rjust(14)}')
+                dialog_update_lab_text(1,f'files:{fnumber(librer_core.wii_import_files_counter).rjust(14)}' )
+                dialog_update_lab_text(2,f'space:{bytes_to_str(librer_core.wii_import_space).rjust(14)}')
 
-                self_main_after(25,lambda : wait_var_set(not wait_var_get()))
+                self_main_after(10,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
-
-                dialog_area_main_update()
-                #dialog.update()
+                #dialog_area_main_update()
 
             wii_import_thread.join()
 
             dialog.hide(True)
 
             if len(res_list[0])!=11:
-                self.info_dialog_on_main.show('Where Is It? Import failed',f"Format error.\n{res_list[0][1]}")
+                self.info_dialog_on_main.show('Where Is It? Import failed',str(res_list[0][1]))
                 return
 
             quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk = res_list[0]
@@ -2236,7 +2237,8 @@ class Gui:
                 else:
                     self.wii_import_label_var.set(f'WII-imported-{Path(import_filenames[0]).stem}')
 
-                self.wii_import_brief_label.configure(text=f'GATHERED DATA:\ndisks   : {fnumber(quant_disks)}\nfiles   : {fnumber(quant_files)}\nfolders : {fnumber(quant_folders)}')
+                self.wii_import_brief_label.configure(text=f'GATHERED DATA:\ndisks   : {fnumber(quant_disks).rjust(14)}\nfiles   : {fnumber(quant_files).rjust(14)}\nspace   : {bytes_to_str(librer_core.wii_import_space).rjust(14)}')
+                #\nfolders : {fnumber(quant_folders)}
 
                 dialog.show()
 
@@ -2250,9 +2252,6 @@ class Gui:
 
                         for disk_name,wii_path_tuple_to_data_curr in wii_path_tuple_to_data_per_disk.items():
                             self.status(f'importing {disk_name} ... ')
-
-                            quant_files=3
-                            quant_folders=3
 
                             label = disk_name
                             sub_res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set_per_disk[disk_name],wii_path_tuple_to_data_curr,wii_paths_dict_per_disk[disk_name],cd_set_per_disk[disk_name],self.single_record_show,group)
@@ -2321,6 +2320,8 @@ class Gui:
     def focusin(self):
         if self.main_locked_by_child:
             self.main_locked_by_child.focus_set()
+        else:
+            self.tree.focus_set()
 
     def unpost(self):
         self.hide_tooltip()
@@ -2597,6 +2598,8 @@ class Gui:
             self.searching_aborted = False
 
             dialog.show('Find')
+            self.store_text_dialog_fields(self.text_dialog_on_find)
+
             self.find_dialog_shown=False
 
     def find_close(self):
@@ -4334,6 +4337,7 @@ class Gui:
             simple_progress_dialog_scan = self.get_simple_progress_dialog_on_scan()
 
             ask_dialog.show('Test Custom Data Extractor on selected file ?',info)
+            self.store_text_dialog_fields(ask_dialog)
 
             wait_var=BooleanVar()
             wait_var.set(False)
@@ -4395,6 +4399,7 @@ class Gui:
                 output = '\n'.join(self.output_list).strip()
 
                 self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if self.returncode[0]==0 and not self.test_decoding_error else "with Error"}',output)
+                self.store_text_dialog_fields(self.text_dialog_on_scan)
 
     def cde_up(self,e):
         e_up=e-1
@@ -4729,6 +4734,7 @@ class Gui:
                                     shell_info = ('No','Yes')[shell]
                                     timeout_info = f'\ntimeout:{timeout}' if timeout else ''
                                     self.get_text_info_dialog().show(f'Custom Data of: {file_path}',cd_txt,uplabel_text=f"{command_info}\n\nshell:{shell_info}{timeout_info}\nreturncode:{returncode}\nsize:{bytes_to_str(asizeof(cd_txt))}")
+                                    self.store_text_dialog_fields(self.text_info_dialog)
                                     return
 
                             self.info_dialog_on_main.show('Information','No Custom data.')
@@ -4741,6 +4747,7 @@ class Gui:
             if self.current_record:
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
                 self.get_text_info_dialog().show('Record Info',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
+                self.store_text_dialog_fields(self.text_info_dialog)
 
     def purify_items_cache(self):
         self_item_to_data = self.item_to_data

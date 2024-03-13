@@ -358,10 +358,10 @@ class LibrerRecord:
     label_of_datalabel = {'filestructure':'Filestructure','filenames':'Filenames','customdata':'Custom Data','header':'Header'}
     def save(self,print_func,file_path=None,compression_level=9):
         if file_path:
-            filename = basename(normpath(file_path))
+            self.file_name = basename(normpath(file_path))
         else:
-            filename = self.file_name = self.new_file_name()
-            file_path = sep.join([self.db_dir,filename])
+            self.file_name = self.file_name = self.new_file_name()
+            file_path = sep.join([self.db_dir,self.file_name])
 
         self.file_path = file_path
 
@@ -1276,18 +1276,19 @@ class LibrerRecord:
                         info_list.append(f'rule nr {str(nr).rjust(2)}      |                        {bytes_to_str(self_header.cde_stats_size[nr]).rjust(12)}{fnumber(self_header.cde_stats_uniq[nr]).rjust(12)}{fnumber(self_header.cde_stats_refs[nr]).rjust(12)}{str(round(self_header.cde_stats_time[nr],2)).rjust(11)}s{"".rjust(12)}{fnumber(self_header.files_cde_errors_quant[nr]).rjust(12)}')
                     info_list.append('----------------+------------------------------------------------------------------------------------------------')
             except Exception as EE:
-                info_list.append(str(EE))
-
-            info_list.append('')
+                print(str(EE))
 
             try:
                 if self_header.cde_list:
+                    info_list.append('')
                     info_list.append('Custom Data Extractors and rules:')
                     for nr,(expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc) in enumerate(self_header.cde_list):
                         info_list.append(f'\nrule nr    : {nr}')
 
-                        expressions_expanded = ','.join(list(expressions))
-                        info_list.append(f'files      : {expressions_expanded}')
+                        if expressions:
+                            expressions_expanded = ','.join(list(expressions))
+                            info_list.append(f'files      : {expressions_expanded}')
+
                         if use_smin:
                             info_list.append(f'min size   : {bytes_to_str(smin_int)}')
                         if use_smax:
@@ -1297,13 +1298,13 @@ class LibrerRecord:
                         info_list.append(f'command    : {executable} {parameters} {in_shell_string}')
                         if timeout:
                             info_list.append(f'timeout    : {timeout}s')
-
             except Exception as EE:
-                info_list.append(str(EE))
-
+                print(str(EE))
 
             loaded_fs_info = 'filesystem  - ' + ('loaded' if self.decompressed_filestructure else 'not loaded yet')
             loaded_cd_info = 'custom data - ' + ('not present' if not bool(cd_data[0]) else 'loaded' if self.decompressed_customdata else 'not loaded yet')
+
+            info_list.append('')
             info_list.append(loaded_fs_info)
             info_list.append(loaded_cd_info)
 
@@ -1356,8 +1357,7 @@ class LibrerRecord:
                 info_list.append('========================================')
                 info_list.extend(sublist_size)
             except Exception as se:
-                #print(se)
-                pass
+                print(str(se))
 
         self.txtinfo = '\n'.join(info_list)
 
@@ -1437,6 +1437,10 @@ class LibrerCore:
         self.records_sorted = []
         self.groups=defaultdict(set)
         self.aliases={}
+
+        self.wii_import_known_disk_names_len = 0
+        self.wii_import_files_counter = 0
+        self.wii_import_space = 0
 
     def update_sorted(self):
         self.records_sorted = sorted(self.records,key = lambda x : x.header.creation_time)
@@ -1626,6 +1630,8 @@ class LibrerCore:
 
         #######################################################################
 
+        aborted = False
+        self.abort_action = False
         #l=0
         in_report=False
         in_item=False
@@ -1652,11 +1658,17 @@ class LibrerCore:
         known_disk_names=set()
 
         self.wii_import_known_disk_names_len = 0
+        self.wii_import_files_counter = 0
+        self.wii_import_space = 0
         try:
             for import_filename in import_filenames:
                 with open(import_filename,"rt", encoding='utf-8', errors='ignore') as f:
                     self.wii_import_info_filename = import_filename
                     for line in f:
+                        if self.abort_action:
+                            aborted = True
+                            break
+
                         try:
                             if in_report:
                                 if in_item:
@@ -1683,6 +1695,7 @@ class LibrerCore:
                                     if not item['name']:
                                         if match := re_obj_name_search(line):
                                             item['name']=match.group(1)
+                                            self.wii_import_files_counter +=1
                                             continue
 
                                     if not item['ext']:
@@ -1693,7 +1706,10 @@ class LibrerCore:
                                     if not item['size']:
                                         if match := re_obj_size_search(line):
                                             try:
-                                                item['size']=int(match.group(1))
+                                                size = int(match.group(1))
+
+                                                item['size']=size
+                                                self.wii_import_space += size
                                             except:
                                                 item['size']=0
                                             continue
@@ -1871,9 +1887,12 @@ class LibrerCore:
                     #    <CRC>0</CRC>
                     #</ITEM>
 
-            return filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
+            if aborted:
+                return [None,'Aborted.']
+            else:
+                return filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
         except Exception as ie:
-            return [None,str(ie)]
+            return [None,f'Error:{ie}']
 
     def wii_data_to_scan_like_data(self,path_list,curr_dict_ref,scan_like_data,customdata_helper):
         path_list_tuple = tuple(path_list)
@@ -1982,7 +2001,7 @@ class LibrerCore:
         smin_int=0
         use_smax=False
         smax_int=0
-        executable=''
+        executable='Imported from "Where Is It?"'
         parameters=''
         shell=False
         timeout=0
@@ -1990,7 +2009,7 @@ class LibrerCore:
 
         new_record.header.cde_list = [ [expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc] ]
 
-        new_record.header.scan_path = ' -- Imported from "Where Is It? -- '
+        new_record.header.scan_path = 'Imported from "Where Is It?'
 
         new_record.customdata = [(0,0,cd_elem) for cd_elem in cd_set]
 
@@ -2039,10 +2058,20 @@ class LibrerCore:
 
         new_record.save(print,file_path=new_file_path,compression_level=compr)
 
-        if group:
-            self.assign_new_group(new_record,group)
+        self.records.remove(new_record)
 
-        update_callback(new_record)
+        #############################################
+        new_record_really = self.create()
+
+        if res:=new_record_really.load(new_file_path) :
+            self.records.remove(new_record_really)
+            send2trash_delete(new_file_path)
+            import_res.append(str(res))
+        else:
+            if group:
+                self.assign_new_group(new_record_really,group)
+
+            update_callback(new_record_really)
 
         if import_res:
             return '\n'.join(import_res)
@@ -2084,13 +2113,10 @@ class LibrerCore:
                     new_record = self.create()
 
                     if res:=new_record.load(new_file_path) :
-                        #self.log.warning('removing:%s',file_name)
                         self.records.remove(new_record)
-                        #load_errors.append(res)
                         send2trash_delete(new_file_path)
                         import_res.append(str(res))
                     else:
-                        #self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
                         if group:
                             self.assign_new_group(new_record,group)
 
