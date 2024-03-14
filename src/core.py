@@ -34,7 +34,22 @@ from subprocess import Popen, STDOUT,DEVNULL,PIPE, run as subprocess_run
 from time import sleep, perf_counter,time,strftime,localtime,mktime
 from threading import Thread
 from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove,rename
+from os.path import abspath,normpath,basename,dirname,join as path_join
+
+from zipfile import ZipFile
+from platform import system as platform_system,release as platform_release,node as platform_node
+from re import search as re_search,compile as re_compile
+import sys
+from collections import defaultdict
+from pathlib import Path as pathlib_Path
+from signal import SIGTERM
+from copy import deepcopy
+from pickle import dumps,loads
 from fnmatch import fnmatch
+from zstandard import ZstdCompressor,ZstdDecompressor
+from pympler.asizeof import asizeof
+from send2trash import send2trash as send2trash_delete
+from ciso8601 import parse_datetime
 
 windows = bool(os_name=='nt')
 
@@ -43,27 +58,9 @@ if windows:
 else:
     from os import getpgid, killpg
 
-from os.path import abspath,normpath,basename,dirname,join as path_join
+is_frozen = bool(getattr(sys, 'frozen', False) or "__compiled__" in globals())
 
-from zipfile import ZipFile
-from platform import system as platform_system,release as platform_release,node as platform_node
-
-from re import search as re_search
-import sys
-from collections import defaultdict
-from pathlib import Path as pathlib_Path
-from signal import SIGTERM
-
-from re import compile as re_compile
-from copy import deepcopy
-
-from pickle import dumps,loads
-from zstandard import ZstdCompressor,ZstdDecompressor
-from pympler.asizeof import asizeof
-from send2trash import send2trash as send2trash_delete
-from psutil import Process
-from ciso8601 import parse_datetime
-
+record_exe = ( ('record.exe') if is_frozen else ('python','src\\record.py') ) if windows else ( ('./record') if is_frozen else ('python3','./src/record.py') )
 
 PARAM_INDICATOR_SIGN = '%'
 
@@ -739,9 +736,10 @@ class LibrerRecord:
         cde_thread_is_alive = {}
         any_thread_alive = True
 
-        for thread_index in range(threads):
-            cde_threads[thread_index] = cde_thread = Thread(target = lambda : threaded_cde(timeout_semi_list_per_thread[thread_index],thread_index,all_threads_data_list[thread_index],all_threads_files_cde_errors_quant[thread_index],all_threads_customdata_stats_time[thread_index]),daemon=True)
-            cde_thread.start()
+        for thread_index_loop in range(threads):
+            thread_index = thread_index_loop
+            cde_threads[thread_index] = Thread(target = lambda : threaded_cde(timeout_semi_list_per_thread[thread_index],thread_index,all_threads_data_list[thread_index],all_threads_files_cde_errors_quant[thread_index],all_threads_customdata_stats_time[thread_index]),daemon=True)
+            cde_threads[thread_index].start()
 
         self_killed = self.killed
 
@@ -2320,7 +2318,7 @@ class LibrerCore:
 
         new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
 
-        command = self.record_exe()
+        command = list(record_exe)
         command.append('create')
         command.append(new_file_path)
         command.append(temp_dir)
@@ -2449,20 +2447,6 @@ class LibrerCore:
 
         return True
 
-    def record_exe(self):
-        is_frozen = bool(getattr(sys, 'frozen', False) or "__compiled__" in globals())
-
-        if windows:
-            if is_frozen:
-                return(['record.exe'])
-
-            return(['python','src\\record.py'])
-
-        if is_frozen:
-            return(['./record'])
-
-        return(['python3','./src/record.py'])
-
     def find_items_in_records(self,
             temp_dir,
             #range_par,
@@ -2498,7 +2482,7 @@ class LibrerCore:
         record_command_list={}
 
         for record_nr,record in enumerate(records_to_process):
-            curr_command_list = record_command_list[record_nr] = self.record_exe()
+            curr_command_list = record_command_list[record_nr] = list(record_exe)
             curr_command_list.extend(['search',record.file_path,temp_dir])
             self.log.info(f'curr_command_list: {curr_command_list}')
 

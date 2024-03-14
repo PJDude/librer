@@ -701,9 +701,11 @@ class Gui:
 
         try:
             self.column_sort_last_params = self.cfg_get(CFG_SORTING)
+            if len(self.column_sort_last_params)!=7:
+                raise
         except:
-            #colname,sort_index,is_numeric,reverse,dir_code,non_dir_code
-            self.column_sort_last_params=('#0',self_REAL_SORT_COLUMN_INDEX['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1)
+            #colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code
+            self.column_sort_last_params=('#0',self_REAL_SORT_COLUMN_INDEX['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1,2)
 
         #######################################################################
 
@@ -2259,12 +2261,14 @@ class Gui:
                             if sub_res:
                                 res.append(sub_res)
 
-                        if not res:
-                            ###########################
-                            self.info_dialog_on_main.show('Where Is It? Import','Successful.')
-                            self.find_clear()
-                        else:
+                        if res:
                             self.info_dialog_on_main.show('Where Is It? Import failed','\n'.join(res))
+                        else:
+                            ###########################
+                            #self.info_dialog_on_main.show('Where Is It? Import','Successful.')
+                            self.find_clear()
+                            self.column_sort(self.tree)
+                            self.status('Where Is It? Import completed successfully.')
 
                     else:
                         label = self.wii_import_label_var.get()
@@ -2272,16 +2276,17 @@ class Gui:
 
                         res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,self.single_record_show,group)
 
-                        if not res:
-                            ###########################
-                            self.info_dialog_on_main.show('Where Is It? Import','Successful.')
-                            self.find_clear()
-                        else:
+                        if res:
                             self.info_dialog_on_main.show('Where Is It? Import failed',res)
+                        else:
+                            ###########################
+                            #self.info_dialog_on_main.show('Where Is It? Import','Successful.')
+                            self.find_clear()
+                            self.column_sort(self.tree)
+                            self.status('Where Is It? Import completed successfully.')
 
-                self.column_sort(self.tree)
 
-    @restore_status_line
+    #@restore_status_line
     @block
     def record_import(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
@@ -2300,10 +2305,11 @@ class Gui:
             if import_res := librer_core.import_records(import_filenames,self.single_record_show,group):
                 self.info_dialog_on_main.show('Import failed',import_res)
             else:
-                self.info_dialog_on_main.show('Import','Successful.')
+                #self.info_dialog_on_main.show('Import','Successful.')
                 self.find_clear()
 
                 self.column_sort(self.tree)
+                self.status('Import completed successfully.')
 
     @restore_status_line
     @block
@@ -2315,7 +2321,7 @@ class Gui:
                 if export_res := librer_core.export_record(self.current_record,export_file_path):
                     self.info_dialog_on_main.show('Export failed',export_res)
                 else:
-                    self.info_dialog_on_main.show('Export','Successful.')
+                    self.info_dialog_on_main.show('Export','Completed successfully.')
 
     def focusin(self):
         if self.main_locked_by_child:
@@ -3153,7 +3159,7 @@ class Gui:
 
             find_results_quant_sum = 0
 
-            colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
+            colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params
             #print('\npre sort info colname:',colname,'is_numeric',is_numeric,'reverse:',reverse)
             colname_real = self.REAL_SORT_COLUMN[colname]
             #print('colname_real:',colname_real)
@@ -3655,15 +3661,15 @@ class Gui:
 
     @logwrapper
     def column_sort_click(self, tree, colname):
-        prev_colname,prev_sort_index,prev_is_numeric,prev_reverse,prev_dir_code,prev_non_dir_code=self.column_sort_last_params
+        prev_colname,prev_sort_index,prev_is_numeric,prev_reverse,prev_group_code,prev_dir_code,prev_non_dir_code = self.column_sort_last_params
         reverse = not prev_reverse if colname == prev_colname else prev_reverse
         tree.heading(prev_colname, text=self.org_label[prev_colname])
 
-        dir_code,non_dir_code = (1,0) if reverse else (0,1)
+        group_code,dir_code,non_dir_code = (2,1,0) if reverse else (0,1,2)
 
         sort_index=self.REAL_SORT_COLUMN_INDEX[colname]
         is_numeric=self.REAL_SORT_COLUMN_IS_NUMERIC[colname]
-        self.column_sort_last_params=(colname,sort_index,is_numeric,reverse,dir_code,non_dir_code)
+        self.column_sort_last_params=(colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code)
         self.cfg.set(CFG_SORTING,self.column_sort_last_params)
 
         #print('\npre sort info colname:',colname,'is_numeric',is_numeric,'reverse:',reverse)
@@ -3679,7 +3685,7 @@ class Gui:
     def tree_sort_item(self,parent_item):
         tree = self.tree
 
-        colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
+        colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params
 
         real_column_to_sort=self.REAL_SORT_COLUMN[colname]
 
@@ -3693,6 +3699,9 @@ class Gui:
 
         #dont sort single item and dummy item
         #if len(children)>1:
+
+        self_GROUP = self.GROUP
+
         for item in children:
             values = tree.item(item,'values')
 
@@ -3705,7 +3714,7 @@ class Gui:
 
             kind = tree_set(item,'kind')
 
-            code= dir_code if kind in dir_or_dirlink else non_dir_code
+            code = group_code if kind is self_GROUP else dir_code if kind in dir_or_dirlink else non_dir_code
             tlist_append( ( (code,sortval),item) )
 
         tlist.sort(reverse=reverse,key=lambda x: x[0])
@@ -3721,7 +3730,7 @@ class Gui:
     @block_and_log
     def column_sort(self, tree):
         self.status('Sorting...')
-        colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
+        colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params
 
         self.column_sort_set_arrow(tree)
         self.tree_sort_item(None)
@@ -3729,7 +3738,7 @@ class Gui:
         tree.update()
 
     def column_sort_set_arrow(self, tree):
-        colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
+        colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params
         tree.heading(colname, text=self.org_label[colname] + ' ' + str('\u25BC' if reverse else '\u25B2') )
 
     def path_to_scan_set(self,path):
@@ -4459,7 +4468,7 @@ class Gui:
 
             LUT_decode_loc = LUT_decode
             if opened=='0' and children:
-                colname,sort_index,is_numeric,reverse,dir_code,non_dir_code = self.column_sort_last_params
+                colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params
                 sort_index_local=sort_index
 
                 sort_val_func = int if is_numeric else lambda x : x
