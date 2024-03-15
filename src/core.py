@@ -60,8 +60,6 @@ else:
 
 is_frozen = bool(getattr(sys, 'frozen', False) or "__compiled__" in globals())
 
-record_exe = ( ('record.exe') if is_frozen else ('python','src\\record.py') ) if windows else ( ('./record') if is_frozen else ('python3','./src/record.py') )
-
 PARAM_INDICATOR_SIGN = '%'
 
 DATA_FORMAT_VERSION='0019'
@@ -1418,9 +1416,10 @@ class LibrerRecord:
 class LibrerCore:
     records = set()
 
-    def __init__(self,db_dir,log):
+    def __init__(self,db_dir,record_exe,log):
         self.records = set()
         self.db_dir = db_dir
+        self.record_exe = record_exe
         self.log=log
         self.info_line = 'init'
 
@@ -2318,7 +2317,7 @@ class LibrerCore:
 
         new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
 
-        command = list(record_exe)
+        command = list(self.record_exe)
         command.append('create')
         command.append(new_file_path)
         command.append(temp_dir)
@@ -2482,7 +2481,7 @@ class LibrerCore:
         record_command_list={}
 
         for record_nr,record in enumerate(records_to_process):
-            curr_command_list = record_command_list[record_nr] = list(record_exe)
+            curr_command_list = record_command_list[record_nr] = list(self.record_exe)
             curr_command_list.extend(['search',record.file_path,temp_dir])
             self.log.info(f'curr_command_list: {curr_command_list}')
 

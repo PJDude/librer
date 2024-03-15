@@ -4845,10 +4845,25 @@ if __name__ == "__main__":
         LIBRER_FILE = normpath(__file__)
         LIBRER_DIR = dirname(LIBRER_FILE)
 
-        LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.executable if getattr(sys, 'frozen', False) or "__compiled__" in globals() else sys.argv[0]))
+        is_frozen = bool(getattr(sys, 'frozen', False) or "__compiled__" in globals())
+
+        LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.executable if is_frozen else sys.argv[0]))
         LIBRER_EXECUTABLE_DIR = dirname(LIBRER_EXECUTABLE_FILE)
         DATA_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'data'])
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'logs'])
+
+        if windows:
+            if is_frozen:
+                record_exe = [sep.join([LIBRER_EXECUTABLE_DIR,'record.exe']) ]
+            else:
+                record_exe = ['python',sep.join([LIBRER_EXECUTABLE_DIR,'record.py']) ]
+        else:
+            if is_frozen:
+                record_exe = [sep.join([LIBRER_EXECUTABLE_DIR,'record']) ]
+            else:
+                record_exe = ['python3',sep.join([LIBRER_EXECUTABLE_DIR,'record.py']) ]
+
+        #print(f'{is_frozen=}\n{record_exe=}\n')
 
         #######################################################################
 
@@ -4875,7 +4890,7 @@ if __name__ == "__main__":
         else:
             l_info('distro info:\n%s',distro_info)
 
-        librer_core = LibrerCore(DATA_DIR,logging)
+        librer_core = LibrerCore(DATA_DIR,record_exe,logging)
 
         Gui(getcwd())
 
