@@ -27,7 +27,7 @@
 ####################################################################################
 
 from os import sep,system,getcwd,name as os_name,cpu_count
-from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile
+from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,exists as path_exists,isdir
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
 from pathlib import Path
@@ -37,6 +37,9 @@ from signal import signal,SIGINT
 from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
+
+from tkinterdnd2 import DND_FILES, TkinterDnD
+
 from threading import Thread
 from traceback import format_stack
 import sys
@@ -348,7 +351,11 @@ class Gui:
 
         self.main_locked_by_child=None
         ####################################################################
-        self_main = self.main = Tk()
+        #self_main = self.main = Tk()
+        self_main = self.main = TkinterDnD.Tk()
+
+        self_main.drop_target_register(DND_FILES)
+        self_main.dnd_bind('<<Drop>>', lambda e: self.main_drop(e.data) )
 
         self.main_config = self.main.config
 
@@ -929,6 +936,28 @@ class Gui:
 
         self_main.mainloop()
 
+    def main_drop(self, data):
+        dialog = self.get_scan_dialog()
+        self.path_to_scan_entry_var.set(data)
+        self.scan_label_entry_var.set("dropped_path")
+
+        self.main.after_idle(lambda : self.scan_dialog_show())
+
+    def scan_dialog_drop(self, data):
+        if paths := self.main.splitlist(data):
+            path = paths[0]
+            p_path = normpath(abspath(path))
+
+            self.scan_label_entry_var.set("dropped_path")
+
+            if path_exists(p_path):
+                if isdir(p_path):
+                    self.path_to_scan_entry_var.set(p_path)
+                else:
+                    self.path_to_scan_entry_var.set(dirname(p_path))
+            else:
+                self.get_info_dialog_on_scan().show('Path does not exist',str(p_path))
+
     def tree_focus_out(self):
         tree = self.tree
         item=tree.focus()
@@ -1127,6 +1156,9 @@ class Gui:
             self_ico_librer = self.ico_librer
 
             self.scan_dialog=dialog=GenericDialog(self.main,(self.ico_record_new,self.ico_record_new),self.bg_color,'---',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=550)
+
+            dialog.area_main.drop_target_register(DND_FILES)
+            dialog.area_main.dnd_bind('<<Drop>>', lambda e: self.scan_dialog_drop(e.data) )
 
             self_ico = self.ico
 

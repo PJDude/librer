@@ -258,13 +258,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.version.outputs.version }}
-        name: librer Release ${{ steps.version.outputs.version }}
+        name: Librer ${{ steps.version.outputs.version }}
         draft: false
         prerelease: false
         files: |
-            librer.${{ steps.version.outputs.version }}.portable.linux.zip
-            librer.${{ steps.version.outputs.version }}.portable.linux.nuitka.zip
-            librer.${{ steps.version.outputs.version }}.portable.windows.zip
-            librer.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
-
+            librer.${{ steps.version.outputs.version }}.linux.portable.zip
+            librer.${{ steps.version.outputs.version }}.linux.nuitka.portable.zip
+            librer.${{ steps.version.outputs.version }}.windows.portable.zip
+            librer.${{ steps.version.outputs.version }}.windows.nuitka.portable.zip
 
