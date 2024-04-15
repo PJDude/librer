@@ -21,7 +21,7 @@
 
 @echo.
 @echo running-pyinstaller-stage_librer
-pyinstaller --version-file=version.pi.librer.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --windowed --contents-directory=internal librer.py  || exit /b 2
+pyinstaller --version-file=version.pi.librer.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --windowed --contents-directory=internal --additional-hooks-dir=. --collect-binaries tkinterdnd2 librer.py  || exit /b 2
 
 @echo.
 @echo running-pyinstaller-stage_record
