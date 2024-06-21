@@ -19,9 +19,9 @@ The primary purpose of this software is to enable users to catalog their files, 
 ## [Download](https://github.com/PJDude/librer/releases) ##
 Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/librer/releases) site. At the same time, separate builds are created with the [Nuitka](https://github.com/Nuitka/Nuitka) compiler.
 
-## [MAJORGEEKS review](https://www.majorgeeks.com/files/details/librer.html) ##
+## [Review on MAJORGEEKS](https://www.majorgeeks.com/files/details/librer.html) ##
 
-## [SOFTPEDIA review](https://www.softpedia.com/get/Others/File-CD-DVD-Catalog/Librer.shtml) ##
+## [Review on SOFTPEDIA](https://www.softpedia.com/get/Others/File-CD-DVD-Catalog/Librer.shtml) ##
 
 ## Guidelines for crafting Custom Data Extractors
 Custom data extractor is a command that can be invoked with a single parameter - the full path to a specific file from which data is extracted. The command should provide the expected data in any textual format to the standard output (stdout). CDE can be an executable file (e.g., 7z, zip, ffmpeg, md5sum etc.) or an executable shell script (extract.sh, extract.bat etc.). The conditions it should meet are reasonably short execution time and reasonably limited information output. The criteria allowing the execution of a particular **Custom data extractor** include the glob expression (on file name) and the file size range.
@@ -86,3 +86,5 @@ python3 ./src/librer.py
 
 ## Licensing
 - **librer** is licensed under **[MIT license](./LICENSE)**
+
+### Check out my [homepage](https://github.com/PJDude) for other projects.
