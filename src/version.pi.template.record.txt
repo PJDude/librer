@@ -33,7 +33,7 @@ VSVersionInfo(
         StringStruct(u'FileDescription', u'Librer-Record'),
         StringStruct(u'FileVersion', u'0.0.0.0'),
         StringStruct(u'InternalName', u'record'),
-        StringStruct(u'LegalCopyright', u'Piotr Jochymek 2023-2024'),
+        StringStruct(u'LegalCopyright', u'Piotr Jochymek 2023-2025'),
         StringStruct(u'OriginalFilename', u'record.exe'),
         StringStruct(u'ProductName', u'Librer-Record'),
         StringStruct(u'ProductVersion', u'VER_TO_REPLACE')])

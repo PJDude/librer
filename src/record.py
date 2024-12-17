@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2023-2024 Piotr Jochymek
+#  Copyright (c) 2023-2025 Piotr Jochymek
 #
 #  MIT License
 #
@@ -63,7 +63,7 @@ def parse_args(ver):
     parser = ArgumentParser(
             formatter_class=RawTextHelpFormatter,
             prog = 'record.exe' if (os_name=='nt') else 'record',
-            description = f"librer record version {ver}\nCopyright (c) 2023-2024 Piotr Jochymek\n\nhttps://github.com/PJDude/librer",
+            description = f"librer record version {ver}\nCopyright (c) 2023-2025 Piotr Jochymek\n\nhttps://github.com/PJDude/librer",
             )
 
     parser.add_argument('command',type=str,help='command to execute',choices=('create','search'))
