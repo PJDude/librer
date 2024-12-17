@@ -2,7 +2,7 @@ name: win_lin_release
 
 on:
   push:
-    branches: [ "main","devel" ]
+    branches: [ "main","devel","fixes" ]
 
 permissions: read-all
 
@@ -18,7 +18,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.13"
         cache: 'pip'
         check-latest: true
 
@@ -73,7 +73,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.13"
         cache: 'pip'
         check-latest: true
 
@@ -123,7 +123,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.13"
         cache: 'pip'
         check-latest: true
 
@@ -175,7 +175,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.13"
         cache: 'pip'
         check-latest: true
 
@@ -259,8 +259,8 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Librer ${{ steps.version.outputs.version }}
-        draft: false
-        prerelease: false
+        draft: true
+        prerelease: true
         files: |
             librer.${{ steps.version.outputs.version }}.linux.portable.zip
             librer.${{ steps.version.outputs.version }}.linux.nuitka.portable.zip
