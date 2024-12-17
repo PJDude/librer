@@ -21,11 +21,11 @@ echo pyinstaller `pyinstaller --version` >> distro.info.txt
 
 echo ''
 echo running-pyinstaller-stage_librer
-pyinstaller --strip --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. --collect-binaries tkinterdnd2 ./librer.py
+pyinstaller --strip --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. --collect-binaries tkinterdnd2 --optimize 2 ./librer.py
 
 echo ''
 echo running-pyinstaller-stage_record
-pyinstaller --strip --noconfirm --console --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir ./record.py -n record
+pyinstaller --strip --noconfirm --console --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --optimize 2 ./record.py -n record
 
 mv -v $outdir/record/record $outdir/librer
 
