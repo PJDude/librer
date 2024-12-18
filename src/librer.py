@@ -4583,7 +4583,7 @@ class Gui:
                             tags=self_SYMLINK
                         else:
                             tags=''
-                            if entry_subpath_tuple in record_find_results_tuples_set:
+                            if self.any_valid_find_results and entry_subpath_tuple in record_find_results_tuples_set:
                                 tags=self_FOUND
 
                         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
