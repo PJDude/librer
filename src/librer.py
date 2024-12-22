@@ -35,7 +35,7 @@ from time import strftime,time,mktime
 from signal import signal,SIGINT
 
 from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
-from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style
+from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style,Combobox
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -54,10 +54,15 @@ from librer_images import librer_image
 
 from dialogs import *
 from core import *
+from text import LANGUAGES
 
 from tempfile import mkdtemp
 
 windows = bool(os_name=='nt')
+
+langs=LANGUAGES()
+
+STR=langs.STR
 
 if windows:
     from os import startfile
@@ -101,6 +106,8 @@ CFG_KEY_cd_fuzzy_threshold = 'cd_fuzzy_threshold'
 CFG_KEY_SEARCH_TXT_STRING = 'search_txt_string'
 CFG_KEY_SEARCH_TXT_CS = 'search_txt_cs'
 
+CFG_lang = 'lang'
+
 CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
 CFG_SORTING = 'sorting'
@@ -136,6 +143,7 @@ cfg_defaults={
 
     CFG_KEY_SEARCH_TXT_STRING:'',
     CFG_KEY_SEARCH_TXT_CS:False,
+    CFG_lang:'English',
 
     CFG_last_dir:'.',
     CFG_geometry:'',
@@ -227,7 +235,7 @@ class Gui:
 
         disable = lambda menu : self.menubar_entryconfig(menu, state="disabled")
 
-        _ = {disable(menu) for menu in ("File","Help") }
+        _ = {disable(menu) for menu in (STR("File"),STR("Help")) }
 
         self.menubar_config(cursor='watch')
         self.main_config(cursor='watch')
@@ -239,7 +247,7 @@ class Gui:
         if not self.block_processing_stack:
             norm = lambda menu : self.menubar_entryconfig(menu, state="normal")
 
-            _ = {norm(menu) for menu in ("File","Help") }
+            _ = {norm(menu) for menu in (STR("File"),STR("Help")) }
 
             self.main_config(cursor='')
             self.menubar_config(cursor='')
@@ -285,7 +293,6 @@ class Gui:
             return res
         return block_wrapp
     ################################################
-
 
     def catched(func):
         def catched_wrapp(self,*args,**kwargs):
@@ -338,12 +345,12 @@ class Gui:
     def __init__(self,cwd):
         gc_disable()
 
-        self.cwd=cwd
-
         self.cfg = Config(DATA_DIR)
         self.cfg.read()
-
         self.cfg_get=self.cfg.get
+        langs.set( self.lang_dict[self.cfg_get(CFG_lang)] )
+
+        self.cwd=cwd
 
         self.last_dir = self.cfg_get(CFG_last_dir).replace('/',sep)
 
@@ -521,6 +528,10 @@ class Gui:
 
         style_map('Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
 
+        if windows:
+            #fix border problem ...
+            style_configure("TCombobox",padding=1)
+
         #style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
 
         #style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
@@ -570,7 +581,7 @@ class Gui:
         self.status_find.bind("<ButtonPress-1>", lambda event : self.finder_wrapper_show() )
         self.status_find_tooltip = lambda message : self.widget_tooltip(self.status_find,message)
 
-        self.status_find_tooltip_default = 'No search results\nClick to open find dialog.'
+        self.status_find_tooltip_default = STR('No search results\nClick to open find dialog.')
         self.status_find_tooltip(self.status_find_tooltip_default)
 
         ##############################################################################
@@ -583,9 +594,9 @@ class Gui:
 
         self_org_label = self.org_label = {}
 
-        self_org_label['#0']='Name'
-        self_org_label['size_h']='Size'
-        self_org_label['ctime_h']='Time'
+        self_org_label['#0']=STR('Name')
+        self_org_label['size_h']=STR('Size')
+        self_org_label['ctime_h']=STR('Time')
 
         tree["columns"]=('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         tree["displaycolumns"]=('size_h','ctime_h')
@@ -599,7 +610,7 @@ class Gui:
 
         tree_heading = tree.heading
         #tree_heading('#0',text='Name \u25B2',anchor='w')
-        tree_heading('#0',text='Name',anchor='w')
+        tree_heading('#0',text=STR('Name'),anchor='w')
         tree_heading('size_h',anchor='w',text=self_org_label['size_h'])
         tree_heading('ctime_h',anchor='n',text=self_org_label['ctime_h'])
 
@@ -649,22 +660,22 @@ class Gui:
 
                 state_has_cd = ('disabled','normal')[ self.sel_item is not None and self.item_has_cd(self.sel_item) ]
 
-                self_file_cascade_add_command(label = 'New Record ...',command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record_new,compound='left')
+                self_file_cascade_add_command(label = STR('New Record ...'),command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record_new,compound='left')
 
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
-                self_file_cascade_add_command(label = 'Import "Where Is It?" xml ...', command = self.record_import_wii,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = STR('Import Record ...'), accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
+                self_file_cascade_add_command(label = STR('Import "Where Is It?" xml ...'), command = self.record_import_wii,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Find ...',command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
+                self_file_cascade_add_command(label = STR('Find ...'),command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Settings ...',command = self.settings_show, accelerator="F12",image = self.ico_empty,compound='left',state = 'normal')
+                self_file_cascade_add_command(label = STR('Settings ...'),command = self.settings_show, accelerator="F12",image = self.ico_empty,compound='left',state = 'normal')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
+                self_file_cascade_add_command(label = STR('Clear Search Results'),command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
+                self_file_cascade_add_command(label = STR('Exit'),command = self.exit,image = self_ico['exit'],compound='left')
 
         self.file_cascade= Menu(menubar,tearoff=0,bg=self.bg_color,postcommand=file_cascade_post)
-        menubar.add_cascade(label = 'File',menu = self.file_cascade,accelerator="Alt+F")
+        menubar.add_cascade(label = STR("File"),menu = self.file_cascade,accelerator="Alt+F")
 
         def help_cascade_post():
             self.help_cascade.delete(0,'end')
@@ -673,17 +684,17 @@ class Gui:
                 self_help_cascade_add_command = self.help_cascade.add_command
                 self_help_cascade_add_separator = self.help_cascade.add_separator
 
-                self_help_cascade_add_command(label = 'About',command=lambda : self.get_about_dialog().show(),accelerator="F1", image = self_ico['about'],compound='left')
-                self_help_cascade_add_command(label = 'License',command=lambda : self.get_license_dialog().show(), image = self.ico_license,compound='left')
+                self_help_cascade_add_command(label = STR('About'),command=lambda : self.get_about_dialog().show(),accelerator="F1", image = self_ico['about'],compound='left')
+                self_help_cascade_add_command(label = STR('License'),command=lambda : self.get_license_dialog().show(), image = self.ico_license,compound='left')
                 self_help_cascade_add_separator()
-                self_help_cascade_add_command(label = 'Open current Log',command=self.show_log, image = self_ico['log'],compound='left')
-                self_help_cascade_add_command(label = 'Open logs directory',command=self.show_logs_dir, image = self_ico['logs'],compound='left')
+                self_help_cascade_add_command(label = STR('Open current Log'),command=self.show_log, image = self_ico['log'],compound='left')
+                self_help_cascade_add_command(label = STR('Open logs directory'),command=self.show_logs_dir, image = self_ico['logs'],compound='left')
                 self_help_cascade_add_separator()
-                self_help_cascade_add_command(label = 'Open homepage',command=self.show_homepage, image = self_ico['home'],compound='left')
+                self_help_cascade_add_command(label = STR('Open homepage'),command=self.show_homepage, image = self_ico['home'],compound='left')
 
         self.help_cascade= Menu(menubar,tearoff=0,bg=self.bg_color,postcommand=help_cascade_post)
 
-        menubar.add_cascade(label = 'Help',menu = self.help_cascade)
+        menubar.add_cascade(label = STR("Help"),menu = self.help_cascade)
 
         #######################################################################
         self.sel_item = None
@@ -765,15 +776,15 @@ class Gui:
 
         #############################
 
-        self.tooltip_message[str_self_progress_dialog_on_load_abort_button]='Abort loading.'
-        self_progress_dialog_on_load.abort_button.configure(image=self.ico_cancel,text='Abort',compound='left')
+        self.tooltip_message[str_self_progress_dialog_on_load_abort_button]=STR('Abort loading.')
+        self_progress_dialog_on_load.abort_button.configure(image=self.ico_cancel,text=STR('Abort'),compound='left')
         self_progress_dialog_on_load.abort_button.pack( anchor='center',padx=5,pady=5)
 
         self.action_abort=False
         self.action_abort_single=False
         self_progress_dialog_on_load.abort_button.configure(state='normal')
 
-        self.status_info.configure(image='',text = 'Checking records to load ...')
+        self.status_info.configure(image='',text = STR('Checking records to load ...'))
         records_quant,records_size = librer_core.read_records_pre()
 
         load_errors = []
@@ -781,14 +792,14 @@ class Gui:
         self.groups_show()
 
         if records_quant:
-            self.status_info.configure(image='',text = 'Loading records ...')
+            self.status_info.configure(image='',text = STR('Loading records ...'))
 
             read_thread=Thread(target=lambda : librer_core.threaded_read_records(load_errors),daemon=True)
             read_thread_is_alive = read_thread.is_alive
 
-            self_progress_dialog_on_load.lab_l1.configure(text='Records space:')
-            self_progress_dialog_on_load.lab_l2.configure(text='Records number:' )
-            self_progress_dialog_on_load.show('Loading records')
+            self_progress_dialog_on_load.lab_l1.configure(text=STR('Records space:'))
+            self_progress_dialog_on_load.lab_l2.configure(text=STR('Records number:'))
+            self_progress_dialog_on_load.show(STR('Loading records'))
 
             self_progress_dialog_on_load_progr1var.set(0)
             self_progress_dialog_on_load_lab_r1_config(text='- - - -')
@@ -846,10 +857,10 @@ class Gui:
             read_thread.join()
 
             if self.action_abort:
-                self.info_dialog_on_main.show('Records loading aborted','Restart Librer to gain full access to the recordset.')
+                self.info_dialog_on_main.show(STR('Records loading aborted','Restart Librer to gain full access to the recordset.'))
 
         if load_errors:
-            self.get_text_info_dialog().show('Loading errors','\n\n'.join(load_errors) )
+            self.get_text_info_dialog().show(STR('Loading errors'),'\n\n'.join(load_errors) )
             self.store_text_dialog_fields(self.text_info_dialog)
 
         self.menu_enable()
@@ -864,7 +875,7 @@ class Gui:
 
         self.tree.focus_set()
 
-        self.status_info.configure(image='',text = 'Ready')
+        self.status_info.configure(image='',text = STR('Ready'))
 
         tree_bind = tree.bind
 
@@ -956,7 +967,7 @@ class Gui:
                 else:
                     self.path_to_scan_entry_var.set(dirname(p_path))
             else:
-                self.get_info_dialog_on_scan().show('Path does not exist',str(p_path))
+                self.get_info_dialog_on_scan().show(STR('Path does not exist'),str(p_path))
 
     def tree_focus_out(self):
         tree = self.tree
@@ -1011,16 +1022,16 @@ class Gui:
     action_abort=False
 
     def progress_dialog_find_abort(self):
-        self.status("Abort pressed ...")
+        self.status(STR("Abort pressed ..."))
         self.action_abort=True
 
     def progress_dialog_load_abort(self):
-        self.status("Abort pressed ...")
+        self.status(STR("Abort pressed ..."))
         self.action_abort=True
 
     def progress_dialog_abort(self):
-        self.status("Abort pressed ...")
-        l_info("Abort pressed ...")
+        self.status(STR("Abort pressed ..."))
+        l_info(STR("Abort pressed ..."))
         self.action_abort=True
 
     def handle_sigint(self):
@@ -1058,7 +1069,7 @@ class Gui:
     @block
     def get_text_info_dialog(self):
         if not self.text_info_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.text_info_dialog = TextDialogInfo(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.fix_text_dialog(self.text_info_dialog)
@@ -1073,7 +1084,7 @@ class Gui:
     @block
     def get_simple_question_dialog(self):
         if not self.simple_question_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.simple_question_dialog = LabelDialogQuestion(self.main,(self.ico_record_delete,self.ico_record_delete),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
 
@@ -1151,7 +1162,7 @@ class Gui:
     @block
     def get_scan_dialog(self):
         if not self.scan_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self_ico_librer = self.ico_librer
 
@@ -1182,7 +1193,7 @@ class Gui:
             ul_lab=Label(temp_frame,text="Label:",bg=self.bg_color,anchor='w')
             ul_lab.grid(row=0, column=4, sticky='news',padx=4,pady=4)\
 
-            label_tooltip = "Internal Label of the record to be created"
+            label_tooltip = STR("Internal Label of the record to be created")
             self.widget_tooltip(ul_lab,label_tooltip)
 
             self.scan_label_entry_var=StringVar(value='')
@@ -1191,21 +1202,21 @@ class Gui:
 
             self.widget_tooltip(self.scan_label_entry,label_tooltip)
 
-            (path_to_scan_label := Label(temp_frame,text="Path:",bg=self.bg_color,anchor='w')).grid(row=0, column=0, sticky='news',padx=4,pady=4)
-            self.widget_tooltip(path_to_scan_label,"Path to scan")
+            (path_to_scan_label := Label(temp_frame,text=STR("Path:"),bg=self.bg_color,anchor='w')).grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            self.widget_tooltip(path_to_scan_label,STR("Path to scan"))
 
             self.path_to_scan_entry_var=StringVar(value=self.last_dir)
             path_to_scan_entry = Entry(temp_frame,textvariable=self.path_to_scan_entry_var)
             path_to_scan_entry.grid(row=0, column=1, sticky='news',padx=4,pady=4)
-            self.widget_tooltip(path_to_scan_entry,"Path to scan")
+            self.widget_tooltip(path_to_scan_entry,STR("Path to scan"))
 
             self.add_path_button = Button(temp_frame,width=18,image = self.ico_open, command=self.set_path_to_scan,underline=0)
             self.add_path_button.grid(row=0, column=2, sticky='news',padx=4,pady=4)
-            self.widget_tooltip(self.add_path_button,"Set path to scan.")
+            self.widget_tooltip(self.add_path_button,STR("Set path to scan."))
 
             self.add_dev_button = Menubutton(temp_frame,width=18,image = self.ico_drive,underline=0)
             self.add_dev_button.grid(row=0, column=3, sticky='news',padx=4,pady=4)
-            self.widget_tooltip(self.add_dev_button,"Select device to scan.")
+            self.widget_tooltip(self.add_dev_button,STR("Select device to scan."))
 
             self.drives_menu = Menu(self.add_dev_button, tearoff=0,postcommand=self.set_dev_to_scan_menu)
             self.add_dev_button["menu"] = self.drives_menu
@@ -1213,11 +1224,11 @@ class Gui:
             temp_frame.grid_columnconfigure(1, weight=1)
 
             ##############
-            self.scan_button = Button(dialog.area_buttons,width=12,text="Scan",compound='left',command=self.scan_wrapper,underline=0)
+            self.scan_button = Button(dialog.area_buttons,width=12,text=STR("Scan"),compound='left',command=self.scan_wrapper,underline=0)
             self.scan_button.pack(side='right',padx=4,pady=4)
-            self.widget_tooltip(self.scan_button,'Start scanning.\n\nIf any Custom Data Extractor is enabled it will be executed\nwith every file that meets its criteria (mask & size).')
+            self.widget_tooltip(self.scan_button,STR('Start scanning.\n\nIf any Custom Data Extractor is enabled it will be executed\nwith every file that meets its criteria (mask & size).'))
 
-            self.scan_cancel_button = Button(dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog_hide_wrapper)
+            self.scan_cancel_button = Button(dialog.area_buttons,width=12,text=STR("Cancel"),command=self.scan_dialog_hide_wrapper)
             #,image=self.ico_stop
             #,compound='left'
             self.scan_cancel_button.pack(side='left',padx=4,pady=4)
@@ -1236,64 +1247,64 @@ class Gui:
             self.scan_threads_var.set(1)
             self.scan_threads_var_int.set(1)
 
-            (compr_label := Label(scan_options_frame, text='Compression:',bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
+            (compr_label := Label(scan_options_frame, text=STR('Compression:'),bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
             (compr_scale := Scale(scan_options_frame, variable=self.scan_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.scan_comp_set(),style="TScale",length=160)).pack(fill='x',side='left',expand=1,padx=2)
             (compr_in_label := Label(scan_options_frame, textvariable=self.scan_compr_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='left',padx=2,pady=2)
-            compr_tooltip = "Data record internal compression. A higher value\nmeans a smaller file and longer compression time.\nvalues above 20 may result in extremely long compression\nand memory consumption. The default value is 9."
+            compr_tooltip = STR("Data record internal compression. A higher value\nmeans a smaller file and longer compression time.\nvalues above 20 may result in extremely long compression\nand memory consumption. The default value is 9.")
             self.widget_tooltip(compr_scale,compr_tooltip)
             self.widget_tooltip(compr_label,compr_tooltip)
             self.widget_tooltip(compr_in_label,compr_tooltip)
 
             (threads_in_label := Label(scan_options_frame, textvariable=self.scan_threads_var_int,width=3,bg=self.bg_color,relief='groove',borderwidth=2)).pack(side='right',padx=2,pady=2)
             (threads_scale := Scale(scan_options_frame, variable=self.scan_threads_var, orient='horizontal',from_=0, to=cpu_count(),command=lambda x : self.scan_threads_set(),style="TScale",length=160)).pack(fill='x',side='right',expand=1,padx=2)
-            (threads_label := Label(scan_options_frame, text='CDE Threads:',bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
-            threads_tooltip = "Number of threads used to extract Custom Data\n\n0 - all available CPU cores\n1 - single thread (default value)\n\nThe optimal value depends on the CPU cores performace,\nIO subsystem performance and Custom Data Extractor specifics.\n\nConsider limitations of parallel CDE execution e.g.\nnumber of licenses of used software,\nused working directory, needed memory etc."
+            (threads_label := Label(scan_options_frame, text=STR('CDE Threads:'),bg=self.bg_color,relief='flat')).pack(side='left',padx=2,pady=2)
+            threads_tooltip = STR("Number of threads used to extract Custom Data\n\n0 - all available CPU cores\n1 - single thread (default value)\n\nThe optimal value depends on the CPU cores performace,\nIO subsystem performance and Custom Data Extractor specifics.\n\nConsider limitations of parallel CDE execution e.g.\nnumber of licenses of used software,\nused working directory, needed memory etc.")
             self.widget_tooltip(threads_scale,threads_tooltip)
             self.widget_tooltip(threads_label,threads_tooltip)
             self.widget_tooltip(threads_in_label,threads_tooltip)
 
             self.single_device=BooleanVar()
-            single_device_button = Checkbutton(dialog.area_buttons,text='one device mode',variable=self.single_device)
+            single_device_button = Checkbutton(dialog.area_buttons,text=STR('one device mode'),variable=self.single_device)
             single_device_button.pack(side='right',padx=2,pady=2)
             self.single_device.set(self.cfg_get(CFG_KEY_SINGLE_DEVICE))
-            self.widget_tooltip(single_device_button,"Don't cross device boundaries (mount points, bindings etc.) - recommended")
+            self.widget_tooltip(single_device_button,STR("Don't cross device boundaries (mount points, bindings etc.) - recommended"))
 
             dialog.focus=self.scan_cancel_button
 
             ############
-            temp_frame3 = LabelFrame(dialog.area_main,text='Custom Data Extractors:',borderwidth=2,bg=self.bg_color,takefocus=False)
+            temp_frame3 = LabelFrame(dialog.area_main,text=STR('Custom Data Extractors:'),borderwidth=2,bg=self.bg_color,takefocus=False)
             temp_frame3.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=3,ipadx=4,ipady=4)
 
             sf_par3 = SFrame(temp_frame3,bg=self.bg_color)
             sf_par3.pack(fill='both',expand=True,side='top')
             self.cde_frame = cde_frame = sf_par3.frame()
 
-            (lab_criteria := Label(cde_frame,text='% File cryteria',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=2,sticky='news',columnspan=3)
-            (lab_command := Label(cde_frame,text='Custom Data extractor command',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news',columnspan=4)
-            (lab_mask := Label(cde_frame,text='File Mask',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=2,sticky='news')
+            (lab_criteria := Label(cde_frame,text=STR('% File cryteria'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=2,sticky='news',columnspan=3)
+            (lab_command := Label(cde_frame,text=STR('Custom Data extractor command'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news',columnspan=4)
+            (lab_mask := Label(cde_frame,text=STR('File Mask'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=2,sticky='news')
             (lab_min := Label(cde_frame,image=self.ico_bigger,bg=self.bg_color,anchor='center',relief='groove',bd=2,width=40)).grid(row=1, column=3,sticky='news')
             (lab_max := Label(cde_frame,image=self.ico_smaller,bg=self.bg_color,anchor='center',relief='groove',bd=2,width=40)).grid(row=1, column=4,sticky='news')
             (lab_shell := Label(cde_frame,image=self.ico_shell,bg=self.bg_color,anchor='center',relief='groove',bd=2)).grid(row=1, column=5,sticky='news')
             (lab_open := Label(cde_frame,text='',bg=self.bg_color,anchor='n')).grid(row=1, column=6,sticky='news')
-            (lab_exec := Label(cde_frame,text='Executable',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=7,sticky='news')
-            (lab_pars  := Label(cde_frame,text='Parameters',bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=8,sticky='news')
+            (lab_exec := Label(cde_frame,text=STR('Executable'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=7,sticky='news')
+            (lab_pars  := Label(cde_frame,text=STR('Parameters'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=8,sticky='news')
             (lab_timeout := Label(cde_frame,image=self.ico_timeout,bg=self.bg_color,anchor='center',relief='groove',bd=2,width=3)).grid(row=1, column=9,sticky='news')
             (lab_test := Label(cde_frame,image=self.ico_test_col,bg=self.bg_color,anchor='center',relief='groove',bd=2)).grid(row=1, column=10,sticky='news')
 
-            up_tooltip = "Use the arrow to change the order\nin which CDE criteria are checked.\n\nIf a file meets several CDE criteria\n(mask & size), the one with higher priority\nwill be executed. In this table, the first\none from the top has the highest priority,\nthe next ones have lower and lower priority."
-            use_tooltip = "Mark to use CD Extractor"
-            mask_tooltip = "Glob expresions separated by comma (',')\ne.g.: '*.7z, *.zip, *.gz'\n\nthe given executable will run\nwith every file matching the expression\n(and size citeria if provided)"
-            size_common_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
-            max_tooltip = 'Maximum file size.\n\n' + size_common_tooltip
-            min_tooltip = 'Minimum file size.\n\n'+ size_common_tooltip
-            exec_tooltip = "Binary executable, batch script, or entire command\n(depending on the 'shell' option setting)\nthat will run with the full path to the scanned file.\nThe executable may have a full path, be located in a PATH\nenvironment variable, or be interpreted by the system shell\n\ncheck 'shell' option tooltip."
-            pars_tooltip = f"The executable will run with the full path to the file to extract as a parameter.\nIf other constant parameters are necessary, they should be placed here\nand the scanned file should be indicated with the '{PARAM_INDICATOR_SIGN}' sign.\nThe absence of the '{PARAM_INDICATOR_SIGN}' sign means that the file will be passed as the last parameter.\ne.g.:const_param % other_const_param"
+            up_tooltip = STR('UP_TOOLTIP')
+            use_tooltip = STR("Mark to use CD Extractor")
+            mask_tooltip = STR('MASK_TOOLTIP')
+            size_common_tooltip = STR('SIZE_TOOLTIP')
+            max_tooltip = 'Maximum file size.' + '\n\n' + size_common_tooltip
+            min_tooltip = 'Minimum file size.' + '\n\n'+ size_common_tooltip
+            exec_tooltip = STR('EXEC_TOOLTIP')
+            pars_tooltip = STR('PARS_TOOLTIP')
             shell_example = '"C:\\Program Files\\7-Zip\\7z.exe" l % | more +13' if windows else "7z l % | tail -n +14"
-            shell_tooltip = f"Execute in the system shell.\n\nWhen enabled\nCommand with parameters will be passed\nto the system shell as single string\nThe use of pipes, redirection etc. is allowed.\nUsing of quotes (\") may be necessary. Scanned\nfiles will be automatically enclosed with quotation marks.\nExample:\n{shell_example}\n\nWhen disabled\nAn executable file must be specified,\nthe contents of the parameters field will be\nsplitted and passed as a parameters list.\n\nIn more complicated cases\nit is recommended to prepare a dedicated shell\nscript and use it as a shell command."
-            open_tooltip = "Choose the executable file to serve as a custom data extractor..."
-            timeout_tooltip = "Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or empty field means no timeout."
-            test_tooltip_common = "Before you run scan, and therefore run your CDE on all\nfiles that will match on the scan path,\ntest your Custom Data Extractor\non a single, manually selected file.\nCheck if it's getting the expected data\nand has no unexpected side-effects."
-            test_tooltip = "Select a file and test your Custom Data Extractor.\n\n" + test_tooltip_common
+            shell_tooltip = STR('SHELL_TOOLTIP')
+            open_tooltip = STR('OPEN_TOOLTIP')
+            timeout_tooltip = STR('TIMEOUT_TOOLTIP')
+            test_tooltip_common = STR('TEST_TOOLTIP_COMMOMN')
+            test_tooltip = STR('TEST_TOOLTIP') + test_tooltip_common
 
             self_widget_tooltip = self.widget_tooltip
 
@@ -1413,10 +1424,10 @@ class Gui:
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
-        self.widget_tooltip(dialog.find_prev_butt,'Select Prev (Shift+F3)')
-        self.widget_tooltip(dialog.find_next_butt,'Select Next (F3)')
-        self.widget_tooltip(dialog.find_cs,'Case Sensitive')
-        self.widget_tooltip(dialog.find_info_lab,'index of the selected search result / search results total ')
+        self.widget_tooltip(dialog.find_prev_butt,STR('Select Prev') + ' (Shift+F3)')
+        self.widget_tooltip(dialog.find_next_butt,STR('Select Next') + ' (F3)')
+        self.widget_tooltip(dialog.find_cs,STR('Case Sensitive'))
+        self.widget_tooltip(dialog.find_info_lab,STR('index of the selected search result / search results total '))
 
         #dialog.find_cs_var.set(not windows)
 
@@ -1432,7 +1443,7 @@ class Gui:
     @block
     def get_progress_dialog_on_scan(self):
         if not self.progress_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
@@ -1448,7 +1459,7 @@ class Gui:
     @block
     def get_simple_progress_dialog_on_scan(self):
         if not self.simple_progress_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.simple_progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),ShowProgress=False,min_width=400,min_height=200)
 
@@ -1463,12 +1474,24 @@ class Gui:
 
         return self.simple_progress_dialog_on_scan
 
+    info_dialog_on_main_created = False
+    @restore_status_line
+    @block
+    def get_info_dialog_on_main(self):
+        if not self.info_dialog_on_main_created:
+            self.status(STR("Creating dialog ..."))
+
+            self.info_dialog_on_main = LabelDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.info_dialog_on_main_created = True
+
+        return self.info_dialog_on_main
+
     info_dialog_on_scan_created = False
     @restore_status_line
     @block
     def get_info_dialog_on_scan(self):
         if not self.info_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.info_dialog_on_scan_created = True
@@ -1480,7 +1503,7 @@ class Gui:
     @block
     def get_text_dialog_on_scan(self):
         if not self.text_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.text_dialog_on_scan = TextDialogInfo(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.fix_text_dialog(self.text_dialog_on_scan)
@@ -1494,7 +1517,7 @@ class Gui:
     @block
     def get_text_ask_dialog_on_scan(self):
         if not self.text_ask_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.text_ask_dialog_on_scan = TextDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
             self.fix_text_dialog(self.text_ask_dialog_on_scan)
@@ -1508,7 +1531,7 @@ class Gui:
     @block
     def get_ask_dialog_on_scan(self):
         if not self.ask_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.ask_dialog_on_scan = LabelDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
             self.ask_dialog_on_scan_created = True
@@ -1520,7 +1543,7 @@ class Gui:
     #@block
     #def get_text_ask_dialog_on_main(self):
     #    if not self.text_ask_dialog_on_main_created:
-    #        self.status("Creating dialog ...")
+    #        self.status(STR("Creating dialog ..."))
 
     #        self.text_ask_dialog_on_main = TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
     #        self.fix_text_dialog(self.text_ask_dialog_on_main)
@@ -1534,7 +1557,7 @@ class Gui:
     @block
     def get_progress_dialog_on_main(self):
         if not self.progress_dialog_on_main_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.progress_dialog_on_main = ProgressDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.progress_dialog_on_main.set_mins(300, 100)
@@ -1564,11 +1587,11 @@ class Gui:
     @block
     def get_progress_dialog_on_find(self):
         if not self.progress_dialog_on_find_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.progress_dialog_on_find = ProgressDialog(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.progress_dialog_on_find.command_on_close = self.progress_dialog_find_abort
-            self.widget_tooltip(self.progress_dialog_on_find.abort_button,'Abort searching.')
+            self.widget_tooltip(self.progress_dialog_on_find.abort_button,STR('Abort searching.'))
 
             self.progress_dialog_on_find_created = True
 
@@ -1592,7 +1615,7 @@ class Gui:
 
         if not self.repack_dialog_created:
 
-            self.repack_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Rename / Repack record',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.repack_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Rename / Repack record'),pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.repack_cd_var = BooleanVar()
             #self.repack_crc_var = BooleanVar()
             self.repack_compr_var = IntVar()
@@ -1606,16 +1629,16 @@ class Gui:
             self.repack_compr_var_int.set(9)
             self.repack_label_var.set('')
 
-            (label_frame := LabelFrame(self.repack_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            (label_frame := LabelFrame(self.repack_dialog.area_main,text=STR('Record Label'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             Entry(label_frame,textvariable=self.repack_label_var).pack(expand='yes',fill='x',padx=2,pady=2)
 
-            (repack_frame := LabelFrame(self.repack_dialog.area_main,text='Data options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            (repack_frame := LabelFrame(self.repack_dialog.area_main,text=STE('Data options'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             self.repack_dialog.area_main.grid_columnconfigure( 0, weight=1)
             self.repack_dialog.area_main.grid_columnconfigure( 1, weight=1)
 
             self.repack_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
-            self.repack_cd_cb = Checkbutton(repack_frame,text='Keep \'Custom Data\'',variable=self.repack_cd_var)
+            self.repack_cd_cb = Checkbutton(repack_frame,text=STR("Keep 'Custom Data'"),variable=self.repack_cd_var)
             #self.repack_crc_cb = Checkbutton(repack_frame,text='Include CRC values',variable=self.repack_crc_var)
 
             self.repack_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
@@ -1623,13 +1646,13 @@ class Gui:
 
             repack_frame.grid_columnconfigure( 0, weight=1)
 
-            (repack_frame_compr := LabelFrame(self.repack_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            (repack_frame_compr := LabelFrame(self.repack_dialog.area_main,text=STR('Compression (0-22)'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
 
             Scale(repack_frame_compr, variable=self.repack_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.repack_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
             Label(repack_frame_compr, textvariable=self.repack_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
 
-            Button(self.repack_dialog.area_buttons, text='Proceed', width=14 , command= self.repack_to_local).pack(side='left', anchor='n',padx=5,pady=5)
-            Button(self.repack_dialog.area_buttons, text='Close', width=14, command=self.repack_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+            Button(self.repack_dialog.area_buttons, text=STR('Proceed'), width=14 , command= self.repack_to_local).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.repack_dialog.area_buttons, text=STR('Close'), width=14, command=self.repack_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
 
             self.repack_dialog_created = True
         return self.repack_dialog
@@ -1644,7 +1667,7 @@ class Gui:
         self.wii_import_dialog_do_it=False
 
         if not self.wii_import_dialog_created:
-            self.wii_import_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Where Is It ? import records',pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.wii_import_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Where Is It ? Import Records'),pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
             self.wii_import_separate = BooleanVar()
             self.wii_import_separate.set(False)
             self.wii_import_compr_var = IntVar()
@@ -1666,28 +1689,28 @@ class Gui:
 
             #(label_frame := LabelFrame(self.wii_import_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
 
-            (wii_import_frame := LabelFrame(self.wii_import_dialog.area_main,text='Options',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            (wii_import_frame := LabelFrame(self.wii_import_dialog.area_main,text=STR('Options'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             self.wii_import_dialog.area_main.grid_columnconfigure( 0, weight=1)
             self.wii_import_dialog.area_main.grid_columnconfigure( 1, weight=1)
 
             self.wii_import_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
-            self.wii_import_separate_cb = Checkbutton(wii_import_frame,text=' Separate record per each disk (not recommended)',variable=self.wii_import_separate,command = self.wii_import_dialog_name_state)
+            self.wii_import_separate_cb = Checkbutton(wii_import_frame,text=STR(' Separate record per each disk (not recommended)'),variable=self.wii_import_separate,command = self.wii_import_dialog_name_state)
             self.wii_import_separate_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4,columnspan=2)
 
-            Label(wii_import_frame,text='Common record label:',bg=self.bg_color,anchor='w').grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            Label(wii_import_frame,text=STR('Common record label:'),bg=self.bg_color,anchor='w').grid(row=1, column=0, sticky='wens',padx=4,pady=4)
             self.wii_import_label_entry = Entry(wii_import_frame,textvariable=self.wii_import_label_var)
             self.wii_import_label_entry.grid(row=1, column=1, sticky='wens',padx=4,pady=4)
 
             wii_import_frame.grid_columnconfigure( 1, weight=1)
 
-            (wii_import_frame_compr := LabelFrame(self.wii_import_dialog.area_main,text='Compression (0-22)',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            (wii_import_frame_compr := LabelFrame(self.wii_import_dialog.area_main,text=STR('Compression (0-22)'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=2)
 
             Scale(wii_import_frame_compr, variable=self.wii_import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.wii_import_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
             Label(wii_import_frame_compr, textvariable=self.wii_import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
 
-            Button(self.wii_import_dialog.area_buttons, text='Proceed', width=14 , command= self.wii_import_to_local).pack(side='left', anchor='n',padx=5,pady=5)
-            Button(self.wii_import_dialog.area_buttons, text='Close', width=14, command=self.wii_import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+            Button(self.wii_import_dialog.area_buttons, text=STR('Proceed'), width=14 , command= self.wii_import_to_local).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.wii_import_dialog.area_buttons, text=STR('Close'), width=14, command=self.wii_import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
 
             self.wii_import_dialog_created = True
 
@@ -1698,7 +1721,7 @@ class Gui:
     @block
     def get_entry_ask_dialog(self):
         if not self.entry_ask_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
             self.entry_ask_dialog = EntryDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.entry_ask_dialog_created = True
         return self.entry_ask_dialog
@@ -1708,33 +1731,47 @@ class Gui:
     @block
     def get_assign_to_group_dialog(self):
         if not self.assign_to_group_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
             self.assign_to_group_dialog = ComboboxDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.assign_to_group_dialog_created = True
         return self.assign_to_group_dialog
+
+    lang_dict={'English':'en','Polski':'pl'}
 
     settings_dialog_created = False
     @restore_status_line
     @block
     def get_settings_dialog(self):
         if not self.settings_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
-            self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show,post_close=self.post_close)
+            self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Settings'),pre_show=self.pre_show,post_close=self.post_close)
 
             sfdma = self.settings_dialog.area_main
 
             self.show_popups_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text='Show tooltips',variable=self.show_popups_var,command=self.popups_show_mod)
+            self.popups_cb = Checkbutton(sfdma,text=STR('Show tooltips'),variable=self.show_popups_var,command=self.popups_show_mod)
             self.popups_cb.grid(row=0, column=0, sticky='news',padx=4,pady=4)
 
             self.groups_collapsed_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text='Groups collapsed at startup',variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
+            self.popups_cb = Checkbutton(sfdma,text=STR('Groups collapsed at startup'),variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
             self.popups_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+
+            lang_frame = Frame(sfdma)
+            lang_frame.grid(row=2, column=0, sticky='news',padx=4,pady=4)
+
+            Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=2, column=0, sticky='wens',padx=8,pady=4)
+
+            self.lang_var = StringVar()
+            self.lang_cb = Combobox(lang_frame,values=('English','Polski'),textvariable=self.lang_var,state='readonly',width=16)
+            self.lang_cb.grid(row=2, column=1, sticky='news',padx=4,pady=4)
+            lang_frame.grid_columnconfigure( 2, weight=1)
+
+            self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
 
             sfdma.grid_columnconfigure( 0, weight=1)
 
-            Button(self.settings_dialog.area_buttons, text='Close', width=14, command=self.settings_close ).pack(side='right', anchor='n',padx=5,pady=5)
+            Button(self.settings_dialog.area_buttons, text=STR('Close'), width=14, command=self.settings_close ).pack(side='right', anchor='n',padx=5,pady=5)
 
             self.settings_dialog_created = True
 
@@ -1742,6 +1779,10 @@ class Gui:
         self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
 
         return self.settings_dialog
+
+    def lang_change(self,event):
+        self.cfg.set(CFG_lang,self.lang_var.get())
+        self.get_info_dialog_on_main().show(STR('Language Changed'),'Restart required.' )
 
     def popups_show_mod(self):
         self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
@@ -1757,10 +1798,10 @@ class Gui:
     @block
     def get_find_dialog(self):
         if not self.find_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             ###################################
-            self.find_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Search records',pre_show=self.pre_show,post_close=self.post_close)
+            self.find_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Search records'),pre_show=self.pre_show,post_close=self.post_close)
 
             #self.find_size_use_var = BooleanVar()
             self.find_filename_search_kind_var = StringVar()
@@ -1828,8 +1869,8 @@ class Gui:
 
             sfdma = self.find_dialog.area_main
 
-            (find_filename_frame := LabelFrame(sfdma,text='Search range',bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
-            self.find_range_cb1 = Radiobutton(find_filename_frame,text='Selected record / group',variable=self.find_range_all,value=False,command=self.find_mod)
+            (find_filename_frame := LabelFrame(sfdma,text=STR('Search range'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
+            self.find_range_cb1 = Radiobutton(find_filename_frame,text=STR('Selected record / group'),variable=self.find_range_all,value=False,command=self.find_mod)
             self.find_range_cb1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
             self.find_range_cb1.bind('<Return>', lambda event : self.find_items())
 
@@ -2048,7 +2089,7 @@ class Gui:
     @block
     def get_about_dialog(self):
         if not self.about_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.aboout_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
 
@@ -2085,7 +2126,7 @@ class Gui:
     @block
     def get_license_dialog(self):
         if not self.license_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             try:
                 self.license=Path(path_join(LIBRER_DIR,'LICENSE')).read_text(encoding='ASCII')
@@ -2580,8 +2621,8 @@ class Gui:
         try:
             self.menu_state_stack_pop()
             if not self.menu_state_stack:
-                norm("File")
-                norm("Help")
+                norm(STR("File"))
+                norm(STR("Help"))
         except Exception as e:
             l_error(e)
 
@@ -2589,8 +2630,8 @@ class Gui:
         disable = self.menubar_disable
 
         self.menu_state_stack_append('x')
-        disable("File")
-        disable("Help")
+        disable(STR("File"))
+        disable(STR("Help"))
         #self.menubar.update()
 
     def delete_window_wrapper(self):
@@ -2624,7 +2665,9 @@ class Gui:
     @block
     def settings_show(self):
         dialog = self.get_settings_dialog()
-        dialog.show('Settings')
+        self.lang_var.set(self.cfg_get(CFG_lang))
+
+        dialog.show(STR('Settings'))
 
     @block
     def finder_wrapper_show(self):
@@ -3526,46 +3569,46 @@ class Gui:
             c_nav_add_command = c_nav.add_command
             c_nav_add_separator = c_nav.add_separator
 
-            c_nav_add_command(label = 'Go to next record'       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_command(label = 'Go to previous record'   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to next record')       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to previous record')   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to first record'       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_command(label = 'Go to last record'   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to first record')       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to last record')   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
-            pop_add_command(label = 'New record ...',  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico_record_new,compound='left')
+            pop_add_command(label = STR('New Record ...'),  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico_record_new,compound='left')
             pop_add_separator()
-            pop_add_command(label = 'Export record ...', accelerator='Ctrl+E', command = self.record_export,image = self.ico_record_export,compound='left',state=state_on_records)
-            pop_add_command(label = 'Import record ...', accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
-            pop_add_command(label = 'Rename / Repack ...',accelerator="F5" , command = self.record_repack,image = self.ico_empty,compound='left',state=state_on_records)
-            pop_add_command(label = 'Record Info ...', accelerator='Alt+Enter', command = self.record_info,image = self.ico_info,compound='left',state=state_on_records)
-            pop_add_command(label = 'Delete record ...',accelerator="Delete, F8",command = self.delete_action,image = self.ico_record_delete,compound='left',state=state_on_records)
+            pop_add_command(label = STR('Export record ...'), accelerator='Ctrl+E', command = self.record_export,image = self.ico_record_export,compound='left',state=state_on_records)
+            pop_add_command(label = STR('Import Record ...'), accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
+            pop_add_command(label = STR('Rename / Repack ...'),accelerator="F5" , command = self.record_repack,image = self.ico_empty,compound='left',state=state_on_records)
+            pop_add_command(label = STR('Record Info ...'), accelerator='Alt+Enter', command = self.record_info,image = self.ico_info,compound='left',state=state_on_records)
+            pop_add_command(label = STR('Delete record ...'),accelerator="Delete, F8",command = self.delete_action,image = self.ico_record_delete,compound='left',state=state_on_records)
             pop_add_separator()
-            pop_add_command(label = 'New group ...',accelerator="F7",  command = self.new_group,image = self.ico_group_new,compound='left')
-            pop_add_command(label = 'Remove group ...',accelerator="Delete" ,  command = self.remove_group,image = self.ico_group_remove,compound='left',state=('disabled','normal')[is_group] )
-            pop_add_command(label = 'Assign record to group ...',accelerator="F6" ,  command = self.assign_to_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[is_record and there_are_groups] )
-            pop_add_command(label = 'Remove record from group ...',  command = self.remove_from_group,image = self.ico_empty,compound='left',state=('disabled','normal')[record_in_group])
+            pop_add_command(label = STR('New group ...'),accelerator="F7",  command = self.new_group,image = self.ico_group_new,compound='left')
+            pop_add_command(label = STR('Remove group ...'),accelerator="Delete" ,  command = self.remove_group,image = self.ico_group_remove,compound='left',state=('disabled','normal')[is_group] )
+            pop_add_command(label = STR('Assign record to group ...'),accelerator="F6" ,  command = self.assign_to_group,image = self.ico_group_assign,compound='left',state=('disabled','normal')[is_record and there_are_groups] )
+            pop_add_command(label = STR('Remove record from group ...'),  command = self.remove_from_group,image = self.ico_empty,compound='left',state=('disabled','normal')[record_in_group])
             pop_add_separator()
-            pop_add_command(label = 'Rename / Alias name ...', accelerator='F2', command = self.alias_name,image = self.ico_empty,compound='left',state=state_on_records_or_groups )
+            pop_add_command(label = STR('Rename / Alias name ...'), accelerator='F2', command = self.alias_name,image = self.ico_empty,compound='left',state=state_on_records_or_groups )
             pop_add_separator()
-            pop_add_command(label = 'Show Custom Data ...', accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=('disabled','normal')[self.item_has_cd(self.tree.focus())])
+            pop_add_command(label = STR('Show Custom Data ...'), accelerator='Enter', command = self.show_customdata,image = self.ico_empty,compound='left',state=('disabled','normal')[self.item_has_cd(self.tree.focus())])
             pop_add_separator()
-            pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_empty,compound='left')
+            pop_add_command(label = STR('Copy full path'),command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if self.sel_item is not None and self.current_record else 'disabled', image = self.ico_empty,compound='left')
             pop_add_separator()
 
             #can_search = bool(self.sel_item is not None and self.current_record)
             can_search = bool(librer_core.records)
             search_state = 'normal' if can_search else 'disabled'
 
-            pop_add_command(label = 'Find ...',accelerator="Ctrl+F" ,command = self.finder_wrapper_show,state = search_state, image = self.ico_find,compound='left')
-            pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = search_state, image = self.ico_empty,compound='left')
-            pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = search_state, image = self.ico_empty,compound='left')
+            pop_add_command(label = STR('Find ...'),accelerator="Ctrl+F" ,command = self.finder_wrapper_show,state = search_state, image = self.ico_find,compound='left')
+            pop_add_command(label = STR('Find next'),command = self.find_next,accelerator="F3",state = search_state, image = self.ico_empty,compound='left')
+            pop_add_command(label = STR('Find prev'),command = self.find_prev,accelerator="Shift+F3",state = search_state, image = self.ico_empty,compound='left')
             pop_add_separator()
-            pop_add_command(label = 'Clear Search Results',command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
+            pop_add_command(label = STR('Clear Search Results'),command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
             pop_add_separator()
-            pop_add_command(label = 'Unload record data',command = self.unload_record, accelerator="Backspace", image = self.ico_empty,compound='left',state = 'normal' if is_record_loaded else 'disabled')
+            pop_add_command(label = STR('Unload record data'),command = self.unload_record, accelerator="Backspace", image = self.ico_empty,compound='left',state = 'normal' if is_record_loaded else 'disabled')
             pop_add_separator()
 
-            pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
+            pop_add_command(label = STR('Exit'),  command = self.exit ,image = self.ico['exit'],compound='left')
 
             try:
                 pop.tk_popup(event.x_root, event.y_root)
@@ -3575,7 +3618,7 @@ class Gui:
             pop.grab_release()
 
     def new_group(self):
-        self.get_entry_ask_dialog().show('New group','New group name:')
+        self.get_entry_ask_dialog().show(STR('New group'),STR('New group name:'))
 
         if self.entry_ask_dialog.res_bool:
             res = self.entry_ask_dialog.entry_val.get()
@@ -3594,7 +3637,7 @@ class Gui:
                 group=values[0]
 
             dialog = self.get_simple_question_dialog()
-            dialog.show('Delete selected group ?', 'group: ' + group + '\n\n(Records assigned to group will remain untouched)')
+            dialog.show(STR('Delete selected group ?'), STR('group: ') + group + '\n\n' + STR('(Records assigned to group will remain untouched)'))
 
             if dialog.res_bool:
                 for record_filename in librer_core.groups[group]:
@@ -3659,7 +3702,7 @@ class Gui:
                 else:
                     current = values[0]
 
-            dial.show('Assign to group','Assign record to group:',current)
+            dial.show(STR('Assign to group'),STR('Assign record to group:'),current)
 
             if dial.res_bool:
                 group = dial.entry_val.get()
@@ -3821,7 +3864,7 @@ class Gui:
         path_to_scan_from_entry = abspath(self.path_to_scan_entry_var.get())
 
         if not path_to_scan_from_entry:
-            self.get_info_dialog_on_scan().show('Error. No paths to scan.','Add paths to scan.')
+            self.get_info_dialog_on_scan().show('Error. ' + STR('No paths to scan.'),STR('Add paths to scan.'))
             return False
 
         #weryfikacja
@@ -3829,11 +3872,11 @@ class Gui:
             if self.CDE_use_var_list[e].get():
                 mask = self.CDE_mask_var_list[e].get().strip()
                 if not mask:
-                    self.get_info_dialog_on_scan().show('Wrong mask expression',f'Empty mask nr:{e+1}.')
+                    self.get_info_dialog_on_scan().show(STR('Wrong mask expression'),STR('Empty mask nr') + f':{e+1}.')
                     return False
                 exe = self.CDE_executable_var_list[e].get().strip()
                 if not exe:
-                    self.get_info_dialog_on_scan().show('Wrong executable',f'Empty executable nr:{e+1}.')
+                    self.get_info_dialog_on_scan().show(STR('Wrong executable'),STR('Empty executable nr') + f':{e+1}.')
                     return False
 
                 #PARAM_INDICATOR_SIGN
@@ -3856,7 +3899,7 @@ class Gui:
 
         if not all_timeout_set:
             ask_dialog = self.get_ask_dialog_on_scan()
-            ask_dialog.show('CDE Timeout not set','Continue without Custom Data Extractor timeout ?')
+            ask_dialog.show(STR('CDE Timeout not set'),STR('Continue without Custom Data Extractor timeout ?'))
 
             if not ask_dialog.res_bool:
                 return False
@@ -3888,7 +3931,7 @@ class Gui:
         self_tooltip_message = self.tooltip_message
         self_configure_tooltip = self.configure_tooltip
 
-        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
+        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=STR('If you abort at this stage,\nData record will not be created.')
         self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Cancel',compound='left',width=15)
 
         self.scan_dialog.widget.update()
@@ -3898,8 +3941,8 @@ class Gui:
 
         #self.log_skipped = self.log_skipped_var.get()
 
-        self_progress_dialog_on_scan.lab_l1.configure(text='CDE Total space:')
-        self_progress_dialog_on_scan.lab_l2.configure(text='CDE Files number:' )
+        self_progress_dialog_on_scan.lab_l1.configure(text=STR('CDE Total space:'))
+        self_progress_dialog_on_scan.lab_l2.configure(text=STR('CDE Files number:'))
 
         self_progress_dialog_on_scan_update_lab_text = self.progress_dialog_on_scan.update_lab_text
         self_progress_dialog_on_scan_update_lab_image = self_progress_dialog_on_scan.update_lab_image
@@ -3910,7 +3953,7 @@ class Gui:
         self_progress_dialog_on_scan_update_lab_text(3,'')
         self_progress_dialog_on_scan_update_lab_text(4,'')
 
-        self_progress_dialog_on_scan.show('Creating new data record (scanning)')
+        self_progress_dialog_on_scan.show(STR('Creating new data record (scanning)'))
 
         self_hg_ico = self.hg_ico
 
@@ -4018,7 +4061,7 @@ class Gui:
 
             self_get_hg_ico = self.get_hg_ico
 
-            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nData record will not be created.'
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=STR('If you abort at this stage,\nData record will not be created.')
             self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
             time_to_show_busy_sign=0
@@ -4049,7 +4092,7 @@ class Gui:
 
                     if librer_core.stage==0: #scan stage
                         if not switch_done:
-                            self_progress_dialog_on_scan.widget.title('Creating new data record (Scanning)')
+                            self_progress_dialog_on_scan.widget.title(STR('Creating new data record (scanning)'))
                             self_progress_dialog_on_scan.abort_single_button.pack_forget()
                             switch_done=True
 
@@ -4057,22 +4100,22 @@ class Gui:
                         change4 = self_progress_dialog_on_scan_update_lab_text(4,'%s files' % fnumber(librer_core.stdout_quant_files) )
                     elif librer_core.stage==1: #cde stage
                         if not switch_done:
-                            self_progress_dialog_on_scan.widget.title('Creating new data record (Custom Data Extraction)')
+                            self_progress_dialog_on_scan.widget.title(STR('Creating new data record (Custom Data Extraction)'))
                             self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
 
                             if threads==1:
-                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,command=lambda : self.abort_single(),state='normal')
+                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text=STR('Abort single file'),compound='left',width=15,command=lambda : self.abort_single(),state='normal')
                             else:
-                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text='Abort single file',compound='left',width=15,state='disabled')
+                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text=STR('Abort single file'),compound='left',width=15,state='disabled')
 
-                            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Abort',compound='left',width=15,state='normal')
+                            self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text=STR('Abort'),compound='left',width=15,state='normal')
 
-                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nCustom Data will be incomplete.'
-                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]='Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.\n\nAvailable only for single thread mode.'
+                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=STR('If you abort at this stage,\nCustom Data will be incomplete.')
+                            self_tooltip_message[str_self_progress_dialog_on_scan_abort_single_button]=STR('ABORT_PROGRESS_TOOLTIP')
                             switch_done=True
 
-                        change3 = self_progress_dialog_on_scan_update_lab_text(3,'Extracted Custom Data: ' + local_bytes_to_str(librer_core.stdout_cde_size_extracted) )
-                        change4 = self_progress_dialog_on_scan_update_lab_text(4,'Extraction Errors : ' + fnumber(librer_core.stdout_cde_errors_quant_all) )
+                        change3 = self_progress_dialog_on_scan_update_lab_text(3,STR('Extracted Custom Data: ') + local_bytes_to_str(librer_core.stdout_cde_size_extracted) )
+                        change4 = self_progress_dialog_on_scan_update_lab_text(4,STR('Extraction Errors : ') + fnumber(librer_core.stdout_cde_errors_quant_all) )
 
                         files_q = librer_core.stdout_files_cde_quant
 
@@ -4160,7 +4203,7 @@ class Gui:
 
         dialog = self.get_simple_question_dialog()
 
-        dialog.show('Delete selected data record ?',librer_core.record_info_alias_wrapper(record,record.txtinfo_short) )
+        dialog.show(STR('Delete selected data record ?'),librer_core.record_info_alias_wrapper(record,record.txtinfo_short) )
 
         if dialog.res_bool:
             record_item = self.record_to_item[record]
@@ -4213,13 +4256,13 @@ class Gui:
                 group = group_temp
 
         if group:
-            dialog.widget.title(f'Create new data record in group: {group}' )
+            dialog.widget.title(STR('Create new data record in group:') + f'{group}' )
             self.scan_dialog_group = group
         else:
-            dialog.widget.title('Create new data record' )
+            dialog.widget.title( STR('Create new data record') )
             self.scan_dialog_group = None
 
-        self.status("Opening dialog ...")
+        self.status(STR("Opening dialog ..."))
         e=0
         sklejka_settings = self.cfg.get(CFG_KEY_CDE_SETTINGS)
 
@@ -4309,7 +4352,7 @@ class Gui:
 
     def set_path_to_scan(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
+        if res:=askdirectory(title=STR('Select Directory'),initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir = res
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
             self.scan_label_entry.focus_set()
@@ -4347,7 +4390,7 @@ class Gui:
         sys.exit(0) #thread
 
     def abort_single(self):
-        self.status("Abort single pressed ...")
+        self.status(STR("Abort single pressed ..."))
         l_info("Abort single pressed ...")
         self.action_abort_single=True
 
@@ -4357,7 +4400,7 @@ class Gui:
 
     def cde_test(self,e):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if full_file_path:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=( ("All Files","*.*"),("All Files","*.*") ) ):
+        if full_file_path:=askopenfilename(title=STR('Select File'),initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=( (STR("All Files"),"*.*"),(STR("All Files"),"*.*") ) ):
             self.last_dir=dirname(full_file_path)
 
             executable = self.CDE_executable_var_list[e].get()
@@ -4377,7 +4420,7 @@ class Gui:
             ask_dialog = self.get_text_ask_dialog_on_scan()
             simple_progress_dialog_scan = self.get_simple_progress_dialog_on_scan()
 
-            ask_dialog.show('Test Custom Data Extractor on selected file ?',info)
+            ask_dialog.show(STR('Test Custom Data Extractor on selected file ?'),info)
             self.store_text_dialog_fields(ask_dialog)
 
             wait_var=BooleanVar()
@@ -4410,7 +4453,7 @@ class Gui:
                 simple_progress_dialog_scan_update_lab_image = simple_progress_dialog_scan.update_lab_image
                 simple_progress_dialog_scan_update_lab_text(0,'')
                 simple_progress_dialog_scan_update_lab_text(1,'')
-                simple_progress_dialog_scan.show('Testing selected Custom Data Extractor')
+                simple_progress_dialog_scan.show(STR('Testing selected Custom Data Extractor'))
 
                 test_thread.start()
 
@@ -4709,13 +4752,13 @@ class Gui:
             self.main.clipboard_clear()
             self.main.clipboard_append(normpath(sep.join([record.header.scan_path,sep.join(subpath_list)])))
 
-            self.status('Full path copied to clipboard')
+            self.status(STR('Full path copied to clipboard'))
 
     @logwrapper
     def clip_copy(self,what):
         self.main.clipboard_clear()
         self.main.clipboard_append(what)
-        self.status('Copied to clipboard: "%s"' % what)
+        self.status(STR('Copied to clipboard:') + '"' + str(what) + '"')
 
     def double_left_button(self,event):
         if not self.block_processing_stack:
@@ -4772,13 +4815,13 @@ class Gui:
 
                                     command,command_info = get_command(executable,parameters,file_path,shell)
 
-                                    shell_info = ('No','Yes')[shell]
+                                    shell_info = (STR('No'),STR('Yes'))[shell]
                                     timeout_info = f'\ntimeout:{timeout}' if timeout else ''
                                     self.get_text_info_dialog().show(f'Custom Data of: {file_path}',cd_txt,uplabel_text=f"{command_info}\n\nshell:{shell_info}{timeout_info}\nreturncode:{returncode}\nsize:{bytes_to_str(asizeof(cd_txt))}")
                                     self.store_text_dialog_fields(self.text_info_dialog)
                                     return
 
-                            self.info_dialog_on_main.show('Information','No Custom data.')
+                            self.info_dialog_on_main.show(STR('Information'),STR('No Custom data.'))
 
                 except Exception as e:
                     self.info_dialog_on_main.show('Custom Data Info Error',str(e) + ('\n' + '\n'.join(error_infos)) if error_infos else '')
