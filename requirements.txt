@@ -5,5 +5,5 @@ psutil==6.1.1
 pympler==1.1
 ciso8601==2.3.2
 pywin32==308; sys.platform == 'win32'
-nuitka==2.5.7
+nuitka==2.5.8
 tkinterdnd2==0.4.2
