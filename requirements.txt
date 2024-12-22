@@ -1,7 +1,7 @@
 pyinstaller==6.11.1
 send2trash==1.8.3
 zstandard==0.23.0
-psutil==6.1.0
+psutil==6.1.1
 pympler==1.1
 ciso8601==2.3.2
 pywin32==308; sys.platform == 'win32'
