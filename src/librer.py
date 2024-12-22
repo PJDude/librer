@@ -113,6 +113,8 @@ CFG_geometry = 'geometry'
 CFG_SORTING = 'sorting'
 CFG_KEY_show_popups = 'show_popups'
 CFG_KEY_groups_collapse = 'groups_collapse'
+CFG_KEY_include_hidden = 'include_hidden'
+
 
 cfg_defaults={
     CFG_KEY_SINGLE_DEVICE:True,
@@ -148,7 +150,8 @@ cfg_defaults={
     CFG_last_dir:'.',
     CFG_geometry:'',
     CFG_KEY_show_popups:True,
-    CFG_KEY_groups_collapse:True
+    CFG_KEY_groups_collapse:True,
+    CFG_KEY_include_hidden:False
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -1749,16 +1752,9 @@ class Gui:
 
             sfdma = self.settings_dialog.area_main
 
-            self.show_popups_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text=STR('Show tooltips'),variable=self.show_popups_var,command=self.popups_show_mod)
-            self.popups_cb.grid(row=0, column=0, sticky='news',padx=4,pady=4)
-
-            self.groups_collapsed_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text=STR('Groups collapsed at startup'),variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
-            self.popups_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
 
             lang_frame = Frame(sfdma)
-            lang_frame.grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            lang_frame.grid(row=0, column=0, sticky='news',padx=4,pady=4)
 
             Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=2, column=0, sticky='wens',padx=8,pady=4)
 
@@ -1769,6 +1765,18 @@ class Gui:
 
             self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
 
+            self.show_popups_var = BooleanVar()
+            self.popups_cb = Checkbutton(sfdma,text=STR('Show tooltips'),variable=self.show_popups_var,command=self.popups_show_mod)
+            self.popups_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+
+            self.groups_collapsed_var = BooleanVar()
+            self.popups_cb = Checkbutton(sfdma,text=STR('Groups collapsed at startup'),variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
+            self.popups_cb.grid(row=2, column=0, sticky='news',padx=4,pady=4)
+
+            self.scan_hidden_var = BooleanVar()
+            self.scan_hidden_cb = Checkbutton(sfdma,text=STR('Include hidden files/folders in scan.'),variable=self.scan_hidden_var,command=self.scan_hidden_var_mod)
+            self.scan_hidden_cb.grid(row=3, column=0, sticky='news',padx=4,pady=4)
+
             sfdma.grid_columnconfigure( 0, weight=1)
 
             Button(self.settings_dialog.area_buttons, text=STR('Close'), width=14, command=self.settings_close ).pack(side='right', anchor='n',padx=5,pady=5)
@@ -1777,6 +1785,8 @@ class Gui:
 
         self.show_popups_var.set(self.cfg.get(CFG_KEY_show_popups))
         self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
+        self.scan_hidden_var.set(self.cfg.get(CFG_KEY_include_hidden))
+        self.lang_var.set(self.cfg_get(CFG_lang))
 
         return self.settings_dialog
 
@@ -1789,6 +1799,9 @@ class Gui:
 
     def groups_collapse_mod(self):
         self.cfg.set(CFG_KEY_groups_collapse,self.groups_collapsed_var.get())
+
+    def scan_hidden_var_mod(self):
+        self.cfg.set(CFG_KEY_include_hidden,self.scan_hidden_var.get())
 
     def settings_close(self):
         self.settings_dialog.hide()
@@ -2665,7 +2678,6 @@ class Gui:
     @block
     def settings_show(self):
         dialog = self.get_settings_dialog()
-        self.lang_var.set(self.cfg_get(CFG_lang))
 
         dialog.show(STR('Settings'))
 
@@ -3840,6 +3852,8 @@ class Gui:
         compression_level = self.scan_compr_var_int.get()
         threads = self.scan_threads_var_int.get()
 
+        include_hidden=self.cfg.get(CFG_KEY_include_hidden)
+
         try:
             if self.scan(compression_level,threads,group):
                 self.scan_dialog_hide_wrapper()
@@ -4025,9 +4039,11 @@ class Gui:
 
         #################################################################################################################################################
 
+        include_hidden=self.cfg.get(CFG_KEY_include_hidden)
+
         try:
             with open(sep.join([self.temp_dir,SCAN_DAT_FILE]), "wb") as f:
-                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list])))
+                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list,include_hidden])))
 
         except Exception as e:
             print(e)
@@ -4714,7 +4730,7 @@ class Gui:
         self.tree_on_select()
 
         records_len=len(librer_core.records)
-        self.status_records_all_configure(f'Records:{records_len}')
+        self.status_records_all_configure(STR('Records') + f':{records_len}')
 
         self.record_filename_to_record[record.file_name] = record
 

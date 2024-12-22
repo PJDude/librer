@@ -285,7 +285,7 @@ class LANGUAGES:
         'If you abort at this stage,\nData record will not be created.':{
                 "pl":'Jeżeli przerwiesz na tym etapie,\nRekord danych nie zostanie utworzony.'},
         'CDE Total space:':{
-                "pl":'Całkowita przestrzeń danych CDE'},
+                "pl":'Ilość danych CDE'},
         'CDE Files number:':{
                 "pl":'Liczba plików CDE'},
         'Creating new data record (scanning)':{
@@ -341,7 +341,10 @@ class LANGUAGES:
                 "pl":'Wymagany restart aplikacji.'},
         'Language:':{
                 "pl":'Język:'},
-
+        'Records':{
+                "pl":'Rekordy'},
+        'Include hidden files/folders in scan.':{
+                "pl":'Uwzględniaj pliki/foldery ukryte.'},
     }
 
     def __init__(self):

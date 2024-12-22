@@ -33,6 +33,7 @@ from subprocess import Popen, STDOUT,DEVNULL,PIPE, run as subprocess_run
 
 from time import sleep, perf_counter,time,strftime,localtime,mktime
 from threading import Thread
+from stat import FILE_ATTRIBUTE_HIDDEN as stat_FILE_ATTRIBUTE_HIDDEN
 from os import cpu_count,scandir,stat,sep,name as os_name,remove as os_remove,rename
 from os.path import abspath,normpath,basename,dirname,join as path_join
 
@@ -52,6 +53,12 @@ from send2trash import send2trash as send2trash_delete
 from ciso8601 import parse_datetime
 
 windows = bool(os_name=='nt')
+
+def is_hidden(filepath):
+    if windows:
+        return bool(stat(filepath).st_file_attributes & stat_FILE_ATTRIBUTE_HIDDEN)
+    else:
+        return basename(abspath(filepath)).startswith('.')
 
 if windows:
     from subprocess import CREATE_NO_WINDOW
@@ -385,7 +392,7 @@ class LibrerRecord:
 
         print_func(('save','finished'),True)
 
-    def scan_rec(self,print_func,abort_list,path, scan_like_data,filenames_set,check_dev=True,dev_call=None) :
+    def scan_rec(self,print_func,abort_list,path, scan_like_data,filenames_set,check_dev=True,dev_call=None,include_hidden=False) :
         if any(abort_list) :
             return True
 
@@ -400,96 +407,100 @@ class LibrerRecord:
         filenames_set_add = filenames_set.add
         self_header_ext_stats = self.header.ext_stats
         self_header_ext_stats_size = self.header.ext_stats_size
+
         try:
+
             with scandir(path) as res:
 
                 local_folder_files_count = 0
                 local_folder_folders_count = 0
 
                 for entry in res:
-                    subitems+=1
-                    if any(abort_list) :
-                        break
+                    if include_hidden or (not is_hidden(entry)):
 
-                    entry_name = entry.name
-                    filenames_set_add(entry_name)
+                        subitems+=1
+                        if any(abort_list) :
+                            break
 
-                    is_dir,is_file,is_symlink = entry.is_dir(),entry.is_file(),entry.is_symlink()
+                        entry_name = entry.name
+                        filenames_set_add(entry_name)
 
-                    ext=pathlib_Path(entry).suffix
+                        is_dir,is_file,is_symlink = entry.is_dir(),entry.is_file(),entry.is_symlink()
 
-                    if is_file:
-                        self_header_ext_stats[ext]+=1
+                        ext=pathlib_Path(entry).suffix
 
-                    try:
-                        stat_res = stat(entry)
-                        mtime = int(stat_res.st_mtime)
-                        dev=stat_res.st_dev
-                    except Exception as e:
-                        print_func( ('error',f'stat {entry_name} error:{e}'),True )
-                        #size -1 <=> error, dev,in ==0
-                        is_bind = False
-                        size=-1
-                        mtime=0
-                        has_files = False
-                        scan_like_data[entry_name] = [size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
-                    else:
-                        dict_entry={}
-                        is_bind=False
-                        if check_dev:
-                            if dev_call:
-                                if dev_call!=dev:
-                                    #self.log.info('devices mismatch:%s %s %s %s' % (path,entry_name,dev_call,dev) )
-                                    print_func( ('info',f'devices mismatch:{path},{entry_name},{dev_call},{dev}'),True )
-                                    is_bind=True
-                            else:
-                                dev_call=dev
+                        if is_file:
+                            self_header_ext_stats[ext]+=1
 
-                        if is_dir:
-                            if is_symlink :
-                                has_files = False
-                                size = 0
-                            elif is_bind:
-                                has_files = False
-                                size = 0
-                            else:
-                                size,sub_sub_items = self_scan_rec(print_func,abort_list,path_join_loc(path,entry_name),dict_entry,filenames_set,check_dev,dev)
-                                has_files = bool(sub_sub_items)
-
-                                local_folder_size_with_subtree += size
-
-                            local_folder_folders_count += 1
+                        try:
+                            stat_res = stat(entry)
+                            mtime = int(stat_res.st_mtime)
+                            dev=stat_res.st_dev
+                        except Exception as e:
+                            print_func( ('error',f'stat {entry_name} error:{e}'),True )
+                            #size -1 <=> error, dev,in ==0
+                            is_bind = False
+                            size=-1
+                            mtime=0
+                            has_files = False
+                            scan_like_data[entry_name] = [size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
                         else:
-                            if is_symlink :
-                                has_files = False
-                                size = 0
+                            dict_entry={}
+                            is_bind=False
+                            if check_dev:
+                                if dev_call:
+                                    if dev_call!=dev:
+                                        #self.log.info('devices mismatch:%s %s %s %s' % (path,entry_name,dev_call,dev) )
+                                        print_func( ('info',f'devices mismatch:{path},{entry_name},{dev_call},{dev}'),True )
+                                        is_bind=True
+                                else:
+                                    dev_call=dev
+
+                            if is_dir:
+                                if is_symlink :
+                                    has_files = False
+                                    size = 0
+                                elif is_bind:
+                                    has_files = False
+                                    size = 0
+                                else:
+                                    size,sub_sub_items = self_scan_rec(print_func,abort_list,path_join_loc(path,entry_name),dict_entry,filenames_set,check_dev,dev,include_hidden)
+                                    has_files = bool(sub_sub_items)
+
+                                    local_folder_size_with_subtree += size
+
+                                local_folder_folders_count += 1
                             else:
-                                has_files = False
-                                size = int(stat_res.st_size)
-                                self_header_ext_stats_size[ext]+=size
+                                if is_symlink :
+                                    has_files = False
+                                    size = 0
+                                else:
+                                    has_files = False
+                                    size = int(stat_res.st_size)
+                                    self_header_ext_stats_size[ext]+=size
 
-                                local_folder_size += size
+                                    local_folder_size += size
 
-                            local_folder_files_count += 1
+                                local_folder_files_count += 1
 
-                        temp_list_ref = scan_like_data[entry_name]=[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
+                            temp_list_ref = scan_like_data[entry_name]=[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
 
-                        if dict_entry:
-                            temp_list_ref.append(dict_entry)
+                            if dict_entry:
+                                temp_list_ref.append(dict_entry)
 
-                self_header = self.header
-                self_header.sum_size += local_folder_size
-                self_header.quant_files += local_folder_files_count
-                self_header.quant_folders += local_folder_folders_count
+                    self_header = self.header
+                    self_header.sum_size += local_folder_size
+                    self_header.quant_files += local_folder_files_count
+                    self_header.quant_folders += local_folder_folders_count
 
-                print_func( ('scan',self_header.sum_size,self_header.quant_files,self_header.quant_folders,path) )
+                    print_func( ('scan',self_header.sum_size,self_header.quant_files,self_header.quant_folders,path) )
 
         except Exception as e:
             print_func( ('error', f'scandir {path} error:{e}'),True )
 
         return (local_folder_size_with_subtree+local_folder_size,subitems)
 
-    def scan(self,print_func,abort_list,cde_list,check_dev=True):
+    def scan(self,print_func,abort_list,cde_list,check_dev=True,include_hidden=False):
         self.header.sum_size = 0
 
         self.header.ext_stats=defaultdict(int)
@@ -499,7 +510,8 @@ class LibrerRecord:
         #########################
         time_start = perf_counter()
         filenames_set=set()
-        self.scan_rec(print_func,abort_list,self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev)
+
+        self.scan_rec(print_func,abort_list,self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev,include_hidden=include_hidden)
         time_end = perf_counter()
 
         self.header.scanning_time = time_end-time_start
@@ -1335,8 +1347,6 @@ class LibrerRecord:
             self.txtinfo_basic = self.txtinfo_basic + f'\n\n{loaded_fs_info}\n{loaded_cd_info}'
 
             try:
-                longest = max({len(ext) for ext in self.header.ext_stats})+2
-
                 sublist=[]
                 for ext,ext_stat in sorted(self.header.ext_stats.items(),key = lambda x : x[1],reverse=True):
                     sublist.append(f'{bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}  {fnumber(ext_stat).rjust(12)}      {ext}')
