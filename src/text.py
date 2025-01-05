@@ -139,9 +139,9 @@ class LANGUAGES:
         'Internal Label of the record to be created':{
                 "pl":'Wewnętrzny identyfikator rekordu do utworzenia'},
         'Path:':{
-                "pl":'Scieżka:'},
+                "pl":'Ścieżka:'},
         'Path to scan':{
-                "pl":'Scieżka do skanowania:'},
+                "pl":'Ścieżka do skanowania:'},
         'Set path to scan.':{
                 "pl":'Ustaw ścieżkę do skanowania.'},
         'Select device to scan.':{
@@ -218,7 +218,7 @@ class LANGUAGES:
                 "pl":'Wybierz następny'},
         'Case Sensitive':{
                 "pl":'Uwzględnij wiellkość znaków'},
-        'index of the selected search result / search results total ':{
+        'index of the selected search result / search results total':{
                 "pl":'indeks wybranego wyniku wyszukiwania / całkowita liczba wyników wyszukiwania '},
         'Abort searching.':{
                 "pl":'Przerwij szukanie.'},
@@ -254,6 +254,8 @@ class LANGUAGES:
                 "pl":'Przeszukaj rekordy'},
         'Search range':{
                 "pl":'Zakres Przeszukiwania'},
+        ' Search:':{
+                "pl":' Szukaj:'},
         'Selected record / group':{
                 "pl":'Wybrany rekord / grupa'},
         'Delete selected group ?':{
@@ -273,7 +275,7 @@ class LANGUAGES:
         'Wrong mask expression':{
                 "pl":'Błędne wyrażenie maski'},
         'Empty mask nr':{
-                "pl":'Pusta scieżka nr'},
+                "pl":'Pusta ścieżka nr'},
         'Wrong executable':{
                 "pl":'Błędny plik wykonywalny'},
         'Empty executable nr':{
