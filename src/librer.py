@@ -1752,7 +1752,6 @@ class Gui:
 
             sfdma = self.settings_dialog.area_main
 
-
             lang_frame = Frame(sfdma)
             lang_frame.grid(row=0, column=0, sticky='news',padx=4,pady=4)
 
