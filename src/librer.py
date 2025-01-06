@@ -1791,7 +1791,7 @@ class Gui:
 
     def lang_change(self,event):
         self.cfg.set(CFG_lang,self.lang_var.get())
-        self.get_info_dialog_on_main().show(STR('Language Changed'),'Restart required.' )
+        self.get_info_dialog_on_main().show(STR('Language Changed'),STR('Restart required.') )
 
     def popups_show_mod(self):
         self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
