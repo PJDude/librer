@@ -87,7 +87,7 @@ class LANGUAGES:
         'Rename / Alias name ...':{
                 "pl":'Zmień nazwe / Utwórz alias ...'},
         'Show Custom Data ...':{
-                "pl":'Pokaż Dane Urzytkownika ...'},
+                "pl":'Pokaż Dane Użytkownika ...'},
         'Copy full path':{
                 "pl":'Kopiuj pełną ścieżkę'},
         'Find next':{
@@ -95,7 +95,39 @@ class LANGUAGES:
         'Find prev':{
                 "pl":'Znajdź poprzedni'},
         'Unload record data':{
-                "pl":'Zwolnij dane rekordu'},
+                "pl":'Odładuj dane rekordu'},
+        'Search in all records':{
+                "pl":'Szukaj we wszystkich rekordach'},
+        'All records in repository':{
+                "pl":'Wszystkie rekordy w repozytoprium'},
+        'All records':{
+                "pl":'Wszystkie rekordy'},
+        'Path elements':{
+                "pl":'Elementy Ścieżki'},
+        "Don't use this criterion":{
+                "pl":'Nie używaj tego kryterium'},
+        "By regular expression":{
+                "pl":'Poprzez wyrażenie regularne'},
+        "By glob pattern":{
+                "pl":'Poprzez wyrażenie "glob"'},
+        "By fuzzy match":{
+                "pl":'Poprzez dopasowanie rozmyte'},
+        'File size':{
+                "pl":'Wielkość pliku'},
+        'File last modification time':{
+                "pl":'Ostatni czas modyfikacji pliku'},
+        'Search':{
+                "pl":'Szukaj'},
+        'Search results':{
+                "pl":'Wyniki wyszukiwania'},
+        'Show results':{
+                "pl":'Pokaż wyniki'},
+        'Save results':{
+                "pl":'Zapisz wyniki'},
+        'Close':{
+                "pl":'Zamknij'},
+        'Continue search':{
+                "pl":'Kontynuuj wyszukiwanie'},
         'New group':{
                 "pl":'Nowa grupa'},
         'New group name:':{
@@ -165,7 +197,7 @@ class LANGUAGES:
         "Don't cross device boundaries (mount points, bindings etc.) - recommended":{
                 "pl":"Nie przekraczaj granic urządzeń (punktów montowania, powiązań itp.) - zalecane"},
         'Custom Data Extractors:':{
-                "pl":'Ekstraktory Danych Urzytkownika:'},
+                "pl":'Ekstraktory Danych Użytkownika:'},
         '% File cryteria':{
                 "pl":'Kryteria plików %'},
         'Custom Data extractor command':{
@@ -193,7 +225,7 @@ class LANGUAGES:
                 "pl":'minimalna wielkość pliku'},
         'EXEC_TOOLTIP':{
                 "en":"Binary executable, batch script, or entire command\n(depending on the 'shell' option setting)\nthat will run with the full path to the scanned file.\nThe executable may have a full path, be located in a PATH\nenvironment variable, or be interpreted by the system shell\n\ncheck 'shell' option tooltip.",
-                "pl":"Plik wykonywalny binarny, skrypt wsadowy lub całe polecenie\n(w zależności od ustawienia opcji „shell”)\nktóre zostanie uruchomione z pełną ścieżką do skanowanego pliku.\nPlik wykonywalny może mieć pełną ścieżkę, znajdować się w zmiennej środowiskowej PATH\nlub być interpretowany przez powłokę systemową\n\nSprawdź podpowiedź opcji 'shell'."},
+                "pl":'Plik wykonywalny binarny, skrypt wsadowy lub całe polecenie\n(w zależności od ustawienia opcji "shell")\nktóre zostanie uruchomione z pełną ścieżką do skanowanego pliku.\nPlik wykonywalny może mieć pełną ścieżkę, znajdować się w zmiennej środowiskowej PATH\nlub być interpretowany przez powłokę systemową\n\nSprawdź podpowiedź opcji "shell".'},
         'PARS_TOOLTIP':{
                 "en":"The executable will run with the full path to the file to extract as a parameter.\nIf other constant parameters are necessary, they should be placed here\nand the scanned file should be indicated with the '%' sign.\nThe absence of the '%' sign means that the file will be passed as the last parameter.\ne.g.:const_param % other_const_param",
                 "pl":"Plik wykonywalny zostanie uruchomiony z pełną ścieżką do pliku do wyodrębnienia jako parametrem.\nJeśli wymagane są inne stałe parametry, należy je umieścić tutaj\na skanowany plik należy oznaczyć znakiem '%'.\nBrak znaku '%' oznacza, że ​​plik zostanie przekazany jako ostatni parametr.\ne.g.:const_param % other_const_param"},
@@ -202,7 +234,7 @@ class LANGUAGES:
                 "pl":"Wykonaj w powłoce systemowej.\n\nPo włączeniu\nPolecenie z parametrami zostanie przekazane\ndo powłoki systemowej jako pojedynczy ciąg\nDozwolone jest używanie potoków, przekierowań itp.\nMoże być konieczne użycie cudzysłowów (\"). Przeskanowane\npliki zostaną automatycznie ujęte w cudzysłowy.\nPrzykład:\n{shell_example}\n\nPo wyłączeniu\nNależy określić plik wykonywalny,\nzawartość pola parametrów zostanie\npodzielona i przekazana jako lista parametrów.\n\nW bardziej skomplikowanych przypadkach\nzaleca się przygotowanie dedykowanego skryptu powłoki i użycie go jako polecenia powłoki."},
         'OPEN_TOOLTIP':{
                 "en":"Choose the executable file to serve as a custom data extractor...",
-                "pl":"Wybierz plik wykonywalny, który będzie służył jako ekstraktor danych użytkownika..."},
+                "pl":"Wybierz plik wykonywalny, który będzie służył jako ekstraktor Danych Użytkownika..."},
         'TIMEOUT_TOOLTIP':{
                 "en":"Timeout limit in seconds for single CD extraction.\nAfter timeout executed process will be terminated\n\n'0' or empty field means no timeout.",
                 "pl":"Limit czasu w sekundach dla pojedynczej ekstrakcji CD.\nPo przekroczeniu limitu czasu wykonywany proces zostanie zakończony\n\n'0' lub puste pole oznacza brak limitu czasu."},
@@ -248,6 +280,26 @@ class LANGUAGES:
                 "pl":'Ustawienia'},
         'Show tooltips':{
                 "pl":'Pokaż dymki z podpowiedziami'},
+        'Record Info':{
+                "pl":'Informacje o rekordzie'},
+        'Choose record files to import':{
+                "pl":'Wybierz pliki rekordów do zaimportowania'},
+        'to group:':{
+                "pl":'do grupy:'},
+        'Import failed':{
+                "pl":'Import nie powiódł się'},
+        'Export':{
+                "pl":'Eksport'},
+        'Export failed':{
+                "pl":'Eksport nie powiódł się'},
+        'Where Is It? Import failed':{
+                "pl":'Import z Where Is It? Nie powiódł się'},
+        "No files / No folders":{
+                "pl":'Brak plików / Brak folderów'},
+        'Completed successfully.':{
+                "pl":'Zakńczony pomyślnie.'},
+        'Import completed successfully.':{
+                "pl":'Import zakńczony pomyślnie.'},
         'Groups collapsed at startup':{
                 "pl":'Zwiń grupy na starcie'},
         'Search records':{
@@ -258,8 +310,50 @@ class LANGUAGES:
                 "pl":' Szukaj:'},
         'Selected record / group':{
                 "pl":'Wybrany rekord / grupa'},
+        'Case sensitive':{
+                "pl":'Uwzględnij wielkość znaków'},
+        'Threshold:':{
+                "pl":'Próg:'},
+        "Regular expression":{
+                "pl":'Wyrażenie regularne'},
+        'Custom Data':{
+                "pl":'Dane użytkownika'},
+        "No Custom Data":{
+                "pl":'Brak danych użytkownika'},
+        'Files without Custom Data':{
+                "pl":'Pliki bez danych użytkownika'},
+        "Any correct Custom Data":{
+                "pl":'Jakiekolwiek poprawne dane użytkownika'},
+        'Files with any correct Custom Data':{
+                "pl":'Pliki z jakimikolwiek poprawnymi Danymi Użytkownika'},
+        "Error on CD extraction":{
+                "pl":'Błąd na ekstrakcji Danych Użytkownika'},
+        'Files with error on CD extraction':{
+                "pl":'Pliki z błędem na ekstrakcji Danych Użytkownika'},
+        "No CD extracted (empty value)":{
+                "pl":'Puste Dane Użytkownika'},
+        'Files with empty CD value':{
+                "pl":'Pliki z pustymi Danymi Użytkownika'},
+        "CD extraction aborted":{
+                "pl":'Przerwana ekstrakcja Danych Użytkownika'},
+        'Files with aborted CD extraction':{
+                "pl":'Pliki z przerwaną ekstrakcją Danych Użytkownika'},
+        "Don't use this criterion":{
+                "pl":'Nie używaj tego kryterium'},
+        'regular expression error':{
+                "pl":'błąd wyrażenia regularnego'},
+        'regular expression empty':{
+                "pl":'wyrażenie regularne puste'},
+        'glob expression empty':{
+                "pl":'wyrażenie "glob" puste'},
+        'Search aborted.':{
+                "pl":'Wyszukiwanie przerwane.'},
         'Delete selected group ?':{
                 "pl":'Usuń wybraną grupę'},
+        '(for Custom Data)':{
+                "pl":'(Dla Danych Użytkownika)'},
+        'No records.':{
+                "pl":'Brak rekordów'},
         'group: ':{
                 "pl":'grupa: '},
         '(Records assigned to group will remain untouched)':{
@@ -293,16 +387,16 @@ class LANGUAGES:
         'Creating new data record (scanning)':{
                 "pl":'Tworzenie nowego rekordu danych (skanowanie)'},
         'Creating new data record (Custom Data Extraction)':{
-                "pl":'Tworzenie nowego rekordu danych (Ekstrakcja Danych Urzytkownika)'},
+                "pl":'Tworzenie nowego rekordu danych (Ekstrakcja Danych Użytkownika)'},
         'Abort single file':{
                 "pl":'Przerwij pojedynczy plik'},
         'If you abort at this stage,\nCustom Data will be incomplete.':{
-                "pl":'Jeżeli przerwiesz na tym etapie,\nDane Urzytkownika nie będą kompletne.'},
+                "pl":'Jeżeli przerwiesz na tym etapie,\nDane Użytkownika nie będą kompletne.'},
         'ABORT_PROGRESS_TOOLTIP':{
                 "en":'Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.\n\nAvailable only for single thread mode.',
                 "pl":'Zastosuj jeżeli Eksttraktor CDE nie ma ustawionego timeoutu i utknął.\nCD pojedynczego pliku będzie niekompletny.\nEkstttrakcja będzie kontynuowana.\n\nDostępne tylko w trybie jednego wątku.'},
         'Extracted Custom Data: ':{
-                "pl":'Wyekstraktowane Dane Urzytkownika'},
+                "pl":'Wyekstraktowane Dane Użytkownika'},
         'Extraction Errors : ':{
                 "pl":'Błędy Ekstrakcji : '},
         'Delete selected data record ?':{
@@ -322,9 +416,9 @@ class LANGUAGES:
         'All Files':{
                 "pl":'Wszystkie pliki'},
         'Test Custom Data Extractor on selected file ?':{
-                "pl":'Przetestować Ekstraktor Danych Urzytkownika na wybranym pliku ?'},
+                "pl":'Przetestować Ekstraktor Danych Użytkownika na wybranym pliku ?'},
         'Testing selected Custom Data Extractor':{
-                "pl":'Testowanie Ekstraktora Danych Urzytkownika'},
+                "pl":'Testowanie Ekstraktora Danych Użytkownika'},
         'Full path copied to clipboard':{
                 "pl":'Pełna ścieżka skopiowana do schowka'},
         'Copied to clipboard:':{
@@ -336,7 +430,7 @@ class LANGUAGES:
         'Information':{
                 "pl":'Informacja'},
         'No Custom data.':{
-                "pl":'Brak Danych Urzytkownika'},
+                "pl":'Brak Danych Użytkownika'},
         'Language Changed':{
                 "pl":'Język został zmieniony'},
         'Restart required.':{

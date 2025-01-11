@@ -562,7 +562,7 @@ class Gui:
         self.status_records_all=Label(status_frame,image=self.ico_records_all,text='--',width=200,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_records_all.pack(fill='x',expand=0,side='left')
         self.status_records_all_configure = lambda x : self.status_records_all.configure(image = self.ico_records_all, text = x,compound='left')
-        self.widget_tooltip(self.status_records_all,'All records in repository')
+        self.widget_tooltip(self.status_records_all,STR('All records in repository'))
         self.status_records_all.bind("<ButtonPress-1>", lambda event : self.unload_record() )
         self.status_records_all.bind("<Double-Button-1>", lambda event : self.unload_all_recods() )
 
@@ -1765,15 +1765,15 @@ class Gui:
             self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
 
             self.show_popups_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text=STR('Show tooltips'),variable=self.show_popups_var,command=self.popups_show_mod)
+            self.popups_cb = Checkbutton(sfdma,text=' ' + STR('Show tooltips'),variable=self.show_popups_var,command=self.popups_show_mod)
             self.popups_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
 
             self.groups_collapsed_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text=STR('Groups collapsed at startup'),variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
+            self.popups_cb = Checkbutton(sfdma,text=' ' + STR('Groups collapsed at startup'),variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
             self.popups_cb.grid(row=2, column=0, sticky='news',padx=4,pady=4)
 
             self.scan_hidden_var = BooleanVar()
-            self.scan_hidden_cb = Checkbutton(sfdma,text=STR('Include hidden files/folders in scan.'),variable=self.scan_hidden_var,command=self.scan_hidden_var_mod)
+            self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files/folders in scan.'),variable=self.scan_hidden_var,command=self.scan_hidden_var_mod)
             self.scan_hidden_cb.grid(row=3, column=0, sticky='news',padx=4,pady=4)
 
             sfdma.grid_columnconfigure( 0, weight=1)
@@ -1882,36 +1882,36 @@ class Gui:
             sfdma = self.find_dialog.area_main
 
             (find_filename_frame := LabelFrame(sfdma,text=STR('Search range'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
-            self.find_range_cb1 = Radiobutton(find_filename_frame,text=STR('Selected record / group'),variable=self.find_range_all,value=False,command=self.find_mod)
+            self.find_range_cb1 = Radiobutton(find_filename_frame,text=' ' + STR('Selected record / group'),variable=self.find_range_all,value=False,command=self.find_mod)
             self.find_range_cb1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
             self.find_range_cb1.bind('<Return>', lambda event : self.find_items())
 
-            find_range_cb2 = Radiobutton(find_filename_frame,text='All records',variable=self.find_range_all,value=True,command=self.find_mod)
+            find_range_cb2 = Radiobutton(find_filename_frame,text=' ' + STR('All records'),variable=self.find_range_all,value=True,command=self.find_mod)
             find_range_cb2.grid(row=0, column=1, sticky='news',padx=4,pady=4)
             find_range_cb2.bind('<Return>', lambda event : self.find_items())
 
-            (find_filename_frame := LabelFrame(sfdma,text='Path elements',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
+            (find_filename_frame := LabelFrame(sfdma,text=STR('Path elements'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
-            r_dont = Radiobutton(find_filename_frame,text="Don't use this criterion",variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30)
+            r_dont = Radiobutton(find_filename_frame,text= ' ' + STR("Don't use this criterion"),variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30)
             r_dont.grid(row=0, column=0, sticky='news',padx=4,pady=4)
             r_dont.bind('<Return>', lambda event : self.find_items())
 
             #Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod)
             #.grid(row=1, column=0, sticky='news',padx=4,pady=4)
 
-            regexp_radio_name=Radiobutton(find_filename_frame,text="by regular expression",variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)
+            regexp_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("by regular expression"),variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)
             regexp_radio_name.grid(row=2, column=0, sticky='news',padx=4,pady=4)
             regexp_radio_name.bind('<Return>', lambda event : self.find_items())
 
-            glob_radio_name=Radiobutton(find_filename_frame,text="by glob pattern",variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)
+            glob_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("by glob pattern"),variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)
             glob_radio_name.grid(row=3, column=0, sticky='news',padx=4,pady=4)
             glob_radio_name.bind('<Return>', lambda event : self.find_items())
 
-            fuzzy_radio_name=Radiobutton(find_filename_frame,text="by fuzzy match",variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)
+            fuzzy_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("by fuzzy match"),variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)
             fuzzy_radio_name.grid(row=4, column=0, sticky='news',padx=4,pady=4)
             fuzzy_radio_name.bind('<Return>', lambda event : self.find_items())
 
-            regexp_tooltip = "Regular expression\n"
+            regexp_tooltip = STR("Regular expression") + "\n"
             regexp_tooltip_name = "Checked on the file\nor folder name."
             regexp_tooltip_cd = "Checked on the entire\nCustom Data of a file."
 
@@ -1935,10 +1935,10 @@ class Gui:
             self.find_filename_glob_entry.grid(row=3, column=1, sticky='we',padx=4,pady=4)
             self.find_filename_fuzz_entry.grid(row=4, column=1, sticky='we',padx=4,pady=4)
 
-            self.find_filename_case_sens_cb = Checkbutton(find_filename_frame,text='Case sensitive',variable=self.find_name_case_sens_var,command=self.find_mod)
+            self.find_filename_case_sens_cb = Checkbutton(find_filename_frame,text=' ' + STR('Case sensitive'),variable=self.find_name_case_sens_var,command=self.find_mod)
             self.find_filename_case_sens_cb.grid(row=3, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
 
-            self.find_filename_fuzzy_threshold_lab = Label(find_filename_frame,text='Threshold:',bg=self.bg_color,anchor='e')
+            self.find_filename_fuzzy_threshold_lab = Label(find_filename_frame,text=' ' + STR('Threshold:'),bg=self.bg_color,anchor='e')
             self.find_filename_fuzzy_threshold_entry = Entry(find_filename_frame,textvariable=self.find_name_fuzzy_threshold)
             self.find_filename_fuzzy_threshold_lab.grid(row=4, column=2, sticky='wens',padx=4,pady=4)
             self.find_filename_fuzzy_threshold_entry.grid(row=4, column=3, sticky='wens',padx=4,pady=4)
@@ -1956,41 +1956,41 @@ class Gui:
 
             find_filename_frame.grid_columnconfigure( 1, weight=1)
 
-            (find_cd_frame := LabelFrame(sfdma,text='Custom Data',bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
+            (find_cd_frame := LabelFrame(sfdma,text=STR('Custom Data'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
 
-            r_dont2 = Radiobutton(find_cd_frame,text="Don't use this criterion",variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30)
+            r_dont2 = Radiobutton(find_cd_frame,text=' ' + STR("Don't use this criterion"),variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30)
             r_dont2.grid(row=0, column=0, sticky='news',padx=4,pady=4)
             r_dont2.bind('<Return>', lambda event : self.find_items())
 
-            r_without = Radiobutton(find_cd_frame,text="No Custom Data",variable=self.find_cd_search_kind_var,value='without',command=self.find_mod)
+            r_without = Radiobutton(find_cd_frame,text=' ' + STR("No Custom Data"),variable=self.find_cd_search_kind_var,value='without',command=self.find_mod)
             r_without.grid(row=1, column=0, sticky='news',padx=4,pady=4)
             r_without.bind('<Return>', lambda event : self.find_items())
 
-            r_correct = Radiobutton(find_cd_frame,text="Any correct Custom Data",variable=self.find_cd_search_kind_var,value='any',command=self.find_mod)
+            r_correct = Radiobutton(find_cd_frame,text=' ' + STR("Any correct Custom Data"),variable=self.find_cd_search_kind_var,value='any',command=self.find_mod)
             r_correct.grid(row=2, column=0, sticky='news',padx=4,pady=4)
             r_correct.bind('<Return>', lambda event : self.find_items())
 
-            r_error = Radiobutton(find_cd_frame,text="Error on CD extraction",variable=self.find_cd_search_kind_var,value='error',command=self.find_mod)
+            r_error = Radiobutton(find_cd_frame,text=' ' + STR("Error on CD extraction"),variable=self.find_cd_search_kind_var,value='error',command=self.find_mod)
             r_error.grid(row=3, column=0, sticky='news',padx=4,pady=4)
             r_error.bind('<Return>', lambda event : self.find_items())
 
-            r_error_empty = Radiobutton(find_cd_frame,text="No CD extracted (empty value)",variable=self.find_cd_search_kind_var,value='empty',command=self.find_mod)
+            r_error_empty = Radiobutton(find_cd_frame,text=' ' + STR("No CD extracted (empty value)"),variable=self.find_cd_search_kind_var,value='empty',command=self.find_mod)
             r_error_empty.grid(row=4, column=0, sticky='news',padx=4,pady=4)
             r_error_empty.bind('<Return>', lambda event : self.find_items())
 
-            r_error_empty = Radiobutton(find_cd_frame,text="CD extraction aborted",variable=self.find_cd_search_kind_var,value='aborted',command=self.find_mod)
+            r_error_empty = Radiobutton(find_cd_frame,text=' ' + STR("CD extraction aborted"),variable=self.find_cd_search_kind_var,value='aborted',command=self.find_mod)
             r_error_empty.grid(row=5, column=0, sticky='news',padx=4,pady=4)
             r_error_empty.bind('<Return>', lambda event : self.find_items())
 
-            regexp_radio_cd = Radiobutton(find_cd_frame,text="by regular expression",variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)
+            regexp_radio_cd = Radiobutton(find_cd_frame,text=' ' + STR("By regular expression"),variable=self.find_cd_search_kind_var,value='regexp',command=self.find_mod)
             regexp_radio_cd.grid(row=6, column=0, sticky='news',padx=4,pady=4)
             regexp_radio_cd.bind('<Return>', lambda event : self.find_items())
 
-            glob_radio_cd = Radiobutton(find_cd_frame,text="by glob pattern",variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)
+            glob_radio_cd = Radiobutton(find_cd_frame,text=' ' + STR("By glob pattern"),variable=self.find_cd_search_kind_var,value='glob',command=self.find_mod)
             glob_radio_cd.grid(row=7, column=0, sticky='news',padx=4,pady=4)
             glob_radio_cd.bind('<Return>', lambda event : self.find_items())
 
-            fuzzy_radio_cd = Radiobutton(find_cd_frame,text="by fuzzy match",variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod)
+            fuzzy_radio_cd = Radiobutton(find_cd_frame,text=' ' + STR("By fuzzy match"),variable=self.find_cd_search_kind_var,value='fuzzy',command=self.find_mod)
             fuzzy_radio_cd.grid(row=8, column=0, sticky='news',padx=4,pady=4)
             fuzzy_radio_cd.bind('<Return>', lambda event : self.find_items())
 
@@ -2006,10 +2006,10 @@ class Gui:
             self.find_cd_glob_entry.grid(row=7, column=1, sticky='we',padx=4,pady=4)
             self.find_cd_fuzz_entry.grid(row=8, column=1, sticky='we',padx=4,pady=4)
 
-            self.cd_case_sens_cb = Checkbutton(find_cd_frame,text='Case sensitive',variable=self.find_cd_case_sens_var,command=self.find_mod)
+            self.cd_case_sens_cb = Checkbutton(find_cd_frame,text=' ' + STR('Case sensitive'),variable=self.find_cd_case_sens_var,command=self.find_mod)
             self.cd_case_sens_cb.grid(row=7, column=2, sticky='wens',padx=4,pady=4,columnspan=2)
 
-            self.find_cd_fuzzy_threshold_lab = Label(find_cd_frame,text='Threshold:',bg=self.bg_color,anchor='e')
+            self.find_cd_fuzzy_threshold_lab = Label(find_cd_frame,text=' ' + STR('Threshold:'),bg=self.bg_color,anchor='e')
             self.find_cd_fuzzy_threshold_entry = Entry(find_cd_frame,textvariable=self.find_cd_fuzzy_threshold)
             self.find_cd_fuzzy_threshold_lab.grid(row=8, column=2, sticky='wens',padx=4,pady=4)
             self.find_cd_fuzzy_threshold_entry.grid(row=8, column=3, sticky='wens',padx=4,pady=4)
@@ -2027,7 +2027,7 @@ class Gui:
 
             find_cd_frame.grid_columnconfigure(1, weight=1)
 
-            (find_size_frame := LabelFrame(sfdma,text='File size',bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
+            (find_size_frame := LabelFrame(sfdma,text=STR('File size'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
             find_size_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
             (find_size_min_label:=Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=0, sticky='we',padx=4,pady=4)
@@ -2050,7 +2050,7 @@ class Gui:
             self.widget_tooltip(find_size_max_entry,size_tooltip)
             self.widget_tooltip(find_size_max_label,size_tooltip)
 
-            (find_modtime_frame := LabelFrame(sfdma,text='File last modification time',bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
+            (find_modtime_frame := LabelFrame(sfdma,text=STR('File last modification time'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
             find_modtime_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
             (find_modtime_min_label:=Label(find_modtime_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=0, sticky='we',padx=4,pady=4)
@@ -2070,14 +2070,14 @@ class Gui:
             self.widget_tooltip(find_modtime_max_entry,time_toltip)
             self.widget_tooltip(find_modtime_max_label,time_toltip)
 
-            self.search_butt = Button(self.find_dialog.area_buttons, text='Search', width=14, command=self.find_items )
+            self.search_butt = Button(self.find_dialog.area_buttons, text=STR('Search'), width=14, command=self.find_items )
             self.search_butt.pack(side='left', anchor='n',padx=5,pady=5)
-            self.search_show_butt = Button(self.find_dialog.area_buttons, text='Show results', width=14, command=self.find_show_results, state='disabled' )
+            self.search_show_butt = Button(self.find_dialog.area_buttons, text=STR('Show results'), width=14, command=self.find_show_results, state='disabled' )
             self.search_show_butt.pack(side='left', anchor='n',padx=5,pady=5)
-            self.search_save_butt = Button(self.find_dialog.area_buttons, text='Save results', width=14, command=self.find_save_results, state='disabled' )
+            self.search_save_butt = Button(self.find_dialog.area_buttons, text=STR('Save results'), width=14, command=self.find_save_results, state='disabled' )
             self.search_save_butt.pack(side='left', anchor='n',padx=5,pady=5)
 
-            Button(self.find_dialog.area_buttons, text='Close', width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
+            Button(self.find_dialog.area_buttons, text=STR('Close'), width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
 
             sfdma.grid_rowconfigure(5, weight=1)
             sfdma.grid_columnconfigure(0, weight=1)
@@ -2089,8 +2089,8 @@ class Gui:
 
             self.results_on_find = LabelDialogQuestion(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
-            self.results_on_find.cancel_button.configure(text='Continue search',width=20)
-            self.results_on_find.ok_button.configure(text='Close Search dialog',width=20)
+            self.results_on_find.cancel_button.configure(text=STR('Continue search'),width=20)
+            self.results_on_find.ok_button.configure(text=STR('Close'),width=20)
 
             self.find_dialog_created = True
 
@@ -2308,13 +2308,13 @@ class Gui:
             dialog.hide(True)
 
             if len(res_list[0])!=11:
-                self.info_dialog_on_main.show('Where Is It? Import failed',str(res_list[0][1]))
+                self.info_dialog_on_main.show(STR('Where Is It? Import failed'),str(res_list[0][1]))
                 return
 
             quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk = res_list[0]
 
             if quant_disks==0 or (quant_files==0 and quant_folders==0):
-                self.info_dialog_on_main.show('Where Is It? Import failed',"No files / No folders")
+                self.info_dialog_on_main.show(STR('Where Is It? Import failed'),STR("No files / No folders"))
             else:
                 ###########################
                 dialog = self.get_wii_import_dialog()
@@ -2347,7 +2347,7 @@ class Gui:
                                 res.append(sub_res)
 
                         if res:
-                            self.info_dialog_on_main.show('Where Is It? Import failed','\n'.join(res))
+                            self.info_dialog_on_main.show(STR('Where Is It? Import failed'),'\n'.join(res))
                         else:
                             ###########################
                             #self.info_dialog_on_main.show('Where Is It? Import','Successful.')
@@ -2362,7 +2362,7 @@ class Gui:
                         res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,self.single_record_show,group)
 
                         if res:
-                            self.info_dialog_on_main.show('Where Is It? Import failed',res)
+                            self.info_dialog_on_main.show(STR('Where Is It? Import failed'),res)
                         else:
                             ###########################
                             #self.info_dialog_on_main.show('Where Is It? Import','Successful.')
@@ -2383,18 +2383,18 @@ class Gui:
             if group_temp:=librer_core.get_record_group(self.current_record):
                 group = group_temp
 
-        postfix = f' to group:{group}' if group else ''
+        postfix = STR('to group:') + str(group) if group else ''
 
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose record files to import' + postfix, defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose record files to import') + ' ' + postfix, defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
             self.last_dir = dirname(import_filenames[0])
             if import_res := librer_core.import_records(import_filenames,self.single_record_show,group):
-                self.info_dialog_on_main.show('Import failed',import_res)
+                self.info_dialog_on_main.show(STR('Import failed'),import_res)
             else:
                 #self.info_dialog_on_main.show('Import','Successful.')
                 self.find_clear()
 
                 self.column_sort(self.tree)
-                self.status('Import completed successfully.')
+                self.status(STR('Import completed successfully.'))
 
     @restore_status_line
     @block
@@ -2404,9 +2404,9 @@ class Gui:
                 self.last_dir = dirname(export_file_path)
 
                 if export_res := librer_core.export_record(self.current_record,export_file_path):
-                    self.info_dialog_on_main.show('Export failed',export_res)
+                    self.info_dialog_on_main.show(STR('Export failed'),export_res)
                 else:
-                    self.info_dialog_on_main.show('Export','Completed successfully.')
+                    self.info_dialog_on_main.show(STR('Export'),STR('Completed successfully.'))
 
     def focusin(self):
         if self.main_locked_by_child:
@@ -2799,7 +2799,7 @@ class Gui:
 
             res_txt = '\n'.join(rest_txt_list)
 
-        self.text_dialog_on_find.show('Search results',res_txt)
+        self.text_dialog_on_find.show(STR('Search results'),res_txt)
 
     find_result_record_index=0
     find_result_index=0
@@ -2997,7 +2997,7 @@ class Gui:
             self.search_info_lines=[]
             search_info_lines_append = self.search_info_lines.append
             if find_range_all:
-                search_info_lines_append('Search in all records')
+                search_info_lines_append(STR('Search in all records'))
                 sel_range = librer_core.records
             else:
                 sel_range = self.get_selected_records()
@@ -3009,7 +3009,7 @@ class Gui:
             files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
 
             if files_search_quant==0:
-                self.info_dialog_on_find.show('Search aborted.','No files in records.')
+                self.info_dialog_on_find.show(STR('Search aborted.'),'No files in records.')
                 return 1
 
             if find_filename_search_kind == 'regexp':
@@ -3019,7 +3019,7 @@ class Gui:
                         return
                     search_info_lines_append(f'Regular expression on path element:"{find_name_regexp}"')
                 else:
-                    self.info_dialog_on_find.show('regular expression empty','(for path element)')
+                    self.info_dialog_on_find.show(STR('regular expression empty'),'(for path element)')
                     return
             elif find_filename_search_kind == 'glob':
                 if find_name_glob:
@@ -3029,7 +3029,7 @@ class Gui:
                     else:
                         search_info_lines_append(info_str)
                 else:
-                    self.info_dialog_on_find.show('empty glob expression','(for path element)')
+                    self.info_dialog_on_find.show(STR('glob expression empty'),'(for path element)')
                     return
             elif find_filename_search_kind == 'fuzzy':
                 if find_name_fuzz:
@@ -3044,33 +3044,33 @@ class Gui:
                     return
 
             if find_cd_search_kind == 'without':
-                search_info_lines_append(f'Files without Custom Data')
+                search_info_lines_append(STR('Files without Custom Data'))
             elif find_cd_search_kind == 'any':
-                search_info_lines_append(f'Files with any correct Custom Data')
+                search_info_lines_append(STR('Files with any correct Custom Data'))
             elif find_cd_search_kind == 'error':
-                search_info_lines_append('Files with error on CD extraction')
+                search_info_lines_append(STR('Files with error on CD extraction'))
             elif find_cd_search_kind == 'empty':
-                search_info_lines_append('Files with empty CD value')
+                search_info_lines_append(STR('Files with empty CD value'))
             elif find_cd_search_kind == 'aborted':
-                search_info_lines_append('Files with aborted CD extraction')
+                search_info_lines_append(STR('Files with aborted CD extraction'))
             elif find_cd_search_kind == 'regexp':
                 if find_cd_regexp:
                     if res := test_regexp(find_cd_regexp):
-                        self.info_dialog_on_find.show('regular expression error',res)
+                        self.info_dialog_on_find.show(STR('regular expression error'),res)
                         return
                     search_info_lines_append(f'Regular expression on Custom Data:"{find_cd_regexp}"')
                 else:
-                    self.info_dialog_on_find.show('regular expression empty','(for Custom Data)')
+                    self.info_dialog_on_find.show(STR('regular expression empty'),STR('(for Custom Data)'))
                     return
             elif find_cd_search_kind == 'glob':
                 if find_cd_glob:
                     info_str = f'Glob expression on Custom Data:"{find_cd_glob}"'
                     if find_cd_case_sens:
-                        search_info_lines_append(info_str + ' (Case sensitive)')
+                        search_info_lines_append(info_str + ' ' + '(' + STR('Case sensitive') + ')')
                     else:
                         search_info_lines_append(info_str)
                 else:
-                    self.info_dialog_on_find.show('empty glob expression','(for Custom Data)')
+                    self.info_dialog_on_find.show(STR('glob expression empty'),STR('(for Custom Data)'))
                     return
             elif find_cd_search_kind == 'fuzzy':
                 if find_cd_fuzz:
@@ -3175,7 +3175,7 @@ class Gui:
 
             records_len = len(librer_core.records)
             if records_len==0:
-                self.info_dialog_on_find.show('Search aborted.','No records.')
+                self.info_dialog_on_find.show(STR('Search aborted.'),STR('No records.'))
                 return
 
             self_progress_dialog_on_find_progr1var_set = self.progress_dialog_on_find.progr1var.set
@@ -3277,7 +3277,7 @@ class Gui:
             if self.any_valid_find_results:
                 self.select_find_result(1)
 
-            self.results_on_find.show('Search results',f"{search_info}\n\nfound: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
+            self.results_on_find.show(STR('Search results'),f"{search_info}\n\nfound: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
             self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
 
             if not self.searching_aborted and self.any_valid_find_results:
@@ -3294,7 +3294,7 @@ class Gui:
                     self.find_result_index=-1
                     self.find_next()
         else:
-            self.info_dialog_on_find.show('Search aborted.','Same params')
+            self.info_dialog_on_find.show(STR('Search aborted.'),'Same params')
 
     def get_child_of_name(self,record,item,child_name):
         self_tree = self.tree
@@ -4845,7 +4845,7 @@ class Gui:
         if not self.block_processing_stack:
             if self.current_record:
                 time_info = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self.current_record.header.creation_time))
-                self.get_text_info_dialog().show('Record Info',librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
+                self.get_text_info_dialog().show(STR('Record Info'),librer_core.record_info_alias_wrapper(self.current_record,self.current_record.txtinfo) )
                 self.store_text_dialog_fields(self.text_info_dialog)
 
     def purify_items_cache(self):
