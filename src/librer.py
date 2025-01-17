@@ -1193,7 +1193,7 @@ class Gui:
             temp_frame = Frame(dialog.area_main,borderwidth=2,bg=self.bg_color)
             temp_frame.grid(row=0,column=0,sticky='we',padx=4,pady=4)
 
-            ul_lab=Label(temp_frame,text="Label:",bg=self.bg_color,anchor='w')
+            ul_lab=Label(temp_frame,text=STR("Label:"),bg=self.bg_color,anchor='w')
             ul_lab.grid(row=0, column=4, sticky='news',padx=4,pady=4)\
 
             label_tooltip = STR("Internal Label of the record to be created")
@@ -1726,6 +1726,8 @@ class Gui:
         if not self.entry_ask_dialog_created:
             self.status(STR("Creating dialog ..."))
             self.entry_ask_dialog = EntryDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.entry_ask_dialog.cancel_button.configure(text=STR('Cancel'))
+
             self.entry_ask_dialog_created = True
         return self.entry_ask_dialog
 
@@ -2185,7 +2187,7 @@ class Gui:
             alias_info = f' ({alias})' if alias else ''
             alias_init = alias if alias else self.current_record.header.label
 
-            self.get_entry_ask_dialog().show('Alias record name',f"New alias name for record '{self.current_record.header.label}' {alias_info} :",alias_init)
+            self.get_entry_ask_dialog().show(STR('Alias record name'),STR('New alias name for record') + ' "' + str(self.current_record.header.label) + '"' + str(alias_info) + ":",alias_init)
 
             if self.entry_ask_dialog.res_bool:
                 alias = self.entry_ask_dialog.entry_val.get()
@@ -2268,7 +2270,7 @@ class Gui:
 
         postfix = f' to group:{group}' if group else ''
 
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml files to import' + postfix, defaultextension=".xml",filetypes=[("XML Files","*.xml"),("All Files","*.*")]):
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml files to import' + postfix, defaultextension=".xml",filetypes=[(STR("XML Files"),"*.xml"),(STR("All Files"),"*.*")]):
             self.status('Parsing WII files ... ')
             self.main.update()
             dialog = self.get_progress_dialog_on_main()
@@ -2385,7 +2387,7 @@ class Gui:
 
         postfix = STR('to group:') + str(group) if group else ''
 
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose record files to import') + ' ' + postfix, defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose record files to import') + ' ' + postfix, defaultextension=".dat",filetypes=[(STR("Dat Files"),"*.dat"),(STR("All Files"),"*.*")]):
             self.last_dir = dirname(import_filenames[0])
             if import_res := librer_core.import_records(import_filenames,self.single_record_show,group):
                 self.info_dialog_on_main.show(STR('Import failed'),import_res)
@@ -2400,7 +2402,7 @@ class Gui:
     @block
     def record_export(self):
         if self.current_record:
-            if export_file_path := asksaveasfilename(initialdir=self.last_dir,parent = self.main, initialfile = 'record.dat',defaultextension=".dat",filetypes=[("Dat Files","*.dat"),("All Files","*.*")]):
+            if export_file_path := asksaveasfilename(initialdir=self.last_dir,parent = self.main, initialfile = 'record.dat',defaultextension=".dat",filetypes=[(STR("Dat Files"),"*.dat"),(STR("All Files"),"*.*")]):
                 self.last_dir = dirname(export_file_path)
 
                 if export_res := librer_core.export_record(self.current_record,export_file_path):
@@ -2768,7 +2770,7 @@ class Gui:
                 self.select_find_result(1)
 
     def find_save_results(self):
-        if report_file_name := asksaveasfilename(parent = self.find_dialog.widget, initialfile = 'librer_search_report.txt',defaultextension=".txt",filetypes=[("All Files","*.*"),("Text Files","*.txt")]):
+        if report_file_name := asksaveasfilename(parent = self.find_dialog.widget, initialfile = 'librer_search_report.txt',defaultextension=".txt",filetypes=[(STR("All Files"),"*.*"),(STR("Text Files"),"*.txt")]):
             self.status('saving file "%s" ...' % str(report_file_name))
 
             with open(report_file_name,'w') as report_file:
@@ -3945,7 +3947,7 @@ class Gui:
         self_configure_tooltip = self.configure_tooltip
 
         self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=STR('If you abort at this stage,\nData record will not be created.')
-        self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text='Cancel',compound='left',width=15)
+        self_progress_dialog_on_scan.abort_button.configure(image=self.ico_abort,text=STR("Cancel"),compound='left',width=15)
 
         self.scan_dialog.widget.update()
 
@@ -4515,7 +4517,7 @@ class Gui:
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askopenfilename(title='Select File',initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=(("Executable Files","*.exe"),("Bat Files","*.bat"),("All Files","*.*")) if windows else (("Bash Files","*.sh"),("All Files","*.*")) ):
+        if res:=askopenfilename(title=STR('Select File'),initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=((STR("Executable Files"),"*.exe"),(STR("Bat Files"),"*.bat"),(STR("All Files"),"*.*")) if windows else ((STR("Bash Files"),"*.sh"),(STR("All Files"),"*.*")) ):
             self.last_dir=dirname(res)
 
             expr = normpath(abspath(res))

@@ -415,6 +415,18 @@ class LANGUAGES:
                 "pl":'Wybierz plik'},
         'All Files':{
                 "pl":'Wszystkie pliki'},
+        'Text Files':{
+                "pl":'Pliki tekstowe'},
+        "Bash Files":{
+                "pl":'Pliki Bash'},
+        "Executable Files":{
+                "pl":'Pliki Wykonywalne'},
+        "Bat Files":{
+                "pl":'Pliki bat'},
+        "XML Files":{
+                "pl":'Pliki XML'},
+        "Dat Files":{
+                "pl":'Pliki Dat'},
         'Test Custom Data Extractor on selected file ?':{
                 "pl":'Przetestować Ekstraktor Danych Użytkownika na wybranym pliku ?'},
         'Testing selected Custom Data Extractor':{
@@ -439,6 +451,14 @@ class LANGUAGES:
                 "pl":'Język:'},
         'Records':{
                 "pl":'Rekordy'},
+        'Alias record name':{
+                "pl":'Alias nazwy rekordu'},
+        'Cancel':{
+                "pl":'Anuluj'},
+        "Label:":{
+                "pl":'Nazwa:'},
+        'New alias name for record':{
+                "pl":'Nowy Alias:'},
         'Include hidden files/folders in scan.':{
                 "pl":'Uwzględniaj pliki/foldery ukryte.'},
     }
