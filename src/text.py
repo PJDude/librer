@@ -127,7 +127,7 @@ class LANGUAGES:
         'Close':{
                 "pl":'Zamknij'},
         'Continue search':{
-                "pl":'Kontynuuj wyszukiwanie'},
+                "pl":'Szukaj dalej'},
         'New group':{
                 "pl":'Nowa grupa'},
         'New group name:':{
@@ -173,7 +173,7 @@ class LANGUAGES:
         'Path:':{
                 "pl":'Ścieżka:'},
         'Path to scan':{
-                "pl":'Ścieżka do skanowania:'},
+                "pl":'Ścieżka do skanowania'},
         'Set path to scan.':{
                 "pl":'Ustaw ścieżkę do skanowania.'},
         'Select device to scan.':{
@@ -187,7 +187,7 @@ class LANGUAGES:
         'Compression:':{
                 "pl":'Kompresja:'},
         'Data record internal compression. A higher value\nmeans a smaller file and longer compression time.\nvalues above 20 may result in extremely long compression\nand memory consumption. The default value is 9.':{
-                "pl":'Kompresja wewnętrzna rekordu danych. Wyższa wartość\noznacza mniejszy plik i dłuższy czas kompresji.\nWartości powyżej 20 mogą skutkować ekstremalnie długą kompresją\n i zużyciem pamięci. Wartość domyślna to 9.'},
+                "pl":'Kompresja wewnętrzna rekordu danych. Wyższa wartość\noznacza mniejszy plik i dłuższy czas kompresji.\nWartości powyżej 20 mogą skutkować ekstremalnie długą\nkompresją i zużyciem pamięci. Wartość domyślna to 9.'},
         'CDE Threads:':{
                 "pl":'Wątki CDE:'},
         'Number of threads used to extract Custom Data\n\n0 - all available CPU cores\n1 - single thread (default value)\n\nThe optimal value depends on the CPU cores performace,\nIO subsystem performance and Custom Data Extractor specifics.\n\nConsider limitations of parallel CDE execution e.g.\nnumber of licenses of used software,\nused working directory, needed memory etc.':{
@@ -215,7 +215,7 @@ class LANGUAGES:
                 "pl":"Zaznacz by użyć CD ekstraktora"},
         'MASK_TOOLTIP':{
                 "en":"Glob expresions separated by comma (',')\ne.g.: '*.7z, *.zip, *.gz'\n\nthe given executable will run\nwith every file matching the expression\n(and size citeria if provided)",
-                "pl":"Wyrażenia globalne rozdzielone przecinkiem (',')\nnp.: '*.7z, *.zip, *.gz'\n\nPodany plik wykonywalny zostanie uruchomiony\nz każdym plikiem pasującym do wyrażenia\n(i kryteriów rozmiaru, jeśli zostały podane)"},
+                "pl":"Wyrażenia 'glob' rozdzielone przecinkiem (',')\nnp.: '*.7z, *.zip, *.gz'\n\nPodany plik wykonywalny zostanie uruchomiony\nz każdym plikiem pasującym do wyrażenia\n(i kryteriów rozmiaru, jeśli zostały podane)"},
         'SIZE_TOOLTIP':{
                 "en":'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB',
                 "pl":'Wartość całkowita [w bajtach] lub liczba całkowita z jednostką.\nPozostaw wartość pustą, aby zignorować to kryterium.\n\nPrzykłady:\n399\n100B\n125kB\n10MB'},
@@ -225,13 +225,13 @@ class LANGUAGES:
                 "pl":'minimalna wielkość pliku'},
         'EXEC_TOOLTIP':{
                 "en":"Binary executable, batch script, or entire command\n(depending on the 'shell' option setting)\nthat will run with the full path to the scanned file.\nThe executable may have a full path, be located in a PATH\nenvironment variable, or be interpreted by the system shell\n\ncheck 'shell' option tooltip.",
-                "pl":'Plik wykonywalny binarny, skrypt wsadowy lub całe polecenie\n(w zależności od ustawienia opcji "shell")\nktóre zostanie uruchomione z pełną ścieżką do skanowanego pliku.\nPlik wykonywalny może mieć pełną ścieżkę, znajdować się w zmiennej środowiskowej PATH\nlub być interpretowany przez powłokę systemową\n\nSprawdź podpowiedź opcji "shell".'},
+                "pl":'Plik wykonywalny binarny, skrypt wsadowy lub całe polecenie\n(w zależności od ustawienia opcji "shell")\nktóre zostanie uruchomione z pełną ścieżką do skanowanego pliku.\nPlik wykonywalny może mieć pełną ścieżkę, znajdować się w zmiennej\nśrodowiskowej PATH lub być interpretowany przez powłokę systemową\n\nSprawdź podpowiedź opcji "shell".'},
         'PARS_TOOLTIP':{
                 "en":"The executable will run with the full path to the file to extract as a parameter.\nIf other constant parameters are necessary, they should be placed here\nand the scanned file should be indicated with the '%' sign.\nThe absence of the '%' sign means that the file will be passed as the last parameter.\ne.g.:const_param % other_const_param",
                 "pl":"Plik wykonywalny zostanie uruchomiony z pełną ścieżką do pliku do wyodrębnienia jako parametrem.\nJeśli wymagane są inne stałe parametry, należy je umieścić tutaj\na skanowany plik należy oznaczyć znakiem '%'.\nBrak znaku '%' oznacza, że ​​plik zostanie przekazany jako ostatni parametr.\ne.g.:const_param % other_const_param"},
         'SHELL_TOOLTIP':{
                 "en":"Execute in the system shell.\n\nWhen enabled\nCommand with parameters will be passed\nto the system shell as single string\nThe use of pipes, redirection etc. is allowed.\nUsing of quotes (\") may be necessary. Scanned\nfiles will be automatically enclosed with quotation marks.\nExample:\n{shell_example}\n\nWhen disabled\nAn executable file must be specified,\nthe contents of the parameters field will be\nsplitted and passed as a parameters list.\n\nIn more complicated cases\nit is recommended to prepare a dedicated shell\nscript and use it as a shell command.",
-                "pl":"Wykonaj w powłoce systemowej.\n\nPo włączeniu\nPolecenie z parametrami zostanie przekazane\ndo powłoki systemowej jako pojedynczy ciąg\nDozwolone jest używanie potoków, przekierowań itp.\nMoże być konieczne użycie cudzysłowów (\"). Przeskanowane\npliki zostaną automatycznie ujęte w cudzysłowy.\nPrzykład:\n{shell_example}\n\nPo wyłączeniu\nNależy określić plik wykonywalny,\nzawartość pola parametrów zostanie\npodzielona i przekazana jako lista parametrów.\n\nW bardziej skomplikowanych przypadkach\nzaleca się przygotowanie dedykowanego skryptu powłoki i użycie go jako polecenia powłoki."},
+                "pl":"Wykonaj w powłoce systemowej.\n\nPo włączeniu\nPolecenie z parametrami zostanie przekazane\ndo powłoki systemowej jako pojedynczy ciąg\nDozwolone jest używanie potoków, przekierowań itp.\nMoże być konieczne użycie cudzysłowów (\"). Przeskanowane\npliki zostaną automatycznie ujęte w cudzysłowy.\nPrzykład:\n{shell_example}\n\nPo wyłączeniu\nNależy określić plik wykonywalny,\nzawartość pola parametrów zostanie\npodzielona i przekazana jako lista parametrów.\n\nW bardziej skomplikowanych przypadkach\nzaleca się przygotowanie dedykowanego skryptu powłoki i\nużycie go jako polecenia powłoki."},
         'OPEN_TOOLTIP':{
                 "en":"Choose the executable file to serve as a custom data extractor...",
                 "pl":"Wybierz plik wykonywalny, który będzie służył jako ekstraktor Danych Użytkownika..."},
@@ -389,14 +389,14 @@ class LANGUAGES:
         'Creating new data record (Custom Data Extraction)':{
                 "pl":'Tworzenie nowego rekordu danych (Ekstrakcja Danych Użytkownika)'},
         'Abort single file':{
-                "pl":'Przerwij pojedynczy plik'},
+                "pl":'Przerwij plik'},
         'If you abort at this stage,\nCustom Data will be incomplete.':{
                 "pl":'Jeżeli przerwiesz na tym etapie,\nDane Użytkownika nie będą kompletne.'},
         'ABORT_PROGRESS_TOOLTIP':{
                 "en":'Use if CDE has no timeout set and seems like stuck.\nCD of only single file will be incomplete.\nCDE will continue.\n\nAvailable only for single thread mode.',
                 "pl":'Zastosuj jeżeli Eksttraktor CDE nie ma ustawionego timeoutu i utknął.\nCD pojedynczego pliku będzie niekompletny.\nEkstttrakcja będzie kontynuowana.\n\nDostępne tylko w trybie jednego wątku.'},
         'Extracted Custom Data: ':{
-                "pl":'Wyekstraktowane Dane Użytkownika'},
+                "pl":'Wyekstraktowane Dane Użytkownika: '},
         'Extraction Errors : ':{
                 "pl":'Błędy Ekstrakcji : '},
         'Delete selected data record ?':{
@@ -435,6 +435,8 @@ class LANGUAGES:
                 "pl":'Pełna ścieżka skopiowana do schowka'},
         'Copied to clipboard:':{
                 "pl":'Skopiowana do schowka:'},
+        'Checked on the file or folder name.':{
+                "pl":'Sprawdzane na nazwie pliku lub folderu.'},
         'No':{
                 "pl":'Nie'},
         'Yes':{

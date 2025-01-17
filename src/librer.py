@@ -1635,7 +1635,7 @@ class Gui:
             (label_frame := LabelFrame(self.repack_dialog.area_main,text=STR('Record Label'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             Entry(label_frame,textvariable=self.repack_label_var).pack(expand='yes',fill='x',padx=2,pady=2)
 
-            (repack_frame := LabelFrame(self.repack_dialog.area_main,text=STE('Data options'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            (repack_frame := LabelFrame(self.repack_dialog.area_main,text=STR('Data options'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
             self.repack_dialog.area_main.grid_columnconfigure( 0, weight=1)
             self.repack_dialog.area_main.grid_columnconfigure( 1, weight=1)
 
@@ -1892,6 +1892,8 @@ class Gui:
             find_range_cb2.grid(row=0, column=1, sticky='news',padx=4,pady=4)
             find_range_cb2.bind('<Return>', lambda event : self.find_items())
 
+            find_filename_frame.grid_columnconfigure( 1, weight=1)
+
             (find_filename_frame := LabelFrame(sfdma,text=STR('Path elements'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
 
             r_dont = Radiobutton(find_filename_frame,text= ' ' + STR("Don't use this criterion"),variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30)
@@ -1914,11 +1916,11 @@ class Gui:
             fuzzy_radio_name.bind('<Return>', lambda event : self.find_items())
 
             regexp_tooltip = STR("Regular expression") + "\n"
-            regexp_tooltip_name = "Checked on the file\nor folder name."
+            regexp_tooltip_name = STR('Checked on the file or folder name.')
             regexp_tooltip_cd = "Checked on the entire\nCustom Data of a file."
 
             glob_tooltip = "An expression containing wildcard characters\nsuch as '*','?' or character range '[a-c]'.\n\nPlace '*' at the beginning and end of an expression\nunless you want the expression to be found exactly\nat the beginning or end of a path element\n\n"
-            glob_tooltip_name = 'Checked on the file or folder name.'
+            glob_tooltip_name = STR('Checked on the file or folder name.')
             glob_tooltip_cd = 'Checked on the entire Custom Data of a file.'
 
             fuzzy_tooltip = 'Fuzzy matching is implemented using SequenceMatcher\nfrom the difflib module. Any file whose similarity\nscore exceeds the threshold will be classified as found.\nThe similarity score is calculated\n'
@@ -2824,7 +2826,7 @@ class Gui:
             sel_range_info = self.get_range_name()
             #'\n'.join([librer_core.get_record_name(rec) for rec in sel_range])
 
-            self.widget_tooltip(self.find_range_cb1,'records:\n\n' + sel_range_info)
+            self.widget_tooltip(self.find_range_cb1,sel_range_info)
 
             if not self.find_params_changed:
                 if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
