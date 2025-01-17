@@ -1892,6 +1892,7 @@ class Gui:
             find_range_cb2.grid(row=0, column=1, sticky='news',padx=4,pady=4)
             find_range_cb2.bind('<Return>', lambda event : self.find_items())
 
+            find_filename_frame.grid_columnconfigure( 0, weight=1)
             find_filename_frame.grid_columnconfigure( 1, weight=1)
 
             (find_filename_frame := LabelFrame(sfdma,text=STR('Path elements'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)

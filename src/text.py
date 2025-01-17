@@ -297,9 +297,9 @@ class LANGUAGES:
         "No files / No folders":{
                 "pl":'Brak plików / Brak folderów'},
         'Completed successfully.':{
-                "pl":'Zakńczony pomyślnie.'},
+                "pl":'Zakończony pomyślnie.'},
         'Import completed successfully.':{
-                "pl":'Import zakńczony pomyślnie.'},
+                "pl":'Import zakończony pomyślnie.'},
         'Groups collapsed at startup':{
                 "pl":'Zwiń grupy na starcie'},
         'Search records':{
