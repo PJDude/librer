@@ -263,7 +263,5 @@ jobs:
         prerelease: true
         files: |
             librer.${{ steps.version.outputs.version }}.linux.portable.zip
-#            librer.${{ steps.version.outputs.version }}.linux.nuitka.portable.zip
             librer.${{ steps.version.outputs.version }}.windows.portable.zip
-#            librer.${{ steps.version.outputs.version }}.windows.nuitka.portable.zip
 
