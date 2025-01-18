@@ -1904,29 +1904,29 @@ class Gui:
             #Radiobutton(find_filename_frame,text="files with error on access",variable=self.find_filename_search_kind_var,value='error',command=self.find_mod)
             #.grid(row=1, column=0, sticky='news',padx=4,pady=4)
 
-            regexp_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("by regular expression"),variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)
+            regexp_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("By regular expression"),variable=self.find_filename_search_kind_var,value='regexp',command=self.find_mod)
             regexp_radio_name.grid(row=2, column=0, sticky='news',padx=4,pady=4)
             regexp_radio_name.bind('<Return>', lambda event : self.find_items())
 
-            glob_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("by glob pattern"),variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)
+            glob_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("By glob pattern"),variable=self.find_filename_search_kind_var,value='glob',command=self.find_mod)
             glob_radio_name.grid(row=3, column=0, sticky='news',padx=4,pady=4)
             glob_radio_name.bind('<Return>', lambda event : self.find_items())
 
-            fuzzy_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("by fuzzy match"),variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)
+            fuzzy_radio_name=Radiobutton(find_filename_frame,text=' ' + STR("By fuzzy match"),variable=self.find_filename_search_kind_var,value='fuzzy',command=self.find_mod)
             fuzzy_radio_name.grid(row=4, column=0, sticky='news',padx=4,pady=4)
             fuzzy_radio_name.bind('<Return>', lambda event : self.find_items())
 
             regexp_tooltip = STR("Regular expression") + "\n"
             regexp_tooltip_name = STR('Checked on the file or folder name.')
-            regexp_tooltip_cd = "Checked on the entire\nCustom Data of a file."
+            regexp_tooltip_cd = STR('Checked on the entire Custom Data of a file.')
 
-            glob_tooltip = "An expression containing wildcard characters\nsuch as '*','?' or character range '[a-c]'.\n\nPlace '*' at the beginning and end of an expression\nunless you want the expression to be found exactly\nat the beginning or end of a path element\n\n"
+            glob_tooltip = STR('GLOB_TOOLTIP')
             glob_tooltip_name = STR('Checked on the file or folder name.')
-            glob_tooltip_cd = 'Checked on the entire Custom Data of a file.'
+            glob_tooltip_cd = STR('Checked on the entire Custom Data of a file.')
 
-            fuzzy_tooltip = 'Fuzzy matching is implemented using SequenceMatcher\nfrom the difflib module. Any file whose similarity\nscore exceeds the threshold will be classified as found.\nThe similarity score is calculated\n'
-            fuzzy_tooltip_name = 'based on the file or folder name.'
-            fuzzy_tooltip_cd = 'based on the entire Custom Data of a file.'
+            fuzzy_tooltip = STR('FUZZY_TOOLTIP')
+            fuzzy_tooltip_name = STR('based on the file or folder name.')
+            fuzzy_tooltip_cd = STR('based on the entire Custom Data of a file.')
 
             self.find_filename_regexp_entry = Entry(find_filename_frame,textvariable=self.find_name_regexp_var,validate="key")
             self.find_filename_glob_entry = Entry(find_filename_frame,textvariable=self.find_name_glob_var,validate="key")
@@ -2049,7 +2049,7 @@ class Gui:
             find_size_min_entry.bind("<KeyRelease>", self.find_mod_keypress)
             find_size_max_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
-            size_tooltip = 'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB'
+            size_tooltip = STR('SIZE_TOOLTIP')
             self.widget_tooltip(find_size_min_entry,size_tooltip)
             self.widget_tooltip(find_size_min_label,size_tooltip)
             self.widget_tooltip(find_size_max_entry,size_tooltip)
@@ -2069,7 +2069,7 @@ class Gui:
             find_modtime_min_entry.bind("<KeyRelease>", self.find_mod_keypress)
             find_modtime_max_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
-            time_toltip = 'Date and time in the format below.\nLeave the value blank to ignore this criterion.\n\nexamples:\n2023-12-14 22:21:20\n2023-12-14 22:21\n2023-12-14\n2023-12'
+            time_toltip = STR('TIME_TOOLTIP')
             self.widget_tooltip(find_modtime_min_entry,time_toltip)
             self.widget_tooltip(find_modtime_min_label,time_toltip)
             self.widget_tooltip(find_modtime_max_entry,time_toltip)
@@ -2948,10 +2948,10 @@ class Gui:
 
     def get_range_name(self):
         if self.current_group:
-            return f'group: {self.current_group}'
+            return STR('group:') + str(self.current_group)
 
         if self.current_record:
-            return f'record: {self.current_record.header.label}'
+            return STR('record:') + str(self.current_record.header.label)
 
         return ()
 
@@ -3008,13 +3008,13 @@ class Gui:
                 sel_range = self.get_selected_records()
 
                 sel_range_info = self.get_range_name()
-                search_info_lines_append(f'Search in {sel_range_info}')
+                search_info_lines_append(STR('Search in') + ' ' + str(sel_range_info))
 
             sel_range_len = len(sel_range)
             files_search_quant = sum([record.header.quant_files+record.header.quant_folders for record in sel_range])
 
             if files_search_quant==0:
-                self.info_dialog_on_find.show(STR('Search aborted.'),'No files in records.')
+                self.info_dialog_on_find.show(STR('Search aborted.'),STR('No files in records.'))
                 return 1
 
             if find_filename_search_kind == 'regexp':
@@ -3024,28 +3024,28 @@ class Gui:
                         return
                     search_info_lines_append(f'Regular expression on path element:"{find_name_regexp}"')
                 else:
-                    self.info_dialog_on_find.show(STR('regular expression empty'),'(for path element)')
+                    self.info_dialog_on_find.show(STR('regular expression empty'),'(' + STR('for path element') + ')')
                     return
             elif find_filename_search_kind == 'glob':
                 if find_name_glob:
-                    info_str = f'Glob expression on path element:"{find_name_glob}"'
+                    info_str = STR('Glob expression on path element:') + '"' + str(find_name_glob) + '"'
                     if find_name_case_sens:
-                        search_info_lines_append(info_str + ' (Case sensitive)')
+                        search_info_lines_append(info_str + ' ' + '(' + STR('Case sensitive') + ')' )
                     else:
                         search_info_lines_append(info_str)
                 else:
-                    self.info_dialog_on_find.show(STR('glob expression empty'),'(for path element)')
+                    self.info_dialog_on_find.show(STR('glob expression empty'),'(' + STR('for path element') + ')')
                     return
             elif find_filename_search_kind == 'fuzzy':
                 if find_name_fuzz:
                     try:
                         float(filename_fuzzy_threshold)
                     except ValueError:
-                        self.info_dialog_on_find.show('fuzzy threshold error',f"wrong threshold value:{filename_fuzzy_threshold}")
+                        self.info_dialog_on_find.show(STR('fuzzy threshold error'),STR("wrong threshold value") + ":" + str(filename_fuzzy_threshold) )
                         return
                     search_info_lines_append(f'Fuzzy match on path element:"{find_name_fuzz}" (...>{filename_fuzzy_threshold})')
                 else:
-                    self.info_dialog_on_find.show('fuzzy expression error','empty expression')
+                    self.info_dialog_on_find.show(STR('fuzzy expression error'),STR('empty expression'))
                     return
 
             if find_cd_search_kind == 'without':
@@ -3082,12 +3082,12 @@ class Gui:
                     try:
                         float(cd_fuzzy_threshold)
                     except ValueError:
-                        self.info_dialog_on_find.show('fuzzy threshold error',f"wrong threshold value:{cd_fuzzy_threshold}")
+                        self.info_dialog_on_find.show(STR('fuzzy threshold error'),f"wrong threshold value:{cd_fuzzy_threshold}")
                         return
                     search_info_lines_append(f'Fuzzy match on Custom Data:"{find_cd_fuzz}" (...>{cd_fuzzy_threshold})')
 
                 else:
-                    self.info_dialog_on_find.show('fuzzy expression error','empty expression')
+                    self.info_dialog_on_find.show(STR('fuzzy expression error'),STR('empty expression'))
                     return
 
             if find_size_min:

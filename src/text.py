@@ -219,6 +219,9 @@ class LANGUAGES:
         'SIZE_TOOLTIP':{
                 "en":'Integer value [in bytes] or integer with unit.\nLeave the value blank to ignore this criterion.\n\nexamples:\n399\n100B\n125kB\n10MB',
                 "pl":'Wartość całkowita [w bajtach] lub liczba całkowita z jednostką.\nPozostaw wartość pustą, aby zignorować to kryterium.\n\nPrzykłady:\n399\n100B\n125kB\n10MB'},
+        'TIME_TOOLTIP':{
+                "en":'Date and time in the format below.\nLeave the value blank to ignore this criterion.\n\nexamples:\n2023-12-14 22:21:20\n2023-12-14 22:21\n2023-12-14\n2023-12',
+                "pl":'Data i godzina w poniższym formacie.\nPozostaw wartość pustą, aby zignorować to kryterium.\n\nPrzykłady:\n2023-12-14 22:21:20\n2023-12-14 22:21\n2023-12-14\n2023-12'},
         'Maximum file size':{
                 "pl":'Maksymalna wielkość pliku'},
         'Minimum file size.':{
@@ -244,10 +247,38 @@ class LANGUAGES:
         'TEST_TOOLTIP':{
                 "en":"Select a file and test your Custom Data Extractor.\n\n",
                 "pl":"Wybierz plik i przetestuj swój niestandardowy ekstraktor danych.\n\n"},
+        'GLOB_TOOLTIP':{
+                "en":"An expression containing wildcard characters\nsuch as '*','?' or character range '[a-c]'.\n\nPlace '*' at the beginning and end of an expression\nunless you want the expression to be found exactly\nat the beginning or end of a path element\n\n",
+                "pl":"Wyrażenie zawierające znaki wieloznaczne\nnp. '*', '?' lub zakres znaków '[a-c]'.\n\nUmieść '*' na początku i na końcu wyrażenia\nchyba że chcesz, aby wyrażenie zostało znalezione dokładnie\nna początku lub na końcu elementu ścieżki\n\n"},
+        'FUZZY_TOOLTIP':{
+                "en":'Fuzzy matching is implemented using SequenceMatcher\nfrom the difflib module. Any file whose similarity\nscore exceeds the threshold will be classified as found.\nThe similarity score is calculated\n',
+                "pl":'Dopasowanie rozmyte jest implementowane przy użyciu SequenceMatcher\nz modułu difflib. Każdy plik, którego podobieństwo\nscore przekracza próg, zostanie sklasyfikowany jako znaleziony.\nWynik podobieństwa jest obliczany\n'},
+        "Checked on the entire\nCustom Data of a file.":{
+                "pl":"Sprawdzono na wszystkich\nDanych niestandardowych pliku."},
+        'based on the file or folder name.':{
+                "pl":'na podstawie nazwy pliku lub folderu.'},
+        'based on the entire Custom Data of a file.':{
+                "pl":"na podstawie całości Danych Użytkownika pliku."},
         'Select Prev':{
                 "pl":'Wybierz poprzedni'},
+        'Search in':{
+                "pl":'Poszukiwanie w:'},
+        'No files in records.':{
+                "pl":'Brak plików w rekordach'},
+        'Glob expression on path element:':{
+                "pl":'Wyrażenie glob na elementach ścieżki'},
+        'for path element':{
+                "pl":'dla elementu ścieżki'},
+        'fuzzy threshold error':{
+                "pl":'błąd wartości progu dopasowania rozmytego'},
         'Select Next':{
                 "pl":'Wybierz następny'},
+        "wrong threshold value":{
+                "pl":'błędna wartość progu'},
+        'empty expression':{
+                "pl":'wyrażenie błędne'},
+        'fuzzy expression error':{
+                "pl":'błąd wyrażenia rozmytego'},
         'Case Sensitive':{
                 "pl":'Uwzględnij wiellkość znaków'},
         'index of the selected search result / search results total':{
@@ -419,6 +450,10 @@ class LANGUAGES:
                 "pl":'Pliki tekstowe'},
         "Bash Files":{
                 "pl":'Pliki Bash'},
+        "group:":{
+                "pl":'grupa:'},
+        "record:":{
+                "pl":'rekord:'},
         "Executable Files":{
                 "pl":'Pliki Wykonywalne'},
         "Bat Files":{
