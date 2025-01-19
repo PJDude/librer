@@ -115,7 +115,6 @@ CFG_KEY_show_popups = 'show_popups'
 CFG_KEY_groups_collapse = 'groups_collapse'
 CFG_KEY_include_hidden = 'include_hidden'
 
-
 cfg_defaults={
     CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_CDE_SETTINGS:[],
@@ -388,7 +387,7 @@ class Gui:
         self.hg_index = 0
         hg_indices=('01','02','03','04','05','06','07','08', '11','12','13','14','15','16','17','18', '21','22','23','24','25','26','27','28', '31','32','33','34','35','36','37','38',)
         self.hg_ico={ i:self_ico[str('hg'+j)] for i,j in enumerate(hg_indices) }
-        #self_hg_ico = self.hg_ico
+
         self.hg_ico_len = len(self.hg_ico)
 
         self.ico_record_new = self_ico['record_new']
@@ -580,7 +579,7 @@ class Gui:
 
         self.status_find = Label(status_frame,image=self.ico_find,relief='flat',state='disabled',borderwidth=1,bg=self.bg_color,width=18)
         self.status_find.pack(fill='x',expand=0,side='right')
-        self_status_find_configure = self.status_find.configure
+
         self.status_find.bind("<ButtonPress-1>", lambda event : self.finder_wrapper_show() )
         self.status_find_tooltip = lambda message : self.widget_tooltip(self.status_find,message)
 
@@ -653,15 +652,10 @@ class Gui:
         #######################################################################
 
         def file_cascade_post():
-            item_actions_state=('disabled','normal')[self.sel_item is not None]
-
             self.file_cascade.delete(0,'end')
             if not self.block_processing_stack:
                 self_file_cascade_add_command = self.file_cascade.add_command
                 self_file_cascade_add_separator = self.file_cascade.add_separator
-                state_on_records = 'normal' if librer_core.records else 'disabled'
-
-                state_has_cd = ('disabled','normal')[ self.sel_item is not None and self.item_has_cd(self.sel_item) ]
 
                 self_file_cascade_add_command(label = STR('New Record ...'),command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record_new,compound='left')
 
@@ -767,7 +761,6 @@ class Gui:
         #############################
         self_progress_dialog_on_load = self.progress_dialog_on_load
         self_progress_dialog_on_load_lab = self_progress_dialog_on_load.lab
-        self_progress_dialog_on_load_area_main_update = self_progress_dialog_on_load.area_main.update
 
         self_progress_dialog_on_load_progr1var = self_progress_dialog_on_load.progr1var
         self_progress_dialog_on_load_progr2var = self_progress_dialog_on_load.progr2var
@@ -951,7 +944,7 @@ class Gui:
         self_main.mainloop()
 
     def main_drop(self, data):
-        dialog = self.get_scan_dialog()
+        self.get_scan_dialog()
         self.path_to_scan_entry_var.set(data)
         self.scan_label_entry_var.set("dropped_path")
 
@@ -1170,17 +1163,10 @@ class Gui:
         if not self.scan_dialog_created:
             self.status(STR("Creating dialog ..."))
 
-            self_ico_librer = self.ico_librer
-
             self.scan_dialog=dialog=GenericDialog(self.main,(self.ico_record_new,self.ico_record_new),self.bg_color,'---',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=550)
 
             dialog.area_main.drop_target_register(DND_FILES)
             dialog.area_main.dnd_bind('<<Drop>>', lambda e: self.scan_dialog_drop(e.data) )
-
-            self_ico = self.ico
-
-            #self.log_skipped_var=BooleanVar()
-            #self.log_skipped_var.set(False)
 
             dialog.area_main.grid_columnconfigure(0, weight=1)
             dialog.area_main.grid_rowconfigure(3, weight=1)
@@ -1305,7 +1291,6 @@ class Gui:
             min_tooltip = 'Minimum file size.' + '\n\n'+ size_common_tooltip
             exec_tooltip = STR('EXEC_TOOLTIP')
             pars_tooltip = STR('PARS_TOOLTIP')
-            shell_example = '"C:\\Program Files\\7-Zip\\7z.exe" l % | more +13' if windows else "7z l % | tail -n +14"
             shell_tooltip = STR('SHELL_TOOLTIP')
             open_tooltip = STR('OPEN_TOOLTIP')
             timeout_tooltip = STR('TIMEOUT_TOOLTIP')
@@ -2057,9 +2042,6 @@ class Gui:
             (find_size_min_label:=Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=0, sticky='we',padx=4,pady=4)
             (find_size_max_label:=Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=2, sticky='we',padx=4,pady=4)
 
-            def validate_size_str(val):
-                return bool(val == "" or val.isdigit())
-
             find_size_min_entry=Entry(find_size_frame,textvariable=self.find_size_min_var)
             find_size_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
             find_size_max_entry=Entry(find_size_frame,textvariable=self.find_size_max_var)
@@ -2108,6 +2090,9 @@ class Gui:
 
             self.info_dialog_on_find = LabelDialog(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.text_dialog_on_find = TextDialogInfo(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+
+            self.text_dialog_on_find.cancel_button.configure(text=STR('Cancel'),compound='left')
+            self.text_dialog_on_find.copy_button.configure(text=STR('Copy'),compound='left')
 
             self.fix_text_dialog(self.text_dialog_on_find)
 
@@ -2316,7 +2301,7 @@ class Gui:
             self_main_wait_variable = self.main.wait_variable
 
             dialog_update_lab_text = dialog.update_lab_text
-            dialog_area_main_update = dialog.area_main.update
+            #dialog_area_main_update = dialog.area_main.update
 
             while wii_import_thread_is_alive():
                 dialog_update_lab_text(0,f'disks:{fnumber(librer_core.wii_import_known_disk_names_len).rjust(14)}')
@@ -2398,7 +2383,7 @@ class Gui:
     #@restore_status_line
     @block
     def record_import(self):
-        initialdir = self.last_dir if self.last_dir else self.cwd
+        #initialdir = self.last_dir if self.last_dir else self.cwd
 
         group = None
         if self.current_group:
@@ -3187,8 +3172,6 @@ class Gui:
             wait_var=BooleanVar()
             wait_var.set(False)
 
-            self_hg_ico = self.hg_ico
-
             #############################
 
             self_progress_dialog_on_find.lab_l1.configure(text='Records:')
@@ -3322,7 +3305,6 @@ class Gui:
 
     def get_child_of_name(self,record,item,child_name):
         self_tree = self.tree
-        self_tree_item = self_tree.item
 
         self_item_to_data = self.item_to_data
         record_filenames = record.filenames
@@ -3570,8 +3552,6 @@ class Gui:
             self.tree_on_mouse_button_press(event)
             tree.update()
 
-            item_actions_state=('disabled','normal')[self.sel_item is not None]
-
             item=self.tree.focus()
 
             is_group = bool(self.tree.tag_has(self.GROUP,item))
@@ -3593,7 +3573,6 @@ class Gui:
             pop.delete(0,'end')
 
             pop_add_separator = pop.add_separator
-            pop_add_cascade = pop.add_cascade
             pop_add_command = pop.add_command
 
             state_on_records = 'normal' if is_record else 'disabled'
@@ -3875,8 +3854,6 @@ class Gui:
         compression_level = self.scan_compr_var_int.get()
         threads = self.scan_threads_var_int.get()
 
-        include_hidden=self.cfg.get(CFG_KEY_include_hidden)
-
         try:
             if self.scan(compression_level,threads,group):
                 self.scan_dialog_hide_wrapper()
@@ -3992,8 +3969,6 @@ class Gui:
 
         self_progress_dialog_on_scan.show(STR('Creating new data record (scanning)'))
 
-        self_hg_ico = self.hg_ico
-
         local_bytes_to_str = bytes_to_str
 
         self_progress_dialog_on_scan_progr1var.set(0)
@@ -4075,8 +4050,6 @@ class Gui:
             creation_thread.start()
 
             creation_thread_is_alive = creation_thread.is_alive
-
-            self_hg_ico = self.hg_ico
 
             #############################
 
