@@ -351,7 +351,7 @@ class Gui:
         self.cfg = Config(DATA_DIR)
         self.cfg.read()
         self.cfg_get=self.cfg.get
-        langs.set( self.lang_dict[self.cfg_get(CFG_lang)] )
+        langs.set( self.cfg_get(CFG_lang) )
 
         self.cwd=cwd
 
@@ -1077,6 +1077,9 @@ class Gui:
             self.text_info_dialog = TextDialogInfo(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.fix_text_dialog(self.text_info_dialog)
 
+            self.text_info_dialog.cancel_button.configure(text=STR('Cancel'),compound='left')
+            self.text_info_dialog.copy_button.configure(text=STR('Copy'),compound='left')
+
             self.text_info_dialog_created = True
 
         return self.text_info_dialog
@@ -1423,14 +1426,14 @@ class Gui:
         return self.scan_dialog
 
     def fix_text_dialog(self,dialog):
-        dialog.find_lab.configure(image=self.ico_search_text,text=' Search:',compound='left',bg=self.bg_color)
+        dialog.find_lab.configure(image=self.ico_search_text,text=' ' + STR('Search') + ':',compound='left',bg=self.bg_color)
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
         self.widget_tooltip(dialog.find_prev_butt,STR('Select Prev') + ' (Shift+F3)')
         self.widget_tooltip(dialog.find_next_butt,STR('Select Next') + ' (F3)')
         self.widget_tooltip(dialog.find_cs,STR('Case Sensitive'))
-        self.widget_tooltip(dialog.find_info_lab,STR('index of the selected search result / search results total '))
+        self.widget_tooltip(dialog.find_info_lab,STR('index of the selected search result / search results total'))
 
         #dialog.find_cs_var.set(not windows)
 
@@ -1484,10 +1487,22 @@ class Gui:
         if not self.info_dialog_on_main_created:
             self.status(STR("Creating dialog ..."))
 
-            self.info_dialog_on_main = LabelDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.info_dialog_on_main = LabelDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=True,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=True))
             self.info_dialog_on_main_created = True
 
         return self.info_dialog_on_main
+
+    info_dialog_on_settings_created = False
+    @restore_status_line
+    @block
+    def get_info_dialog_on_settings(self):
+        if not self.info_dialog_on_settings_created:
+            self.status(STR("Creating dialog ..."))
+
+            self.info_dialog_on_settings = LabelDialog(self.settings_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
+            self.info_dialog_on_settings_created = True
+
+        return self.info_dialog_on_settings
 
     info_dialog_on_scan_created = False
     @restore_status_line
@@ -1510,6 +1525,8 @@ class Gui:
 
             self.text_dialog_on_scan = TextDialogInfo(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.fix_text_dialog(self.text_dialog_on_scan)
+            self.text_dialog_on_scan.cancel_button.configure(text=STR('Close'))
+            self.text_dialog_on_scan.copy_button.configure(text=STR('Copy'),compound='left')
 
             self.text_dialog_on_scan_created = True
 
@@ -1524,6 +1541,8 @@ class Gui:
 
             self.text_ask_dialog_on_scan = TextDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),image=self.ico_warning)
             self.fix_text_dialog(self.text_ask_dialog_on_scan)
+            self.text_ask_dialog_on_scan.cancel_button.configure(text=STR('Cancel'))
+            self.text_ask_dialog_on_scan.copy_button.configure(text=STR('Copy'),compound='left')
 
             self.text_ask_dialog_on_scan_created = True
 
@@ -1741,8 +1760,6 @@ class Gui:
             self.assign_to_group_dialog_created = True
         return self.assign_to_group_dialog
 
-    lang_dict={'English':'en','Polski':'pl'}
-
     settings_dialog_created = False
     @restore_status_line
     @block
@@ -1760,7 +1777,7 @@ class Gui:
             Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=2, column=0, sticky='wens',padx=8,pady=4)
 
             self.lang_var = StringVar()
-            self.lang_cb = Combobox(lang_frame,values=('English','Polski'),textvariable=self.lang_var,state='readonly',width=16)
+            self.lang_cb = Combobox(lang_frame,values=langs.langs_list,textvariable=self.lang_var,state='readonly',width=16)
             self.lang_cb.grid(row=2, column=1, sticky='news',padx=4,pady=4)
             lang_frame.grid_columnconfigure( 2, weight=1)
 
@@ -1792,8 +1809,10 @@ class Gui:
         return self.settings_dialog
 
     def lang_change(self,event):
-        self.cfg.set(CFG_lang,self.lang_var.get())
-        self.get_info_dialog_on_main().show(STR('Language Changed'),STR('Restart required.') )
+        new_val=self.lang_var.get()
+        self.cfg.set(CFG_lang,new_val)
+        #self.get_info_dialog_on_main().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
+        self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
 
     def popups_show_mod(self):
         self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
@@ -2198,14 +2217,14 @@ class Gui:
                     librer_core.alias_record_name(self.current_record,alias)
                     self.tree.item(item,text=alias)
         elif self.current_group and is_group:
-            self.get_entry_ask_dialog().show('Rename group',f"Group '{self.current_group}' rename :",self.current_group)
+            self.get_entry_ask_dialog().show(STR('Rename group'),STR("Group") + f" '{self.current_group}' " + STR("rename") + " :",self.current_group)
 
             if self.entry_ask_dialog.res_bool:
                 rename = self.entry_ask_dialog.entry_val.get()
                 if rename:
                     res2=librer_core.rename_group(self.current_group,rename)
                     if res2:
-                        self.info_dialog_on_main.show('Rename failed.',res2)
+                        self.info_dialog_on_main.show(STR('Rename failed.'),res2)
                         self.alias_name()
                     else:
                         self.tree.item(item,text=rename)
@@ -2249,10 +2268,10 @@ class Gui:
 
             if self.repack_dialog_do_it:
                 if messages := librer_core.repack_record(self.current_record,self.repack_label_var.get(),self.repack_compr_var.get(),self.repack_cd_var.get(),self.single_record_show,group):
-                    self.info_dialog_on_main.show('Repacking failed','\n'.join(messages) )
+                    self.info_dialog_on_main.show(STR('Repacking failed'),'\n'.join(messages) )
                 else:
                     self.find_clear()
-                    self.info_dialog_on_main.show('Repacking finished.','Check repacked record\nDelete original record manually if you want.')
+                    self.info_dialog_on_main.show(STR('Repacking finished.'),STR('Check repacked record\nDelete original record manually if you want.'))
 
     def wii_import_to_local(self):
         self.wii_import_dialog_do_it=True
@@ -2273,8 +2292,8 @@ class Gui:
 
         postfix = f' to group:{group}' if group else ''
 
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title='Choose "Where Is It?" Report xml files to import' + postfix, defaultextension=".xml",filetypes=[(STR("XML Files"),"*.xml"),(STR("All Files"),"*.*")]):
-            self.status('Parsing WII files ... ')
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose "Where Is It?" Report xml files to import') + postfix, defaultextension=".xml",filetypes=[(STR("XML Files"),"*.xml"),(STR("All Files"),"*.*")]):
+            self.status(STR('Parsing WII files ... '))
             self.main.update()
             dialog = self.get_progress_dialog_on_main()
 
@@ -2291,7 +2310,7 @@ class Gui:
             wait_var_set(False)
             wait_var_get = wait_var.get
 
-            dialog.show('Parsing file(s)')
+            dialog.show(STR('Parsing file(s)'))
 
             self_main_after = self.main.after
             self_main_wait_variable = self.main.wait_variable
@@ -2537,13 +2556,13 @@ class Gui:
                         record_it_is = tree.tag_has(self.RECORD,item)
 
                         if raw_record_it_is or record_it_is:
-                            self.tooltip_lab_configure(text=librer_core.record_info_alias_wrapper(record,record.txtinfo_basic + '\n\n(Double click to show full record info)') )
+                            self.tooltip_lab_configure(text=librer_core.record_info_alias_wrapper(record,record.txtinfo_basic + '\n\n(' + STR('Double click to show full record info') + ')') )
                         else:
                             scan_path = record.header.scan_path
                             subpath = sep + sep.join(subpath_list)
 
-                            tooltip_list = [f'scan path : {scan_path}']
-                            tooltip_list.append(f'subpath   : {subpath}')
+                            tooltip_list = [STR('scan path') + f' : {scan_path}']
+                            tooltip_list.append(STR('subpath') + f'   : {subpath}')
 
                             if item in self.item_to_data:
                                 data_tuple = self.item_to_data[item]
@@ -2552,24 +2571,24 @@ class Gui:
 
                                 if is_symlink:
                                     tooltip_list.append('')
-                                    tooltip_list.append('Symlink')
+                                    tooltip_list.append(STR('Symlink'))
 
                                 if is_bind:
                                     tooltip_list.append('')
-                                    tooltip_list.append('Binding (another device)')
+                                    tooltip_list.append(STR('Binding (another device)'))
 
                                 if has_cd:
                                     tooltip_list.append('')
                                     if not cd_ok:
-                                        tooltip_list.append('Custom Data Extraction ended with error')
-                                        tooltip_list.append('(Double click to show Custom Data.)')
+                                        tooltip_list.append(STR('Custom Data Extraction ended with error'))
+                                        tooltip_list.append('(' + STR('Double click to show Custom Data') + '.)')
                                     elif cd_aborted:
-                                        tooltip_list.append('Custom Data Extraction was aborted')
-                                        tooltip_list.append('(Double click to show Custom Data.)')
+                                        tooltip_list.append(STR('Custom Data Extraction was aborted'))
+                                        tooltip_list.append('(' + STR('Double click to show Custom Data') + '.)')
                                     elif cd_empty:
-                                        tooltip_list.append('Custom Data is empty')
+                                        tooltip_list.append(STR('Custom Data is empty'))
                                     else:
-                                        tooltip_list.append('(Double click to show Custom Data.)')
+                                        tooltip_list.append('(' + STR('Double click to show Custom Data') + '.)')
 
                             self.tooltip_lab_configure(text='\n'.join(tooltip_list))
 
@@ -2578,7 +2597,7 @@ class Gui:
                     elif tree.tag_has(self.GROUP,item):
                         if values := tree.item(item,'values'):
                             name = values[0]
-                            self.tooltip_lab_configure(text=f'group   :{name}')
+                            self.tooltip_lab_configure(text=STR('group') + f'   :{name}')
                         else:
                             self.tooltip_lab_configure(text='')
 
@@ -3020,15 +3039,15 @@ class Gui:
             if find_filename_search_kind == 'regexp':
                 if find_name_regexp:
                     if res := test_regexp(find_name_regexp):
-                        self.info_dialog_on_find.show('regular expression error',res)
+                        self.info_dialog_on_find.show(STR('regular expression error'),res)
                         return
-                    search_info_lines_append(f'Regular expression on path element:"{find_name_regexp}"')
+                    search_info_lines_append(STR('Regular expression on path element') + f':"{find_name_regexp}"')
                 else:
                     self.info_dialog_on_find.show(STR('regular expression empty'),'(' + STR('for path element') + ')')
                     return
             elif find_filename_search_kind == 'glob':
                 if find_name_glob:
-                    info_str = STR('Glob expression on path element:') + '"' + str(find_name_glob) + '"'
+                    info_str = STR('Glob expression on path element') + ':"' + str(find_name_glob) + '"'
                     if find_name_case_sens:
                         search_info_lines_append(info_str + ' ' + '(' + STR('Case sensitive') + ')' )
                     else:
@@ -3043,7 +3062,7 @@ class Gui:
                     except ValueError:
                         self.info_dialog_on_find.show(STR('fuzzy threshold error'),STR("wrong threshold value") + ":" + str(filename_fuzzy_threshold) )
                         return
-                    search_info_lines_append(f'Fuzzy match on path element:"{find_name_fuzz}" (...>{filename_fuzzy_threshold})')
+                    search_info_lines_append(STR('Fuzzy match on path element') + f':"{find_name_fuzz}" (...>{filename_fuzzy_threshold})')
                 else:
                     self.info_dialog_on_find.show(STR('fuzzy expression error'),STR('empty expression'))
                     return
@@ -3063,13 +3082,13 @@ class Gui:
                     if res := test_regexp(find_cd_regexp):
                         self.info_dialog_on_find.show(STR('regular expression error'),res)
                         return
-                    search_info_lines_append(f'Regular expression on Custom Data:"{find_cd_regexp}"')
+                    search_info_lines_append(STR('Regular expression on Custom Data') + f' :"{find_cd_regexp}"')
                 else:
                     self.info_dialog_on_find.show(STR('regular expression empty'),STR('(for Custom Data)'))
                     return
             elif find_cd_search_kind == 'glob':
                 if find_cd_glob:
-                    info_str = f'Glob expression on Custom Data:"{find_cd_glob}"'
+                    info_str = STR('Glob expression on Custom Data') + f' :"{find_cd_glob}"'
                     if find_cd_case_sens:
                         search_info_lines_append(info_str + ' ' + '(' + STR('Case sensitive') + ')')
                     else:
@@ -3084,7 +3103,7 @@ class Gui:
                     except ValueError:
                         self.info_dialog_on_find.show(STR('fuzzy threshold error'),f"wrong threshold value:{cd_fuzzy_threshold}")
                         return
-                    search_info_lines_append(f'Fuzzy match on Custom Data:"{find_cd_fuzz}" (...>{cd_fuzzy_threshold})')
+                    search_info_lines_append(STR('Fuzzy match on Custom Data') + f':"{find_cd_fuzz}" (...>{cd_fuzzy_threshold})')
 
                 else:
                     self.info_dialog_on_find.show(STR('fuzzy expression error'),STR('empty expression'))
@@ -3093,18 +3112,18 @@ class Gui:
             if find_size_min:
                 min_num = str_to_bytes(find_size_min)
                 if min_num == -1:
-                    self.info_dialog_on_find.show('min size value error',f'fix "{find_size_min}"')
+                    self.info_dialog_on_find.show(STR('min size value error'),f'fix "{find_size_min}"')
                     return
-                search_info_lines_append(f'Min size:{find_size_min}')
+                search_info_lines_append(STR('Min size') + f':{find_size_min}')
             else:
                 min_num = ''
 
             if find_size_max:
                 max_num = str_to_bytes(find_size_max)
                 if max_num == -1:
-                    self.info_dialog_on_find.show('max size value error',f'fix "{find_size_max}"')
+                    self.info_dialog_on_find.show(STR('max size value error'),f'fix "{find_size_max}"')
                     return
-                search_info_lines_append(f'Max size:{find_size_max}')
+                search_info_lines_append(STR('Max size') + f':{find_size_max}')
             else:
                 max_num = ''
 
@@ -3120,7 +3139,7 @@ class Gui:
                 except Exception as te:
                     self.info_dialog_on_find.show('file modification time min error ',f'{find_modtime_min}\n{te}')
                     return
-                search_info_lines_append(f'Min modtime:{find_modtime_min}')
+                search_info_lines_append(STR('Min modtime') + f':{find_modtime_min}')
             t_max=None
             if find_modtime_max:
                 try:
@@ -3128,7 +3147,7 @@ class Gui:
                 except Exception as te:
                     self.info_dialog_on_find.show('file modification time max error ',f'{find_modtime_max}\n{te}')
                     return
-                search_info_lines_append(f'Max modtime:{find_modtime_max}')
+                search_info_lines_append(STR('Max modtime') + f':{find_modtime_max}')
 
             self.cfg.set(CFG_KEY_find_range_all,find_range_all)
             self.cfg.set(CFG_KEY_find_cd_search_kind,find_cd_search_kind)
@@ -3176,7 +3195,7 @@ class Gui:
             self_progress_dialog_on_find.lab_l2.configure(text='Files:' )
             self_progress_dialog_on_find.lab_r1.configure(text='--')
             self_progress_dialog_on_find.lab_r2.configure(text='--' )
-            self_progress_dialog_on_find.show('Search progress')
+            self_progress_dialog_on_find.show(STR('Search progress'))
 
             records_len = len(librer_core.records)
             if records_len==0:
@@ -3212,7 +3231,7 @@ class Gui:
                 ######################################################################################
 
                 change0 = self_progress_dialog_on_find_update_lab_text(0,librer_core.info_line)
-                change3 = self_progress_dialog_on_find_update_lab_text(3,f'Found Files: {fnumber(librer_core.find_res_quant)}' )
+                change3 = self_progress_dialog_on_find_update_lab_text(3,STR('Found Files') + f': {fnumber(librer_core.find_res_quant)}' )
 
                 curr_files = librer_core.total_search_progress
 
@@ -3263,7 +3282,7 @@ class Gui:
 
             self.any_valid_find_results=bool(find_results_quant_sum>0)
 
-            abort_info = '\nSearching aborted. Resuls may be incomplete.' if self.action_abort else ''
+            abort_info = '\n' + STR('Searching aborted. Resuls may be incomplete.') if self.action_abort else ''
 
             self.all_records_find_results_len = find_results_quant_sum
             find_results_quant_sum_format = fnumber(find_results_quant_sum)
@@ -3282,7 +3301,7 @@ class Gui:
             if self.any_valid_find_results:
                 self.select_find_result(1)
 
-            self.results_on_find.show(STR('Search results'),f"{search_info}\n\nfound: {find_results_quant_sum_format} items.\n\nNavigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions." + abort_info)
+            self.results_on_find.show(STR('Search results'),f"{search_info}\n\n" + STR("found") + ": " + str(find_results_quant_sum_format) + ' ' + STR('items') + '.\n\n' + STR("Navigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions.") + abort_info)
             self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
 
             if not self.searching_aborted and self.any_valid_find_results:
@@ -3451,7 +3470,7 @@ class Gui:
                     image=self.tree.item(record_item,'image')
 
                     self.status_record.configure(image = image, text = record_name,compound='left')
-                    self.widget_tooltip(self.status_record,librer_core.record_info_alias_wrapper(record,record.txtinfo_basic + '\n\n(Click to show full record info)') )
+                    self.widget_tooltip(self.status_record,librer_core.record_info_alias_wrapper(record,record.txtinfo_basic + '\n\n(' + STR('Click to show full record info') + ')') )
                 else:
                     self.status_record.configure(image = '', text = '')
                     self.widget_tooltip(self.status_record,'')
@@ -4502,7 +4521,7 @@ class Gui:
 
                 output = '\n'.join(self.output_list).strip()
 
-                self.get_text_dialog_on_scan().show(f'CDE Test finished {"OK" if self.returncode[0]==0 and not self.test_decoding_error else "with Error"}',output)
+                self.get_text_dialog_on_scan().show(STR('CDE Test finished') + f' {"OK" if self.returncode[0]==0 and not self.test_decoding_error else STR("with Error")}',output)
                 self.store_text_dialog_fields(self.text_dialog_on_scan)
 
     def cde_up(self,e):
@@ -4531,7 +4550,7 @@ class Gui:
     def access_filestructure(self,record):
         self.hide_tooltip()
         self.popup_unpost()
-        self.status('loading filestructure ...')
+        self.status(STR('loading filestructure ...'))
         self.main.update()
         record.decompress_filestructure()
 
@@ -4540,7 +4559,7 @@ class Gui:
     def access_customdata(self,record):
         self.hide_tooltip()
         self.popup_unpost()
-        self.status('loading Custom Data ...')
+        self.status(STR('loading Custom Data ...'))
         self.main.update()
         record.decompress_filestructure()
         record.decompress_customdata()
@@ -4744,7 +4763,7 @@ class Gui:
             sum_size+=record_temp.header.sum_size
             quant_files+=record_temp.header.quant_files
 
-        self.widget_tooltip(self.status_records_all,f'Records in repository : {records_len}\nSum data size         : {bytes_to_str(sum_size)}\nSum files quantity    : {fnumber(quant_files)}\n\nClick to unload (free memory) data of selected record\nDouble click to unload data of all records.')
+        self.widget_tooltip(self.status_records_all,STR('Records in repository  ') + f': {records_len}\n' + STR('Sum data size         ') + f': {bytes_to_str(sum_size)}\n' + STR('Sum files quantity    ') + f': {fnumber(quant_files)}\n\n' + STR('Click to unload (free memory) data of selected record\nDouble click to unload data of all records.'))
 
         self.main_update()
 
@@ -4837,7 +4856,7 @@ class Gui:
 
                                     shell_info = (STR('No'),STR('Yes'))[shell]
                                     timeout_info = f'\ntimeout:{timeout}' if timeout else ''
-                                    self.get_text_info_dialog().show(f'Custom Data of: {file_path}',cd_txt,uplabel_text=f"{command_info}\n\nshell:{shell_info}{timeout_info}\nreturncode:{returncode}\nsize:{bytes_to_str(asizeof(cd_txt))}")
+                                    self.get_text_info_dialog().show(STR('Custom Data of') + f': {file_path}',cd_txt,uplabel_text=f"{command_info}\n\nshell:{shell_info}{timeout_info}\nreturncode:{returncode}\nsize:{bytes_to_str(asizeof(cd_txt))}")
                                     self.store_text_dialog_fields(self.text_info_dialog)
                                     return
 

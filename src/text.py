@@ -30,8 +30,12 @@ from locale import getlocale
 
 class LANGUAGES:
     lang_id='en'
+    langs_list=('Polski','English')
+    lang_dict={'Polski':'pl','English':'en'}
 
     STR_DICT={
+        'Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.':{
+                "pl":"Tłumaczenia wykonane są przy użyciu AI.\nJeśli konieczne są jakiekolwiek poprawki, prosimy o kontakt z autorem."},
         "File":{
                 "pl":"Plik"},
         "Help":{
@@ -90,6 +94,12 @@ class LANGUAGES:
                 "pl":'Pokaż Dane Użytkownika ...'},
         'Copy full path':{
                 "pl":'Kopiuj pełną ścieżkę'},
+        'loading filestructure ...':{
+                "pl":'ładowanie struktury plików ...'},
+        'loading Custom Data ...':{
+                "pl":'ładowanie Danych Użytkownika ...'},
+        'Custom Data of':{
+                "pl":'Dane Użytkownika pliku'},
         'Find next':{
                 "pl":'Znajdź następny'},
         'Find prev':{
@@ -265,10 +275,28 @@ class LANGUAGES:
                 "pl":'Poszukiwanie w:'},
         'No files in records.':{
                 "pl":'Brak plików w rekordach'},
-        'Glob expression on path element:':{
+        'Glob expression on path element':{
                 "pl":'Wyrażenie glob na elementach ścieżki'},
         'for path element':{
                 "pl":'dla elementu ścieżki'},
+        'Found Files':{
+                "pl":'Znaleziono plików'},
+        'regular expression error':{
+                "pl":'błąd wyrażenia regularnego'},
+        'min size value error':{
+                "pl":'błąd wartości wielkość min'},
+        'max size value error':{
+                "pl":'błąd wartości wielkość max'},
+        'Max modtime':{
+                "pl":'Maksymalny czas modyfikacji'},
+        'Min modtime':{
+                "pl":'Minimalny czas modyfikacji'},
+        'Max size':{
+                "pl":'Maksymalna wielkość'},
+        'Min size':{
+                "pl":'Minimalna wielkość'},
+        'Search progress':{
+                "pl":'Postęp wyszukiwania'},
         'fuzzy threshold error':{
                 "pl":'błąd wartości progu dopasowania rozmytego'},
         'Select Next':{
@@ -337,24 +365,78 @@ class LANGUAGES:
                 "pl":'Przeszukaj rekordy'},
         'Search range':{
                 "pl":'Zakres Przeszukiwania'},
-        ' Search:':{
-                "pl":' Szukaj:'},
+        'Search':{
+                "pl":'Szukaj'},
+        'Copy':{
+                "pl":'Kopiuj'},
+        'index of the selected search result / search results total':{
+                "pl":'indeks wybranego wyniku wyszukiwania / całkowita liczba wyników wyszukiwania'},
+        'Click to show full record info':{
+                "pl":'Kliknij by pokazać informacje o rekordzie'},
+        'Double click to show full record info':{
+                "pl":"Kliknij dwukrotnie, aby wyświetlić pełne informacje o rekordzie"},
         'Selected record / group':{
                 "pl":'Wybrany rekord / grupa'},
+        'Custom Data Extraction ended with error':{
+                "pl":"Ekstrakcja Danych Użytkownika zakończona błędem"},
+        'Double click to show Custom Data':{
+                "pl":"Kliknij dwukrotnie, aby wyświetlić Dane Użytkownika"},
         'Case sensitive':{
                 "pl":'Uwzględnij wielkość znaków'},
+        'Custom Data Extraction was aborted':{
+                "pl":"Ekstrakcja Danych Użytkownika została przerwana"},
+        'Custom Data is empty':{
+                "pl":"Dane Użytkownika są puste"},
+        'Binding (another device)':{
+                "pl":"Dowiązanie (inne urządzenie)"},
         'Threshold:':{
                 "pl":'Próg:'},
+        'scan path':{
+                "pl":'ścieżka skanowania'},
+        'subpath':{
+                "pl":'podścieżka'},
+        'Symlink':{
+                "pl":'Dopwiązanie Symboliczny'},
+        'group':{
+                "pl":'grupa'},
+        'Rename group':{
+                "pl":'Zmień nazwę grupy'},
+        "Group":{
+                "pl":'Grupa'},
+        'Rename failed.':{
+                "pl":'Zmiana nazwy nie powiodła się.'},
+        "rename":{
+                "pl":'nowa nazwa'},
+        'Repacking failed':{
+                "pl":'Przepakowaniwe nie powiodło się'},
+        'Repacking finished.':{
+                "pl":'Przepakowaniwe zakończone.'},
+        'Check repacked record\nDelete original record manually if you want.':{
+                "pl":'Sprawdź ponownie spakowany rekord\nJeśli chcesz, usuń ręcznie oryginalny rekord.'},
         "Regular expression":{
                 "pl":'Wyrażenie regularne'},
+        'Choose "Where Is It?" Report xml files to import':{
+                "pl":'Wybierz raport z "Where Is It?" do importowania'},
         'Custom Data':{
-                "pl":'Dane użytkownika'},
+                "pl":'Dane Użytkownika'},
+        'Parsing WII files ... ':{
+                "pl":'Parsowanie pliku WII'},
+        'Parsing file(s)':{
+                "pl":'Parsowanie pliku/plików'},
+        'Click to unload (free memory) data of selected record\nDouble click to unload data of all records.':{
+                "pl":'Kliknij, aby odładować (zwolnić pamięć) dane wybranego rekordu\nKliknij dwukrotnie, aby odładować dane wszystkich rekordów.'},
         "No Custom Data":{
-                "pl":'Brak danych użytkownika'},
+                "pl":'Brak Danych Użytkownika'},
+        'Sum files quantity    ':{
+                "pl":'Sumaryczna ilość plików    '},
+        'Sum data size         ':{
+                "pl":'Sumaryczna ilość danych    '},
+        'Records in repository  ':{
+                "pl":'Rekordów w repozytorium    '},
         'Files without Custom Data':{
-                "pl":'Pliki bez danych użytkownika'},
+                "pl":'Pliki bez Danych Użytkownika'},
         "Any correct Custom Data":{
-                "pl":'Jakiekolwiek poprawne dane użytkownika'},
+                "pl":'Jakiekolwiek poprawne dane Użytkownika'},
         'Files with any correct Custom Data':{
                 "pl":'Pliki z jakimikolwiek poprawnymi Danymi Użytkownika'},
         "Error on CD extraction":{
@@ -462,6 +544,10 @@ class LANGUAGES:
                 "pl":'Pliki XML'},
         "Dat Files":{
                 "pl":'Pliki Dat'},
+        'CDE Test finished':{
+                "pl":'EDU Test zakończony'},
+        "with Error":{
+                "pl":'błędem'},
         'Test Custom Data Extractor on selected file ?':{
                 "pl":'Przetestować Ekstraktor Danych Użytkownika na wybranym pliku ?'},
         'Testing selected Custom Data Extractor':{
@@ -472,6 +558,8 @@ class LANGUAGES:
                 "pl":'Skopiowana do schowka:'},
         'Checked on the file or folder name.':{
                 "pl":'Sprawdzane na nazwie pliku lub folderu.'},
+        'Checked on the entire Custom Data of a file.':{
+                "pl":'Sprawdzane na Danych Użytkownika pliku.'},
         'No':{
                 "pl":'Nie'},
         'Yes':{
@@ -482,8 +570,18 @@ class LANGUAGES:
                 "pl":'Brak Danych Użytkownika'},
         'Language Changed':{
                 "pl":'Język został zmieniony'},
-        'Restart required.':{
-                "pl":'Wymagany restart aplikacji.'},
+        'Regular expression on Custom Data':{
+                "pl":"Wyrażenie regularne na Danych Użytkownika"},
+        'Regular expression on path element':{
+                "pl":"Wyrażenie regularne na elemencie ścieżki"},
+        'Glob expression on Custom Data':{
+                "pl":"Wyrażenie 'glob' na Danych Użytkownika"},
+        'Fuzzy match on Custom Data':{
+                "pl":"Dopasowanie rozmyte na Danych Użytkownika"},
+        'Fuzzy match on path element':{
+                "pl":"Dopasowanie rozmyte na elemencie ścieżki"},
+        'Application restart required\nfor changes to take effect':{
+                "pl":'Aby zmiany zostały wprowadzone\nwymagane jest ponowne uruchomienie aplikacji.'},
         'Language:':{
                 "pl":'Język:'},
         'Records':{
@@ -492,8 +590,18 @@ class LANGUAGES:
                 "pl":'Alias nazwy rekordu'},
         'Cancel':{
                 "pl":'Anuluj'},
+        'Searching aborted. Resuls may be incomplete.':{
+                "pl":'Przeszukiwanie przerwane. Wyniki mogą być niekompletne.'},
+        'Search results':{
+                "pl":'Wyniki wyszukiwania'},
         "Label:":{
                 "pl":'Nazwa:'},
+        "found":{
+                "pl":'Znaleziono'},
+        'items':{
+                "pl":'obiektów'},
+        "Navigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions.":{
+                "pl":"Przeglądaj wyniki wyszukiwania za pomocą akcji\n\'Znajdź następny (F3)\' i 'Znajdź poprzedni (Shift+F3)'."},
         'New alias name for record':{
                 "pl":'Nowy Alias:'},
         'Include hidden files/folders in scan.':{
@@ -501,22 +609,34 @@ class LANGUAGES:
     }
 
     def __init__(self):
-        try:
-            lang = getlocale()[0].split('_')[0]
-            print(f'setting lang:{lang}')
-        except:
-            pass
+        #try:
+        #    lang = getlocale()[0].split('_')[0]
+        #    print(f'setting lang:{lang}')
+        #except:
+        #    pass
+
+        self.debug_dump()
 
     def set(self,lang_id):
         self.lang_id=lang_id
 
-    def STR(self,str_par):
+    def STR(self,str_par,new_lang=None):
         try:
-            return self.STR_DICT[str_par][self.lang_id]
+            return self.STR_DICT[str_par][self.lang_dict[new_lang if new_lang else self.lang_id]]
         except:
             try:
                 return self.STR_DICT[str_par]["en"]
             except:
                 return str_par
 
-
+    def debug_dump(self):
+        return
+        with open('./dict_debug.py', "w") as f:
+            f.write("{\n")
+            for key in sorted(self.STR_DICT):
+                f.write(f"    {repr(key)}:\n")
+                sub_dict=self.STR_DICT[key]
+                for subkey in sorted(sub_dict):
+                    f.write(f"        {repr(subkey)}:\n")
+                    f.write(f"            {repr(sub_dict[subkey])},\n")
+            f.write("}")
