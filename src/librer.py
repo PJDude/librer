@@ -1432,7 +1432,7 @@ class Gui:
 
         self.widget_tooltip(dialog.find_prev_butt,STR('Select Prev') + ' (Shift+F3)')
         self.widget_tooltip(dialog.find_next_butt,STR('Select Next') + ' (F3)')
-        self.widget_tooltip(dialog.find_cs,STR('Case Sensitive'))
+        self.widget_tooltip(dialog.find_cs,STR('Case sensitive'))
         self.widget_tooltip(dialog.find_info_lab,STR('index of the selected search result / search results total'))
 
         #dialog.find_cs_var.set(not windows)
@@ -1717,7 +1717,7 @@ class Gui:
 
             self.wii_import_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
-            self.wii_import_separate_cb = Checkbutton(wii_import_frame,text=STR(' Separate record per each disk (not recommended)'),variable=self.wii_import_separate,command = self.wii_import_dialog_name_state)
+            self.wii_import_separate_cb = Checkbutton(wii_import_frame,text=' ' + STR('Separate record per each disk (not recommended)'),variable=self.wii_import_separate,command = self.wii_import_dialog_name_state)
             self.wii_import_separate_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4,columnspan=2)
 
             Label(wii_import_frame,text=STR('Common record label:'),bg=self.bg_color,anchor='w').grid(row=1, column=0, sticky='wens',padx=4,pady=4)
@@ -1777,7 +1777,7 @@ class Gui:
             Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=2, column=0, sticky='wens',padx=8,pady=4)
 
             self.lang_var = StringVar()
-            self.lang_cb = Combobox(lang_frame,values=langs.langs_list,textvariable=self.lang_var,state='readonly',width=16)
+            self.lang_cb = Combobox(lang_frame,values=list(langs.lang_dict.keys()),textvariable=self.lang_var,state='readonly',width=16)
             self.lang_cb.grid(row=2, column=1, sticky='news',padx=4,pady=4)
             lang_frame.grid_columnconfigure( 2, weight=1)
 
@@ -3282,7 +3282,7 @@ class Gui:
 
             self.any_valid_find_results=bool(find_results_quant_sum>0)
 
-            abort_info = '\n' + STR('Searching aborted. Resuls may be incomplete.') if self.action_abort else ''
+            abort_info = '\n' + STR('Searching aborted. Results may be incomplete.') if self.action_abort else ''
 
             self.all_records_find_results_len = find_results_quant_sum
             find_results_quant_sum_format = fnumber(find_results_quant_sum)
