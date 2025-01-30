@@ -74,6 +74,8 @@ l_error = logging.error
 
 ###########################################################################################################################################
 
+CFG_THEME='theme'
+
 CFG_KEY_CDE_SETTINGS = 'cde_settings'
 CFG_KEY_SINGLE_DEVICE = 'single_device'
 
@@ -106,7 +108,7 @@ CFG_KEY_cd_fuzzy_threshold = 'cd_fuzzy_threshold'
 CFG_KEY_SEARCH_TXT_STRING = 'search_txt_string'
 CFG_KEY_SEARCH_TXT_CS = 'search_txt_cs'
 
-CFG_lang = 'lang'
+CFG_LANG = 'lang'
 
 CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
@@ -116,6 +118,7 @@ CFG_KEY_groups_collapse = 'groups_collapse'
 CFG_KEY_include_hidden = 'include_hidden'
 
 cfg_defaults={
+    CFG_THEME:'Vista' if windows else 'Clam',
     CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_CDE_SETTINGS:[],
 
@@ -144,7 +147,7 @@ cfg_defaults={
 
     CFG_KEY_SEARCH_TXT_STRING:'',
     CFG_KEY_SEARCH_TXT_CS:False,
-    CFG_lang:'English',
+    CFG_LANG:'English',
 
     CFG_last_dir:'.',
     CFG_geometry:'',
@@ -350,7 +353,7 @@ class Gui:
         self.cfg = Config(DATA_DIR)
         self.cfg.read()
         self.cfg_get=self.cfg.get
-        langs.set( self.cfg_get(CFG_lang) )
+        langs.set( self.cfg_get(CFG_LANG) )
 
         self.cwd=cwd
 
@@ -491,11 +494,59 @@ class Gui:
         self.tooltip_lab_configure = self.tooltip_lab.configure
 
         ####################################################################
+        themes_names= ['Clam', 'Alt']
+        if windows:
+            themes_names = ['Vista','Winnative'] + themes_names
+
+        #print('themes_names:',themes_names)
+        self.themes_combos={}
+
+        for name in themes_names:
+            for darkness,darknesscode in (('',0),('Dark',1)):
+                full_name = name + ((' ' + darkness) if darknesscode else '')
+                self.themes_combos[full_name]=name.lower(),darknesscode
+
+        #print('themes_combos:',self.themes_combos)
+
+        self.default_theme='vista' if windows else 'clam'
+
+        theme_name,black_theme=self.themes_combos.get(self.cfg_get(CFG_THEME),(self.default_theme,0))
+
+        if black_theme:
+            #bg_sel='gray30'
+            bg_focus='dark green'
+            #bg_focus_off='gray30'
+            self.bg_content='black'
+            self.fg_content='white'
+            self.col_found='tomato'
+            self.col_record='light cyan'
+            self.col_record_raw='gray'
+        else:
+            #bg_sel='#AAAAAA'
+            #bg_focus='#90DD90'
+            bg_focus='pale green'
+            #bg_focus_off='#90AA90'
+            self.bg_content='white'
+            self.fg_content='black'
+            self.col_found='red'
+            self.col_record='green4'
+            self.col_record_raw='gray'
+
         style = Style()
 
-        style.theme_create("dummy", parent='vista' if windows else 'clam' )
+        try:
+            style.theme_create("dummy", parent=theme_name )
+        except Exception as e:
+            print("cannot set theme - setting default")
+            print(e)
+
+            self.cfg.set(CFG_THEME,self.default_theme)
+
+            sys_exit(1)
 
         self.bg_color = style.lookup('TFrame', 'background')
+
+
 
         style.theme_use("dummy")
 
@@ -519,16 +570,19 @@ class Gui:
 
         style_map("Treeview.Heading", relief=[('','raised')] )
         style_configure("Treeview",rowheight=18)
+        style_configure("Treeview", fieldbackground=self.bg_content,background = self.bg_color,borderwidth=0,foreground=self.fg_content)
 
         style_configure("TScale", background=self.bg_color)
         style_configure('TScale.slider', background=self.bg_color)
         style_configure('TScale.Horizontal.TScale', background=self.bg_color)
 
-        bg_focus='#90DD90'
-        bg_focus_off='#90AA90'
+        #bg_focus='#90DD90'
+        #bg_focus_off='#90AA90'
         #bg_sel='#AAAAAA'
 
-        style_map('Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
+        style_map('Treeview', background=[('focus',bg_focus),('',self.bg_content)] )
+        #,('selected',bg_sel)
+        #style_map('Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
 
         if windows:
             #fix border problem ...
@@ -626,10 +680,10 @@ class Gui:
 
         tree_tag_configure = tree.tag_configure
 
-        tree_tag_configure(self.RECORD_RAW, foreground='gray')
-        tree_tag_configure(self.RECORD, foreground='green')
+        tree_tag_configure(self.RECORD_RAW, foreground=self.col_record_raw)
+        tree_tag_configure(self.RECORD, foreground=self.col_record)
         tree_tag_configure(self.SYMLINK, foreground='gray')
-        tree_tag_configure(self.FOUND, foreground='red')
+        tree_tag_configure(self.FOUND, foreground=self.col_found)
 
         self.biggest_file_of_path={}
         self.biggest_file_of_path_id={}
@@ -1077,7 +1131,6 @@ class Gui:
 
         return self.text_info_dialog
 
-
     simple_question_dialog_created = False
     @restore_status_line
     @block
@@ -1088,6 +1141,7 @@ class Gui:
             self.simple_question_dialog = LabelDialogQuestion(self.main,(self.ico_record_delete,self.ico_record_delete),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
 
             self.simple_question_dialog.label.configure(justify='left')
+            self.simple_question_dialog.cancel_button.configure(text=STR('Cancel'),compound='left')
             try:
                 self.simple_question_dialog.label.configure(font=('Courier', 10))
             except:
@@ -1414,6 +1468,9 @@ class Gui:
         dialog.find_lab.configure(image=self.ico_search_text,text=' ' + STR('Search') + ':',compound='left',bg=self.bg_color)
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
+
+        dialog.text.configure(bg=self.bg_content,fg=self.fg_content)
+        dialog.text.configure(bg=self.bg_content,fg=self.fg_content)
 
         self.widget_tooltip(dialog.find_prev_butt,STR('Select Prev') + ' (Shift+F3)')
         self.widget_tooltip(dialog.find_next_butt,STR('Select Next') + ' (F3)')
@@ -1754,61 +1811,103 @@ class Gui:
 
             self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Settings'),pre_show=self.pre_show,post_close=self.post_close)
 
+            self.theme = StringVar()
+
+
             sfdma = self.settings_dialog.area_main
 
             lang_frame = Frame(sfdma)
             lang_frame.grid(row=0, column=0, sticky='news',padx=4,pady=4)
 
-            Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=2, column=0, sticky='wens',padx=8,pady=4)
+            Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=0, column=0, sticky='wens',padx=8,pady=4)
 
             self.lang_var = StringVar()
             self.lang_cb = Combobox(lang_frame,values=list(langs.lang_dict.keys()),textvariable=self.lang_var,state='readonly',width=16)
-            self.lang_cb.grid(row=2, column=1, sticky='news',padx=4,pady=4)
+            self.lang_cb.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+
+            Label(lang_frame,text=STR('Theme') + ':',anchor='w').grid(row=0, column=3, sticky='wens',padx=8,pady=4)
+            self.theme_var = StringVar()
+
+            self.theme_cb = Combobox(lang_frame,values=list(self.themes_combos.keys()),textvariable=self.theme_var,state='readonly',width=16)
+            self.theme_cb.grid(row=0, column=4, sticky='news',padx=4,pady=4)
+
             lang_frame.grid_columnconfigure( 2, weight=1)
 
-            self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
+            #self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
 
             self.show_popups_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text=' ' + STR('Show tooltips'),variable=self.show_popups_var,command=self.popups_show_mod)
+            self.popups_cb = Checkbutton(sfdma,text=' ' + STR('Show tooltips'),variable=self.show_popups_var)
             self.popups_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
 
             self.groups_collapsed_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text=' ' + STR('Groups collapsed at startup'),variable=self.groups_collapsed_var,command=self.groups_collapse_mod)
+            self.popups_cb = Checkbutton(sfdma,text=' ' + STR('Groups collapsed at startup'),variable=self.groups_collapsed_var)
             self.popups_cb.grid(row=2, column=0, sticky='news',padx=4,pady=4)
 
             self.scan_hidden_var = BooleanVar()
-            self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files/folders in scan.'),variable=self.scan_hidden_var,command=self.scan_hidden_var_mod)
+            self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files/folders in scan.'),variable=self.scan_hidden_var)
             self.scan_hidden_cb.grid(row=3, column=0, sticky='news',padx=4,pady=4)
 
             sfdma.grid_columnconfigure( 0, weight=1)
+            sfdma.grid_rowconfigure( 4, weight=1)
 
-            Button(self.settings_dialog.area_buttons, text=STR('Close'), width=14, command=self.settings_close ).pack(side='right', anchor='n',padx=5,pady=5)
+            bfr=Frame(self.settings_dialog.area_main,bg=self.bg_color)
+
+            bfr.grid(row=5,column=0)
+
+            Button(bfr, text=STR('Set defaults'),width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5,fill='both')
+            self.cancel_button=Button(bfr, text=STR('Cancel'), width=14 ,command=self.settings_dialog.hide )
+            self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
 
             self.settings_dialog_created = True
+
+            self.settings = [
+                (self.show_popups_var,CFG_KEY_show_popups),
+                (self.groups_collapsed_var,CFG_KEY_groups_collapse),
+                (self.scan_hidden_var,CFG_KEY_include_hidden)
+            ]
+
+            self.settings_str = [
+                (self.theme,CFG_THEME)
+            ]
 
         self.show_popups_var.set(self.cfg.get(CFG_KEY_show_popups))
         self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
         self.scan_hidden_var.set(self.cfg.get(CFG_KEY_include_hidden))
-        self.lang_var.set(self.cfg_get(CFG_lang))
+        self.lang_var.set(self.cfg_get(CFG_LANG))
+        self.theme_var.set(self.cfg_get(CFG_THEME))
 
         return self.settings_dialog
 
-    def lang_change(self,event):
-        new_val=self.lang_var.get()
-        self.cfg.set(CFG_lang,new_val)
-        #self.get_info_dialog_on_main().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
-        self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
+    def settings_reset(self):
+        _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
+        _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
-    def popups_show_mod(self):
-        self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
+    def settings_ok(self):
+        need_restart=False
 
-    def groups_collapse_mod(self):
-        self.cfg.set(CFG_KEY_groups_collapse,self.groups_collapsed_var.get())
+        if self.cfg_get(CFG_LANG)!=self.lang_var.get():
+            new_val = self.lang_var.get()
+            self.cfg.set(CFG_LANG,new_val)
+            self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
 
-    def scan_hidden_var_mod(self):
-        self.cfg.set(CFG_KEY_include_hidden,self.scan_hidden_var.get())
+            need_restart=True
 
-    def settings_close(self):
+        if self.cfg_get(CFG_THEME)!=self.theme_var.get():
+            self.cfg.set(CFG_THEME,self.theme_var.get())
+
+            if not need_restart:
+                self.get_info_dialog_on_settings().show(STR('Theme Changed'),STR('Application restart required\nfor changes to take effect'))
+
+        if self.cfg.get(CFG_KEY_show_popups)!=self.show_popups_var.get():
+            self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
+
+        if self.cfg.get(CFG_KEY_groups_collapse)!=self.groups_collapsed_var.get():
+            self.cfg.set(CFG_KEY_groups_collapse,self.groups_collapsed_var.get())
+
+        if self.cfg.get(CFG_KEY_include_hidden)!=self.scan_hidden_var.get():
+            self.cfg.set(CFG_KEY_include_hidden,self.scan_hidden_var.get())
+
         self.settings_dialog.hide()
 
     find_dialog_created = False
@@ -2727,7 +2826,7 @@ class Gui:
             if self_FOUND in tags:
                 tags = set(tags)
                 tags.remove(self_FOUND)
-                self_tree_item(item,tags=tags)
+                self_tree_item(item,tags=list(tags))
 
             _ = {nodes_set_add(child) for child in self_tree_get_children(item)}
 
@@ -4637,9 +4736,7 @@ class Gui:
                         if is_symlink or is_bind:
                             tags=self_SYMLINK
                         else:
-                            tags=''
-                            if self.any_valid_find_results and entry_subpath_tuple in record_find_results_tuples_set:
-                                tags=self_FOUND
+                            tags=self_FOUND if self.any_valid_find_results and entry_subpath_tuple in record_find_results_tuples_set else ''
 
                         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
                         values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(mtime)),kind)

@@ -2222,6 +2222,30 @@ class LANGUAGES:
             'de': 'Fuzzy-Matching auf Pfadelement',
             'it': 'Matching fuzzy su elemento del percorso',
             'fr': 'Correspondance floue sur l\'élément du chemin'
+        },
+        'Theme': {
+            'pl': 'Motyw',
+            'es': 'Tema',
+            'ru': 'Тема',
+            'de': 'Thema',
+            'it': 'Tema',
+            'fr': 'Thème',
+        },
+                'Theme Changed': {
+            'pl': 'Motyw został zmieniony',
+            'es': 'El tema ha cambiado',
+            'ru': 'Тема изменена',
+            'de': 'Farbschema geändert',
+            'it': 'Il tema è stato cambiato',
+            'fr': 'Le thème a été modifié',
+        },
+                'Set defaults': {
+            'pl': 'Ustaw domyślne',
+            'es': 'Establecer valores predeterminados',
+            'ru': 'Установить настройки по умолчанию',
+            'de': 'Standardwerte festlegen',
+            'it': 'Imposta predefiniti',
+            'fr': 'Définir les valeurs par défaut',
         }
     }
 
