@@ -831,7 +831,6 @@ class LibrerRecord:
 
                 customdata_stats_refs[rule_nr]+=1
 
-
         print_func( ('info','Custom data post-processing finished.'),True)
 
         for thread_index in range(threads):
