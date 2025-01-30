@@ -1283,7 +1283,7 @@ class LibrerRecord:
                         info_list.append(f'rule nr {str(nr).rjust(2)}      |                        {bytes_to_str(self_header.cde_stats_size[nr]).rjust(12)}{fnumber(self_header.cde_stats_uniq[nr]).rjust(12)}{fnumber(self_header.cde_stats_refs[nr]).rjust(12)}{str(round(self_header.cde_stats_time[nr],2)).rjust(11)}s{"".rjust(12)}{fnumber(self_header.files_cde_errors_quant[nr]).rjust(12)}')
                     info_list.append('----------------+------------------------------------------------------------------------------------------------')
             except Exception as EE:
-                print(str(EE))
+                print('record:',file_name,' error:',str(EE))
 
             try:
                 if self_header.cde_list:
@@ -1306,7 +1306,7 @@ class LibrerRecord:
                         if timeout:
                             info_list.append(f'timeout    : {timeout}s')
             except Exception as EE:
-                print(str(EE))
+                print('record:',file_name,' error:',str(EE))
 
             loaded_fs_info = 'filesystem  - ' + ('loaded' if self.decompressed_filestructure else 'not loaded yet')
             loaded_cd_info = 'custom data - ' + ('not present' if not bool(cd_data[0]) else 'loaded' if self.decompressed_customdata else 'not loaded yet')
@@ -1362,7 +1362,7 @@ class LibrerRecord:
                 info_list.append('========================================')
                 info_list.extend(sublist_size)
             except Exception as se:
-                print(str(se))
+                print('record:',file_name,' error:',str(se))
 
         self.txtinfo = '\n'.join(info_list)
 

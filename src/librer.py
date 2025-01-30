@@ -34,7 +34,7 @@ from pathlib import Path
 from time import strftime,time,mktime
 from signal import signal,SIGINT
 
-from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
+from tkinter import Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style,Combobox
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
 
@@ -363,7 +363,6 @@ class Gui:
 
         self.main_locked_by_child=None
         ####################################################################
-        #self_main = self.main = Tk()
         self_main = self.main = TkinterDnD.Tk()
 
         self_main.drop_target_register(DND_FILES)
@@ -506,26 +505,19 @@ class Gui:
                 full_name = name + ((' ' + darkness) if darknesscode else '')
                 self.themes_combos[full_name]=name.lower(),darknesscode
 
-        #print('themes_combos:',self.themes_combos)
-
         self.default_theme='vista' if windows else 'clam'
 
         theme_name,black_theme=self.themes_combos.get(self.cfg_get(CFG_THEME),(self.default_theme,0))
 
         if black_theme:
-            #bg_sel='gray30'
             bg_focus='dark green'
-            #bg_focus_off='gray30'
             self.bg_content='black'
             self.fg_content='white'
             self.col_found='tomato'
             self.col_record='light cyan'
             self.col_record_raw='gray'
         else:
-            #bg_sel='#AAAAAA'
-            #bg_focus='#90DD90'
             bg_focus='pale green'
-            #bg_focus_off='#90AA90'
             self.bg_content='white'
             self.fg_content='black'
             self.col_found='red'
@@ -545,8 +537,6 @@ class Gui:
             sys_exit(1)
 
         self.bg_color = style.lookup('TFrame', 'background')
-
-
 
         style.theme_use("dummy")
 
@@ -576,25 +566,27 @@ class Gui:
         style_configure('TScale.slider', background=self.bg_color)
         style_configure('TScale.Horizontal.TScale', background=self.bg_color)
 
-        #bg_focus='#90DD90'
-        #bg_focus_off='#90AA90'
-        #bg_sel='#AAAAAA'
-
         style_map('Treeview', background=[('focus',bg_focus),('',self.bg_content)] )
-        #,('selected',bg_sel)
-        #style_map('Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
 
         if windows:
             #fix border problem ...
             style_configure("TCombobox",padding=1)
 
-        #style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
+        style.element_create("Treeheading.border", "from", "default")
+        style.layout("Treeview.Heading", [
+            ("Treeheading.cell", {'sticky': 'nswe'}),
+            ("Treeheading.border", {'sticky':'nswe', 'children': [
+                ("Treeheading.padding", {'sticky':'nswe', 'children': [
+                    ("Treeheading.image", {'side':'right', 'sticky':''}),
+                    ("Treeheading.text", {'sticky':'we'})
+                ]})
+            ]}),
+        ])
 
-        #style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
-        #style_map('no_focus.Treeview', background=[('focus',bg_sel),('selected',bg_sel),('','white')])
+        style_configure("Treeview.Heading",background=self.bg_color, foreground="black", relief="groove")
+        style_map("Treeview.Heading",relief=[('active','raised'),('pressed','sunken')])
 
-        #works but not for every theme
-        #style_configure("Treeview", fieldbackground=self.bg_color)
+        style_configure("Treeview",background=self.bg_color, relief="flat",borderwidth=0)
 
         #######################################################################
         menubar = self.menubar = Menu(self_main,bg=self.bg_color)
@@ -646,7 +638,7 @@ class Gui:
         self.tree_set = tree.set
         self.tree_see = tree.see
         self.tree_get_children = self.tree.get_children
-        self.tree_focus = lambda item : self.tree.focus(item)
+        self.tree_focus = self.tree.focus
 
         self_org_label = self.org_label = {}
 
@@ -758,7 +750,6 @@ class Gui:
 
         self_REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX={}
 
-        #tree["displaycolumns"]
         for disply_column in self.real_display_columns:
             self_REAL_SORT_COLUMN_INDEX[disply_column] = tree["columns"].index(self_REAL_SORT_COLUMN[disply_column])
 
@@ -1477,8 +1468,6 @@ class Gui:
         self.widget_tooltip(dialog.find_cs,STR('Case sensitive'))
         self.widget_tooltip(dialog.find_info_lab,STR('index of the selected search result / search results total'))
 
-        #dialog.find_cs_var.set(not windows)
-
         dialog.find_var.set( self.cfg_get(CFG_KEY_SEARCH_TXT_STRING) )
         dialog.find_cs_var.set( self.cfg_get(CFG_KEY_SEARCH_TXT_CS) )
 
@@ -1602,20 +1591,6 @@ class Gui:
 
         return self.ask_dialog_on_scan
 
-    #text_ask_dialog_on_main_created = False
-    #@restore_status_line
-    #@block
-    #def get_text_ask_dialog_on_main(self):
-    #    if not self.text_ask_dialog_on_main_created:
-    #        self.status(STR("Creating dialog ..."))
-
-    #        self.text_ask_dialog_on_main = TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
-    #        self.fix_text_dialog(self.text_ask_dialog_on_main)
-
-    #        self.text_ask_dialog_on_main_created = True
-
-    #    return self.text_ask_dialog_on_main
-
     progress_dialog_on_main_created = False
     @restore_status_line
     @block
@@ -1644,7 +1619,6 @@ class Gui:
             self.progress_dialog_on_main_created = True
 
         return self.progress_dialog_on_main
-
 
     progress_dialog_on_find_created = False
     @restore_status_line
@@ -1703,10 +1677,8 @@ class Gui:
             self.repack_dialog.area_main.grid_rowconfigure( 2, weight=1)
 
             self.repack_cd_cb = Checkbutton(repack_frame,text=STR("Keep 'Custom Data'"),variable=self.repack_cd_var)
-            #self.repack_crc_cb = Checkbutton(repack_frame,text='Include CRC values',variable=self.repack_crc_var)
 
             self.repack_cd_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4)
-            #self.repack_crc_cb.grid(row=1, column=0, sticky='wens',padx=4,pady=4)
 
             repack_frame.grid_columnconfigure( 0, weight=1)
 
@@ -1854,9 +1826,9 @@ class Gui:
 
             bfr.grid(row=5,column=0)
 
-            Button(bfr, text=STR('Set defaults'),width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
-            Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5,fill='both')
-            self.cancel_button=Button(bfr, text=STR('Cancel'), width=14 ,command=self.settings_dialog.hide )
+            Button(bfr, text=STR('Set defaults'),width=16, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(bfr, text='OK', width=16, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5,fill='both')
+            self.cancel_button=Button(bfr, text=STR('Cancel'), width=16 ,command=self.settings_dialog.hide )
             self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
 
             self.settings_dialog_created = True
@@ -2477,7 +2449,6 @@ class Gui:
                             self.find_clear()
                             self.column_sort(self.tree)
                             self.status('Where Is It? Import completed successfully.')
-
 
     #@restore_status_line
     @block
@@ -4215,7 +4186,7 @@ class Gui:
                             self_progress_dialog_on_scan.abort_single_button.pack(side='left', anchor='center',padx=5,pady=5)
 
                             if threads==1:
-                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text=STR('Abort single file'),compound='left',width=15,command=lambda : self.abort_single(),state='normal')
+                                self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text=STR('Abort single file'),compound='left',width=15,command=self.abort_single,state='normal')
                             else:
                                 self_progress_dialog_on_scan.abort_single_button.configure(image=self.ico_abort,text=STR('Abort single file'),compound='left',width=15,state='disabled')
 

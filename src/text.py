@@ -2239,7 +2239,7 @@ class LANGUAGES:
             'it': 'Il tema è stato cambiato',
             'fr': 'Le thème a été modifié',
         },
-                'Set defaults': {
+        'Set defaults': {
             'pl': 'Ustaw domyślne',
             'es': 'Establecer valores predeterminados',
             'ru': 'Установить настройки по умолчанию',
