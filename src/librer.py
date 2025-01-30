@@ -514,8 +514,8 @@ class Gui:
             self.bg_content='black'
             self.fg_content='white'
             self.col_found='tomato'
-            self.col_record='light cyan'
-            self.col_record_raw='gray'
+            self.col_record='azure'
+            self.col_record_raw='ghost white'
         else:
             bg_focus='pale green'
             self.bg_content='white'
