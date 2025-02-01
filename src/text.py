@@ -788,13 +788,13 @@ class LANGUAGES:
             'it': "Importazione fallita",
             'fr': "Échec de l'importation",
         },
-        'Include hidden files/folders in scan.': {
-            'pl': "Uwzględniaj pliki/foldery ukryte.",
-            'es': "Incluir archivos/carpetas ocultos en el escaneo.",
-            'ru': "Включить скрытые файлы/папки в сканирование.",
-            'de': "Versteckte Dateien/Ordner in den Scan einbeziehen.",
-            'it': "Includi file/cartelle nascosti nella scansione.",
-            'fr': "Inclure les fichiers/dossiers cachés dans l'analyse.",
+        'Include hidden files / folders in scan': {
+            'pl': "Uwzględniaj pliki/foldery ukryte",
+            'es': "Incluir archivos/carpetas ocultos en el escaneo",
+            'ru': "Включить скрытые файлы/папки в сканирование",
+            'de': "Versteckte Dateien/Ordner in den Scan einbeziehen",
+            'it': "Includi file/cartelle nascosti nella scansione",
+            'fr': "Inclure les fichiers/dossiers cachés dans l'analyse",
         },
         'Information': {
             'pl': "Informacja",
@@ -2231,7 +2231,7 @@ class LANGUAGES:
             'it': 'Tema',
             'fr': 'Thème',
         },
-                'Theme Changed': {
+        'Theme Changed': {
             'pl': 'Motyw został zmieniony',
             'es': 'El tema ha cambiado',
             'ru': 'Тема изменена',
@@ -2246,6 +2246,22 @@ class LANGUAGES:
             'de': 'Standardwerte festlegen',
             'it': 'Imposta predefiniti',
             'fr': 'Définir les valeurs par défaut',
+        },
+        "Select first found item after searching": {
+            "pl": "Wybierz pierwszy znaleziony element po wyszukiwaniu",
+            "es": "Seleccionar el primer elemento encontrado después de buscar",
+            "ru": "Выбрать первый найденный элемент после поиска",
+            "de": "Ersten gefundenen Artikel nach der Suche auswählen",
+            "it": "Seleziona il primo elemento trovato dopo la ricerca",
+            "fr": "Sélectionner le premier élément trouvé après la recherche"
+        },
+        "Expand record on search results": {
+            "pl": "Rozwiń rekord w wynikach wyszukiwania",
+            "es": "Expandir registro en los resultados de búsqueda",
+            "ru": "Развернуть запись в результатах поиска",
+            "de": "Datensatz in den Suchergebnissen erweitern",
+            "it": "Espandi il record nei risultati di ricerca",
+            "fr": "Développer l'enregistrement dans les résultats de recherche"
         }
     }
 

@@ -116,6 +116,8 @@ CFG_SORTING = 'sorting'
 CFG_KEY_show_popups = 'show_popups'
 CFG_KEY_groups_collapse = 'groups_collapse'
 CFG_KEY_include_hidden = 'include_hidden'
+CFG_KEY_select_found = 'select_found'
+CFG_KEY_expand_search_results = 'expand_search_results'
 
 cfg_defaults={
     CFG_THEME:'Vista' if windows else 'Clam',
@@ -153,7 +155,9 @@ cfg_defaults={
     CFG_geometry:'',
     CFG_KEY_show_popups:True,
     CFG_KEY_groups_collapse:True,
-    CFG_KEY_include_hidden:False
+    CFG_KEY_include_hidden:False,
+    CFG_KEY_select_found:False,
+    CFG_KEY_expand_search_results:False
 }
 
 HOMEPAGE='https://github.com/PJDude/librer'
@@ -659,7 +663,7 @@ class Gui:
         tree_heading = tree.heading
         #tree_heading('#0',text='Name \u25B2',anchor='w')
         tree_heading('#0',text=STR('Name'),anchor='w')
-        tree_heading('size_h',anchor='w',text=self_org_label['size_h'])
+        tree_heading('size_h',anchor='n',text=self_org_label['size_h'])
         tree_heading('ctime_h',anchor='n',text=self_org_label['ctime_h'])
 
         tree_yview = tree.yview
@@ -1041,6 +1045,13 @@ class Gui:
         else:
             self.tree_scrollbar.set(v1,v2)
             self.tree_scrollbar.pack(side='right',fill='y',expand=0)
+
+    def results_tree_scrollbar_set(self,v1,v2):
+        if v1=='0.0' and v2=='1.0':
+            self.results_tree_scrollbar.pack_forget()
+        else:
+            self.results_tree_scrollbar.set(v1,v2)
+            self.results_tree_scrollbar.pack(side='right',fill='y',expand=0)
 
     def item_has_cd(self,item):
         has_cd=False
@@ -1785,7 +1796,6 @@ class Gui:
 
             self.theme = StringVar()
 
-
             sfdma = self.settings_dialog.area_main
 
             lang_frame = Frame(sfdma)
@@ -1816,15 +1826,23 @@ class Gui:
             self.popups_cb.grid(row=2, column=0, sticky='news',padx=4,pady=4)
 
             self.scan_hidden_var = BooleanVar()
-            self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files/folders in scan.'),variable=self.scan_hidden_var)
+            self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files / folders in scan'),variable=self.scan_hidden_var)
             self.scan_hidden_cb.grid(row=3, column=0, sticky='news',padx=4,pady=4)
 
+            self.select_found_var = BooleanVar()
+            self.select_found_cb = Checkbutton(sfdma,text=' ' + STR('Select first found item after searching'),variable=self.select_found_var)
+            self.select_found_cb.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+
+            self.expand_search_results_var = BooleanVar()
+            self.expand_search_results_cb = Checkbutton(sfdma,text=' ' + STR('Expand record on search results'),variable=self.expand_search_results_var)
+            self.expand_search_results_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+
             sfdma.grid_columnconfigure( 0, weight=1)
-            sfdma.grid_rowconfigure( 4, weight=1)
+            sfdma.grid_rowconfigure( 9, weight=1)
 
             bfr=Frame(self.settings_dialog.area_main,bg=self.bg_color)
 
-            bfr.grid(row=5,column=0)
+            bfr.grid(row=10,column=0)
 
             Button(bfr, text=STR('Set defaults'),width=16, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
             Button(bfr, text='OK', width=16, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5,fill='both')
@@ -1836,7 +1854,9 @@ class Gui:
             self.settings = [
                 (self.show_popups_var,CFG_KEY_show_popups),
                 (self.groups_collapsed_var,CFG_KEY_groups_collapse),
-                (self.scan_hidden_var,CFG_KEY_include_hidden)
+                (self.scan_hidden_var,CFG_KEY_include_hidden),
+                (self.select_found_var,CFG_KEY_select_found),
+                (self.expand_search_results_var,CFG_KEY_expand_search_results)
             ]
 
             self.settings_str = [
@@ -1846,6 +1866,8 @@ class Gui:
         self.show_popups_var.set(self.cfg.get(CFG_KEY_show_popups))
         self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
         self.scan_hidden_var.set(self.cfg.get(CFG_KEY_include_hidden))
+        self.select_found_var.set(self.cfg.get(CFG_KEY_select_found))
+        self.expand_search_results_var.set(self.cfg.get(CFG_KEY_expand_search_results))
         self.lang_var.set(self.cfg_get(CFG_LANG))
         self.theme_var.set(self.cfg_get(CFG_THEME))
 
@@ -1879,6 +1901,12 @@ class Gui:
 
         if self.cfg.get(CFG_KEY_include_hidden)!=self.scan_hidden_var.get():
             self.cfg.set(CFG_KEY_include_hidden,self.scan_hidden_var.get())
+
+        if self.cfg.get(CFG_KEY_select_found)!=self.select_found_var.get():
+            self.cfg.set(CFG_KEY_select_found,self.select_found_var.get())
+
+        if self.cfg.get(CFG_KEY_expand_search_results)!=self.expand_search_results_var.get():
+            self.cfg.set(CFG_KEY_expand_search_results,self.expand_search_results_var.get())
 
         self.settings_dialog.hide()
 
@@ -2162,19 +2190,80 @@ class Gui:
             self.info_dialog_on_find = LabelDialog(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
             self.text_dialog_on_find = TextDialogInfo(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
-            self.text_dialog_on_find.cancel_button.configure(text=STR('Cancel'),compound='left')
-            self.text_dialog_on_find.copy_button.configure(text=STR('Copy'),compound='left')
+            #self.text_dialog_on_find.cancel_button.configure(text=STR('Cancel'),compound='left')
+            #self.text_dialog_on_find.copy_button.configure(text=STR('Copy'),compound='left')
 
             self.fix_text_dialog(self.text_dialog_on_find)
 
             self.results_on_find = LabelDialogQuestion(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
 
-            self.results_on_find.cancel_button.configure(text=STR('Continue search'),width=20)
-            self.results_on_find.ok_button.configure(text=STR('Close'),width=20)
+            #self.results_on_find.cancel_button.configure(text=STR('Continue search'),width=20)
+            self.results_on_find.cancel_button.configure(text=STR('Close'),width=20)
+            #self.results_on_find.cancel_button.pack_forget()
+
+            #self.results_on_find.show_button=Button(self.find_dialog.widget,text=STR('Show results'),width=20,command=self.find_show_results_from_find)
+            #self.results_on_find.show_button.pack()
+            #self.results_on_find.ok_button.configure(text=STR('Close'),width=20)
+            self.results_on_find.ok_button.pack_forget()
 
             self.find_dialog_created = True
 
         return self.find_dialog
+
+    search_results_dialog_created = False
+    @restore_status_line
+    @block
+    def get_search_results_dialog(self):
+        if not self.search_results_dialog_created:
+            self.status(STR("Creating dialog ..."))
+
+            self.search_results_dialog=GenericDialog(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,STR('Search results'),pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False),min_width=800,min_height=600 )
+
+            treeframe=Frame(self.search_results_dialog.area_main)
+            treeframe.grid(row=0,column=0,sticky='news')
+
+            buttonsframe=Frame(self.search_results_dialog.area_main)
+            buttonsframe.grid(row=1,column=0,sticky='news')
+
+            results_tree = self.results_tree = Treeview(treeframe,takefocus=True,show=('tree','headings') )
+            results_tree.pack(side='left',fill='both',expand=1)
+
+            results_tree["columns"]=('size_h','ctime_h')
+            results_tree["displaycolumns"]=('size_h','ctime_h')
+            results_tree.heading('#0',text=STR('Name'),anchor='n')
+            results_tree.heading('size_h',text=STR('Size'),anchor='n')
+            results_tree.heading('ctime_h',text=STR('Time'),anchor='n')
+
+            results_tree.column('#0', width=120, minwidth=100, stretch='yes')
+
+            results_tree.column('size_h', width=120, minwidth=120, stretch='no',anchor='e')
+            results_tree.column('ctime_h', width=160, minwidth=120, stretch='no',anchor='e')
+
+            results_tree.bind('<Double-Button-1>', self.double_left_button_results_tree)
+
+            results_tree_yview = results_tree.yview
+            self.results_tree_scrollbar = Scrollbar(treeframe, orient='vertical', command=results_tree_yview,takefocus=False)
+
+            results_tree.configure(yscrollcommand=self.results_tree_scrollbar_set)
+
+            self.results_tree_scrollbar.pack(side='right',fill='y',expand=0)
+
+            self.search_results_dialog.area_main.grid_rowconfigure(0,weight=1)
+
+            Button(buttonsframe, text=STR('Close'), width=14, command=self.find_results_close ).pack(side='top', anchor='n',padx=5,pady=5)
+
+            if False:
+                frame1 = LabelFrame(self.search_results_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+                frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
+                self.search_results_dialog.area_main.grid_rowconfigure(1, weight=1)
+
+            self.search_results_dialog_created = True
+
+        return self.search_results_dialog
+
+    def find_results_close(self):
+        self.found_item_to_data={}
+        self.search_results_dialog.hide()
 
     about_dialog_created = False
     @restore_status_line
@@ -2183,17 +2272,17 @@ class Gui:
         if not self.about_dialog_created:
             self.status(STR("Creating dialog ..."))
 
-            self.aboout_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
+            self.about_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
 
-            frame1 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+            frame1 = LabelFrame(self.about_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
-            self.aboout_dialog.area_main.grid_rowconfigure(1, weight=1)
+            self.about_dialog.area_main.grid_rowconfigure(1, weight=1)
 
             text= f'\n\nLibrer {VER_TIMESTAMP}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n'
 
             Label(frame1,text=text,bg=self.bg_color,justify='center').pack(expand=1,fill='both')
 
-            frame2 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+            frame2 = LabelFrame(self.about_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
 
             lab2_text=  distro_info + '\n\nCurrent log file: ' + log_file
@@ -2211,7 +2300,7 @@ class Gui:
 
             self.about_dialog_created = True
 
-        return self.aboout_dialog
+        return self.about_dialog
 
     license_dialog_created = False
     @restore_status_line
@@ -2864,26 +2953,38 @@ class Gui:
 
             self.status('file saved: "%s"' % str(report_file_name))
 
+    def find_show_results_from_find(self):
+        self.results_on_find.hide()
+        self.find_show_results()
+
     def find_show_results(self):
-        rest_txt_list = ['# ' + line for line in self.search_info_lines]
-        rest_txt_list.append('')
+        results_dialog = self.get_search_results_dialog()
 
+        children=self.results_tree.get_children()
+
+        self.results_tree.delete(*children)
+
+        self.found_item_to_data={}
+
+        i=0
         for record in librer_core.records:
+            if i>100000:
+                print('Number of items displayed limited to 100 000.')
+                break
+
             if record.find_results:
-                rest_txt_list.append(f'record:{librer_core.get_record_name(record)}')
+                record_name=librer_core.get_record_name(record)
+                record_node = self.results_tree.insert('','end',text=record_name,values=(len(record.find_results),''))
+
+                if self.cfg.get(CFG_KEY_expand_search_results):
+                    self.results_tree.item(record_node,open=True)
+
                 for res_item,res_size,res_mtime in record.find_results:
-                    rest_txt_list.append(f'  {sep.join(res_item)}')
+                    item=self.results_tree.insert(record_node,'end',text=sep.join(res_item),values=(bytes_to_str(res_size),strftime('%Y/%m/%d %H:%M:%S',localtime_catched(res_mtime))))
+                    self.found_item_to_data[item]=(record,res_item)
+                    i+=1
 
-                rest_txt_list.append('')
-
-            res_txt = '\n'.join(rest_txt_list)
-
-        self.text_dialog_on_find.show(STR('Search results'),res_txt)
-
-    find_result_record_index=0
-    find_result_index=0
-
-    find_dialog_shown=False
+        results_dialog.show()
 
     def find_mod_keypress(self,event):
         key=event.keysym
@@ -3351,8 +3452,10 @@ class Gui:
 
             search_info = '\n'.join(self.search_info_lines)
 
-            if self.any_valid_find_results:
-                self.select_find_result(1)
+            select_found=self.cfg.get(CFG_KEY_select_found)
+            if select_found:
+                if self.any_valid_find_results:
+                    self.select_find_result(1)
 
             self.results_on_find.show(STR('Search results'),f"{search_info}\n\n" + STR("found") + ": " + str(find_results_quant_sum_format) + ' ' + STR('items') + '.\n\n' + STR("Navigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions.") + abort_info)
             self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
@@ -3386,17 +3489,18 @@ class Gui:
         return None
 
     @block
-    def select_find_result(self,mod):
+    def select_find_result(self,mod,record_par=None,subpath_list_par=None):
         status_to_set=None
         self_tree = self.tree
         if self.any_valid_find_results:
             settled = False
 
-            records_quant = len(librer_core.records_sorted)
+            librer_core_records_sorted =librer_core.records_sorted
+            records_quant = len(librer_core_records_sorted)
             find_result_index_reset=False
 
             while not settled:
-                record = librer_core.records_sorted[self.find_result_record_index]
+                record = librer_core_records_sorted[self.find_result_record_index]
                 record_find_results = record.find_results
 
                 record_find_results_len=len(record_find_results)
@@ -3431,10 +3535,11 @@ class Gui:
 
             current_item = record_item
 
-            self.open_item(current_item)
+            self_open_item = self.open_item
+
+            self_open_item(current_item)
 
             self_get_child_of_name = self.get_child_of_name
-            self_open_item = self.open_item
             self_tree_update = self_tree.update
 
             for item_name in items_names_tuple:
@@ -3442,7 +3547,9 @@ class Gui:
 
                 if child_item:
                     current_item = child_item
+
                     self_open_item(current_item)
+
                     self_tree_update()
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
@@ -3484,17 +3591,15 @@ class Gui:
 
     @block
     def goto_first_last_record(self,index):
-        #print('goto_first_last_record',index)
         if children := self.tree_get_children():
             if next_item:=children[index]:
                 self.select_and_focus(next_item)
 
-    current_record=None
-    current_group=None
+    current_record = None
+    current_group = None
+    current_subpath_list = None
 
     def tree_item_focused(self,item):
-        #print('tree_item_focused',item)
-
         self.tree_see(item)
 
         if item:
@@ -3506,7 +3611,8 @@ class Gui:
                     self.current_group=None
 
                 self.status_record.configure(image = self.ico_empty, text = '---',compound='left')
-                self.current_record=None
+                self.current_record = None
+                self.current_subpath_list = None
             else:
                 self.current_group = None
 
@@ -3514,6 +3620,7 @@ class Gui:
                 if record_item in self.item_to_record:
                     record = self.item_to_record[record_item]
 
+                    self.current_subpath_list = subpath_list
                     if record != self.current_record:
                         self.current_record = record
                         if not self.cfg.get(CFG_KEY_find_range_all):
@@ -3527,11 +3634,13 @@ class Gui:
                     self.status_record.configure(image = '', text = '')
                     self.widget_tooltip(self.status_record,'')
                     self.current_record = None
+                    self.current_subpath_list = None
                     self.status_record.configure(image = self.ico_empty, text = '---',compound='left')
         else:
             self.status_record.configure(image = self.ico_empty, text = '---',compound='left')
             self.current_record = None
             self.current_group = None
+            self.current_subpath_list = None
 
     def tree_on_select(self):
         item=self.tree.focus()
@@ -3542,8 +3651,6 @@ class Gui:
         self.tree_item_focused(item)
 
     def key_press(self,event):
-        #print('key_press',event.keysym)
-
         if not self.block_processing_stack:
             self.hide_tooltip()
             self.menubar_unpost()
@@ -3600,6 +3707,9 @@ class Gui:
 
                     tree.focus(item)
                     self.tree_on_select()
+                    self.set_find_result_record_index()
+
+                    self.set_find_result_indexes(self.current_subpath_list)
         else:
             return "break"
 
@@ -4022,8 +4132,6 @@ class Gui:
 
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
-
-        #self.log_skipped = self.log_skipped_var.get()
 
         self_progress_dialog_on_scan.lab_l1.configure(text=STR('CDE Total space:'))
         self_progress_dialog_on_scan.lab_l2.configure(text=STR('CDE Files number:'))
@@ -4610,6 +4718,70 @@ class Gui:
         item = self.record_to_item[record]
         self.tree.item(item,image=self.ico_record_cd_loaded)
 
+
+    def set_find_result_record_index(self):
+        if self.current_record:
+            new_index=librer_core.records_sorted.index(self.current_record)
+            if self.find_result_record_index != new_index:
+                self.find_result_record_index = new_index
+                self.find_result_index=0
+
+    def set_find_result_indexes(self,subpath_list=None):
+           if subpath_list:
+            record = librer_core.records_sorted[self.find_result_record_index]
+
+            if record:
+                temp_index=0
+                if record.find_results:
+                    for found_result in record.find_results:
+                        items_names_tuple,res_size,res_mtime = found_result
+                        if items_names_tuple==subpath_list:
+                            break
+                        else:
+                            temp_index+=1
+
+                    self.find_result_index=temp_index
+
+    @block
+    def locate_found_item(self,item):
+
+        record,items_names_tuple = self.found_item_to_data[item]
+
+        self.access_filestructure(record)
+        top_data_tuple = record.filestructure
+
+
+        record_item = self.record_to_item[record]
+
+        current_item = record_item
+
+        self_open_item = self.open_item
+
+        self_open_item(current_item)
+
+        self_get_child_of_name = self.get_child_of_name
+        self_tree_update = self.tree.update
+
+        for item_name in items_names_tuple:
+            child_item = self_get_child_of_name(record,current_item,item_name)
+
+            if child_item:
+                current_item = child_item
+                self_open_item(current_item)
+                self_tree_update()
+            else:
+                self.info_dialog_on_main.show('cannot find item:',item_name)
+                break
+
+        if self.find_dialog_shown:
+            self.tree.selection_set(current_item)
+        else:
+            self.tree.focus(current_item)
+
+        self.sel_item = current_item
+        self.select_and_focus(current_item)
+        self.tree.update()
+
     @block
     def open_item(self,item=None):
         tree=self.tree
@@ -4839,6 +5011,26 @@ class Gui:
         self.main.clipboard_clear()
         self.main.clipboard_append(what)
         self.status(STR('Copied to clipboard:') + '"' + str(what) + '"')
+
+    def double_left_button_results_tree(self,event):
+        if self.results_tree.identify("region", event.x, event.y) != 'heading':
+            if item:=self.results_tree.identify('item',event.x,event.y):
+                try:
+                    record,subpath_list = self.found_item_to_data[item]
+
+                    self.locate_found_item(item)
+
+                    self.current_record=record
+                    self.set_find_result_record_index()
+                    self.set_find_result_indexes(subpath_list)
+
+
+                    self.find_results_close()
+                    self.find_dialog.hide()
+                except:
+                    #rekord nie zamyka
+                    pass
+
 
     def double_left_button(self,event):
         if not self.block_processing_stack:
