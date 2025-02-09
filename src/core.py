@@ -54,11 +54,13 @@ from ciso8601 import parse_datetime
 
 windows = bool(os_name=='nt')
 
-def is_hidden(filepath):
-    if windows:
-        return bool(stat(filepath).st_file_attributes & stat_FILE_ATTRIBUTE_HIDDEN)
-    else:
-        return basename(abspath(filepath)).startswith('.')
+def is_hidden_win(filepath):
+    return bool(stat(filepath).st_file_attributes & stat_FILE_ATTRIBUTE_HIDDEN)
+
+def is_hidden_lin(filepath):
+    return basename(abspath(filepath)).startswith('.')
+
+is_hidden = is_hidden_win if windows else is_hidden_lin
 
 if windows:
     from subprocess import CREATE_NO_WINDOW
