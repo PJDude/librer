@@ -474,6 +474,14 @@ class LANGUAGES:
             'it':'Copia il percorso completo',
             'fr':'Copier le chemin complet',
         },
+        'Click to copy full path':{
+            'pl': 'Kliknij, aby skopiować pełną ścieżkę',
+            'es': 'Haz clic para copiar la ruta completa',
+            'ru': 'Нажмите, чтобы скопировать полный путь',
+            'de': 'Klicken, um den vollständigen Pfad zu kopieren',
+            'it': 'Clicca per copiare il percorso completo',
+            'fr': 'Cliquez pour copier le chemin complet',
+        },
         'Create new data record':{
             'pl':'Utwórz nowy rekord',
             'es':'Crear nuevo registro de datos',
@@ -1166,14 +1174,6 @@ class LANGUAGES:
             'de': 'Pfad existiert nicht',
             'it': 'Il percorso non esiste',
             'fr': 'Le chemin n\'existe pas'
-        },
-        'Path elements': {
-            'pl': 'Elementy Ścieżki',
-            'es': 'Elementos de la ruta',
-            'ru': 'Элементы пути',
-            'de': 'Pfadelemente',
-            'it': 'Elementi del percorso',
-            'fr': 'Éléments du chemin'
         },
         'Path to scan': {
             'pl': 'Ścieżka do skanowania',
