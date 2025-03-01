@@ -78,7 +78,8 @@ def find_params_check(self,
         size_min,size_max,
         find_filename_search_kind,name_expr,name_case_sens,
         find_cd_search_kind,cd_expr,cd_case_sens,
-        filename_fuzzy_threshold,cd_fuzzy_threshold):
+        filename_fuzzy_threshold,cd_fuzzy_threshold,
+        type_folders,type_files):
 
     if find_filename_search_kind == 'fuzzy':
         if name_expr:
@@ -220,7 +221,7 @@ if __name__ == "__main__":
                 print_info(f'search error:{e}')
                 proper_exit(2)
 
-            (size_min,size_max,t_min,t_max,find_filename_search_kind,name_expr,name_case_sens,find_cd_search_kind,cd_expr,cd_case_sens,filename_fuzzy_threshold_str,cd_fuzzy_threshold_str) = params
+            (size_min,size_max,t_min,t_max,find_filename_search_kind,name_expr,name_case_sens,find_cd_search_kind,cd_expr,cd_case_sens,filename_fuzzy_threshold_str,cd_fuzzy_threshold_str,type_folders,type_files) = params
 
             try:
                 filename_fuzzy_threshold = float(filename_fuzzy_threshold_str)
@@ -322,6 +323,7 @@ if __name__ == "__main__":
                         t_min,t_max,
                         name_search_kind,name_func_to_call,
                         find_cd_search_kind,cd_func_to_call,
+                        type_folders,type_files,
                         print_info)
             except Exception as fe:
                 print_info(f'find_items error:{fe}')

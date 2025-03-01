@@ -1006,6 +1006,7 @@ class LibrerRecord:
             timestamp_min,timestamp_max,
             name_search_kind,name_func_to_call,
             cd_search_kind,cd_func_to_call,
+            type_folders,type_files,
             print_info_fn):
 
         self.decompress_filestructure()
@@ -1030,7 +1031,7 @@ class LibrerRecord:
         cd_search_kind_is_regexp_glob_or_fuzzy = bool(cd_search_kind in ('regexp','glob','fuzzy'))
         cd_search_kind_is_dont_or_without = bool(cd_search_kind in ('dont','without'))
 
-        when_folder_may_apply = bool(cd_search_kind_is_dont_or_without and not use_size and not use_timestamp)
+        when_folder_may_apply = bool(cd_search_kind_is_dont_or_without and not use_size and not use_timestamp and type_folders)
         cd_search_kind_is_any = bool(cd_search_kind=='any')
         cd_search_kind_is_without = bool(cd_search_kind=='without')
         cd_search_kind_is_error = bool(cd_search_kind=='error')
@@ -1100,6 +1101,8 @@ class LibrerRecord:
                         search_list_append( (sub_data,next_level) )
 
                 elif is_file:
+                    if not type_files:
+                        continue
 
                     if use_size:
                         if size<0:
@@ -2465,9 +2468,10 @@ class LibrerCore:
             t_min,t_max,
             find_filename_search_kind,name_expr,name_case_sens,
             find_cd_search_kind,cd_expr,cd_case_sens,
-            filename_fuzzy_threshold,cd_fuzzy_threshold):
+            filename_fuzzy_threshold,cd_fuzzy_threshold,
+            type_folders,type_files):
 
-        self.log.info(f'find_items_in_records:{size_min},{size_max},{find_filename_search_kind},{name_expr},{name_case_sens},{find_cd_search_kind},{cd_expr},{cd_case_sens},{filename_fuzzy_threshold},{cd_fuzzy_threshold}')
+        self.log.info(f'find_items_in_records:{size_min},{size_max},{find_filename_search_kind},{name_expr},{name_case_sens},{find_cd_search_kind},{cd_expr},{cd_case_sens},{filename_fuzzy_threshold},{cd_fuzzy_threshold},{type_folders},{type_files}')
 
         self.find_results_clean()
 
@@ -2480,7 +2484,7 @@ class LibrerCore:
             t_min,t_max,
             find_filename_search_kind,name_expr,name_case_sens,
             find_cd_search_kind,cd_expr,cd_case_sens,
-            filename_fuzzy_threshold,cd_fuzzy_threshold)
+            filename_fuzzy_threshold,cd_fuzzy_threshold,type_folders,type_files)
 
         searchinfofile = sep.join([temp_dir,SEARCH_DAT_FILE])
         try:

@@ -88,6 +88,8 @@ CFG_KEY_find_modtime_min = 'find_modtime_min'
 CFG_KEY_find_modtime_max = 'find_modtime_max'
 
 CFG_KEY_find_range_all = 'find_range_all'
+CFG_KEY_type_folders = 'find_type_folders'
+CFG_KEY_type_files = 'find_type_files'
 CFG_KEY_find_cd_search_kind = 'find_cd_search_kind'
 CFG_KEY_find_filename_search_kind = 'find_filename_search_kind'
 
@@ -112,6 +114,7 @@ CFG_LANG = 'lang'
 
 CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
+CFG_geometry_search = 'geometry_search'
 CFG_SORTING = 'sorting'
 CFG_KEY_show_popups = 'show_popups'
 CFG_KEY_groups_collapse = 'groups_collapse'
@@ -125,6 +128,8 @@ cfg_defaults={
     CFG_KEY_CDE_SETTINGS:[],
 
     CFG_KEY_find_range_all:False,
+    CFG_KEY_type_folders:True,
+    CFG_KEY_type_files:True,
     CFG_KEY_find_filename_search_kind:'dont',
     CFG_KEY_find_cd_search_kind:'dont',
 
@@ -153,6 +158,7 @@ cfg_defaults={
 
     CFG_last_dir:'.',
     CFG_geometry:'',
+    CFG_geometry_search:'',
     CFG_KEY_show_popups:True,
     CFG_KEY_groups_collapse:True,
     CFG_KEY_include_hidden:False,
@@ -239,6 +245,7 @@ class Gui:
 
     ################################################
     def processing_off(self,caller_id=None):
+        #print('processing_off',self.block_processing_stack,caller_id)
         gc_disable()
         self.block_processing_stack_append(caller_id)
 
@@ -251,6 +258,7 @@ class Gui:
 
     ################################################
     def processing_on(self):
+        #print('processing_on',self.block_processing_stack)
         self.block_processing_stack_pop()
 
         if not self.block_processing_stack:
@@ -515,6 +523,7 @@ class Gui:
 
         if black_theme:
             bg_focus='dark green'
+            bg_sel='gray30'
             self.bg_content='black'
             self.fg_content='white'
             self.col_found='tomato'
@@ -522,6 +531,7 @@ class Gui:
             self.col_record_raw='ghost white'
         else:
             bg_focus='pale green'
+            bg_sel='#AAAAAA'
             self.bg_content='white'
             self.fg_content='black'
             self.col_found='red'
@@ -572,7 +582,7 @@ class Gui:
         style_configure('TScale.slider', background=self.bg_color)
         style_configure('TScale.Horizontal.TScale', background=self.bg_color)
 
-        style_map('Treeview', background=[('focus',bg_focus),('',self.bg_content)] )
+        style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_content)] )
 
         if windows:
             #fix border problem ...
@@ -645,7 +655,7 @@ class Gui:
         tree = self.tree = Treeview(self_main,takefocus=True,show=('tree','headings') )
 
         self.tree_set = tree.set
-        self.tree_see = tree.see
+
         self.tree_get_children = self.tree.get_children
         self.tree_focus = self.tree.focus
 
@@ -939,7 +949,7 @@ class Gui:
         tree_bind('<<TreeviewClose>>', lambda event : self.close_item())
         tree_bind('<ButtonPress-3>', self.context_menu_show)
 
-        tree_bind("<<TreeviewSelect>>", lambda event : self.tree_on_select() )
+        #tree_bind("<<TreeviewSelect>>", lambda event : self.tree_on_select() )
 
         tree_bind("<Configure>", lambda event : self.tree_configure())
 
@@ -1929,13 +1939,16 @@ class Gui:
             self.status(STR("Creating dialog ..."))
 
             ###################################
-            self.find_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Search records'),pre_show=self.pre_show,post_close=self.post_close)
+            #self.find_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Search records'),pre_show=self.pre_show,post_close=self.post_close)
+            self.find_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Search records'),pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=True,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=True))
 
             #self.find_size_use_var = BooleanVar()
             self.find_filename_search_kind_var = StringVar()
             self.find_cd_search_kind_var = StringVar()
 
             self.find_range_all = BooleanVar()
+            self.type_folders_var = BooleanVar()
+            self.type_files_var = BooleanVar()
 
             self.find_size_min_var = StringVar()
             self.find_size_max_var = StringVar()
@@ -1971,6 +1984,12 @@ class Gui:
             except Exception as d1:
                 print(d1)
 
+            try:
+                self.type_folders_var.set(self.cfg.get(CFG_KEY_type_folders))
+                self.type_files_var.set(self.cfg.get(CFG_KEY_type_files))
+            except Exception as d2:
+                print(d2)
+
             self.find_cd_search_kind_var.set(self.cfg.get(CFG_KEY_find_cd_search_kind))
             self.find_filename_search_kind_var.set(self.cfg.get(CFG_KEY_find_filename_search_kind))
 
@@ -1997,19 +2016,30 @@ class Gui:
 
             sfdma = self.find_dialog.area_main
 
-            (find_filename_frame := LabelFrame(sfdma,text=STR('Search range'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
-            self.find_range_cb1 = Radiobutton(find_filename_frame,text=' ' + STR('Selected record / group'),variable=self.find_range_all,value=False,command=self.find_mod)
+            (find_range_frame := LabelFrame(sfdma,text=STR('Search range'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=0,column=0,sticky='news',padx=4,pady=4)
+            self.find_range_cb1 = Radiobutton(find_range_frame,text=' ' + STR('Selected record / group'),variable=self.find_range_all,value=False,command=self.find_mod)
             self.find_range_cb1.grid(row=0, column=0, sticky='news',padx=4,pady=4)
             self.find_range_cb1.bind('<Return>', lambda event : self.find_items())
 
-            find_range_cb2 = Radiobutton(find_filename_frame,text=' ' + STR('All records'),variable=self.find_range_all,value=True,command=self.find_mod)
+            find_range_cb2 = Radiobutton(find_range_frame,text=' ' + STR('All records'),variable=self.find_range_all,value=True,command=self.find_mod)
             find_range_cb2.grid(row=0, column=1, sticky='news',padx=4,pady=4)
             find_range_cb2.bind('<Return>', lambda event : self.find_items())
 
-            find_filename_frame.grid_columnconfigure( 0, weight=1)
-            find_filename_frame.grid_columnconfigure( 1, weight=1)
+            find_range_frame.grid_columnconfigure( 0, weight=1)
+            find_range_frame.grid_columnconfigure( 1, weight=1)
 
-            (find_filename_frame := LabelFrame(sfdma,text=STR('Path'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
+            (type_frame := LabelFrame(sfdma,text=STR('Kind'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4)
+            self.type_folder_cb = Checkbutton(type_frame,text=' ' + STR('Folders'),variable=self.type_folders_var,command=lambda : self.find_mod('folders'))
+            self.type_folder_cb.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+            self.type_folder_cb.bind('<Return>', lambda event : self.find_items())
+
+            type_files_cb = Checkbutton(type_frame,text=' ' + STR('Files'),variable=self.type_files_var,command=lambda : self.find_mod('files'))
+            type_files_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+            type_files_cb.bind('<Return>', lambda event : self.find_items())
+
+            type_frame.grid_columnconfigure( 0, weight=1)
+
+            (find_filename_frame := LabelFrame(sfdma,text=STR('Path'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
 
             r_dont = Radiobutton(find_filename_frame,text= ' ' + STR("Don't use this criterion"),variable=self.find_filename_search_kind_var,value='dont',command=self.find_mod,width=30)
             r_dont.grid(row=0, column=0, sticky='news',padx=4,pady=4)
@@ -2075,7 +2105,7 @@ class Gui:
 
             find_filename_frame.grid_columnconfigure( 1, weight=1)
 
-            (find_cd_frame := LabelFrame(sfdma,text=STR('Custom Data'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4)
+            (find_cd_frame := LabelFrame(sfdma,text=STR('Custom Data'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
 
             r_dont2 = Radiobutton(find_cd_frame,text=' ' + STR("Don't use this criterion"),variable=self.find_cd_search_kind_var,value='dont',command=self.find_mod,width=30)
             r_dont2.grid(row=0, column=0, sticky='news',padx=4,pady=4)
@@ -2146,45 +2176,49 @@ class Gui:
 
             find_cd_frame.grid_columnconfigure(1, weight=1)
 
-            (find_size_frame := LabelFrame(sfdma,text=STR('File size'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4)
+            (find_size_frame := LabelFrame(sfdma,text=STR('File size'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
             find_size_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
-            (find_size_min_label:=Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=0, sticky='we',padx=4,pady=4)
-            (find_size_max_label:=Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=2, sticky='we',padx=4,pady=4)
+            self.find_size_min_label=Label(find_size_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)
+            self.find_size_min_label.grid(row=0, column=0, sticky='we',padx=4,pady=4)
+            self.find_size_max_label=Label(find_size_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)
+            self.find_size_max_label.grid(row=0, column=2, sticky='we',padx=4,pady=4)
 
-            find_size_min_entry=Entry(find_size_frame,textvariable=self.find_size_min_var)
-            find_size_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
-            find_size_max_entry=Entry(find_size_frame,textvariable=self.find_size_max_var)
-            find_size_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
+            self.find_size_min_entry=Entry(find_size_frame,textvariable=self.find_size_min_var)
+            self.find_size_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
+            self.find_size_max_entry=Entry(find_size_frame,textvariable=self.find_size_max_var)
+            self.find_size_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
 
-            find_size_min_entry.bind("<KeyRelease>", self.find_mod_keypress)
-            find_size_max_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            self.find_size_min_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            self.find_size_max_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
             size_tooltip = STR('SIZE_TOOLTIP')
-            self.widget_tooltip(find_size_min_entry,size_tooltip)
-            self.widget_tooltip(find_size_min_label,size_tooltip)
-            self.widget_tooltip(find_size_max_entry,size_tooltip)
-            self.widget_tooltip(find_size_max_label,size_tooltip)
+            self.widget_tooltip(self.find_size_min_entry,size_tooltip)
+            self.widget_tooltip(self.find_size_min_label,size_tooltip)
+            self.widget_tooltip(self.find_size_max_entry,size_tooltip)
+            self.widget_tooltip(self.find_size_max_label,size_tooltip)
 
-            (find_modtime_frame := LabelFrame(sfdma,text=STR('File last modification time'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=4,column=0,sticky='news',padx=4,pady=4)
+            (find_modtime_frame := LabelFrame(sfdma,text=STR('File last modification time'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=5,column=0,sticky='news',padx=4,pady=4)
             find_modtime_frame.grid_columnconfigure((0,1,2,3), weight=1)
 
-            (find_modtime_min_label:=Label(find_modtime_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=0, sticky='we',padx=4,pady=4)
-            (find_modtime_max_label:=Label(find_modtime_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)).grid(row=0, column=2, sticky='we',padx=4,pady=4)
+            self.find_modtime_min_label=Label(find_modtime_frame,text='min: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)
+            self.find_modtime_min_label.grid(row=0, column=0, sticky='we',padx=4,pady=4)
+            self.find_modtime_max_label=Label(find_modtime_frame,text='max: ',bg=self.bg_color,anchor='e',relief='flat',bd=2)
+            self.find_modtime_max_label.grid(row=0, column=2, sticky='we',padx=4,pady=4)
 
-            find_modtime_min_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_min_var)
-            find_modtime_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
-            find_modtime_max_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_max_var)
-            find_modtime_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
+            self.find_modtime_min_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_min_var)
+            self.find_modtime_min_entry.grid(row=0, column=1, sticky='we',padx=4,pady=4)
+            self.find_modtime_max_entry=Entry(find_modtime_frame,textvariable=self.find_modtime_max_var)
+            self.find_modtime_max_entry.grid(row=0, column=3, sticky='we',padx=4,pady=4)
 
-            find_modtime_min_entry.bind("<KeyRelease>", self.find_mod_keypress)
-            find_modtime_max_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            self.find_modtime_min_entry.bind("<KeyRelease>", self.find_mod_keypress)
+            self.find_modtime_max_entry.bind("<KeyRelease>", self.find_mod_keypress)
 
             time_toltip = STR('TIME_TOOLTIP')
-            self.widget_tooltip(find_modtime_min_entry,time_toltip)
-            self.widget_tooltip(find_modtime_min_label,time_toltip)
-            self.widget_tooltip(find_modtime_max_entry,time_toltip)
-            self.widget_tooltip(find_modtime_max_label,time_toltip)
+            self.widget_tooltip(self.find_modtime_min_entry,time_toltip)
+            self.widget_tooltip(self.find_modtime_min_label,time_toltip)
+            self.widget_tooltip(self.find_modtime_max_entry,time_toltip)
+            self.widget_tooltip(self.find_modtime_max_label,time_toltip)
 
             self.search_butt = Button(self.find_dialog.area_buttons, text=STR('Search'), width=14, command=self.find_items )
             self.search_butt.pack(side='left', anchor='n',padx=5,pady=5)
@@ -2195,7 +2229,7 @@ class Gui:
 
             Button(self.find_dialog.area_buttons, text=STR('Close'), width=14, command=self.find_close ).pack(side='right', anchor='n',padx=5,pady=5)
 
-            sfdma.grid_rowconfigure(5, weight=1)
+            sfdma.grid_rowconfigure(6, weight=1)
             sfdma.grid_columnconfigure(0, weight=1)
 
             self.info_dialog_on_find = LabelDialog(self.find_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=False))
@@ -2215,13 +2249,16 @@ class Gui:
 
     search_results_dialog_created = False
     @restore_status_line
-    @block
+
     def get_search_results_dialog(self):
         if not self.search_results_dialog_created:
             self.status(STR("Creating dialog ..."))
 
             self.search_results_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Search results'),pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=True,new_widget=new_widget),post_close=lambda : self.post_close(on_main_window_dialog=True),min_width=800,min_height=600 )
             #self.find_dialog.widget
+
+            self.search_results_dialog.widget.bind('<Configure>', self.search_results_dialog_configure)
+            self.search_results_dialog.do_command_after_show = self.search_results_dialog_post_show
 
             treeframe=Frame(self.search_results_dialog.area_main)
             treeframe.grid(row=0,column=0,sticky='news')
@@ -2273,10 +2310,22 @@ class Gui:
 
         return self.search_results_dialog
 
+    def search_results_dialog_post_show(self):
+        geometry = self.cfg.get(CFG_geometry_search)
+        if geometry:
+            self.search_results_dialog.widget.geometry(geometry)
+
+        self.search_results_shown=True
+
+    search_results_shown=False
+    def search_results_dialog_configure(self,event):
+        if self.search_results_shown:
+            geometry = self.search_results_dialog.widget.geometry()
+            self.cfg.set(CFG_geometry_search,str(geometry))
+
     def find_results_search(self):
-        #print('find_results_search')
         self.find_results_close()
-        self.finder_wrapper_show()
+        self.finder_wrapper_show(False)
 
     def find_results_close(self):
         self.found_item_to_data={}
@@ -2865,19 +2914,25 @@ class Gui:
 
         dialog.show(STR('Settings'))
 
-    @block
-    def finder_wrapper_show(self):
+    def finder_wrapper_show(self,from_main=True):
         if librer_core.records:
-            dialog = self.get_find_dialog()
+            if self.any_valid_find_results and from_main :
+                self.find_show_results_core(self.find_results_info)
+            else:
+                self.finder_wrapper_show_finder()
 
-            self.find_dialog_shown=True
-            self.find_mod()
-            self.searching_aborted = False
+    @block
+    def finder_wrapper_show_finder(self):
+        dialog = self.get_find_dialog()
 
-            dialog.show('Find')
-            self.store_text_dialog_fields(self.text_dialog_on_find)
+        self.find_dialog_shown=True
+        self.find_mod()
+        self.searching_aborted = False
 
-            self.find_dialog_shown=False
+        dialog.show('Find')
+        self.store_text_dialog_fields(self.text_dialog_on_find)
+
+        self.find_dialog_shown=False
 
     def find_close(self):
         self.find_dialog.hide()
@@ -2971,7 +3026,11 @@ class Gui:
             self.status('file saved: "%s"' % str(report_file_name))
 
     def find_show_results(self,results_info=None):
+        self.find_close()
+        self.find_show_results_core(results_info=None)
 
+    @block
+    def find_show_results_core(self,results_info=None):
         results_quant = sum([len(record.find_results) for record in librer_core.records])
 
         if results_quant>100000:
@@ -2979,16 +3038,12 @@ class Gui:
         elif results_quant==0:
             self.results_on_find.show('Search results','No results matching search criteria.')
         else:
-            self.find_close()
-
             results_dialog = self.get_search_results_dialog()
             children=self.results_tree.get_children()
             self.results_tree.delete(*children)
             self.found_item_to_data={}
 
             for record in librer_core.records:
-
-
                 if record.find_results:
                     record_name=librer_core.get_record_name(record)
                     record_node = self.results_tree.insert('','end',text=record_name,values=(len(record.find_results),''))
@@ -3000,7 +3055,6 @@ class Gui:
                         item=self.results_tree.insert(record_node,'end',text=sep.join(res_item),values=(bytes_to_str(res_size),strftime('%Y/%m/%d %H:%M:%S',localtime_catched(res_mtime))))
                         self.found_item_to_data[item]=(record,res_item)
 
-
             children = self.results_tree.get_children()
 
             if children:
@@ -3011,6 +3065,7 @@ class Gui:
             if results_info:
                 results_dialog.info_label.configure(text=results_info)
 
+            #self.find_close()
             results_dialog.show()
 
     def find_mod_keypress(self,event):
@@ -3021,7 +3076,7 @@ class Gui:
         else:
             self.find_mod()
 
-    def find_mod(self):
+    def find_mod(self,field_name=None):
         try:
             self.find_params_changed=self.external_find_params_change
 
@@ -3031,7 +3086,45 @@ class Gui:
 
             self.widget_tooltip(self.find_range_cb1,sel_range_info)
 
+            if self.cfg.get(CFG_KEY_type_folders) != self.type_folders_var.get():
+                self.find_params_changed=True
+                type_folders_switched=True
+            else:
+                type_folders_switched=False
+
+            if self.cfg.get(CFG_KEY_type_files) != self.type_files_var.get():
+                self.find_params_changed=True
+                type_files_switched=True
+            else:
+                type_files_switched=False
+
+            if not self.type_files_var.get() and not self.type_folders_var.get():
+                if field_name=='folders':
+                   self.type_files_var.set(True)
+                elif field_name=='files':
+                   self.type_folders_var.set(True)
+
+            if self.type_files_var.get():
+                self.find_size_min_entry.configure(state='normal')
+                self.find_size_max_entry.configure(state='normal')
+                self.find_modtime_min_entry.configure(state='normal')
+                self.find_modtime_max_entry.configure(state='normal')
+                self.find_size_min_label.configure(state='normal')
+                self.find_size_max_label.configure(state='normal')
+                self.find_modtime_min_label.configure(state='normal')
+                self.find_modtime_max_label.configure(state='normal')
+            else:
+                self.find_size_min_entry.configure(state='disabled')
+                self.find_size_max_entry.configure(state='disabled')
+                self.find_modtime_min_entry.configure(state='disabled')
+                self.find_modtime_max_entry.configure(state='disabled')
+                self.find_size_min_label.configure(state='disabled')
+                self.find_size_max_label.configure(state='disabled')
+                self.find_modtime_min_label.configure(state='disabled')
+                self.find_modtime_max_label.configure(state='disabled')
+
             if not self.find_params_changed:
+
                 if self.cfg.get(CFG_KEY_find_cd_search_kind) != self.find_cd_search_kind_var.get():
                     self.find_params_changed=True
 
@@ -3188,6 +3281,9 @@ class Gui:
             find_name_case_sens = self.find_name_case_sens_var.get()
 
             find_cd_search_kind = self.find_cd_search_kind_var.get()
+            type_files_var = self.type_files_var.get()
+            type_folders_var = self.type_folders_var.get()
+
             find_cd_regexp = self.find_cd_regexp_var.get()
             find_cd_glob = self.find_cd_glob_var.get()
             find_cd_fuzz = self.find_cd_fuzz_var.get()
@@ -3334,6 +3430,10 @@ class Gui:
 
             self.cfg.set(CFG_KEY_find_range_all,find_range_all)
             self.cfg.set(CFG_KEY_find_cd_search_kind,find_cd_search_kind)
+
+            self.cfg.set(CFG_KEY_type_folders,type_folders_var)
+            self.cfg.set(CFG_KEY_type_files,type_files_var)
+
             self.cfg.set(CFG_KEY_find_filename_search_kind,find_filename_search_kind)
 
             self.cfg.set(CFG_KEY_find_size_min,find_size_min)
@@ -3362,7 +3462,7 @@ class Gui:
                 t_min,t_max,
                 find_filename_search_kind,find_name,find_name_case_sens,
                 find_cd_search_kind,find_cd,find_cd_case_sens,
-                filename_fuzzy_threshold,cd_fuzzy_threshold),daemon=True)
+                filename_fuzzy_threshold,cd_fuzzy_threshold,type_folders_var,type_files_var),daemon=True)
             search_thread.start()
 
             search_thread_is_alive = search_thread.is_alive
@@ -3499,9 +3599,9 @@ class Gui:
 
                 self.external_find_params_change=False
 
+
             #self.find_dialog.hide()
 
-            self.find_show_results(self.find_results_info)
             #if self.any_valid_find_results:
 
             #if self.results_on_find.res_bool:
@@ -3601,7 +3701,7 @@ class Gui:
 
             self.select_and_focus(current_item)
 
-            self.tree.update()
+            #self.tree.update()
 
         if status_to_set:
             self.status(status_to_set)
@@ -3617,14 +3717,12 @@ class Gui:
     @block
     def goto_next_prev_record(self,direction):
         tree=self.tree
-        current_item=self.sel_item
+        item=self.sel_item
 
         item=tree.focus()
         if item:
             record_item,record_name,subpath_list = self.get_item_record(item)
-
             item_to_sel = tree.next(record_item) if direction==1 else tree.prev(record_item)
-
             if item_to_sel:
                 self.select_and_focus(item_to_sel)
 
@@ -3693,10 +3791,10 @@ class Gui:
         except:
             self.tree.see(item)
 
-    def tree_item_focused(self,item):
-        #self.tree_see(item)
-        self.wrapped_see(item)
-        self.tree.update()
+    def tree_item_focused(self,item,can_move=True):
+        if can_move:
+            self.wrapped_see(item)
+            self.tree.update()
 
         if item:
             if self.tree.tag_has(self.GROUP,item):
@@ -3745,15 +3843,15 @@ class Gui:
         except :
             self.rows_offset = 0
 
-    def tree_on_select(self):
-        item=self.tree.focus()
-        self.sel_item = item
+    def tree_on_select(self,can_move=True):
+        item = self.tree.focus()
 
         if item:
+            self.sel_item = item
             record_item,record_name,subpath_list = self.get_item_record(item)
             self.status(sep.join(subpath_list))
 
-            self.tree_item_focused(item)
+            self.tree_item_focused(item,can_move)
 
     see_direction=0
 
@@ -3764,8 +3862,6 @@ class Gui:
             self.popup_unpost()
 
             try:
-                #
-
                 tree=event.widget
                 item=tree.focus()
                 key=event.keysym
@@ -3774,8 +3870,10 @@ class Gui:
                     self.see_direction = self.KEY_DIRECTION[key]
                     self.visible_items_update()
                     self.goto_next_prev_record(self.KEY_DIRECTION[key])
+                    return "break"
                 elif key in ("Home","End"):
                     self.goto_first_last_record(self.KEY_DIRECTION[key])
+                    return "break"
                 elif key in ("Up","Down"):
                     self.see_direction = self.KEY_DIRECTION[key]
                     self.visible_items_update()
@@ -3790,6 +3888,8 @@ class Gui:
             except Exception as e:
                 l_error(e)
                 self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
+
+            self.tree_on_select()
 
 #################################################
     def select_and_focus(self,item):
@@ -3830,7 +3930,7 @@ class Gui:
                     tree.selection_remove(tree.selection())
 
                     tree.focus(item)
-                    self.tree_on_select()
+                    self.tree_on_select(False)
                     self.set_find_result_record_index()
 
                     self.set_find_result_indexes(self.current_subpath_list)
@@ -3975,7 +4075,7 @@ class Gui:
                     self.tree.focus(item)
                     self.tree_item_focused(item)
                 else:
-                    self.tree_on_select(None)
+                    self.tree_on_select()
 
                 self.find_clear()
 
@@ -4906,7 +5006,7 @@ class Gui:
 
         self.sel_item = current_item
         self.select_and_focus(current_item)
-        self.tree.update()
+        #self.tree.update()
 
     def close_item(self,item=None):
         self.visible_items_uptodate=False
@@ -4952,7 +5052,7 @@ class Gui:
 
                     self_item_to_data[item] = record.filestructure
                     self.tree.item(item,tags=self.RECORD, image=self.ico_record_cd if record.has_cd() else self.ico_record)
-                    self.tree_on_select() #tylko dla aktualizacja ikony
+                    self.tree_on_select() #tylko dla aktualizacji ikony
 
                 top_data_tuple = self_item_to_data[item]
 
@@ -5162,9 +5262,7 @@ class Gui:
                 self.set_find_result_record_index()
                 self.set_find_result_indexes(subpath_list)
 
-
                 self.find_results_close()
-                #self.find_dialog.hide()
             except:
                 #rekord nie zamyka
                 pass
@@ -5181,9 +5279,7 @@ class Gui:
                     self.set_find_result_record_index()
                     self.set_find_result_indexes(subpath_list)
 
-
                     self.find_results_close()
-                    #self.find_dialog.hide()
                 except:
                     #rekord nie zamyka
                     pass
