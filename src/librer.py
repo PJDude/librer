@@ -2298,11 +2298,8 @@ class Gui:
             Button(buttonsframe, text=STR('Save results'), width=14, command=self.find_save_results ).pack(side='left', anchor='n',padx=5,pady=5)
             Button(buttonsframe, text=STR('Close'), width=14, command=self.find_results_close ).pack(side='left', anchor='n',padx=5,pady=5)
 
-            self.search_results_dialog.info_label=Label(self.search_results_dialog.area_main,text='info label',anchor='w',relief='ridge')
-            #frame1 = LabelFrame(self.search_results_dialog.area_main,text='Info',bd=2,bg=self.bg_color,takefocus=False)
+            self.search_results_dialog.info_label=Label(self.search_results_dialog.area_main,text='',anchor='w',relief='ridge')
             self.search_results_dialog.info_label.grid(row=1,column=0,sticky='news',padx=4,pady=(4,2))
-
-            #self.search_results_dialog.info_label.pack(fill='both',expand=1)
 
             self.search_results_dialog.area_main.grid_rowconfigure(0, weight=1)
 
@@ -2916,8 +2913,9 @@ class Gui:
 
     def finder_wrapper_show(self,from_main=True):
         if librer_core.records:
-            if self.any_valid_find_results and from_main :
-                self.find_show_results_core(self.find_results_info)
+
+            if self.any_valid_find_results and from_main and self.all_records_find_results_can_show:
+                self.find_show_results_core()
             else:
                 self.finder_wrapper_show_finder()
 
@@ -3025,48 +3023,42 @@ class Gui:
 
             self.status('file saved: "%s"' % str(report_file_name))
 
-    def find_show_results(self,results_info=None):
-        self.find_close()
-        self.find_show_results_core(results_info=None)
+    def find_show_results(self):
+        if not self.all_records_find_results_can_show:
+            self.results_on_find.show('Search results','Number of items exceeded 100 000.')
+        else:
+            self.find_close()
+            self.find_show_results_core()
 
     @block
-    def find_show_results_core(self,results_info=None):
-        results_quant = sum([len(record.find_results) for record in librer_core.records])
+    def find_show_results_core(self):
+        results_dialog = self.get_search_results_dialog()
+        children=self.results_tree.get_children()
+        self.results_tree.delete(*children)
+        self.found_item_to_data={}
 
-        if results_quant>100000:
-            self.results_on_find.show('Search results','Number of items exceeded 100 000.')
-        elif results_quant==0:
-            self.results_on_find.show('Search results','No results matching search criteria.')
-        else:
-            results_dialog = self.get_search_results_dialog()
-            children=self.results_tree.get_children()
-            self.results_tree.delete(*children)
-            self.found_item_to_data={}
+        for record in librer_core.records:
+            if record.find_results:
+                record_name=librer_core.get_record_name(record)
+                record_node = self.results_tree.insert('','end',text=record_name,values=(len(record.find_results),''))
 
-            for record in librer_core.records:
-                if record.find_results:
-                    record_name=librer_core.get_record_name(record)
-                    record_node = self.results_tree.insert('','end',text=record_name,values=(len(record.find_results),''))
+                if self.cfg.get(CFG_KEY_expand_search_results):
+                    self.results_tree.item(record_node,open=True)
 
-                    if self.cfg.get(CFG_KEY_expand_search_results):
-                        self.results_tree.item(record_node,open=True)
+                for res_item,res_size,res_mtime in record.find_results:
+                    item=self.results_tree.insert(record_node,'end',text=sep.join(res_item),values=(bytes_to_str(res_size),strftime('%Y/%m/%d %H:%M:%S',localtime_catched(res_mtime))))
+                    self.found_item_to_data[item]=(record,res_item)
 
-                    for res_item,res_size,res_mtime in record.find_results:
-                        item=self.results_tree.insert(record_node,'end',text=sep.join(res_item),values=(bytes_to_str(res_size),strftime('%Y/%m/%d %H:%M:%S',localtime_catched(res_mtime))))
-                        self.found_item_to_data[item]=(record,res_item)
+        children = self.results_tree.get_children()
 
-            children = self.results_tree.get_children()
+        if children:
+            first_item = children[0]
+            self.results_tree.focus_set()
+            self.results_tree.selection_set(first_item)
 
-            if children:
-                first_item = children[0]
-                self.results_tree.focus_set()
-                self.results_tree.selection_set(first_item)
+        results_dialog.info_label.configure(text=self.find_results_info)
 
-            if results_info:
-                results_dialog.info_label.configure(text=results_info)
-
-            #self.find_close()
-            results_dialog.show()
+        results_dialog.show()
 
     def find_mod_keypress(self,event):
         key=event.keysym
@@ -3258,6 +3250,10 @@ class Gui:
             return [self.current_record]
 
         return ()
+
+    all_records_find_results_sum=0
+    all_records_find_results_can_show=False
+    find_results_info=''
 
     #@restore_status_line
     def find_items(self):
@@ -3548,68 +3544,61 @@ class Gui:
             #gc_collect()
             #gc_enable()
 
-            find_results_quant_sum = 0
-
             colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params
             #print('\npre sort info colname:',colname,'is_numeric',is_numeric,'reverse:',reverse)
             colname_real = self.REAL_SORT_COLUMN[colname]
             #print('colname_real:',colname_real)
 
-            for record in librer_core.records:
-                find_results_quant_sum += len(record.find_results)
-
-                record.find_items_sort(colname_real,reverse)
-                #print(record.find_result)
-
-            self.any_valid_find_results=bool(find_results_quant_sum>0)
-
-            abort_info = '\n' + STR('Searching aborted. Results may be incomplete.') if self.action_abort else ''
-
-            self.all_records_find_results_len = find_results_quant_sum
-            find_results_quant_sum_format = fnumber(find_results_quant_sum)
-
-            self.set_found()
-
             if self.action_abort:
+                self.all_records_find_results_sum=0
+                self.any_valid_find_results=0
+                self.all_records_find_results_can_show=False
+                self.find_results_info='Aborted'
+
+                self.results_on_find.show(STR('Aborted'),STR('Searching aborted.'))
                 self.searching_aborted = True
             else:
+                self.all_records_find_results_sum = sum([len(record.find_results) for record in librer_core.records])
+                self.any_valid_find_results=bool(self.all_records_find_results_sum>0)
+                self.all_records_find_results_can_show = bool(self.all_records_find_results_sum<100000)
+                find_results_quant_sum_format = fnumber(self.all_records_find_results_sum)
+
+                for record in librer_core.records:
+                    record.find_items_sort(colname_real,reverse)
+
                 self.searching_aborted = False
+                #abort_info = '\n' + STR('Searching aborted. Results may be incomplete.') if self.action_abort else ''
+                #abort_info = '\n' + STR('Searching aborted.') if self.action_abort else ''
 
-            self.find_mod()
+                self.set_found()
 
-            search_info = '\n'.join(self.search_info_lines)
+                self.find_mod()
 
-            select_found=self.cfg.get(CFG_KEY_select_found)
-            if select_found:
-                if self.any_valid_find_results:
-                    self.select_find_result(1)
+                search_info = '\n'.join(self.search_info_lines)
 
-            #self.find_results_info = f"{search_info}\n" + STR("found") + ": " + str(find_results_quant_sum_format) + ' ' + STR('items') + '.\n' + abort_info
-            self.find_results_info = str(find_results_quant_sum_format) + ' ' + STR('items') + ' ' + STR('found') + abort_info
-            #STR("Navigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions.")
+                select_found=self.cfg.get(CFG_KEY_select_found)
+                if select_found:
+                    if self.any_valid_find_results:
+                        self.select_find_result(1)
 
-            #self.results_on_find.show(STR('Search results'),f"{search_info}\n\n" + STR("found") + ": " + str(find_results_quant_sum_format) + ' ' + STR('items') + '.\n\n' + STR("Navigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions.") + abort_info)
-            self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
+                #self.find_results_info = f"{search_info}\n" + STR("found") + ": " + str(find_results_quant_sum_format) + ' ' + STR('items') + '.\n' + abort_info
+                self.find_results_info = str(find_results_quant_sum_format) + ' ' + STR('items') + ' ' + STR('found')
+                # + abort_info
+                #STR("Navigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions.")
 
-            if not self.searching_aborted and self.any_valid_find_results:
-                self.search_show_butt.configure(state='normal')
-                self.search_save_butt.configure(state='normal')
+                #self.results_on_find.show(STR('Search results'),f"{search_info}\n\n" + STR("found") + ": " + str(find_results_quant_sum_format) + ' ' + STR('items') + '.\n\n' + STR("Navigate search results by\n\'Find next (F3)\' & 'Find prev (Shift+F3)'\nactions.") + abort_info)
+                self.status_find_tooltip(f"available search results: {find_results_quant_sum_format}")
 
-                self.search_butt.configure(state='disabled')
+                if not self.searching_aborted and self.all_records_find_results_sum==0:
+                    self.results_on_find.show('Search results','No results matching search criteria.')
 
-                self.external_find_params_change=False
+                if not self.searching_aborted and self.any_valid_find_results:
+                    self.search_show_butt.configure(state='normal')
+                    self.search_save_butt.configure(state='normal')
 
+                    self.search_butt.configure(state='disabled')
 
-            #self.find_dialog.hide()
-
-            #if self.any_valid_find_results:
-
-            #if self.results_on_find.res_bool:
-            #    self.find_dialog.hide()
-
-            #    if find_results_quant_sum_format:
-            #        self.find_result_index=-1
-            #        self.find_next()
+                    self.external_find_params_change=False
         else:
             self.info_dialog_on_find.show(STR('Search aborted.'),'Same params')
 
@@ -3666,7 +3655,7 @@ class Gui:
                     continue
                 else:
                     settled=True
-                    status_to_set=f'record find result: {fnumber(self.find_result_index+1 if self.find_result_index>=0 else record_find_results_len+self.find_result_index+1)} / {fnumber(record_find_results_len)} / {fnumber(self.all_records_find_results_len)}'
+                    status_to_set=f'record find result: {fnumber(self.find_result_index+1 if self.find_result_index>=0 else record_find_results_len+self.find_result_index+1)} / {fnumber(record_find_results_len)} / {fnumber(self.all_records_find_results_sum)}'
 
             record_item = self.record_to_item[record]
 
