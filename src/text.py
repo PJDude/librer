@@ -106,6 +106,78 @@ class LANGUAGES:
             'it': 'Annulla la ricerca.',
             'fr': 'Annuler la recherche.'
         },
+        'Searching': {
+            'pl': 'Szukanie',
+            'es': 'Buscando',
+            'ru': 'Поиск',
+            'de': 'Suche',
+            'it': 'Ricerca in corso',
+            'fr': 'Recherche'
+        },
+        'Close dialog after searching': {
+            'pl': 'Zamknij okno dialogowe po zakończeniu wyszukiwania.',
+            'es': 'Cerrar el diálogo después de la búsqueda.',
+            'ru': 'Закрыть диалог после поиска.',
+            'de': 'Dialog nach der Suche schließen.',
+            'it': 'Chiudi la finestra di dialogo dopo la ricerca.',
+            'fr': 'Fermer la boîte de dialogue après la recherche.'
+        },
+        'Show results dialog after searching': {
+            'pl': 'Pokaż okno wyników po zakończeniu wyszukiwania.',
+            'es': 'Mostrar el diálogo de resultados después de la búsqueda.',
+            'ru': 'Показать диалог с результатами после поиска.',
+            'de': 'Ergebnisdialog nach der Suche anzeigen.',
+            'it': 'Mostra la finestra dei risultati dopo la ricerca.',
+            'fr': 'Afficher la boîte de dialogue des résultats après la recherche.'
+        },
+        'Expand record on search results dialog': {
+            'pl': 'Rozwiń rekord w oknie wyników wyszukiwania.',
+            'es': 'Expandir el registro en el diálogo de resultados de búsqueda.',
+            'ru': 'Развернуть запись в окне результатов поиска.',
+            'de': 'Datensatz im Suchergebnisdialog erweitern.',
+            'it': 'Espandi il record nella finestra dei risultati di ricerca.',
+            'fr': 'Développer l’enregistrement dans la boîte de dialogue des résultats de recherche.'
+        },
+        'Files': {
+            'pl': 'Pliki',
+            'es': 'Archivos',
+            'ru': 'Файлы',
+            'de': 'Dateien',
+            'it': 'File',
+            'fr': 'Fichiers'
+        },
+        'Folders': {
+            'pl': 'Katalogi',
+            'es': 'Carpetas',
+            'ru': 'Папки',
+            'de': 'Ordner',
+            'it': 'Cartelle',
+            'fr': 'Dossiers'
+        },
+        'Kind': {
+            'pl': 'Typ',
+            'es': 'Tipo',
+            'ru': 'Вид',
+            'de': 'Art',
+            'it': 'Tipo',
+            'fr': 'Type'
+        },
+        'Clear results': {
+            'pl': 'Wyczyść wyniki',
+            'es': 'Borrar resultados',
+            'ru': 'Очистить результаты',
+            'de': 'Ergebnisse löschen',
+            'it': 'Cancella i risultati',
+            'fr': 'Effacer les résultats'
+        },
+        'Another search': {
+            'pl': 'Kolejne wyszukiwanie',
+            'es': 'Otra búsqueda',
+            'ru': 'Новый поиск',
+            'de': 'Erneute Suche',
+            'it': 'Un’altra ricerca',
+            'fr': 'Une autre recherche'
+        },
         'Abort single file': {
             'pl': 'Przerwij plik',
             'es': 'Abortar archivo único',
@@ -772,7 +844,7 @@ class LANGUAGES:
             'it': 'Importa xml da "Where Is It?" ...',
             'fr': 'Importer xml de "Where Is It?" ...',
         },
-        'Import Record ...': {
+        'Import record ...': {
             'pl': "Importuj rekord ...",
             'es': "Importar registro ...",
             'ru': "Импортировать запись ...",
@@ -965,13 +1037,13 @@ class LANGUAGES:
             'it': "Naviga tra i risultati di ricerca con le azioni\n'Trova successivo (F3)' e 'Trova precedente (Shift+F3)'.",
             'fr': "Naviguez dans les résultats de recherche avec les actions\n'Trouver suivant (F3)' et 'Trouver précédent (Shift+F3)'.",
         },
-        'New Record ...': {
-            'pl': 'Nowy Rekord ...',
-            'es': 'Nuevo Registro ...',
+        'New record ...': {
+            'pl': 'Nowy rekord ...',
+            'es': 'Nuevo registro ...',
             'ru': 'Новая запись ...',
-            'de': 'Neuer Eintrag ...',
-            'it': 'Nuovo Record ...',
-            'fr': 'Nouvel Enregistrement ...',
+            'de': 'Neuer eintrag ...',
+            'it': 'Nuovo record ...',
+            'fr': 'Nouvel enregistrement ...',
         },
         'New alias name for record': {
             'pl': 'Nowy Alias:',
@@ -1717,6 +1789,14 @@ class LANGUAGES:
             'de': 'Datensatzdaten entladen',
             'it': 'Scarica i dati del record',
             'fr': 'Décharger les données d\'enregistrement',
+        },
+        'Unload all records data':{
+            'pl': 'Rozładuj wszystkie dane rekordów',
+            'es': 'Descargar todos los datos del registro',
+            'ru': 'Разгрузить все данные записи',
+            'de': 'Alle Datensatzdaten entladen',
+            'it': 'Scarica tutti i dati del record',
+            'fr': 'Décharger toutes les données d\'enregistrement',
         },
         'Where Is It ? Import Records':{
             'pl': 'Where Is It ? importuj recordy',

@@ -120,6 +120,7 @@ CFG_KEY_show_popups = 'show_popups'
 CFG_KEY_groups_collapse = 'groups_collapse'
 CFG_KEY_include_hidden = 'include_hidden'
 CFG_KEY_select_found = 'select_found'
+CFG_KEY_after_action = 'after_search'
 CFG_KEY_expand_search_results = 'expand_search_results'
 
 cfg_defaults={
@@ -163,6 +164,7 @@ cfg_defaults={
     CFG_KEY_groups_collapse:True,
     CFG_KEY_include_hidden:False,
     CFG_KEY_select_found:False,
+    CFG_KEY_after_action:1,
     CFG_KEY_expand_search_results:False
 }
 
@@ -722,10 +724,10 @@ class Gui:
                 self_file_cascade_add_command = self.file_cascade.add_command
                 self_file_cascade_add_separator = self.file_cascade.add_separator
 
-                self_file_cascade_add_command(label = STR('New Record ...'),command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record_new,compound='left')
+                self_file_cascade_add_command(label = STR('New record ...'),command = self.scan_dialog_show, accelerator="Ctrl+N",image = self.ico_record_new,compound='left')
 
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = STR('Import Record ...'), accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
+                self_file_cascade_add_command(label = STR('Import record ...'), accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
                 self_file_cascade_add_command(label = STR('Import "Where Is It?" xml ...'), command = self.record_import_wii,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = STR('Find ...'),command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
@@ -1850,13 +1852,23 @@ class Gui:
             self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files / folders in scan'),variable=self.scan_hidden_var)
             self.scan_hidden_cb.grid(row=3, column=0, sticky='news',padx=4,pady=4)
 
+            find_frame=LabelFrame(sfdma, text=STR("Searching"),borderwidth=2,bg=self.bg_color)
+            find_frame.grid(row=4,column=0,sticky='wens',padx=3,pady=3)
+
+            self.search_after_action_var = BooleanVar()
+            self.search_after_action0_cb = Radiobutton(find_frame,text=' ' + STR('Close dialog after searching'),variable=self.search_after_action_var,value=0)
+            self.search_after_action0_cb.grid(row=0, column=0, sticky='news',padx=4,pady=4)
+
+            self.search_after_action1_cb = Radiobutton(find_frame,text=' ' + STR('Show results dialog after searching'),variable=self.search_after_action_var,value=1)
+            self.search_after_action1_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+
             self.select_found_var = BooleanVar()
-            self.select_found_cb = Checkbutton(sfdma,text=' ' + STR('Select first found item after searching'),variable=self.select_found_var)
-            self.select_found_cb.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            self.select_found_cb = Checkbutton(find_frame,text=' ' + STR('Select first found item after searching'),variable=self.select_found_var)
+            self.select_found_cb.grid(row=2, column=0, sticky='news',padx=0,pady=4)
 
             self.expand_search_results_var = BooleanVar()
-            self.expand_search_results_cb = Checkbutton(sfdma,text=' ' + STR('Expand record on search results'),variable=self.expand_search_results_var)
-            self.expand_search_results_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            self.expand_search_results_cb = Checkbutton(find_frame,text=' ' + STR('Expand record on search results dialog'),variable=self.expand_search_results_var)
+            self.expand_search_results_cb.grid(row=3, column=0, sticky='news',padx=0,pady=4)
 
             sfdma.grid_columnconfigure( 0, weight=1)
             sfdma.grid_rowconfigure( 9, weight=1)
@@ -1877,6 +1889,7 @@ class Gui:
                 (self.groups_collapsed_var,CFG_KEY_groups_collapse),
                 (self.scan_hidden_var,CFG_KEY_include_hidden),
                 (self.select_found_var,CFG_KEY_select_found),
+                (self.search_after_action_var,CFG_KEY_after_action),
                 (self.expand_search_results_var,CFG_KEY_expand_search_results)
             ]
 
@@ -1888,6 +1901,7 @@ class Gui:
         self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
         self.scan_hidden_var.set(self.cfg.get(CFG_KEY_include_hidden))
         self.select_found_var.set(self.cfg.get(CFG_KEY_select_found))
+        self.search_after_action_var.set(self.cfg.get(CFG_KEY_after_action))
         self.expand_search_results_var.set(self.cfg.get(CFG_KEY_expand_search_results))
         self.lang_var.set(self.cfg_get(CFG_LANG))
         self.theme_var.set(self.cfg_get(CFG_THEME))
@@ -1925,6 +1939,9 @@ class Gui:
 
         if self.cfg.get(CFG_KEY_select_found)!=self.select_found_var.get():
             self.cfg.set(CFG_KEY_select_found,self.select_found_var.get())
+
+        if self.cfg.get(CFG_KEY_after_action)!=self.search_after_action_var.get():
+            self.cfg.set(CFG_KEY_after_action,self.search_after_action_var.get())
 
         if self.cfg.get(CFG_KEY_expand_search_results)!=self.expand_search_results_var.get():
             self.cfg.set(CFG_KEY_expand_search_results,self.expand_search_results_var.get())
@@ -2222,6 +2239,8 @@ class Gui:
 
             self.search_butt = Button(self.find_dialog.area_buttons, text=STR('Search'), width=14, command=self.find_items )
             self.search_butt.pack(side='left', anchor='n',padx=5,pady=5)
+            self.clear_res_butt = Button(self.find_dialog.area_buttons, text=STR('Clear results'), width=14, command=self.clear_results_search, state='disabled' )
+            self.clear_res_butt.pack(side='left', anchor='n',padx=5,pady=5)
             self.search_show_butt = Button(self.find_dialog.area_buttons, text=STR('Show results'), width=14, command=self.find_show_results, state='disabled' )
             self.search_show_butt.pack(side='left', anchor='n',padx=5,pady=5)
             self.search_save_butt = Button(self.find_dialog.area_buttons, text=STR('Save results'), width=14, command=self.find_save_results, state='disabled' )
@@ -2294,7 +2313,8 @@ class Gui:
 
             self.search_results_dialog.area_main.grid_rowconfigure(0,weight=1)
 
-            Button(buttonsframe, text=STR('Another Search'), width=14, command=self.find_results_search ).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(buttonsframe, text=STR('Clear results'), width=14, command=self.clear_results_search ).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(buttonsframe, text=STR('Another search'), width=14, command=self.find_results_search ).pack(side='left', anchor='n',padx=5,pady=5)
             Button(buttonsframe, text=STR('Save results'), width=14, command=self.find_save_results ).pack(side='left', anchor='n',padx=5,pady=5)
             Button(buttonsframe, text=STR('Close'), width=14, command=self.find_results_close ).pack(side='left', anchor='n',padx=5,pady=5)
 
@@ -2314,18 +2334,24 @@ class Gui:
 
         self.search_results_shown=True
 
+        self.results_tree.focus_set()
+
     search_results_shown=False
     def search_results_dialog_configure(self,event):
         if self.search_results_shown:
             geometry = self.search_results_dialog.widget.geometry()
             self.cfg.set(CFG_geometry_search,str(geometry))
 
+    def clear_results_search(self):
+        self.find_clear()
+        self.find_results_search()
+
     def find_results_search(self):
         self.find_results_close()
         self.finder_wrapper_show(False)
 
     def find_results_close(self):
-        self.found_item_to_data={}
+        #self.found_item_to_data={}
         self.search_results_dialog.hide()
 
     about_dialog_created = False
@@ -2935,6 +2961,7 @@ class Gui:
     def find_close(self):
         self.find_dialog.hide()
 
+    found_item_to_data={}
     @restore_status_line
     @block
     def find_clear(self):
@@ -2964,6 +2991,15 @@ class Gui:
 
         self.any_valid_find_results = False
         self.external_find_params_change=True
+
+        try:
+            children=self.results_tree.get_children()
+
+            if children:
+                self.results_tree.delete(*children)
+        except:
+            pass
+
 
     def set_found(self):
         self_tree_get_children = self.tree.get_children
@@ -3034,29 +3070,32 @@ class Gui:
     def find_show_results_core(self):
         results_dialog = self.get_search_results_dialog()
         children=self.results_tree.get_children()
-        self.results_tree.delete(*children)
-        self.found_item_to_data={}
 
-        for record in librer_core.records:
-            if record.find_results:
-                record_name=librer_core.get_record_name(record)
-                record_node = self.results_tree.insert('','end',text=record_name,values=(len(record.find_results),''))
+        if not children:
+            #self.results_tree.delete(*children)
+            self.found_item_to_data={}
 
-                if self.cfg.get(CFG_KEY_expand_search_results):
-                    self.results_tree.item(record_node,open=True)
+            for record in librer_core.records:
+                if record.find_results:
+                    record_name=librer_core.get_record_name(record)
+                    record_node = self.results_tree.insert('','end',text=record_name,values=(len(record.find_results),''))
 
-                for res_item,res_size,res_mtime in record.find_results:
-                    item=self.results_tree.insert(record_node,'end',text=sep.join(res_item),values=(bytes_to_str(res_size),strftime('%Y/%m/%d %H:%M:%S',localtime_catched(res_mtime))))
-                    self.found_item_to_data[item]=(record,res_item)
+                    if self.cfg.get(CFG_KEY_expand_search_results):
+                        self.results_tree.item(record_node,open=True)
 
-        children = self.results_tree.get_children()
+                    for res_item,res_size,res_mtime in record.find_results:
+                        item=self.results_tree.insert(record_node,'end',text=sep.join(res_item),values=(bytes_to_str(res_size),strftime('%Y/%m/%d %H:%M:%S',localtime_catched(res_mtime))))
+                        self.found_item_to_data[item]=(record,res_item)
 
-        if children:
-            first_item = children[0]
-            self.results_tree.focus_set()
-            self.results_tree.selection_set(first_item)
+            children = self.results_tree.get_children()
 
-        results_dialog.info_label.configure(text=self.find_results_info)
+            if children:
+                first_item = children[0]
+
+                self.results_tree.selection_set(first_item)
+                self.results_tree.focus(first_item)
+
+            results_dialog.info_label.configure(text=self.find_results_info)
 
         results_dialog.show()
 
@@ -3207,6 +3246,7 @@ class Gui:
                 self.find_result_index=0
 
                 self.search_butt.configure(state='normal')
+                self.clear_res_butt.configure(state='disabled')
                 self.search_show_butt.configure(state='disabled')
                 self.search_save_butt.configure(state='disabled')
             else:
@@ -3216,6 +3256,7 @@ class Gui:
                     self.search_butt.configure(state='disabled')
 
                 if self.any_valid_find_results:
+                    self.clear_res_butt.configure(state='normal')
                     self.search_show_butt.configure(state='normal')
                     self.search_save_butt.configure(state='normal')
 
@@ -3599,6 +3640,11 @@ class Gui:
                     self.search_butt.configure(state='disabled')
 
                     self.external_find_params_change=False
+
+                    if self.cfg.get(CFG_KEY_after_action)==1:
+                        self.find_show_results()
+                    else:
+                        self.find_close()
         else:
             self.info_dialog_on_find.show(STR('Search aborted.'),'Same params')
 
@@ -3982,7 +4028,7 @@ class Gui:
             c_nav_add_command(label = STR('Go to first record')       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
             c_nav_add_command(label = STR('Go to last record')   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
-            pop_add_command(label = STR('New Record ...'),  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico_record_new,compound='left')
+            pop_add_command(label = STR('New record ...'),  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico_record_new,compound='left')
             pop_add_separator()
             pop_add_command(label = STR('Export record ...'), accelerator='Ctrl+E', command = self.record_export,image = self.ico_record_export,compound='left',state=state_on_records)
             pop_add_command(label = STR('Import record ...'), accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
@@ -4960,7 +5006,6 @@ class Gui:
 
     @block
     def locate_found_item(self,item):
-
         record,items_names_tuple = self.found_item_to_data[item]
 
         self.access_filestructure(record)
