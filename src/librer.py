@@ -2325,15 +2325,14 @@ class Gui:
 
             self.search_results_dialog_created = True
 
+            geometry = self.cfg.get(CFG_geometry_search)
+            if geometry:
+                self.search_results_dialog.widget.geometry(geometry)
+
         return self.search_results_dialog
 
     def search_results_dialog_post_show(self):
-        geometry = self.cfg.get(CFG_geometry_search)
-        if geometry:
-            self.search_results_dialog.widget.geometry(geometry)
-
         self.search_results_shown=True
-
         self.results_tree.focus_set()
 
     search_results_shown=False
