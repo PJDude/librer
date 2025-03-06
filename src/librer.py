@@ -116,6 +116,7 @@ CFG_last_dir = 'last_dir'
 CFG_geometry = 'geometry'
 CFG_geometry_search = 'geometry_search'
 CFG_SORTING = 'sorting'
+CFG_SORTING_RESULTS = 'sorting_results'
 CFG_KEY_show_popups = 'show_popups'
 CFG_KEY_groups_collapse = 'groups_collapse'
 CFG_KEY_include_hidden = 'include_hidden'
@@ -784,9 +785,21 @@ class Gui:
             self.column_sort_last_params = self.cfg_get(CFG_SORTING)
             if len(self.column_sort_last_params)!=7:
                 raise
+
         except:
             #colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code
             self.column_sort_last_params=('#0',self_REAL_SORT_COLUMN_INDEX['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1,2)
+
+        try:
+            self.column_sort_last_params_results = self.cfg_get(CFG_SORTING_RESULTS)
+            if len(self.column_sort_last_params_results)!=7:
+                raise
+
+        except:
+            #colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code
+            self.column_sort_last_params_results=('#0',self_REAL_SORT_COLUMN_INDEX['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1,2)
+            #self.column_sort_last_params_results=('#0',self_REAL_SORT_COLUMN_INDEX_RESULTS['#0'],self_REAL_SORT_COLUMN_IS_NUMERIC['#0'],0,0,1,2)
+
 
         #######################################################################
 
@@ -2288,8 +2301,11 @@ class Gui:
             results_tree = self.results_tree = Treeview(treeframe,takefocus=True,show=('tree','headings') )
             results_tree.pack(side='left',fill='both',expand=1)
 
-            results_tree["columns"]=('size_h','ctime_h')
+            results_tree["columns"]=('data','size','size_h','ctime','ctime_h')
             results_tree["displaycolumns"]=('size_h','ctime_h')
+
+            #results_tree["columns"]=('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
+
             results_tree.heading('#0',text=STR('Name'),anchor='n')
             results_tree.heading('size_h',text=STR('Size'),anchor='n')
             results_tree.heading('ctime_h',text=STR('Time'),anchor='n')
@@ -2299,8 +2315,14 @@ class Gui:
             results_tree.column('size_h', width=120, minwidth=120, stretch='no',anchor='e')
             results_tree.column('ctime_h', width=160, minwidth=120, stretch='no',anchor='e')
 
+            results_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press_search_results)
             results_tree.bind('<Double-Button-1>', self.double_left_button_results_tree)
             results_tree.bind('<Return>', lambda event : self.return_results_tree())
+
+            self.REAL_SORT_COLUMN_INDEX_RESULTS={}
+
+            for disply_column in self.real_display_columns:
+                self.REAL_SORT_COLUMN_INDEX_RESULTS[disply_column] = self.results_tree["columns"].index(self.REAL_SORT_COLUMN[disply_column])
 
             results_tree_yview = results_tree.yview
             self.results_tree_scrollbar = Scrollbar(treeframe, orient='vertical', command=results_tree_yview,takefocus=False)
@@ -3072,19 +3094,22 @@ class Gui:
 
         if not children:
             #self.results_tree.delete(*children)
-            self.found_item_to_data={}
+            self_found_item_to_data = self.found_item_to_data={}
 
+            self_results_tree_insert=self.results_tree.insert
+            sep_join = sep.join
             for record in librer_core.records:
                 if record.find_results:
                     record_name=librer_core.get_record_name(record)
-                    record_node = self.results_tree.insert('','end',text=record_name,values=(len(record.find_results),''))
+                    record_node = self_results_tree_insert('','end',text=record_name,values=(record_name,0,'',0,''))
+                    #len(record.find_results),''
 
                     if self.cfg.get(CFG_KEY_expand_search_results):
                         self.results_tree.item(record_node,open=True)
 
-                    for res_item,res_size,res_mtime in record.find_results:
-                        item=self.results_tree.insert(record_node,'end',text=sep.join(res_item),values=(bytes_to_str(res_size),strftime('%Y/%m/%d %H:%M:%S',localtime_catched(res_mtime))))
-                        self.found_item_to_data[item]=(record,res_item)
+                    for res_item,res_size,res_mtime in sorted(record.find_results,key = lambda x : x) :
+                        item=self_results_tree_insert(record_node,'end',text=sep_join(res_item),values=(sep_join(res_item),res_size,bytes_to_str(res_size),res_mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(res_mtime))))
+                        self_found_item_to_data[item]=(record,res_item)
 
             children = self.results_tree.get_children()
 
@@ -3942,6 +3967,25 @@ class Gui:
 
         self.tree.update()
 
+    def tree_on_mouse_button_press_search_results(self,event):
+        tree=event.widget
+        region = tree.identify("region", event.x, event.y)
+
+        if region != 'separator':
+            if region == 'heading':
+                col_nr = tree.identify_column(event.x)
+                colname = col_nr if col_nr=='#0' else tree.column(col_nr,'id')
+
+                #print('colname:',colname)
+                ##0,size_h,ctime_h
+
+                #if colname in self.REAL_SORT_COLUMN:
+                self.column_sort_click_results(tree,colname)
+
+                #    self.column_sort_click(tree,colname)
+            elif item:=tree.identify('item',event.x,event.y):
+                pass
+
     def tree_on_mouse_button_press(self,event):
         if not self.block_processing_stack:
             self.menubar_unpost()
@@ -4229,14 +4273,17 @@ class Gui:
         #if len(children)>1:
 
         self_GROUP = self.GROUP
+        tree_item=tree.item
+
+        self_REAL_SORT_COLUMN_INDEX_colname = self.REAL_SORT_COLUMN_INDEX[colname]
 
         for item in children:
-            values = tree.item(item,'values')
+            values = tree_item(item,'values')
 
             if not values: #dummy node
                 continue
 
-            sortval_org = values[self.REAL_SORT_COLUMN_INDEX[colname]]
+            sortval_org = values[self_REAL_SORT_COLUMN_INDEX_colname]
 
             sortval=(int(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
 
@@ -4268,6 +4315,79 @@ class Gui:
 
     def column_sort_set_arrow(self, tree):
         colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params
+        tree.heading(colname, text=self.org_label[colname] + ' ' + str('\u25BC' if reverse else '\u25B2') )
+
+    #@logwrapper
+    def column_sort_click_results(self, tree, colname):
+        prev_colname,prev_sort_index,prev_is_numeric,prev_reverse,prev_group_code,prev_dir_code,prev_non_dir_code = self.column_sort_last_params_results
+        reverse = not prev_reverse if colname == prev_colname else prev_reverse
+        tree.heading(prev_colname, text=self.org_label[prev_colname])
+
+        group_code,dir_code,non_dir_code = (2,1,0) if reverse else (0,1,2)
+
+        sort_index=self.REAL_SORT_COLUMN_INDEX[colname]
+        is_numeric=self.REAL_SORT_COLUMN_IS_NUMERIC[colname]
+        self.column_sort_last_params_results=(colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code)
+        self.cfg.set(CFG_SORTING_RESULTS,self.column_sort_last_params_results)
+
+        colname_real = self.REAL_SORT_COLUMN[colname]
+
+        self.column_sort_results(tree)
+
+    def tree_sort_item_results(self,parent_item):
+        tree = self.results_tree
+
+        colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params_results
+
+        real_column_to_sort=self.REAL_SORT_COLUMN[colname]
+
+        tlist=[]
+        tree_set = tree.set
+        tlist_append = tlist.append
+
+        dir_or_dirlink = (self.DIR,self.DIRLINK)
+
+        children = tree.get_children(parent_item)
+
+        self_REAL_SORT_COLUMN_INDEX_RESULTS_colname=self.REAL_SORT_COLUMN_INDEX_RESULTS[colname]
+
+        tree_item=tree.item
+
+        for item in children:
+            values = tree_item(item,'values')
+
+            sortval_org = values[self_REAL_SORT_COLUMN_INDEX_RESULTS_colname]
+
+            sortval=(int(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
+
+            tlist_append( ( sortval,item) )
+
+        tlist.sort(reverse=reverse,key=lambda x: x[0])
+
+        #if not parent_item:
+        #    parent_item=''
+
+        tree_move = tree.move
+        _ = {tree_move(item_temp, parent_item, index) for index,(val_tuple,item_temp) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
+
+    #@restore_status_line
+    #@block_and_log
+    def column_sort_results(self, tree):
+        #self.status('Sorting...')
+        colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params_results
+
+        self.column_sort_set_arrow_results(tree)
+
+        children = self.results_tree.get_children('')
+
+        for item in children:
+            self.tree_sort_item_results(item)
+
+        tree.update()
+        #self.visible_items_uptodate=False
+
+    def column_sort_set_arrow_results(self, tree):
+        colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params_results
         tree.heading(colname, text=self.org_label[colname] + ' ' + str('\u25BC' if reverse else '\u25B2') )
 
     def path_to_scan_set(self,path):
