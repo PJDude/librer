@@ -27,7 +27,7 @@
 ####################################################################################
 
 from os import sep,system,getcwd,name as os_name,cpu_count
-from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,exists as path_exists,isdir
+from os.path import abspath,normpath,basename,splitext as path_splitext,dirname,join as path_join,isfile as path_isfile,exists as path_exists,isdir
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
 from pathlib import Path
@@ -45,6 +45,7 @@ from traceback import format_stack
 import sys
 import logging
 from shutil import rmtree
+from collections import defaultdict
 
 from pickle import dumps, loads
 from ciso8601 import parse_datetime
@@ -730,6 +731,7 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = STR('Import record ...'), accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
                 self_file_cascade_add_command(label = STR('Import "Where Is It?" xml ...'), command = self.record_import_wii,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = STR('Import "Cathy" data ...'), command = self.record_import_caf,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = STR('Find ...'),command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
                 self_file_cascade_add_separator()
@@ -2527,6 +2529,224 @@ class Gui:
                 else:
                     self.find_clear()
                     self.info_dialog_on_main.show(STR('Repacking finished.'),STR('Check repacked record\nDelete original record manually if you want.'))
+
+    buffer=None
+
+    def readbuf(self, fmt, nb=False):
+        from struct import calcsize, unpack
+        #, pack
+
+        if not(nb):
+            nb = calcsize(fmt)
+
+        res=unpack(fmt, self.buffer.read(nb))
+        #print(f'unpack={res}')
+        return res[0]
+
+    def readstring(self):
+        delim = b'\x00'
+
+        chain = []
+        while 1:
+            chr = self.buffer.read(1)
+            if chr == delim:
+                break
+            else:
+                try:
+                    chain.append(chr)
+                except:
+                    pass
+        #return b''.join(chain).decode('latin1')
+        #print(chain)
+        return b''.join(chain).decode('latin1')
+
+
+    def clf_import(self,pathcatname):
+        from time import ctime
+        from binascii import b2a_hex
+
+        DEBUG = True
+
+        print("\nclf_import:",pathcatname)
+
+        ulModus = 1000000000
+        ulMagicBase = 500410407
+        #ulMagicBase = 251327015
+        sVersion = 8  # got a 7 in the .cpp file you share with me, but got an 8 in my .cat testfile genrated in cathy v2.31.3
+
+        try:
+            self.buffer = open(pathcatname, 'rb')
+        except:
+            return
+
+        # m_sVersion - Check the magic
+        ul = self.readbuf('<L')  # 4 bytes
+        if ul > 0 and ul % ulModus == ulMagicBase:
+            m_sVersion = int(ul/ulModus)
+        else:
+            self.buffer.close()
+            print("Incorrect magic number for caf file",pathcatname, "(", ul % ulModus, ")")
+            return
+
+        if m_sVersion > 2:
+            m_sVersion = self.readbuf('h')  # 2 bytes
+
+        print(f'{m_sVersion=}')
+
+        if m_sVersion > sVersion:
+            print("Incompatible caf version for", pathcatname, "(", m_sVersion, ")")
+            return
+
+        # m_timeDate
+        m_timeDate = ctime(self.readbuf('<L'))  # 4 bytes
+        print(f'{m_timeDate=}')
+
+        # m_strDevice - Starting version 2 the device is saved
+        if m_sVersion >= 2:
+            m_strDevice = self.readstring()
+            print(f'{m_strDevice=}')
+
+        # m_strVolume, m_strAlias > m_szVolumeName
+        m_strVolume = self.readstring()
+        print(f'{m_strVolume=}')
+
+        m_strAlias = self.readstring()
+        print(f'{m_strAlias=}')
+
+        if len(m_strAlias) == 0:
+            m_szVolumeName = m_strVolume
+        else:
+            m_szVolumeName = m_strAlias
+
+        # m_dwSerialNumber well, odd..
+        bytesn = self.buffer.read(4)  # 4 bytes
+        rawsn = b2a_hex(bytesn).decode().upper()
+        sn = ''
+        while rawsn:
+            chunk = rawsn[-2:]
+            rawsn = rawsn[:-2]
+            sn += chunk
+        m_dwSerialNumber = '%s-%s' % (sn[:4], sn[4:])
+
+        print(f'{m_dwSerialNumber=}')
+
+        # m_strComment
+        if m_sVersion >= 4:
+            m_strComment = self.readstring()
+            print(f'{m_strComment=}')
+
+
+        # m_fFreeSize - Starting version 1 the free size was saved
+        if m_sVersion >= 1:
+            m_fFreeSize = self.readbuf('<f')  # as megabytes (4 bytes)
+        else:
+            m_fFreeSize = -1  # unknow
+
+        print(f'{m_fFreeSize=}')
+
+        # m_sArchive
+        if m_sVersion >= 6:
+            m_sArchive = self.readbuf('h')  # 2 bytes
+            if m_sArchive == -1:
+                m_sArchive = 0
+
+            print(f'{m_sArchive=}')
+
+        # folder information : file count, total size
+
+        caf_folders_dict={}
+
+        lLen = self.readbuf('<l')  # 4 bytes
+
+        #########################################################
+        print(f"Folders:{lLen}")
+
+        for l in range(lLen):
+            if l == 0 or m_sVersion <= 3:
+                m_pszName = self.readstring()
+            if m_sVersion >= 3:
+                m_lFiles = self.readbuf('<l')  # 4 bytes
+                m_dTotalSize = self.readbuf('<d')  # 8 bytes
+
+            caf_folders_dict[l]=(m_lFiles, m_dTotalSize)
+
+        # files : date, size, parentfolderid, filename
+        # if it's a folder :  date, -thisfolderid, parentfolderid, filename
+
+        caf_names_dict=defaultdict(set)
+
+        lLen = self.readbuf('<l')  # 4 bytes
+
+        #########################################################
+        print(f"Files{lLen}")
+        for l in range(lLen):
+            elmdate = ctime(self.readbuf('<L'))
+            m_lLength=self.readbuf('<l')
+            m_sPathName = self.readbuf('H')
+            m_pszName = self.readstring()
+
+            caf_names_dict[m_sPathName].add( (elmdate, m_lLength, m_pszName) )
+
+        self.buffer.close()
+
+        def print_folder(i,name,ident='    '):
+            try:
+                print(ident,f'[{name}]',caf_folders_dict[i])
+
+                sub_ident=ident + '    '
+                for elem in sorted(caf_names_dict[i],key = lambda x : x[2]):
+                    elmdate, m_lLength, m_pszName = elem
+
+                    if m_lLength<0:
+                        folder_index=abs(m_lLength)
+                        folder_name=m_pszName
+                        print_folder(folder_index,folder_name,sub_ident)
+                    else:
+                        print(sub_ident,m_pszName)
+
+            except Exception as e:
+                print('ERROR:',e)
+
+        #print_folder(0,'ROOT')
+
+        return m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_szVolumeName, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict
+
+
+    @restore_status_line
+    @block
+    def record_import_caf(self):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+
+        group = None
+        if self.current_group:
+            group = self.current_group
+        elif self.current_record :
+            if group_temp:=librer_core.get_record_group(self.current_record):
+                group = group_temp
+
+        postfix = f' to group:{group}' if group else ''
+
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose "Cathy" data file') + postfix, defaultextension=".caf",filetypes=[(STR("Cathy Files"),"*.caf"),(STR("All Files"),"*.*")]):
+            self.last_dir = dirname(import_filenames[0])
+
+            postfix=0
+
+            for filename in import_filenames:
+
+                res=self.clf_import(filename)
+
+                m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_szVolumeName, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict = res
+
+                filenames_set={elem[2] for dir_elems in caf_names_dict.values() for elem in dir_elems}
+
+                cd_set=set()
+
+                compr=9
+
+                label=path_splitext(basename(filename))[0]
+
+                sub_res = librer_core.import_records_caf_do(compr,postfix,label,caf_folders_dict, caf_names_dict,self.single_record_show,filenames_set,cd_set,group)
+                postfix+=1
 
     def wii_import_to_local(self):
         self.wii_import_dialog_do_it=True
