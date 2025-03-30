@@ -51,7 +51,6 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 from pympler.asizeof import asizeof
 from send2trash import send2trash as send2trash_delete
 from ciso8601 import parse_datetime
-from datetime import datetime
 
 windows = bool(os_name=='nt')
 
@@ -274,6 +273,7 @@ class Header :
         self.scan_path = scan_path
         self.creation_time = int(time())
         self.rid = self.creation_time #record id
+        self.info = ''
 
         self.quant_files = 0
         self.quant_folders = 0
@@ -1243,6 +1243,10 @@ class LibrerRecord:
             info_list.append(f'scanned files   : {fnumber(self_header.quant_files)}')
             info_list.append(f'scanned folders : {fnumber(self_header.quant_folders)}')
 
+            if hasattr(self_header, 'info'):
+                info_list.append('')
+                info_list.append(self_header.info)
+
             scanning_time_str = f'{str(round(self_header.scanning_time,2))}'
 
             cde_stats_time_all_str = ''
@@ -1369,7 +1373,8 @@ class LibrerRecord:
                 info_list.append('========================================')
                 info_list.extend(sublist_size)
             except Exception as se:
-                print('record:',file_name,' error:',str(se))
+                pass
+                #print('record:',file_name,' error:',str(se))
 
         self.txtinfo = '\n'.join(info_list)
 
@@ -1907,34 +1912,27 @@ class LibrerCore:
         except Exception as ie:
             return [None,f'Error:{ie}']
 
-    def caf_data_to_scan_like_data(self,caf_folders_dict, caf_names_dict,customdata_helper):
-        #print('caf_data_to_scan_like_data',customdata_helper)
-
-        is_symlink=False
-        is_bind=False
-
-        def convert_data(i,name):
+    def caf_data_to_scan_like_data(self,caf_folders_dict, caf_names_dict):
+        def convert_data(i=0):
             this_level_data = {}
             try:
-                for elem in sorted(caf_names_dict[i],key = lambda x : x[2]):
-                    elmdate, m_lLength, m_pszName = elem
+                for elem in caf_names_dict[i]:
+                    date, m_lLength, m_pszName = elem
 
-                    mtime=int(datetime.strptime(elmdate, '%a %b %d %H:%M:%S %Y').timestamp())
+                    mtime=int(date)
 
                     if m_lLength<0:
-                        folder_index=abs(m_lLength)
-                        folder_name=m_pszName
                         #[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,subdict]
-                        this_level_data[m_pszName]= [0,True,False,is_symlink,is_bind,True,mtime,convert_data(folder_index,folder_name)]
+                        this_level_data[m_pszName]= [0,True,False,False,False,True,mtime,convert_data(abs(m_lLength))]
                     else:
                         #scan_like_data[name] = [size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
-                        this_level_data[m_pszName]=[int(m_lLength),False,True,is_symlink,is_bind,False,mtime]
+                        this_level_data[m_pszName]=[int(m_lLength),False,True,False,False,False,mtime]
             except Exception as e:
                 print('ERROR:',e)
 
             return this_level_data
 
-        return convert_data(0,'ROOT')
+        return convert_data()
 
     def wii_data_to_scan_like_data(self,path_list,curr_dict_ref,scan_like_data,customdata_helper):
         #path_list_tuple = tuple(path_list)
@@ -2025,7 +2023,7 @@ class LibrerCore:
             #return res
             res_list[0]= res
 
-    def import_records_caf_do(self,compr,postfix,label,caf_folders_dict, caf_names_dict,update_callback,filenames_set,cd_set,group=None):
+    def import_records_caf_do(self,compr,postfix,label,caf_folders_dict, caf_names_dict,update_callback,filenames_set,caf_info,group=None):
         import_res=[]
         new_record = self.create()
 
@@ -2040,25 +2038,15 @@ class LibrerCore:
         timeout=0
         crc=False
 
-        new_record.header.cde_list = [ [expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc] ]
+        new_record.header.scan_path = ''
+        new_record.header.info = caf_info
 
-        new_record.header.scan_path = 'Imported from "Cathy" database'
-
-        new_record.customdata = [(0,0,cd_elem) for cd_elem in cd_set]
-
-        customdata_helper={cd_elem_tuple:index for index,cd_elem_tuple in enumerate(new_record.customdata)}
-
-        scan_like_data=self.caf_data_to_scan_like_data(caf_folders_dict, caf_names_dict, customdata_helper)
-
-        del customdata_helper
+        scan_like_data=self.caf_data_to_scan_like_data(caf_folders_dict, caf_names_dict)
 
         new_record.filenames = tuple(sorted(list(filenames_set)))
         new_record.header.label = label
 
         new_record.filenames_helper = {fsname:fsname_index for fsname_index,fsname in enumerate(new_record.filenames)}
-
-        new_record.header.quant_files = 111
-        new_record.header.quant_folders = 111
 
         ##################################
         mtime = 0

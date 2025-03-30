@@ -994,8 +994,8 @@ class Gui:
         self_main_bind('<Control-c>', lambda event : self.clip_copy_full_path_with_file())
         self_main_bind('<Control-C>', lambda event : self.clip_copy_full_path_with_file())
 
-        self_main_bind('<Alt-Return>', lambda event : self.record_info())
-        self_main_bind('<Return>', lambda event : self.show_customdata())
+        #self_main_bind('<Alt-Return>', lambda event : self.record_info())
+        #self_main_bind('<Return>', lambda event : self.show_customdata())
 
         self_main_bind('<KeyPress-Delete>', lambda event : self.delete_action())
         self_main_bind('<F8>', lambda event : self.delete_action() )
@@ -2530,96 +2530,78 @@ class Gui:
                     self.find_clear()
                     self.info_dialog_on_main.show(STR('Repacking finished.'),STR('Check repacked record\nDelete original record manually if you want.'))
 
-    buffer=None
-
-    def readbuf(self, fmt, nb=False):
-        from struct import calcsize, unpack
-        #, pack
-
-        if not(nb):
-            nb = calcsize(fmt)
-
-        res=unpack(fmt, self.buffer.read(nb))
-        #print(f'unpack={res}')
-        return res[0]
-
-    def readstring(self):
-        delim = b'\x00'
-
-        chain = []
-        while 1:
-            chr = self.buffer.read(1)
-            if chr == delim:
-                break
-            else:
-                try:
-                    chain.append(chr)
-                except:
-                    pass
-        #return b''.join(chain).decode('latin1')
-        #print(chain)
-        return b''.join(chain).decode('latin1')
-
-
-    def clf_import(self,pathcatname):
-        from time import ctime
+    def caf_import(self,pathcatname):
         from binascii import b2a_hex
+        from struct import calcsize, unpack
 
         DEBUG = True
 
-        print("\nclf_import:",pathcatname)
-
         ulModus = 1000000000
         ulMagicBase = 500410407
-        #ulMagicBase = 251327015
-        sVersion = 8  # got a 7 in the .cpp file you share with me, but got an 8 in my .cat testfile genrated in cathy v2.31.3
+
+        sVersion = 8
 
         try:
-            self.buffer = open(pathcatname, 'rb')
+            buffer = open(pathcatname, 'rb')
         except:
             return
 
-        # m_sVersion - Check the magic
-        ul = self.readbuf('<L')  # 4 bytes
+        buffer_read = buffer.read
+
+        def readbuf(fmt):
+            return unpack(fmt, buffer_read(calcsize(fmt)))[0]
+
+        delim = b'\x00'
+
+        def readstring():
+            chars={}
+            i=0
+            while 1:
+                chr = buffer_read(1)
+                if chr == delim:
+                    break
+                else:
+                    chars[i]=chr
+                    i+=1
+
+            try:
+                return b''.join([chr for i,chr in sorted(chars.items(), key=lambda x: x[0]) ]).decode('latin1')
+
+            except Exception as e:
+                return str(e)
+
+        ul = readbuf('<L')  # 4 bytes
         if ul > 0 and ul % ulModus == ulMagicBase:
             m_sVersion = int(ul/ulModus)
         else:
-            self.buffer.close()
+            buffer.close()
             print("Incorrect magic number for caf file",pathcatname, "(", ul % ulModus, ")")
             return
 
         if m_sVersion > 2:
-            m_sVersion = self.readbuf('h')  # 2 bytes
+            m_sVersion = readbuf('h')  # 2 bytes
 
-        print(f'{m_sVersion=}')
+        #print(f'{m_sVersion=}')
 
         if m_sVersion > sVersion:
             print("Incompatible caf version for", pathcatname, "(", m_sVersion, ")")
             return
 
-        # m_timeDate
-        m_timeDate = ctime(self.readbuf('<L'))  # 4 bytes
-        print(f'{m_timeDate=}')
+        m_timeDate = readbuf('<L')  # 4 bytes
+        #print(f'{m_timeDate=}')
 
-        # m_strDevice - Starting version 2 the device is saved
         if m_sVersion >= 2:
-            m_strDevice = self.readstring()
-            print(f'{m_strDevice=}')
+            m_strDevice = readstring()
+            #print(f'{m_strDevice=}')
 
-        # m_strVolume, m_strAlias > m_szVolumeName
-        m_strVolume = self.readstring()
-        print(f'{m_strVolume=}')
+        m_strVolume = readstring()
+        #print(f'{m_strVolume=}')
 
-        m_strAlias = self.readstring()
-        print(f'{m_strAlias=}')
-
-        if len(m_strAlias) == 0:
-            m_szVolumeName = m_strVolume
-        else:
-            m_szVolumeName = m_strAlias
+        m_strAlias = readstring()
+        #print(f'{m_strAlias=}')
 
         # m_dwSerialNumber well, odd..
-        bytesn = self.buffer.read(4)  # 4 bytes
+        bytesn = buffer.read(4)  # 4 bytes
         rawsn = b2a_hex(bytesn).decode().upper()
         sn = ''
         while rawsn:
@@ -2628,89 +2610,61 @@ class Gui:
             sn += chunk
         m_dwSerialNumber = '%s-%s' % (sn[:4], sn[4:])
 
-        print(f'{m_dwSerialNumber=}')
+        #print(f'{m_dwSerialNumber=}')
 
-        # m_strComment
         if m_sVersion >= 4:
-            m_strComment = self.readstring()
-            print(f'{m_strComment=}')
-
+            m_strComment = readstring()
+            #print(f'{m_strComment=}')
 
         # m_fFreeSize - Starting version 1 the free size was saved
         if m_sVersion >= 1:
-            m_fFreeSize = self.readbuf('<f')  # as megabytes (4 bytes)
+            m_fFreeSize = readbuf('<f')  # as megabytes (4 bytes)
         else:
             m_fFreeSize = -1  # unknow
 
-        print(f'{m_fFreeSize=}')
+        #print(f'{m_fFreeSize=}')
 
-        # m_sArchive
         if m_sVersion >= 6:
-            m_sArchive = self.readbuf('h')  # 2 bytes
+            m_sArchive = readbuf('h')  # 2 bytes
             if m_sArchive == -1:
                 m_sArchive = 0
 
-            print(f'{m_sArchive=}')
-
-        # folder information : file count, total size
+            #print(f'{m_sArchive=}')
 
         caf_folders_dict={}
 
-        lLen = self.readbuf('<l')  # 4 bytes
 
         #########################################################
-        print(f"Folders:{lLen}")
-
+        lLen = readbuf('<l')  # 4 bytes
+        #print(f"Folders:{lLen}")
         for l in range(lLen):
             if l == 0 or m_sVersion <= 3:
-                m_pszName = self.readstring()
+                m_pszName = readstring()
             if m_sVersion >= 3:
-                m_lFiles = self.readbuf('<l')  # 4 bytes
-                m_dTotalSize = self.readbuf('<d')  # 8 bytes
+                m_lFiles = readbuf('<l')  # 4 bytes
+                m_dTotalSize = readbuf('<d')  # 8 bytes
 
             caf_folders_dict[l]=(m_lFiles, m_dTotalSize)
 
-        # files : date, size, parentfolderid, filename
-        # if it's a folder :  date, -thisfolderid, parentfolderid, filename
+        # files  : date, size, parentfolderid, filename
+        # folder : date, -thisfolderid, parentfolderid, filename
 
         caf_names_dict=defaultdict(set)
 
-        lLen = self.readbuf('<l')  # 4 bytes
-
         #########################################################
-        print(f"Files{lLen}")
+        lLen = readbuf('<l')  # 4 bytes
+        #print(f"Files{lLen}")
         for l in range(lLen):
-            elmdate = ctime(self.readbuf('<L'))
-            m_lLength=self.readbuf('<l')
-            m_sPathName = self.readbuf('H')
-            m_pszName = self.readstring()
+            date = readbuf('<L')
+            m_lLength=readbuf('<l')
+            m_sPathId = readbuf('H')
+            m_pszName = readstring()
 
-            caf_names_dict[m_sPathName].add( (elmdate, m_lLength, m_pszName) )
+            caf_names_dict[m_sPathId].add( (date, m_lLength, m_pszName) )
 
-        self.buffer.close()
+        buffer.close()
 
-        def print_folder(i,name,ident='    '):
-            try:
-                print(ident,f'[{name}]',caf_folders_dict[i])
-
-                sub_ident=ident + '    '
-                for elem in sorted(caf_names_dict[i],key = lambda x : x[2]):
-                    elmdate, m_lLength, m_pszName = elem
-
-                    if m_lLength<0:
-                        folder_index=abs(m_lLength)
-                        folder_name=m_pszName
-                        print_folder(folder_index,folder_name,sub_ident)
-                    else:
-                        print(sub_ident,m_pszName)
-
-            except Exception as e:
-                print('ERROR:',e)
-
-        #print_folder(0,'ROOT')
-
-        return m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_szVolumeName, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict
-
+        return m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict
 
     @restore_status_line
     @block
@@ -2732,20 +2686,18 @@ class Gui:
             postfix=0
 
             for filename in import_filenames:
+                m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict = self.caf_import(filename)
 
-                res=self.clf_import(filename)
+                m_timeStr = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(m_timeDate))
 
-                m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_szVolumeName, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict = res
+                caf_info=f'Imported from "Cathy" database: {filename}\n----------------+------------------------------------------------------------------------------------------------\n  creation time : {m_timeStr}\n  device        : {m_strDevice}\n  volume        : {m_strVolume}\n  alias         : {m_strAlias}\n  serial number : {m_dwSerialNumber}\n  comment       : {m_strComment}\n  free size     : {m_fFreeSize}\n  archive       : {m_sArchive}\n----------------+------------------------------------------------------------------------------------------------'
 
                 filenames_set={elem[2] for dir_elems in caf_names_dict.values() for elem in dir_elems}
 
-                cd_set=set()
-
                 compr=9
-
                 label=path_splitext(basename(filename))[0]
 
-                sub_res = librer_core.import_records_caf_do(compr,postfix,label,caf_folders_dict, caf_names_dict,self.single_record_show,filenames_set,cd_set,group)
+                sub_res = librer_core.import_records_caf_do(compr,postfix,label,caf_folders_dict, caf_names_dict,self.single_record_show,filenames_set,caf_info,group)
                 postfix+=1
 
     def wii_import_to_local(self):
@@ -4156,8 +4108,17 @@ class Gui:
                 elif key in ("Up","Down"):
                     self.see_direction = self.KEY_DIRECTION[key]
                     self.visible_items_update()
+                elif key == "Return":
+                    event_str=str(event)
+                    alt_pressed = ('0x20000' in event_str) if windows else ('Mod1' in event_str or 'Mod5' in event_str)
+                    if alt_pressed:
+                        self.record_info()
+                    else:
+                        self.show_customdata()
+
+                    return "break"
                 else:
-                    #event_str=str(event)
+                    #print(key)
 
                     #alt_pressed = ('0x20000' in event_str) if windows else ('Mod1' in event_str or 'Mod5' in event_str)
                     #ctrl_pressed = 'Control' in event_str
