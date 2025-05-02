@@ -57,7 +57,7 @@ system shell basic commands like: [type](https://learn.microsoft.com/en-us/windo
 ## [Importing data from "Where Is It?"](./info/wii_import.md) ##
 
 ## Technical information
-Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other. Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) module. Searching records is performed as a separate subprocess for each record. The number of parallel searches is limited by the CPU cores. 
+Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other. Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) module. Searching records is performed as a separate subprocess for each record. The number of parallel searches is limited by the CPU cores.
 
 ###### Manual build (linux):
 ```
@@ -90,4 +90,4 @@ python3 ./src/librer.py
 ## Licensing
 - **librer** is licensed under **[MIT license](./LICENSE)**
 
-### Check out my [homepage](https://github.com/PJDude) for other projects.
+## Check out my [homepage](https://github.com/PJDude) for other projects.
