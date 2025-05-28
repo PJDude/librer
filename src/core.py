@@ -402,7 +402,6 @@ class LibrerRecord:
         path_join_loc = path_join
 
         local_folder_size_with_subtree=0
-        local_folder_size = 0
         subitems=0
 
         self_scan_rec = self.scan_rec
@@ -415,6 +414,7 @@ class LibrerRecord:
 
             with scandir(path) as res:
 
+                local_folder_size = 0
                 local_folder_files_count = 0
                 local_folder_folders_count = 0
 
@@ -491,12 +491,12 @@ class LibrerRecord:
                             if dict_entry:
                                 temp_list_ref.append(dict_entry)
 
-                    self_header = self.header
-                    self_header.sum_size += local_folder_size
-                    self_header.quant_files += local_folder_files_count
-                    self_header.quant_folders += local_folder_folders_count
+                self_header = self.header
+                self_header.sum_size += local_folder_size
+                self_header.quant_files += local_folder_files_count
+                self_header.quant_folders += local_folder_folders_count
 
-                    print_func( ('scan',self_header.sum_size,self_header.quant_files,self_header.quant_folders,path) )
+                print_func( ('scan',self_header.sum_size,self_header.quant_files,self_header.quant_folders,path) )
 
         except Exception as e:
             print_func( ('error', f'scandir {path} error:{e}'),True )
@@ -2472,11 +2472,16 @@ class LibrerCore:
                 if line := subprocess_stdout_readline():
                     line_strip = line.strip()
                     self_log_info(f'rec:{line_strip}')
+
                     try:
-                        if line[0]!='#':
+                        if line_strip[0]!='#':
                             val = json_loads(line_strip)
+                            #val_joined=','.join(val)
+                            #self_log_info(f'rec_val:{val_joined}')
 
                             kind = val[0]
+                            #self_log_info(f"{line_strip=},{val=},{kind=}")
+
                             if kind == 'stage':
                                 self.stage = val[1]
                             elif kind == 'error':
@@ -2514,10 +2519,12 @@ class LibrerCore:
                                 elif self.stage==4: #end
                                     pass
                         else:
+                            if line_strip:
+                                self_log_info(f'rec#:{line_strip}')
                             info_semi_list[0]=line_strip
                     except Exception as e:
-                        info_semi_list[0]=f'threaded_run work error:{e} line:{line}'
-                        self_log_info(f'threaded_run work error:{e} line:{line}')
+                        info_semi_list[0]=f'threaded_run work error:\'{e}\' line:{line_strip}'
+                        self_log_info(f'threaded_run work error:\'{e}\' line:{line_strip}')
                 else:
                     if subprocess_poll() is not None:
                         break
