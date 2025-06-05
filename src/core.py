@@ -411,9 +411,7 @@ class LibrerRecord:
         self_header_ext_stats_size = self.header.ext_stats_size
 
         try:
-
             with scandir(path) as res:
-
                 local_folder_size = 0
                 local_folder_files_count = 0
                 local_folder_folders_count = 0
@@ -498,10 +496,12 @@ class LibrerRecord:
 
                 print_func( ('scan',self_header.sum_size,self_header.quant_files,self_header.quant_folders,path) )
 
+            return (local_folder_size_with_subtree+local_folder_size,subitems)
+
         except Exception as e:
             print_func( ('error', f'scandir {path} error:{e}'),True )
 
-        return (local_folder_size_with_subtree+local_folder_size,subitems)
+            return (local_folder_size_with_subtree,subitems)
 
     def scan(self,print_func,abort_list,cde_list,check_dev=True,include_hidden=False):
         self.header.sum_size = 0
