@@ -4087,6 +4087,7 @@ class Gui:
     see_direction=0
 
     def key_press(self,event):
+        #print('event:',event)
         if not self.block_processing_stack:
             self.hide_tooltip()
             self.menubar_unpost()
@@ -4113,9 +4114,14 @@ class Gui:
                     alt_pressed = ('0x20000' in event_str) if windows else ('Mod1' in event_str or 'Mod5' in event_str)
                     if alt_pressed:
                         self.record_info()
+                        return "break"
+                    elif self.show_customdata():
+                        return
                     else:
-                        self.show_customdata()
-
+                        item = tree.focus()
+                        self.open_item(item)
+                        tree.update()
+                elif key == "Alt_L":
                     return "break"
                 else:
                     #print(key)
@@ -5640,10 +5646,11 @@ class Gui:
                     kind = self.tree.set(item,'kind')
 
                     if kind in (self.GROUP,self.DIR,self.DIRLINK):
-                        return
+                        return False
 
                     if self.tree.tag_has(self.RECORD,item) or self.tree.tag_has(self.RECORD_RAW,item):
-                        self.record_info()
+                        #self.record_info()
+                        return False
                     else:
                         record_item,record_name,subpath_list = self.get_item_record(item)
                         record = self.item_to_record[record_item]
@@ -5678,12 +5685,14 @@ class Gui:
                                     timeout_info = f'\ntimeout:{timeout}' if timeout else ''
                                     self.get_text_info_dialog().show(STR('Custom Data of') + f': {file_path}',cd_txt,uplabel_text=f"{command_info}\n\nshell:{shell_info}{timeout_info}\nreturncode:{returncode}\nsize:{bytes_to_str(asizeof(cd_txt))}")
                                     self.store_text_dialog_fields(self.text_info_dialog)
-                                    return
+                                    return True
 
                             self.info_dialog_on_main.show(STR('Information'),STR('No Custom data.'))
 
                 except Exception as e:
                     self.info_dialog_on_main.show('Custom Data Info Error',str(e) + ('\n' + '\n'.join(error_infos)) if error_infos else '')
+
+        return False
 
     def record_info(self):
         if not self.block_processing_stack:
@@ -5724,9 +5733,12 @@ class Gui:
 
             self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
             self_tree.focus(record_item)
-            self_tree.see(record_item)
+            #self_tree.see(record_item)
             #self.wrapped_see(record_item)
-            self.tree_on_select()
+            #self.tree_on_select()
+
+            #self.visible_items_update()
+            self.select_and_focus(record_item)
 
     @block_and_log
     def unload_all_recods(self):
