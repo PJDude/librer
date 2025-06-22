@@ -259,7 +259,7 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Librer ${{ steps.version.outputs.version }}
-        draft: false
+        draft: true
         prerelease: true
         files: |
             librer.${{ steps.version.outputs.version }}.linux.portable.zip

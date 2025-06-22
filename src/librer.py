@@ -210,8 +210,9 @@ class Config:
                 line_list5 =  ['0','*.jpg','','','exiftool.exe','%','0','5','0']
                 line_list5a = ['0','*.exe','','','exiftool.exe','%','0','5','0']
                 line_list6 =  ['0','*.tar,*.tgz,*.tar.gz,*.tar.bz2,*.tbz,*.tar.xz','','','tar','tvf %','0','60','0']
+                line_list7 =  ['0','*.pdf','','','pdftotext.exe','-f 0 -l 3 -layout % -','0','10','0']
 
-                cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list4a,line_list5,line_list5a,line_list6]
+                cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list4a,line_list5,line_list5a,line_list6,line_list7]
             else:
                 line_list1 =  ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.lzh,*.lzma,*.vdi,*.vhd','','','7z','l %','0','10','0']
                 line_list2 =  ['0','*.txt,*.nfo','1','256kB','cat','%','0','5','0']
@@ -219,8 +220,9 @@ class Config:
                 line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe','-hide_banner %','0','5','0']
                 line_list5 =  ['0','*.jpg','','','exif','%','0','5','0']
                 line_list6 =  ['0','*.tar,*.tgz,*.tar.gz,*.tar.bz2,*.tbz,*.tar.xz','','','tar','tvf %','0','60','0']
+                line_list7 =  ['0','*.pdf','','','pdftotext','-f 0 -l 3 -layout % -','0','10','0']
 
-                cde_sklejka_list=[line_list1,line_list2,line_list3,line_list4,line_list5,line_list6]
+                cde_sklejka_list=[line_list1,line_list2,line_list3,line_list4,line_list5,line_list6,line_list7]
             self.set(CFG_KEY_CDE_SETTINGS,cde_sklejka_list)
             self.write()
 
