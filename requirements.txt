@@ -4,5 +4,5 @@ zstandard==0.23.0
 tkinterdnd2==0.4.3
 psutil==7.0.0
 pympler==1.1
-ciso8601==2.3.2
 pywin32==310; sys.platform == 'win32'
+dateparser==1.2.2

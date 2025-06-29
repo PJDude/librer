@@ -50,7 +50,8 @@ from fnmatch import fnmatch
 from zstandard import ZstdCompressor,ZstdDecompressor
 from pympler.asizeof import asizeof
 from send2trash import send2trash as send2trash_delete
-from ciso8601 import parse_datetime
+
+from dateparser import parse as parse_datetime
 
 windows = bool(os_name=='nt')
 

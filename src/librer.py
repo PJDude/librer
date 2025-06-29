@@ -48,7 +48,8 @@ from shutil import rmtree
 from collections import defaultdict
 
 from pickle import dumps, loads
-from ciso8601 import parse_datetime
+from dateparser import parse as parse_datetime
+
 from zstandard import ZstdCompressor,ZstdDecompressor
 from psutil import disk_partitions
 from librer_images import librer_image
