@@ -3293,7 +3293,7 @@ class Gui:
             if children:
                 first_item = children[0]
 
-                self.results_tree.selection_set(first_item)
+                #self.results_tree.selection_set(first_item)
                 self.results_tree.focus(first_item)
 
             results_dialog.info_label.configure(text=self.find_results_info)
@@ -3928,10 +3928,10 @@ class Gui:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
 
-            if self.find_dialog_shown:
-                self.tree.selection_set(current_item)
-            else:
-                self.tree.focus(current_item)
+            #if self.find_dialog_shown:
+            #    self.tree.selection_set(current_item)
+            #else:
+            #    self.tree.focus(current_item)
 
             self.sel_item = current_item
 
@@ -3998,6 +3998,7 @@ class Gui:
         return 0 if res<0 else res
 
     def wrapped_see(self, item):
+        self_tree = self.tree
         try:
             item_index=self.visible_items.index(item)
         except:
@@ -4010,31 +4011,33 @@ class Gui:
                 prev_item=self.visible_items[pi]
 
                 if prev_item:
-                    self.tree.see(prev_item)
-                    self.tree.update()
+                    self_tree.see(prev_item)
+                    self_tree.update()
                 else:
-                    self.tree.see(item)
+                    self_tree.see(item)
 
             if self.see_direction>-1:
                 ni=self.get_next_index(item_index,self.rows_offset,self.visible_items_max_index)
                 next_item=self.visible_items[ni]
 
                 if next_item:
-                    self.tree.see(next_item)
-                    self.tree.update()
+                    self_tree.see(next_item)
+                    self_tree.update()
                 else:
-                    self.tree.see(item)
+                    self_tree.see(item)
         except:
-            self.tree.see(item)
+            self_tree.see(item)
 
     def tree_item_focused(self,item,can_move=True):
+        self_tree = self.tree
+
         if can_move:
             self.wrapped_see(item)
-            self.tree.update()
+            self_tree.update()
 
         if item:
-            if self.tree.tag_has(self.GROUP,item):
-                values = self.tree.item(item,'values')
+            if self_tree.tag_has(self.GROUP,item):
+                values = self_tree.item(item,'values')
                 if values:
                     self.current_group=values[0]
                 else:
@@ -4056,7 +4059,7 @@ class Gui:
                         if not self.cfg.get(CFG_KEY_find_range_all):
                             self.external_find_params_change = True
 
-                    image=self.tree.item(record_item,'image')
+                    image=self_tree.item(record_item,'image')
 
                     self.status_record.configure(image = image, text = record_name,compound='left')
                     self.widget_tooltip(self.status_record,librer_core.record_info_alias_wrapper(record,record.txtinfo_basic + '\n\n(' + STR('Click to show full record info') + ')') )
@@ -4145,19 +4148,20 @@ class Gui:
 #################################################
     def select_and_focus(self,item):
         #print('select_and_focus',item)
+        self_tree = self.tree
 
         self.tree_focus(item)
         self.tree_item_focused(item)
 
-        self.tree.see(item)
-        self.tree.update()
+        self_tree.see(item)
+        self_tree.update()
 
         self.see_direction=0
         self.visible_items_update()
 
         self.wrapped_see(item)
 
-        self.tree.update()
+        self_tree.update()
 
     def tree_on_mouse_button_press_search_results(self,event):
         tree=event.widget
@@ -4197,7 +4201,7 @@ class Gui:
                     else :
                         print('unknown col:',col_nr,colname)
                 elif item:=tree.identify('item',event.x,event.y):
-                    tree.selection_remove(tree.selection())
+                    #tree.selection_remove(tree.selection())
 
                     tree.focus(item)
                     self.tree_on_select(False)
@@ -5344,10 +5348,10 @@ class Gui:
                 self.info_dialog_on_main.show('cannot find item:',item_name)
                 break
 
-        if self.find_dialog_shown:
-            self.tree.selection_set(current_item)
-        else:
-            self.tree.focus(current_item)
+        #if self.find_dialog_shown:
+        #    self.tree.selection_set(current_item)
+        #else:
+        #    self.tree.focus(current_item)
 
         self.sel_item = current_item
         self.select_and_focus(current_item)
