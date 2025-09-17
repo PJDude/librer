@@ -1207,10 +1207,12 @@ class LibrerRecord:
         bytes_to_str_mod = lambda x : bytes_to_str(x) if isinstance(x,int) else x
 
         info_list = []
+        info_list_med = []
 
         self.txtinfo = 'init'
         self.txtinfo_basic = 'init-basic'
         self.txtinfo_short = 'init-short'
+        self.txtinfo_medium = 'init-medium'
 
         try:
             file_size = stat(self.file_path).st_size
@@ -1223,10 +1225,12 @@ class LibrerRecord:
             local_time = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self_header.creation_time))
 
             info_list.append(f'record label    : {self_header.label}')
+            info_list_med.append(f'record label    : {self_header.label}')
 
             info_list.append('')
             info_list.append(f'creation host   : {self_header.creation_host} ({self_header.creation_os})')
             info_list.append(f'creation time   : {local_time}')
+            info_list_med.append(f'creation time   : {local_time}')
 
             self.txtinfo_short = '\n'.join(info_list)
             self.txtinfo_basic = '\n'.join(info_list)
@@ -1240,9 +1244,15 @@ class LibrerRecord:
             info_list.append(f'record file     : {file_name} ({bytes_to_str(file_size)}, compression level:{self.header.compression_level}, cde threads:{threads_str})')
             info_list.append('')
             info_list.append(f'scanned path    : {self_header.scan_path}')
+            info_list_med.append(f'scanned path    : {self_header.scan_path}')
             info_list.append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
+            info_list_med.append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
             info_list.append(f'scanned files   : {fnumber(self_header.quant_files)}')
+            info_list_med.append(f'scanned files   : {fnumber(self_header.quant_files)}')
             info_list.append(f'scanned folders : {fnumber(self_header.quant_folders)}')
+            info_list_med.append(f'scanned folders : {fnumber(self_header.quant_folders)}')
+
+            self.txtinfo_medium = '\n'.join(info_list_med)
 
             if hasattr(self_header, 'info'):
                 info_list.append('')

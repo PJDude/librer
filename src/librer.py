@@ -4596,12 +4596,16 @@ class Gui:
 
         group = self.scan_dialog_group
 
+        path_to_scan_from_entry = str(abspath(self.path_to_scan_entry_var.get()))
+
+        old_records_same_path=[record_temp for record_temp in librer_core.records if path_to_scan_from_entry == record_temp.header.scan_path]
+
         if self.scanning_in_progress:
             l_warning('scan_wrapper collision')
             return
 
         if self.scan_label_entry_var.get()=='':
-            self.scan_label_entry_var.set(platform_node() + ':' + str(abspath(self.path_to_scan_entry_var.get())) )
+            self.scan_label_entry_var.set(platform_node() + ':' + path_to_scan_from_entry )
             #self.get_info_dialog_on_scan().show('Error. Empty label.','Set internal label.')
             #return
 
@@ -4613,6 +4617,8 @@ class Gui:
         try:
             if self.scan(compression_level,threads,group):
                 self.scan_dialog_hide_wrapper()
+                {self.remove_record(record_temp) for record_temp in old_records_same_path}
+
         except Exception as e:
             l_error(f'scan_wraper: {e}')
             self.status(f'scan_wraper {e}')
@@ -4959,8 +4965,9 @@ class Gui:
 
         return True
 
-    def remove_record(self):
-        record = self.current_record
+    def remove_record(self,record_par=None):
+        record = record_par if record_par else self.current_record
+
         label = librer_core.get_record_name(record)
         path = record.header.scan_path
         creation_time = record.header.creation_time
@@ -4969,7 +4976,13 @@ class Gui:
 
         dialog = self.get_simple_question_dialog()
 
-        dialog.show(STR('Delete selected data record ?'),librer_core.record_info_alias_wrapper(record,record.txtinfo_short) )
+        title=STR('Delete old data record with the same scanned path ?') if record_par else STR('Delete selected data record ?')
+        message=librer_core.record_info_alias_wrapper(record,record.txtinfo_medium if record_par else record.txtinfo_short)
+
+        if record_par:
+            message = message + "\n\n" + "Custom Data and filestrucure in the old record may be different !" + "\n\n" + "This operation cannot be undone !"
+
+        dialog.show(title,message )
 
         if dialog.res_bool:
             record_item = self.record_to_item[record]
