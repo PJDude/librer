@@ -260,7 +260,7 @@ jobs:
         tag_name: ${{ steps.version.outputs.version }}
         name: Librer ${{ steps.version.outputs.version }}
         draft: false
-        prerelease: true
+        prerelease: false
         files: |
             librer.${{ steps.version.outputs.version }}.lin.zip
             librer.${{ steps.version.outputs.version }}.win.zip
