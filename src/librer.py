@@ -1040,6 +1040,10 @@ class Gui:
         self.path_to_scan_entry_var.set(data)
         self.scan_label_entry_var.set("dropped_path")
 
+        self.scan_label_entry_values_set={"dropped_path"}
+        self.scan_label_entry.configure(values=sorted(self.scan_label_entry_values_set))
+        self.scan_label_entry.selection_range(0, 'end')
+
         self.main.after_idle(lambda : self.scan_dialog_show())
 
     def scan_dialog_drop(self, data):
@@ -1048,6 +1052,10 @@ class Gui:
             p_path = normpath(abspath(path))
 
             self.scan_label_entry_var.set("dropped_path")
+
+            self.scan_label_entry_values_set={"dropped_path"}
+            self.scan_label_entry.configure(values=sorted(self.scan_label_entry_values_set))
+            self.scan_label_entry.selection_range(0, 'end')
 
             if path_exists(p_path):
                 if isdir(p_path):
@@ -1286,11 +1294,11 @@ class Gui:
 
             label_tooltip = STR("Internal Label of the record to be created")
             self.widget_tooltip(ul_lab,label_tooltip)
-
             self.scan_label_entry_var=StringVar(value='')
-            self.scan_label_entry = Entry(temp_frame,textvariable=self.scan_label_entry_var)
-            self.scan_label_entry.grid(row=0, column=5, sticky='news',padx=4,pady=4)
+            self.scan_label_entry_values_set=set()
 
+            self.scan_label_entry=Combobox(temp_frame,textvariable=self.scan_label_entry_var,values=sorted(self.scan_label_entry_values_set) )
+            self.scan_label_entry.grid(row=0, column=5, sticky='news',padx=4,pady=4)
             self.widget_tooltip(self.scan_label_entry,label_tooltip)
 
             (path_to_scan_label := Label(temp_frame,text=STR("Path:"),bg=self.bg_color,anchor='w')).grid(row=0, column=0, sticky='news',padx=4,pady=4)
@@ -4598,7 +4606,7 @@ class Gui:
 
         path_to_scan_from_entry = str(abspath(self.path_to_scan_entry_var.get()))
 
-        old_records_same_path=[record_temp for record_temp in librer_core.records if path_to_scan_from_entry == record_temp.header.scan_path]
+        old_records_to_remove=self.scan_path_2_records.get(path_to_scan_from_entry,[])
 
         if self.scanning_in_progress:
             l_warning('scan_wrapper collision')
@@ -4617,7 +4625,7 @@ class Gui:
         try:
             if self.scan(compression_level,threads,group):
                 self.scan_dialog_hide_wrapper()
-                {self.remove_record(record_temp) for record_temp in old_records_same_path}
+                {self.remove_record(record_temp) for record_temp in old_records_to_remove}
 
         except Exception as e:
             l_error(f'scan_wraper: {e}')
@@ -5011,6 +5019,8 @@ class Gui:
 
             self.tree.focus_set()
 
+        self.update_records_stats()
+
     def delete_action(self):
         if not self.block_processing_stack:
             item = self.sel_item
@@ -5024,8 +5034,20 @@ class Gui:
             elif self.current_group and is_group:
                 self.remove_group()
 
+    def set_scan_label_entry_values(self):
+        path_to_scan_from_entry = str(abspath(self.path_to_scan_entry_var.get()))
+
+        self.scan_label_entry_values_set=set()
+        for record_temp in self.scan_path_2_records.get(path_to_scan_from_entry,[]):
+            self.scan_label_entry_values_set.add(record_temp.header.label)
+            self.scan_label_entry_var.set(record_temp.header.label)
+
+        self.scan_label_entry.configure(values=sorted(self.scan_label_entry_values_set))
+
     def scan_dialog_show(self):
         dialog = self.get_scan_dialog()
+
+        self.set_scan_label_entry_values()
 
         group = None
         if self.current_group:
@@ -5090,6 +5112,14 @@ class Gui:
         self.configure_scan_button()
 
         dialog.do_command_after_show=lambda : self.status("")
+
+        prop_scan_path=self.current_record.header.scan_path if self.current_record else None
+        prop_label=self.current_record.header.label if self.current_record else None
+
+        self.path_to_scan_entry_var.set(prop_scan_path)
+        self.scan_label_entry_var.set(prop_label)
+        self.set_scan_label_entry_values()
+
         dialog.show()
 
     def set_dev_to_scan_menu(self):
@@ -5126,7 +5156,11 @@ class Gui:
 
     def set_dev_to_scan(self,dev,label=None):
         self.path_to_scan_entry_var.set(dev)
-        self.scan_label_entry_var.set(label if label else dev)
+        new_val=label if label else dev
+        self.scan_label_entry_var.set(new_val)
+
+        self.set_scan_label_entry_values()
+
         self.scan_label_entry.selection_range(0, 'end')
 
     def set_path_to_scan(self):
@@ -5135,8 +5169,13 @@ class Gui:
             self.last_dir = res
             self.path_to_scan_entry_var.set(normpath(abspath(res)))
             self.scan_label_entry.focus_set()
-            self.scan_label_entry_var.set( platform_node() + ':' + str(abspath(self.path_to_scan_entry_var.get())) )
+            new_val=platform_node() + ':' + str(abspath(self.path_to_scan_entry_var.get()))
+            self.scan_label_entry_var.set(new_val)
+
+            self.scan_label_entry_values_set={new_val}
+            self.scan_label_entry.configure(values=sorted(self.scan_label_entry_values_set))
             self.scan_label_entry.selection_range(0, 'end')
+
 
     def threaded_simple_run(self,command_list,shell):
         l_info(f'threaded_simple_run {command_list=}')
@@ -5561,24 +5600,33 @@ class Gui:
 
         self.tree_on_select()
 
-        records_len=len(librer_core.records)
-        self.status_records_all_configure(STR('Records') + f':{records_len}')
+        self.update_records_stats()
 
         self.record_filename_to_record[record.file_name] = record
-
-        sum_size=0
-        quant_files=0
-        for record_temp in librer_core.records:
-            sum_size+=record_temp.header.sum_size
-            quant_files+=record_temp.header.quant_files
-
-        self.widget_tooltip(self.status_records_all,STR('Records in repository  ') + f': {records_len}\n' + STR('Sum data size         ') + f': {bytes_to_str(sum_size)}\n' + STR('Sum files quantity    ') + f': {fnumber(quant_files)}\n\n' + STR('Click to unload (free memory) data of selected record\nDouble click to unload data of all records.'))
 
         self.main_update()
 
         self.find_clear()
 
         self.column_sort(self_tree)
+
+    scan_path_2_records=defaultdict(set)
+
+    def update_records_stats(self):
+        records_len=len(librer_core.records)
+        sum_size=0
+        quant_files=0
+        self.scan_path_2_records=defaultdict(set)
+
+        for record_temp in librer_core.records:
+            sum_size+=record_temp.header.sum_size
+            quant_files+=record_temp.header.quant_files
+
+            self.scan_path_2_records[record_temp.header.scan_path].add(record_temp)
+
+        self.widget_tooltip(self.status_records_all,STR('Records in repository  ') + f': {records_len}\n' + STR('Sum data size         ') + f': {bytes_to_str(sum_size)}\n' + STR('Sum files quantity    ') + f': {fnumber(quant_files)}\n\n' + STR('Click to unload (free memory) data of selected record\nDouble click to unload data of all records.'))
+
+        self.status_records_all_configure(STR('Records') + f':{records_len}')
 
     def tree_update(self,item):
         self_tree = self.tree
