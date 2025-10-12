@@ -122,6 +122,8 @@ CFG_SORTING_RESULTS = 'sorting_results'
 CFG_KEY_show_popups = 'show_popups'
 CFG_KEY_groups_collapse = 'groups_collapse'
 CFG_KEY_include_hidden = 'include_hidden'
+CFG_KEY_column_time = 'column_time'
+CFG_KEY_column_size = 'column_size'
 CFG_KEY_select_found = 'select_found'
 CFG_KEY_after_action = 'after_search'
 CFG_KEY_expand_search_results = 'expand_search_results'
@@ -166,6 +168,8 @@ cfg_defaults={
     CFG_KEY_show_popups:True,
     CFG_KEY_groups_collapse:True,
     CFG_KEY_include_hidden:False,
+    CFG_KEY_column_time:True,
+    CFG_KEY_column_size:True,
     CFG_KEY_select_found:False,
     CFG_KEY_after_action:1,
     CFG_KEY_expand_search_results:False
@@ -1880,8 +1884,16 @@ class Gui:
             self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files / folders in scan'),variable=self.scan_hidden_var)
             self.scan_hidden_cb.grid(row=3, column=0, sticky='news',padx=4,pady=4)
 
+            self.column_time_var = BooleanVar()
+            self.column_time_cb = Checkbutton(sfdma,text=' ' + STR('Show \'Time\' column'),variable=self.column_time_var)
+            self.column_time_cb.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+
+            self.column_size_var = BooleanVar()
+            self.column_size_cb = Checkbutton(sfdma,text=' ' + STR('Show \'Size\' column'),variable=self.column_size_var)
+            self.column_size_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+
             find_frame=LabelFrame(sfdma, text=STR("Searching"),borderwidth=2,bg=self.bg_color)
-            find_frame.grid(row=4,column=0,sticky='wens',padx=3,pady=3)
+            find_frame.grid(row=6,column=0,sticky='wens',padx=3,pady=3)
 
             self.search_after_action_var = BooleanVar()
             self.search_after_action0_cb = Radiobutton(find_frame,text=' ' + STR('Close dialog after searching'),variable=self.search_after_action_var,value=0)
@@ -1916,6 +1928,8 @@ class Gui:
                 (self.show_popups_var,CFG_KEY_show_popups),
                 (self.groups_collapsed_var,CFG_KEY_groups_collapse),
                 (self.scan_hidden_var,CFG_KEY_include_hidden),
+                (self.column_time_var,CFG_KEY_column_time),
+                (self.column_size_var,CFG_KEY_column_size),
                 (self.select_found_var,CFG_KEY_select_found),
                 (self.search_after_action_var,CFG_KEY_after_action),
                 (self.expand_search_results_var,CFG_KEY_expand_search_results)
@@ -1928,6 +1942,8 @@ class Gui:
         self.show_popups_var.set(self.cfg.get(CFG_KEY_show_popups))
         self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
         self.scan_hidden_var.set(self.cfg.get(CFG_KEY_include_hidden))
+        self.column_time_var.set(self.cfg.get(CFG_KEY_column_time))
+        self.column_size_var.set(self.cfg.get(CFG_KEY_column_size))
         self.select_found_var.set(self.cfg.get(CFG_KEY_select_found))
         self.search_after_action_var.set(self.cfg.get(CFG_KEY_after_action))
         self.expand_search_results_var.set(self.cfg.get(CFG_KEY_expand_search_results))
@@ -1939,6 +1955,17 @@ class Gui:
     def settings_reset(self):
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
+
+    def update_main_column_width(self):
+        tree=self.tree
+
+        width = tree.winfo_width()
+
+        for col in ('ctime_h','size_h'):
+            if col in tree['displaycolumns']:
+                width-=tree.column(col)['width']
+
+        tree.column('#0', width=width)
 
     def settings_ok(self):
         need_restart=False
@@ -1964,6 +1991,36 @@ class Gui:
 
         if self.cfg.get(CFG_KEY_include_hidden)!=self.scan_hidden_var.get():
             self.cfg.set(CFG_KEY_include_hidden,self.scan_hidden_var.get())
+
+        cols_change=False
+        tree=self.tree
+        if self.cfg.get(CFG_KEY_column_time)!=self.column_time_var.get():
+            self.cfg.set(CFG_KEY_column_time,self.column_time_var.get())
+            displaycolumns=tree["displaycolumns"]
+            real_display_columns=self.real_display_columns
+            if self.column_time_var.get():
+                tree["displaycolumns"]=tuple(set(displaycolumns).union(['ctime_h']) )
+            else:
+                tree["displaycolumns"]=tuple(set(displaycolumns) - set(['ctime_h']) )
+
+            self.real_display_columns=tuple(['#0'] + list(tree["displaycolumns"]) )
+            cols_change=True
+
+        if self.cfg.get(CFG_KEY_column_size)!=self.column_size_var.get():
+            self.cfg.set(CFG_KEY_column_size,self.column_size_var.get())
+
+            displaycolumns=tree["displaycolumns"]
+            real_display_columns=self.real_display_columns
+            if self.column_size_var.get():
+                tree["displaycolumns"]=tuple(set(displaycolumns).union(['size_h']) )
+            else:
+                tree["displaycolumns"]=tuple(set(displaycolumns) - set(['size_h']) )
+
+            self.real_display_columns=tuple(['#0'] + list(tree["displaycolumns"]) )
+            cols_change=True
+
+        if cols_change:
+            self.update_main_column_width()
 
         if self.cfg.get(CFG_KEY_select_found)!=self.select_found_var.get():
             self.cfg.set(CFG_KEY_select_found,self.select_found_var.get())
@@ -3961,18 +4018,42 @@ class Gui:
     @block
     def goto_next_prev_record(self,direction):
         tree=self.tree
-        item=self.sel_item
 
         item=tree.focus()
+
         if item:
-            record_item,record_name,subpath_list = self.get_item_record(item)
-            item_to_sel = tree.next(record_item) if direction==1 else tree.prev(record_item)
+            item_to_sel = tree.next(item) if direction==1 else tree.prev(item)
+
+            if not item_to_sel:
+                record_item,record_name,subpath_list = self.get_item_record(item)
+
+                item_to_sel = tree.next(record_item) if direction==1 else tree.prev(record_item)
+
+                if not item_to_sel:
+                    parent=tree.parent(item)
+
+                    if direction==1:
+                        if parent:
+                            item_to_sel = tree.next(parent)
+                    else:
+                        item_to_sel=parent
+
             if item_to_sel:
                 self.select_and_focus(item_to_sel)
 
     @block
     def goto_first_last_record(self,index):
-        if children := self.tree_get_children():
+        tree=self.tree
+
+        item=tree.focus()
+        parent=tree.parent(item)
+
+        if parent:
+            children = self.tree_get_children(parent)
+        else:
+            children = self.tree_get_children()
+
+        if children:
             if next_item:=children[index]:
                 self.select_and_focus(next_item)
 
@@ -4109,8 +4190,14 @@ class Gui:
             self.menubar_unpost()
             self.popup_unpost()
 
+            tree=event.widget
+
             try:
-                tree=event.widget
+                tree.selection_remove(tree.selection())
+            except:
+                pass
+
+            try:
                 item=tree.focus()
                 key=event.keysym
 
