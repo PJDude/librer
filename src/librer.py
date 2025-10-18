@@ -50,6 +50,7 @@ from collections import defaultdict
 from pickle import dumps, loads
 from dateparser import parse as parse_datetime
 
+from csv import reader as csv_reader
 from zstandard import ZstdCompressor,ZstdDecompressor
 from psutil import disk_partitions
 from librer_images import librer_image
@@ -57,6 +58,7 @@ from librer_images import librer_image
 from dialogs import *
 from core import *
 from text import LANGUAGES
+
 
 from tempfile import mkdtemp
 
@@ -739,8 +741,10 @@ class Gui:
 
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = STR('Import record ...'), accelerator='Ctrl+I', command = self.record_import,image = self.ico_record_import,compound='left')
+                self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = STR('Import "Where Is It?" xml ...'), command = self.record_import_wii,image = self.ico_empty,compound='left')
                 self_file_cascade_add_command(label = STR('Import "Cathy" data ...'), command = self.record_import_caf,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = STR('Import "VVV" csv ...'), command = self.record_import_vvv,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = STR('Find ...'),command = self.finder_wrapper_show, accelerator="Ctrl+F",image = self.ico_find,compound='left',state = 'normal' if librer_core.records else 'disabled')
                 self_file_cascade_add_separator()
@@ -975,7 +979,7 @@ class Gui:
         tree_bind('<<TreeviewClose>>', lambda event : self.close_item())
         tree_bind('<ButtonPress-3>', self.context_menu_show)
 
-        #tree_bind("<<TreeviewSelect>>", lambda event : self.tree_on_select() )
+        tree_bind("<<TreeviewSelect>>", lambda event : self.tree_on_select() )
 
         tree_bind("<Configure>", lambda event : self.tree_configure())
 
@@ -2600,6 +2604,71 @@ class Gui:
                     self.find_clear()
                     self.info_dialog_on_main.show(STR('Repacking finished.'),STR('Check repacked record\nDelete original record manually if you want.'))
 
+    def vvv_import(self,pathcatname):
+        temp_set_raw=set()
+        temp_set_raw_add=temp_set_raw.add
+        try:
+            with open(pathcatname, 'r', encoding="utf-8",newline='') as file:
+                for rowdata in csv_reader(file, delimiter='|', quotechar='"'):
+                    if rowdata:
+                        temp_set_raw_add( tuple(rowdata) )
+        except Exception as e_tot:
+            print('vvv raw error:',e_tot)
+
+        print('read - done, entries:',len(temp_set_raw))
+        print('processing - 1')
+
+        processed_paths={}
+        processed_dates={}
+        processed_sizes={}
+
+        def process_path(path):
+            if path in processed_paths:
+                return processed_paths[path]
+            else:
+                res=processed_paths[path]=tuple(path.replace('\\','/').strip('/').split('/'))
+                return res
+
+        def process_date(date):
+            if date in processed_dates:
+                return processed_dates[date]
+            else:
+                try:
+                    res=processed_dates[date]=int(mktime(parse_datetime(modtime).timetuple()))
+                except:
+                    print('time not parsed:',date)
+                    res=processed_dates[date]=0
+                return res
+
+        def process_size(size):
+            if size in processed_sizes:
+                return processed_sizes[size]
+            else:
+                try:
+                    res=processed_sizes[size]=int(size)
+                except:
+                    print('size not parsed:',size)
+                    res=processed_sizes[size]=0
+                return res
+
+        temp_set=set()
+        temp_set_add=temp_set.add
+        i=0
+        for rowdata in temp_set_raw:
+            try:
+                vol,path,name,size,ext,modtime,descr=rowdata
+
+                temp_set_add( (vol,process_path(path),name,process_size(size),process_date(modtime),descr) )
+            except Exception as p:
+                print('skipped:',rowdata,lineex)
+            i+=1
+
+        data=defaultdict(set)
+        for key,v0,v1,v2,v3,v4 in temp_set:
+            data[key].add( (v0,v1,v2,v3,v4) )
+
+        return data
+
     def caf_import(self,pathcatname):
         from binascii import b2a_hex
         from struct import calcsize, unpack
@@ -2738,6 +2807,42 @@ class Gui:
 
     @restore_status_line
     @block
+    def record_import_vvv(self):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+
+        group = None
+        if self.current_group:
+            group = self.current_group
+        elif self.current_record :
+            if group_temp:=librer_core.get_record_group(self.current_record):
+                group = group_temp
+
+        postfix = f' to group:{group}' if group else ''
+
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose "VVV" exported data file') + postfix, filetypes=[(STR("CSV Files"),"*.csv"),(STR("All Files"),"*")]):
+            self.last_dir = dirname(import_filenames[0])
+
+            postfix=0
+
+            for filename in import_filenames:
+                data = self.vvv_import(filename)
+
+                compr=9
+                info=f'Imported from VVV CSV: {filename}'
+                #\n----------------+------------------------------------------------------------------------------------------------\n  creation time : {m_timeStr}\n  device        : {m_strDevice}\n  volume        : {m_strVolume}\n  alias         : {m_strAlias}\n  serial number : {m_dwSerialNumber}\n  comment       : {m_strComment}\n  free size     : {m_fFreeSize}\n  archive       : {m_sArchive}\n----------------+------------------------------------------------------------------------------------------------'
+
+                label=path_splitext(basename(filename))[0]
+
+                for volumename,volumeset in data.items():
+                    try:
+                        sub_res = librer_core.import_records_vvv(postfix,label,volumename,volumeset,info,self.single_record_show,group)
+                    except Exception as e1x:
+                        print('e1x:',e1x)
+
+                postfix+=1
+
+    @restore_status_line
+    @block
     def record_import_caf(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
 
@@ -2750,7 +2855,7 @@ class Gui:
 
         postfix = f' to group:{group}' if group else ''
 
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose "Cathy" data file') + postfix, defaultextension=".caf",filetypes=[(STR("Cathy Files"),"*.caf"),(STR("All Files"),"*.*")]):
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose "Cathy" data file') + postfix, defaultextension=".caf",filetypes=[(STR("Cathy Files"),"*.caf"),(STR("All Files"),"*")]):
             self.last_dir = dirname(import_filenames[0])
 
             postfix=0
@@ -2789,7 +2894,7 @@ class Gui:
 
         postfix = f' to group:{group}' if group else ''
 
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose "Where Is It?" Report xml files to import') + postfix, defaultextension=".xml",filetypes=[(STR("XML Files"),"*.xml"),(STR("All Files"),"*.*")]):
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose "Where Is It?" Report xml files to import') + postfix, defaultextension=".xml",filetypes=[(STR("XML Files"),"*.xml"),(STR("All Files"),"*")]):
             self.status(STR('Parsing WII files ... '))
             self.main.update()
             dialog = self.get_progress_dialog_on_main()
@@ -2905,7 +3010,7 @@ class Gui:
 
         postfix = STR('to group:') + str(group) if group else ''
 
-        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose record files to import') + ' ' + postfix, defaultextension=".dat",filetypes=[(STR("Dat Files"),"*.dat"),(STR("All Files"),"*.*")]):
+        if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose record files to import') + ' ' + postfix, defaultextension=".dat",filetypes=[(STR("Dat Files"),"*.dat"),(STR("All Files"),"*")]):
             self.last_dir = dirname(import_filenames[0])
             if import_res := librer_core.import_records(import_filenames,self.single_record_show,group):
                 self.info_dialog_on_main.show(STR('Import failed'),import_res)
@@ -2920,7 +3025,7 @@ class Gui:
     @block
     def record_export(self):
         if self.current_record:
-            if export_file_path := asksaveasfilename(initialdir=self.last_dir,parent = self.main, initialfile = 'record.dat',defaultextension=".dat",filetypes=[(STR("Dat Files"),"*.dat"),(STR("All Files"),"*.*")]):
+            if export_file_path := asksaveasfilename(initialdir=self.last_dir,parent = self.main, initialfile = 'record.dat',defaultextension=".dat",filetypes=[(STR("Dat Files"),"*.dat"),(STR("All Files"),"*")]):
                 self.last_dir = dirname(export_file_path)
 
                 if export_res := librer_core.export_record(self.current_record,export_file_path):
@@ -4232,6 +4337,8 @@ class Gui:
                     #alt_pressed = ('0x20000' in event_str) if windows else ('Mod1' in event_str or 'Mod5' in event_str)
                     #ctrl_pressed = 'Control' in event_str
                     #shift_pressed = 'Shift' in event_str
+
+
                     pass
 
             except Exception as e:
@@ -5305,7 +5412,7 @@ class Gui:
 
     def cde_test(self,e):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if full_file_path:=askopenfilename(title=STR('Select File'),initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=( (STR("All Files"),"*.*"),(STR("All Files"),"*.*") ) ):
+        if full_file_path:=askopenfilename(title=STR('Select File'),initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=( (STR("All Files"),"*.*"),(STR("All Files"),"*") ) ):
             self.last_dir=dirname(full_file_path)
 
             executable = self.CDE_executable_var_list[e].get()
@@ -5405,7 +5512,7 @@ class Gui:
 
     def cde_entry_open(self,e) :
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askopenfilename(title=STR('Select File'),initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=((STR("Executable Files"),"*.exe"),(STR("Bat Files"),"*.bat"),(STR("All Files"),"*.*")) if windows else ((STR("Bash Files"),"*.sh"),(STR("All Files"),"*.*")) ):
+        if res:=askopenfilename(title=STR('Select File'),initialdir=initialdir,parent=self.scan_dialog.area_main,filetypes=((STR("Executable Files"),"*.exe"),(STR("Bat Files"),"*.bat"),(STR("All Files"),"*")) if windows else ((STR("Bash Files"),"*.sh"),(STR("All Files"),"*")) ):
             self.last_dir=dirname(res)
 
             expr = normpath(abspath(res))
@@ -5593,13 +5700,10 @@ class Gui:
 
                         image = (self_ico_folder_error if size==-1 else self_ico_folder_link if is_symlink or is_bind else self_ico_folder) if is_dir else (self_ico_cd_ok if cd_ok else self_cd_ico_aborted if cd_aborted else self_cd_ico_empty if cd_empty else self_ico_cd_error) if has_cd else self_ico_empty
 
-                        if is_symlink or is_bind:
-                            tags=self_SYMLINK
-                        else:
-                            tags=self_FOUND if self.any_valid_find_results and entry_subpath_tuple in record_find_results_tuples_set else ''
+                        tags=self_SYMLINK if is_symlink or is_bind else self_FOUND if self.any_valid_find_results and entry_subpath_tuple in record_find_results_tuples_set else ''
 
                         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
-                        values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(mtime)),kind)
+                        values = (entry_name,'','0',entry_name,size,bytes_to_str(size),mtime,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(mtime)) if mtime else '',kind)
                         sort_index = ( dir_code if is_dir else non_dir_code , sort_val_func(values[sort_index_local]) )
                         new_items_values[ ( sort_index,values,entry_name,image,bool(has_files) ) ] = (has_files,tags,data_tuple)
 
@@ -5615,6 +5719,11 @@ class Gui:
                     tree.set(item,'opened','1')
 
         self.visible_items_uptodate=False
+
+        self.tree.update()
+        self.wrapped_see(item)
+        self.tree.update()
+        self.tree_on_select()
 
     def get_record_raw_icon(self,record):
         return self.ico_record_raw_cd if record.has_cd() else self.ico_record_raw

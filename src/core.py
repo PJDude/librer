@@ -516,6 +516,8 @@ class LibrerRecord:
         filenames_set=set()
 
         self.scan_rec(print_func,abort_list,self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev,include_hidden=include_hidden)
+        print(f'{self.scan_data=}')
+
         time_end = perf_counter()
 
         self.header.scanning_time = time_end-time_start
@@ -1923,12 +1925,65 @@ class LibrerCore:
         except Exception as ie:
             return [None,f'Error:{ie}']
 
-    def caf_data_to_scan_like_data(self,caf_folders_dict, caf_names_dict):
+    def vvv_data_to_scan_like_data(self,rows_set):
+
+        def flat_to_tree(curr_dict,all_path_elems_par,size_par,mtime_par,descr_par):
+            if len(all_path_elems_par)>1:
+                top,*rest = all_path_elems_par
+
+                if top in curr_dict:
+                    try:
+                        subdict=curr_dict[top][7]
+
+                        flat_to_tree(subdict,rest,size_par,mtime_par,descr_par)
+                    except Exception as e1:
+                        print(f'{e1=}')
+                else:
+                    size=0
+                    is_dir=1
+                    is_file=0
+                    is_symlink=0
+                    is_bind=0
+                    has_files=1
+                    mtime=0
+
+                    try:
+                        subdict_new={}
+                        flat_to_tree(subdict_new,rest,size_par,mtime_par,descr_par)
+
+                        curr_dict[top]=[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,subdict_new]
+                    except Exception as e2:
+                        print(f'{e2=}')
+            else:
+                try:
+                    filename=all_path_elems_par[0]
+
+                    size=size_par
+                    is_dir=0
+                    is_file=1
+                    is_symlink=0
+                    is_bind=0
+                    has_files=0
+                    mtime=mtime_par
+
+                    curr_dict[filename]=[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
+                except Exception as e3:
+                    print(f'{e3=}')
+
+        sld={} #scan like data
+        filenames=set()
+        for path_elems,name,size,mtime,descr in rows_set:
+            all_path_elems=[elem for elem in [*path_elems,name] if elem]
+            filenames.update(all_path_elems)
+            flat_to_tree(sld,all_path_elems,size,mtime,descr)
+
+        return filenames,sld
+
+    def caf_data_to_scan_like_data(self, caf_names_dict):
         def convert_data(i=0):
             this_level_data = {}
             try:
-                for elem in caf_names_dict[i]:
-                    date, m_lLength, m_pszName = elem
+                for date, m_lLength, m_pszName in caf_names_dict[i]:
 
                     mtime=int(date)
 
@@ -2034,6 +2089,85 @@ class LibrerCore:
             #return res
             res_list[0]= res
 
+    def import_records_vvv(self,postfix,import_filename,volumename,volumeset,info,update_callback,group=None):
+        print('import_records_vvv',postfix,import_filename,volumename)
+
+        import_res=[]
+        new_record = self.create()
+
+        expressions=''
+        use_smin=False
+        smin_int=0
+        use_smax=False
+        smax_int=0
+        executable='Imported from VVV csv'
+        parameters=''
+        shell=False
+        timeout=0
+        crc=False
+
+        new_record.header.scan_path = ''
+        new_record.header.info = info
+
+        filenames,scan_like_data=self.vvv_data_to_scan_like_data(volumeset)
+
+        new_record.filenames = tuple(sorted(list(filenames)))
+        new_record.header.label = volumename
+
+        new_record.filenames_helper = {fsname:fsname_index for fsname_index,fsname in enumerate(new_record.filenames)}
+
+        ##################################
+        mtime = 0
+        is_dir = True
+        is_file = False
+        is_symlink = False
+        is_bind = False
+        has_cd = bool(new_record.customdata)
+        has_files = True
+        cd_ok = False
+
+        new_record.header.references_names=0
+        new_record.header.references_cd=0
+
+        sub_size,sub_quant,sub_folders_quant = new_record.sld_recalc_rec(scan_like_data)
+
+        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,False,False,False) ]
+
+        new_record.header.sum_size = sub_size
+        new_record.header.quant_files = sub_quant
+        new_record.header.quant_folders = sub_folders_quant
+
+        new_record.header.items_names=len(new_record.filenames)
+        new_record.header.items_cd=len(new_record.customdata)
+
+        new_record.filestructure = ('',code,sub_size,mtime,new_record.tupelize_rec(scan_like_data,print))
+
+        new_file_path = sep.join([self.db_dir,f'vvv.{int(time())}.{postfix}.dat'])
+
+        compr=9
+        new_record.save(print,file_path=new_file_path,compression_level=compr)
+
+        self.records.remove(new_record)
+
+        #############################################
+
+        new_record_really = self.create()
+
+        if res:=new_record_really.load(new_file_path) :
+            self.records.remove(new_record_really)
+            send2trash_delete(new_file_path)
+            import_res.append(str(res))
+        else:
+            if group:
+                self.assign_new_group(new_record_really,group)
+
+            update_callback(new_record_really)
+
+        if import_res:
+            return '\n'.join(import_res)
+
+        return None
+
     def import_records_caf_do(self,compr,postfix,label,caf_folders_dict, caf_names_dict,update_callback,filenames_set,caf_info,group=None):
         import_res=[]
         new_record = self.create()
@@ -2052,7 +2186,7 @@ class LibrerCore:
         new_record.header.scan_path = ''
         new_record.header.info = caf_info
 
-        scan_like_data=self.caf_data_to_scan_like_data(caf_folders_dict, caf_names_dict)
+        scan_like_data=self.caf_data_to_scan_like_data(caf_names_dict)
 
         new_record.filenames = tuple(sorted(list(filenames_set)))
         new_record.header.label = label

@@ -8,6 +8,8 @@ The primary purpose of this software is to enable users to catalog their files, 
 💥 New: Importing "Cathy" .caf database file
 (thanks to available [source code](https://github.com/binsento42/Cathy))
 
+💥 New: Importing "VVV" (Virtual Volumes View) .csv data file
+
 ## Screenshots:
 
 #### Main window, new record creation dialog and running **custom data** extraction:
@@ -55,6 +57,12 @@ system shell basic commands like: [type](https://learn.microsoft.com/en-us/windo
 **librer** writes log files, configuration and record files in runtime. Default location for these files is **logs** and **data** subfolders of **librer** main directory.
 
 ## [Importing data from "Where Is It?"](./info/wii_import.md) ##
+
+## Importing data from "Cathy" ##
+Simply use the action from the File menu.
+
+## Importing data from "VVV" (Virtual Volumes View) ##
+Simply use the action from the File menu. Make sure the CSV data file is exported from VVV using the pipe (|) separator and without including headers.
 
 ## Technical information
 Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other. Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) module. Searching records is performed as a separate subprocess for each record. The number of parallel searches is limited by the CPU cores.
