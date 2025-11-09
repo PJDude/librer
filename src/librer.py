@@ -34,11 +34,15 @@ from pathlib import Path
 from time import strftime,time,mktime
 from signal import signal,SIGINT
 
-from tkinter import Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
+from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,TclVersion, TkVersion
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style,Combobox
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
 
-from tkinterdnd2 import DND_FILES, TkinterDnD
+if TkVersion<9.0:
+    print('drop active !')
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+else:
+    print('no drop !')
 
 from threading import Thread
 from traceback import format_stack
@@ -58,7 +62,6 @@ from librer_images import librer_image
 from dialogs import *
 from core import *
 from text import LANGUAGES
-
 
 from tempfile import mkdtemp
 
@@ -390,10 +393,16 @@ class Gui:
 
         self.main_locked_by_child=None
         ####################################################################
-        self_main = self.main = TkinterDnD.Tk()
 
-        self_main.drop_target_register(DND_FILES)
-        self_main.dnd_bind('<<Drop>>', lambda e: self.main_drop(e.data) )
+        if TkVersion<9.0:
+            try:
+                self_main = self.main = TkinterDnD.Tk()
+                self_main.drop_target_register(DND_FILES)
+                self_main.dnd_bind('<<Drop>>', lambda e: self.main_drop(e.data) )
+            except Exception as dnd_e:
+                print("DND1 ERROR:",dnd_e)
+        else:
+            self_main = self.main = Tk()
 
         self.main_config = self.main.config
 
@@ -1280,8 +1289,12 @@ class Gui:
 
             self.scan_dialog=dialog=GenericDialog(self.main,(self.ico_record_new,self.ico_record_new),self.bg_color,'---',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=550)
 
-            dialog.area_main.drop_target_register(DND_FILES)
-            dialog.area_main.dnd_bind('<<Drop>>', lambda e: self.scan_dialog_drop(e.data) )
+            if TkVersion<9.0:
+                try:
+                    dialog.area_main.drop_target_register(DND_FILES)
+                    dialog.area_main.dnd_bind('<<Drop>>', lambda e: self.scan_dialog_drop(e.data) )
+                except Exception as dnd_e2:
+                    print("DND2 ERROR:",dnd_e2)
 
             dialog.area_main.grid_columnconfigure(0, weight=1)
             dialog.area_main.grid_rowconfigure(3, weight=1)
@@ -4460,14 +4473,15 @@ class Gui:
             state_on_records_or_groups = 'normal' if is_record or is_group else 'disabled'
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
-            c_nav_add_command = c_nav.add_command
-            c_nav_add_separator = c_nav.add_separator
+            #c_nav_add_command = c_nav.add_command
+            #c_nav_add_command = pop_add_command
+            #c_nav_add_separator = c_nav.add_separator
 
-            c_nav_add_command(label = STR('Go to next record')       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_command(label = STR('Go to previous record')   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_separator()
-            c_nav_add_command(label = STR('Go to first record')       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_command(label = STR('Go to last record')   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
+            #c_nav_add_command(label = STR('Go to next record')       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
+            #c_nav_add_command(label = STR('Go to previous record')   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
+            #c_nav_add_separator()
+            #c_nav_add_command(label = STR('Go to first record')       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
+            #c_nav_add_command(label = STR('Go to last record')   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
             pop_add_command(label = STR('New record ...'),  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico_record_new,compound='left')
             pop_add_separator()
@@ -6095,13 +6109,16 @@ if __name__ == "__main__":
         l_info('LIBRER %s',VER_TIMESTAMP)
         l_info('executable: %s',LIBRER_EXECUTABLE_FILE)
 
+
         try:
-            distro_info=Path(path_join(LIBRER_DIR,'distro.info.txt')).read_text(encoding='ASCII') + f'\nrecord file format version: {DATA_FORMAT_VERSION}'
+            distro_info=Path(path_join(LIBRER_DIR,'distro.info.txt')).read_text(encoding='ASCII')
         except Exception as exception_1:
             l_error(exception_1)
             distro_info = 'Error. No distro.info.txt file.'
-        else:
-            l_info('distro info:\n%s',distro_info)
+
+        distro_info+= "\nTclVersion  " + str(TclVersion) + "\nTkVersion   " + str(TkVersion) + "\n" + f'\nrecord file format version: {DATA_FORMAT_VERSION}'
+
+        l_info('distro info:\n%s',distro_info)
 
         librer_core = LibrerCore(DATA_DIR,record_exe,logging)
 

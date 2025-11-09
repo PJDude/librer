@@ -543,6 +543,7 @@ class LibrerRecord:
 
         cde_list = self_header.cde_list
         self_customdata_pool = self.customdata_pool
+        sep_join=sep.join
 
         for entry_name,items_list in scan_like_data.items():
             size,is_dir,is_file,is_symlink,is_bind,has_files,mtime = items_list[0:7]
@@ -557,10 +558,10 @@ class LibrerRecord:
                         if has_files:
                             self_prepare_customdata_pool_rec(print_func,abort_list,items_list[7],subpath_list)
                     else:
-                        subpath=sep.join(subpath_list)
+                        subpath=sep_join(subpath_list)
                         ############################
 
-                        full_file_path = normpath(abspath(sep.join([scan_path,subpath])))
+                        full_file_path = normpath(abspath(sep_join([scan_path,subpath])))
 
                         matched = False
 
@@ -1966,9 +1967,19 @@ class LibrerCore:
                     has_files=0
                     mtime=mtime_par
 
-                    curr_dict[filename]=[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
+                    temp_list_ref=curr_dict[filename]=[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
+
+                    if descr_par:
+                        new_elem={}
+                        new_elem[CD_INDEX_ID]=cd_index
+                        new_elem[CD_OK_ID]=True
+
+                        temp_list_ref.append(new_elem)
+
                 except Exception as e3:
                     print(f'{e3=}')
+
+        customdataset={descr for path_elems,name,size,mtime,descr in rows_set}
 
         sld={} #scan like data
         filenames=set()
@@ -1977,7 +1988,7 @@ class LibrerCore:
             filenames.update(all_path_elems)
             flat_to_tree(sld,all_path_elems,size,mtime,descr)
 
-        return filenames,sld
+        return filenames,sld,customdataset
 
     def caf_data_to_scan_like_data(self, caf_names_dict):
         def convert_data(i=0):
@@ -2109,7 +2120,12 @@ class LibrerCore:
         new_record.header.scan_path = ''
         new_record.header.info = info
 
-        filenames,scan_like_data=self.vvv_data_to_scan_like_data(volumeset)
+        filenames,scan_like_data,cd_set=self.vvv_data_to_scan_like_data(volumeset)
+
+        new_record.customdata = [(0,0,cd_elem) for cd_elem in cd_set]
+
+        #customdata_helper={cd_elem_tuple:index for index,cd_elem_tuple in enumerate(new_record.customdata)}
+
 
         new_record.filenames = tuple(sorted(list(filenames)))
         new_record.header.label = volumename
