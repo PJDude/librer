@@ -32,4 +32,4 @@ mv -v $outdir/record/record $outdir/librer
 echo ''
 echo packing
 cd $outdir
-zip -9 -r -m ./librer.lin.zip ./librer
+zip -9 -r ./librer.lin.zip ./librer
