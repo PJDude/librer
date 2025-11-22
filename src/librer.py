@@ -5022,7 +5022,7 @@ class Gui:
         except Exception as e:
             print(e)
         else:
-            creation_thread=Thread(target=lambda : librer_core.create_new_record(self.temp_dir,self.single_record_show,group),daemon=True)
+            creation_thread=Thread(target=lambda : librer_core.create_new_record(self.temp_dir,self.single_record_show_schedule,group),daemon=True)
             creation_thread.start()
 
             creation_thread_is_alive = creation_thread.is_alive
@@ -5156,6 +5156,11 @@ class Gui:
                 self_main_wait_variable(wait_var)
 
                 ######################################################################################
+            if self.record_to_show_on_callback:
+                for new_record in self.record_to_show_on_callback:
+                    self.single_record_show(new_record)
+
+                self.record_to_show_on_callback.clear()
 
             creation_thread.join
 
@@ -5773,6 +5778,10 @@ class Gui:
         self.tree_item_focused(group_item)
 
         self.column_sort(self.tree)
+
+    record_to_show_on_callback=[]
+    def single_record_show_schedule(self,record,expand_groups=True):
+        self.record_to_show_on_callback.append(record)
 
     @block_and_log
     def single_record_show(self,record,expand_groups=True):
