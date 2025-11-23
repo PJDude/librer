@@ -39,10 +39,10 @@ from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubu
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
 
 if TkVersion<9.0:
-    print('drop active !')
+    print('dnd active !')
     from tkinterdnd2 import DND_FILES, TkinterDnD
 else:
-    print('no drop !')
+    print('no dnd !')
 
 from threading import Thread
 from traceback import format_stack
@@ -103,7 +103,6 @@ CFG_KEY_find_filename_search_kind = 'find_filename_search_kind'
 CFG_KEY_find_name_regexp = 'find_name_regexp'
 CFG_KEY_find_name_glob = 'find_name_glob'
 CFG_KEY_find_name_fuzz = 'find_name_fuzz'
-#CFG_KEY_find_name_regexp = 'name_regexp'
 CFG_KEY_find_name_case_sens = 'name_case_sens'
 
 CFG_KEY_find_cd_regexp = 'find_cd_regexp'
@@ -213,9 +212,9 @@ class Config:
             if windows:
                 line_list1  = ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.lzh,*.lzma,*.vdi,*.vhd','','','C:\\Program Files\\7-Zip\\7z.exe','l %','0','10','0']
                 line_list1a = ['0','*.rar','','','C:\\Program Files\\WinRAR\\UnRAR.exe','l %','0','10','0']
-                line_list2 =  ['0','*.txt,*.nfo','1','256kB','more %','','1','5','0']
-                line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl','','','more %','','1','5','0']
-                line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe.exe','-hide_banner %','0','5','0']
+                line_list2 =  ['0','*.txt,*.nfo,*.url,*.sh,*.bat','1','256kB','more %','','1','5','0']
+                line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl,*.srt,*.sub,*.inf','','','more %','','1','5','0']
+                line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv,*.avi','','','ffprobe.exe','-hide_banner %','0','5','0']
                 line_list4a = ['0','*.mp3,*.mp4,*.mpeg,*.mkv','','','MediaInfo.exe','%','0','5','0']
                 line_list5 =  ['0','*.jpg','','','exiftool.exe','%','0','5','0']
                 line_list5a = ['0','*.exe','','','exiftool.exe','%','0','5','0']
@@ -225,9 +224,9 @@ class Config:
                 cde_sklejka_list=[line_list1,line_list1a,line_list2,line_list3,line_list4,line_list4a,line_list5,line_list5a,line_list6,line_list7]
             else:
                 line_list1 =  ['0','*.7z,*.zip,*.bz2,*.xz,*.z,*.gzip,*.iso,*.rar,*.arj,*.lzh,*.lzma,*.vdi,*.vhd','','','7z','l %','0','10','0']
-                line_list2 =  ['0','*.txt,*.nfo','1','256kB','cat','%','0','5','0']
-                line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl','','','cat','%','0','5','0']
-                line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv','','','ffprobe','-hide_banner %','0','5','0']
+                line_list2 =  ['0','*.txt,*.nfo,*.url,*.sh,*.bat','1','256kB','cat','%','0','5','0']
+                line_list3 =  ['0','*.pls,*.m3u,*.cue,*.plp,*.m3u8,*.mpcpl,*.srt,*.sub,*.inf','','','cat','%','0','5','0']
+                line_list4 =  ['0','*.aac,*.ac3,*.aiff,*.dts,*.dtshd,*.flac,*.h261,*.h263,*.h264,*.iff,*.m4v,*.matroska,*.mpc,*.mp3,*.mp4,*.mpeg,*.mkv,*.ts,*.ogg,*.wav,*.wv,*.avi','','','ffprobe','-hide_banner %','0','5','0']
                 line_list5 =  ['0','*.jpg','','','exif','%','0','5','0']
                 line_list6 =  ['0','*.tar,*.tgz,*.tar.gz,*.tar.bz2,*.tbz,*.tar.xz','','','tar','tvf %','0','60','0']
                 line_list7 =  ['0','*.pdf','','','pdftotext','-f 0 -l 3 -layout % -','0','10','0']
@@ -483,11 +482,9 @@ class Gui:
         self_ico_librer = self.ico_librer = self_ico['librer']
         self.ico_librer_small = self_ico['librer_small']
         self.ico_test = self_ico['test']
-
-        #self_main.iconphoto(True, self_ico_librer,self.ico_record)
-        self_main.iconphoto(True, self_ico_librer,self.ico_librer_small)
-
         self.main_icon_tuple = (self.ico_librer,self.ico_librer_small)
+
+        self_main.iconphoto(True, *self.main_icon_tuple)
 
         self.RECORD_RAW='r'
         self.RECORD='R'
@@ -977,6 +974,23 @@ class Gui:
         self.status_info.configure(image='',text = STR('Ready'))
 
         tree_bind = tree.bind
+        self_main_unbind_class = self.main_unbind_class = self.main.unbind_class
+
+        #self_main_unbind_class('Treeview', '<KeyPress-Up>')
+        #self_main_unbind_class('Treeview', '<KeyPress-Down>')
+        #self_main_unbind_class('Treeview', '<KeyPress-Next>')
+        #self_main_unbind_class('Treeview', '<KeyPress-Prior>')
+        #self_main_unbind_class('Treeview', '<KeyPress-space>')
+
+        #self_main_unbind_class('Treeview', '<KeyPress-Return>')
+        #self_main_unbind_class('Treeview', '<KeyPress-Left>')
+        #self_main_unbind_class('Treeview', '<KeyPress-Right>')
+
+        self.tree.unbind('<KeyPress-Return>')
+        self.tree.unbind('<KeyPress-Left>')
+        self.tree.unbind('<KeyPress-Right>')
+
+        #self_main_unbind_class('Treeview', '<Double-Button-1>')
 
         tree_bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
         tree_bind('<Double-Button-1>', self.double_left_button)
@@ -1052,12 +1066,18 @@ class Gui:
 
         self_main.mainloop()
 
+    path_is_dropped=False
     def main_drop(self, data):
         self.get_scan_dialog()
         self.path_to_scan_entry_var.set(data)
-        self.scan_label_entry_var.set("dropped_path")
+        paths = self.main.splitlist(data)
+        path = paths[0]
 
-        self.scan_label_entry_values_set={"dropped_path"}
+        self.path_is_dropped=True
+        last_path_elem=basename(path)
+        self.scan_label_entry_var.set(last_path_elem)
+
+        self.scan_label_entry_values_set={last_path_elem}
         self.scan_label_entry.configure(values=sorted(self.scan_label_entry_values_set))
         self.scan_label_entry.selection_range(0, 'end')
 
@@ -1068,9 +1088,12 @@ class Gui:
             path = paths[0]
             p_path = normpath(abspath(path))
 
-            self.scan_label_entry_var.set("dropped_path")
+            self.path_is_dropped=True
+            last_path_elem=basename(path)
 
-            self.scan_label_entry_values_set={"dropped_path"}
+            self.scan_label_entry_var.set(last_path_elem)
+            self.scan_label_entry_values_set={last_path_elem}
+
             self.scan_label_entry.configure(values=sorted(self.scan_label_entry_values_set))
             self.scan_label_entry.selection_range(0, 'end')
 
@@ -1539,7 +1562,8 @@ class Gui:
         return self.scan_dialog
 
     def fix_text_dialog(self,dialog):
-        dialog.find_lab.configure(image=self.ico_search_text,text=' ' + STR('Search') + ':',compound='left',bg=self.bg_color)
+        #dialog.find_lab.configure(image=self.ico_search_text,text=' ' + STR('Search') + ':',compound='left',bg=self.bg_color)
+        dialog.find_lab.configure(image=self.ico_search_text,text='',compound='left',bg=self.bg_color)
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
@@ -4118,6 +4142,7 @@ class Gui:
 
             self.sel_item = current_item
 
+            self.see_direction=mod
             self.select_and_focus(current_item)
 
             #self.tree.update()
@@ -4209,31 +4234,39 @@ class Gui:
         try:
             item_index=self.visible_items.index(item)
         except:
+            self_tree.see(item)
             return
 
-        try:
-            if self.see_direction<1:
+        if self.see_direction<0:
+            try:
                 pi=self.get_prev_index(item_index,self.rows_offset)
 
                 prev_item=self.visible_items[pi]
 
                 if prev_item:
                     self_tree.see(prev_item)
-                    self_tree.update()
                 else:
                     self_tree.see(item)
+            except Exception as se:
+                print('see exception:',se)
+                self_tree.see(item)
 
-            if self.see_direction>-1:
+        elif self.see_direction>0:
+            try:
                 ni=self.get_next_index(item_index,self.rows_offset,self.visible_items_max_index)
                 next_item=self.visible_items[ni]
 
                 if next_item:
                     self_tree.see(next_item)
-                    self_tree.update()
                 else:
                     self_tree.see(item)
-        except:
+            except Exception as se:
+                print('see exception:',se)
+                self_tree.see(item)
+        else:
             self_tree.see(item)
+
+        self_tree.update()
 
     def tree_item_focused(self,item,can_move=True):
         self_tree = self.tree
@@ -4344,13 +4377,29 @@ class Gui:
                         tree.update()
                 elif key == "Alt_L":
                     return "break"
+                elif key == "Left":
+                    #print('left',tree.item(self.sel_item, "open"),type(tree.item(self.sel_item, "open")),bool(tree.item(self.sel_item, "open")) )
+                    if tree.item(self.sel_item, "open"):
+                        tree.item(self.sel_item, open=False)
+                        self.close_item(self.sel_item)
+                        return "break"
+                    else:
+                        if parent:=tree.parent(item):
+                            self.sel_item = parent
+                            self.select_and_focus(parent)
+
+                elif key == "Right":
+                    tree.item(self.sel_item, open=True)
+                    self.open_item()
+                    return "break"
+
+
                 else:
                     #print(key)
 
                     #alt_pressed = ('0x20000' in event_str) if windows else ('Mod1' in event_str or 'Mod5' in event_str)
                     #ctrl_pressed = 'Control' in event_str
                     #shift_pressed = 'Shift' in event_str
-
 
                     pass
 
@@ -4375,8 +4424,6 @@ class Gui:
         self.visible_items_update()
 
         self.wrapped_see(item)
-
-        self_tree.update()
 
     def tree_on_mouse_button_press_search_results(self,event):
         tree=event.widget
@@ -4635,9 +4682,7 @@ class Gui:
 
                         self.open_item(group_item)
                         self.tree.focus(record_item)
-                        #self.tree.see(record_item)
                         self.wrapped_see(record_item)
-                        #self.tree.update()
 
                         self.find_clear()
 
@@ -4845,6 +4890,8 @@ class Gui:
         gc_enable()
 
     def scan_dialog_hide_wrapper(self):
+        self.path_is_dropped=False
+
         self.scan_dialog.hide()
         self.tree.focus_set()
 
@@ -5260,7 +5307,8 @@ class Gui:
     def scan_dialog_show(self):
         dialog = self.get_scan_dialog()
 
-        self.set_scan_label_entry_values()
+        if not self.path_is_dropped:
+            self.set_scan_label_entry_values()
 
         group = None
         if self.current_group:
@@ -5326,12 +5374,13 @@ class Gui:
 
         dialog.do_command_after_show=lambda : self.status("")
 
-        prop_scan_path=self.current_record.header.scan_path if self.current_record else None
-        prop_label=self.current_record.header.label if self.current_record else None
+        if not self.path_is_dropped:
+            prop_scan_path=self.current_record.header.scan_path if self.current_record else None
+            prop_label=self.current_record.header.label if self.current_record else None
 
-        self.path_to_scan_entry_var.set(prop_scan_path)
-        self.scan_label_entry_var.set(prop_label)
-        self.set_scan_label_entry_values()
+            self.path_to_scan_entry_var.set(prop_scan_path)
+            self.scan_label_entry_var.set(prop_label)
+            self.set_scan_label_entry_values()
 
         dialog.show()
 
@@ -5739,10 +5788,9 @@ class Gui:
 
         self.visible_items_uptodate=False
 
-        self.tree.update()
-        self.wrapped_see(item)
-        self.tree.update()
-        self.tree_on_select()
+        self.see_direction=0
+        #self.wrapped_see(item)
+        #self.tree_on_select()
 
     def get_record_raw_icon(self,record):
         return self.ico_record_raw_cd if record.has_cd() else self.ico_record_raw
@@ -5772,7 +5820,6 @@ class Gui:
 
         self.sel_item = group_item
         self.tree.focus(group_item)
-        #self.tree.see(group_item)
         self.wrapped_see(group_item)
 
         self.tree_item_focused(group_item)
@@ -5810,11 +5857,9 @@ class Gui:
 
         if expand_groups:
             self_tree.focus(record_item)
-            #self_tree.see(record_item)
             self.wrapped_see(record_item)
         else:
             self_tree.focus(group_item)
-            #self_tree.see(group_item)
             self.wrapped_see(group_item)
 
         self.tree_on_select()
@@ -5852,8 +5897,6 @@ class Gui:
 
         self_tree.see(item)
         self_tree.update()
-
-        #self.wrapped_see(item)
 
     folder_items=set()
     folder_items_clear=folder_items.clear
@@ -6022,11 +6065,8 @@ class Gui:
 
             self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
             self_tree.focus(record_item)
-            #self_tree.see(record_item)
-            #self.wrapped_see(record_item)
-            #self.tree_on_select()
 
-            #self.visible_items_update()
+            self.visible_items_update()
             self.select_and_focus(record_item)
 
     @block_and_log
