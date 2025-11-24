@@ -2126,7 +2126,6 @@ class LibrerCore:
 
         #customdata_helper={cd_elem_tuple:index for index,cd_elem_tuple in enumerate(new_record.customdata)}
 
-
         new_record.filenames = tuple(sorted(list(filenames)))
         new_record.header.label = volumename
 
