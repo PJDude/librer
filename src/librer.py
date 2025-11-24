@@ -4878,7 +4878,14 @@ class Gui:
         try:
             if self.scan(compression_level,threads,group):
                 self.scan_dialog_hide_wrapper()
-                {self.remove_record(record_temp) for record_temp in old_records_to_remove}
+
+                if self.new_created_record:
+                    self.single_record_show(self.new_created_record)
+
+                    for record_temp in old_records_to_remove:
+                        self.remove_record(record_temp,self.new_created_record)
+
+                    self.new_created_record=None
 
         except Exception as e:
             l_error(f'scan_wraper: {e}')
@@ -5203,11 +5210,6 @@ class Gui:
                 self_main_wait_variable(wait_var)
 
                 ######################################################################################
-            if self.record_to_show_on_callback:
-                for new_record in self.record_to_show_on_callback:
-                    self.single_record_show(new_record)
-
-                self.record_to_show_on_callback.clear()
 
             creation_thread.join
 
@@ -5233,38 +5235,44 @@ class Gui:
 
         return True
 
-    def remove_record(self,record_par=None):
-        record = record_par if record_par else self.current_record
-
-        label = librer_core.get_record_name(record)
-        path = record.header.scan_path
-        creation_time = record.header.creation_time
-        group = librer_core.get_record_group(record)
-        size=record.header.sum_size
-
+    def remove_record(self,record_to_delete,new_record_par=None):
         dialog = self.get_simple_question_dialog()
 
-        title=STR('Delete old data record with the same scanned path ?') if record_par else STR('Delete selected data record ?')
-        message=librer_core.record_info_alias_wrapper(record,record.txtinfo_medium if record_par else record.txtinfo_short)
+        title=STR('Delete old data record with the same scanned path ?') if new_record_par else STR('Delete selected data record ?')
 
-        if record_par:
-            message = message + "\n\n" + "Custom Data and filestrucure in the old record may be different !" + "\n\n" + "This operation cannot be undone !"
+        record_2delete_info=("Old record:\n\n" if new_record_par else "") + librer_core.record_info_alias_wrapper(record_to_delete,record_to_delete.txtinfo_medium)
+
+        new_record_info="\n\nNew record:\n\n" + librer_core.record_info_alias_wrapper(new_record_par,new_record_par.txtinfo_medium) if new_record_par else ""
+
+        message = record_2delete_info + new_record_info
+        if new_record_par:
+            message = message + "\n\n" + "Custom Data and filestrucure in the old record may be different !"
+
+        message += "\n\n" + "This operation cannot be undone !"
 
         dialog.show(title,message )
 
         if dialog.res_bool:
-            record_item = self.record_to_item[record]
+            record_item = self.record_to_item[record_to_delete]
             self.tree.delete(record_item)
 
-            del self.record_to_item[record]
+            group = librer_core.get_record_group(record_to_delete)
+            size=record_to_delete.header.sum_size
+
+            del self.record_to_item[record_to_delete]
             del self.item_to_record[record_item]
 
-            res=librer_core.delete_record(record)
+            res=librer_core.delete_record(record_to_delete)
             l_info(f'deleted file:{res}')
 
             if group:
                 self.group_to_size_sum[group]-=size
                 self.single_group_update_size(group)
+
+                if group_item := self.group_to_item[group]:
+                    self.tree.focus(group_item)
+                    self.wrapped_see(group_item)
+                    self.tree_on_select()
 
             self.find_clear()
 
@@ -5289,7 +5297,7 @@ class Gui:
             is_record = bool(self.tree.tag_has(self.RECORD_RAW,item) or self.tree.tag_has(self.RECORD,item))
 
             if self.current_record and is_record:
-                self.remove_record()
+                self.remove_record(self.current_record)
 
             elif self.current_group and is_group:
                 self.remove_group()
@@ -5437,7 +5445,6 @@ class Gui:
             self.scan_label_entry_values_set={new_val}
             self.scan_label_entry.configure(values=sorted(self.scan_label_entry_values_set))
             self.scan_label_entry.selection_range(0, 'end')
-
 
     def threaded_simple_run(self,command_list,shell):
         l_info(f'threaded_simple_run {command_list=}')
@@ -5826,9 +5833,9 @@ class Gui:
 
         self.column_sort(self.tree)
 
-    record_to_show_on_callback=[]
+    new_created_record=None
     def single_record_show_schedule(self,record,expand_groups=True):
-        self.record_to_show_on_callback.append(record)
+        self.new_created_record=record
 
     @block_and_log
     def single_record_show(self,record,expand_groups=True):
