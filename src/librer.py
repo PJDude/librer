@@ -5270,6 +5270,7 @@ class Gui:
                 self.single_group_update_size(group)
 
                 if group_item := self.group_to_item[group]:
+                    self.select_and_focus(group_item)
                     self.tree.focus(group_item)
                     self.wrapped_see(group_item)
                     self.tree_on_select()
@@ -6048,9 +6049,9 @@ class Gui:
                 del self_item_to_data[item]
 
     @block_and_log
-    def unload_record(self,record=None):
-        if not record:
-            record = self.current_record
+    def unload_record(self,record_param=None):
+
+        record=record_param if record_param else self.current_record
 
         if record:
             record_item = self.record_to_item[record]
@@ -6071,10 +6072,12 @@ class Gui:
             self_tree.item(record_item, open=False)
 
             self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
-            self_tree.focus(record_item)
 
             self.visible_items_update()
-            self.select_and_focus(record_item)
+
+            if not record_param:
+                self_tree.focus(record_item)
+                self.select_and_focus(record_item)
 
     @block_and_log
     def unload_all_recods(self):
