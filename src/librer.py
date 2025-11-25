@@ -4247,8 +4247,7 @@ class Gui:
                     self_tree.see(prev_item)
                 else:
                     self_tree.see(item)
-            except Exception as se:
-                print('see exception:',se)
+            except:
                 self_tree.see(item)
 
         elif self.see_direction>0:
@@ -4260,8 +4259,7 @@ class Gui:
                     self_tree.see(next_item)
                 else:
                     self_tree.see(item)
-            except Exception as se:
-                print('see exception:',se)
+            except:
                 self_tree.see(item)
         else:
             self_tree.see(item)
@@ -4378,20 +4376,21 @@ class Gui:
                 elif key == "Alt_L":
                     return "break"
                 elif key == "Left":
-                    #print('left',tree.item(self.sel_item, "open"),type(tree.item(self.sel_item, "open")),bool(tree.item(self.sel_item, "open")) )
-                    if tree.item(self.sel_item, "open"):
-                        tree.item(self.sel_item, open=False)
-                        self.close_item(self.sel_item)
-                        return "break"
-                    else:
-                        if parent:=tree.parent(item):
-                            self.sel_item = parent
-                            self.select_and_focus(parent)
+                    if tree.get_children(self.sel_item):
+                        if tree.item(self.sel_item, "open"):
+                            tree.item(self.sel_item, open=False)
+                            self.close_item(self.sel_item)
+                            return "break"
+                        else:
+                            if parent:=tree.parent(item):
+                                self.sel_item = parent
+                                self.select_and_focus(parent)
 
                 elif key == "Right":
-                    tree.item(self.sel_item, open=True)
-                    self.open_item()
-                    return "break"
+                    if tree.get_children(self.sel_item):
+                        tree.item(self.sel_item, open=True)
+                        self.open_item()
+                        return "break"
 
 
                 else:
@@ -4885,6 +4884,13 @@ class Gui:
                     for record_temp in old_records_to_remove:
                         self.remove_record(record_temp,self.new_created_record)
 
+                    new_created_record_item=self.record_to_item[self.new_created_record]
+
+                    self.select_and_focus(new_created_record_item)
+                    self.tree.focus(new_created_record_item)
+                    self.wrapped_see(new_created_record_item)
+                    self.tree_on_select()
+
                     self.new_created_record=None
 
         except Exception as e:
@@ -5269,20 +5275,22 @@ class Gui:
                 self.group_to_size_sum[group]-=size
                 self.single_group_update_size(group)
 
-                if group_item := self.group_to_item[group]:
-                    self.select_and_focus(group_item)
-                    self.tree.focus(group_item)
-                    self.wrapped_see(group_item)
-                    self.tree_on_select()
+                if not new_record_par:
+                    if group_item := self.group_to_item[group]:
+                        self.select_and_focus(group_item)
+                        self.tree.focus(group_item)
+                        self.wrapped_see(group_item)
+                        self.tree_on_select()
 
             self.find_clear()
 
             self.status_record.configure(image = self.ico_empty, text = '---',compound='left')
 
             if remaining_items := self.tree.get_children():
-                if item := remaining_items[0]:
-                    self.tree.focus(item)
-                    self.tree_on_select()
+                if not new_record_par:
+                    if item := remaining_items[0]:
+                        self.tree.focus(item)
+                        self.tree_on_select()
             else:
                 self.sel_item = None
 
@@ -6050,7 +6058,6 @@ class Gui:
 
     @block_and_log
     def unload_record(self,record_param=None):
-
         record=record_param if record_param else self.current_record
 
         if record:
