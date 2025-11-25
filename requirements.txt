@@ -1,4 +1,4 @@
-pyinstaller==6.16.0
+pyinstaller==6.17.0
 send2trash==1.8.3
 zstandard==0.25.0
 tkinterdnd2==0.4.3
