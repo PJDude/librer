@@ -326,6 +326,22 @@ class Gui:
 
             return res
         return block_wrapp
+
+    key_press_processing=False
+
+    def key_press_guard(func):
+        def key_press_guard_wrapp(self,*args,**kwargs):
+            if not self.key_press_processing:
+                self.key_press_processing=True
+                try:
+                    func(self,*args,**kwargs)
+                except Exception as e:
+                    print(e)
+
+                self.key_press_processing=False
+            return
+        return key_press_guard_wrapp
+
     ################################################
 
     def catched(func):
@@ -4332,9 +4348,10 @@ class Gui:
 
     see_direction=0
 
+    @key_press_guard
     def key_press(self,event):
-        #print('event:',event)
         if not self.block_processing_stack:
+
             self.hide_tooltip()
             self.menubar_unpost()
             self.popup_unpost()
