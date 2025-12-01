@@ -51,6 +51,8 @@ from core import *
 
 VERSION_FILE='version.txt'
 
+sys.stdout.reconfigure(encoding='utf-8')
+
 def get_ver_timestamp():
     try:
         timestamp=pathlib_Path(path_join(dirname(__file__),VERSION_FILE)).read_text(encoding='ASCII').strip()

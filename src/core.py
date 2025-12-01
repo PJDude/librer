@@ -466,9 +466,13 @@ class LibrerRecord:
                                     has_files = False
                                     size = 0
                                 else:
-                                    size,sub_sub_items = self_scan_rec(print_func,abort_list,path_join_loc(path,entry_name),dict_entry,filenames_set,check_dev,dev,include_hidden)
-                                    has_files = bool(sub_sub_items)
+                                    try:
+                                        size,sub_sub_items = self_scan_rec(print_func,abort_list,path_join_loc(path,entry_name),dict_entry,filenames_set,check_dev,dev,include_hidden)
+                                    except Exception as sre:
+                                        print_func( ('error',f'{path=},error:{sre=}'),True )
+                                        size,sub_sub_items=0,{}
 
+                                    has_files = bool(sub_sub_items)
                                     local_folder_size_with_subtree += size
 
                                 local_folder_folders_count += 1
@@ -516,7 +520,7 @@ class LibrerRecord:
         filenames_set=set()
 
         self.scan_rec(print_func,abort_list,self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev,include_hidden=include_hidden)
-        print(f'{self.scan_data=}')
+        #print(f'{self.scan_data=}')
 
         time_end = perf_counter()
 
@@ -2399,7 +2403,7 @@ class LibrerCore:
                 import_res.append(message)
 
                 try:
-                    self.log.info('removing:new_file_path')
+                    self.log.info(f'removing (1):{new_file_path=}')
                     send2trash_delete(new_file_path)
                 except Exception as ex_de:
                     print(ex_de)
@@ -2523,7 +2527,7 @@ class LibrerCore:
             messages.append(message)
 
             try:
-                self.log.info('removing:new_file_path')
+                self.log.info(f'removing (2): {new_file_path=}')
                 send2trash_delete(new_file_path)
             except Exception as ex_de:
                 print(ex_de)
@@ -2557,7 +2561,7 @@ class LibrerCore:
             new_record = self.create()
 
             if res:=new_record.load(sep.join([self.db_dir,file_name])) :
-                self.log.warning('removing:%s',file_name)
+                self.log.warning(f'removing (3): {file_name=}')
                 self.records.remove(new_record)
                 load_errors.append(res)
             else:
@@ -2716,7 +2720,7 @@ class LibrerCore:
         new_record = self.create()
 
         if res:=new_record.load(new_file_path) :
-            self.log.warning('removing:%s',new_file_path)
+            self.log.warning(f'removing (0):{new_file_path=}')
             self.records.remove(new_record)
             self_log_info(res)
         else:
