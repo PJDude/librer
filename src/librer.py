@@ -65,8 +65,6 @@ from text import LANGUAGES
 
 from tempfile import mkdtemp
 
-sys.stdout.reconfigure(encoding='utf-8')
-
 windows = bool(os_name=='nt')
 
 langs=LANGUAGES()
