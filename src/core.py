@@ -213,11 +213,11 @@ def get_command(executable,parameters,full_file_path,shell):
 
 #'ignore','replace','backslashreplace'
 def popen_win(command,shell,stdin=DEVNULL):
-    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=stdin,shell=shell,text=True,universal_newlines=True,bufsize=-1,errors='ignore',creationflags=CREATE_NO_WINDOW)
+    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=stdin,shell=shell,text=True,universal_newlines=True,bufsize=-1,errors='ignore',creationflags=CREATE_NO_WINDOW, encoding='utf-8')
     #,close_fds=False
 
 def popen_lin(command,shell,stdin=DEVNULL):
-    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=stdin,shell=shell,text=True,universal_newlines=True,bufsize=-1,errors='ignore',start_new_session=True)
+    return Popen(command, stdout=PIPE, stderr=STDOUT,stdin=stdin,shell=shell,text=True,universal_newlines=True,bufsize=-1,errors='ignore',start_new_session=True, encoding='utf-8')
 
 uni_popen = (lambda command,shell=False,stdin=DEVNULL : popen_win(command,shell,stdin)) if windows else (lambda command,shell=False,stdin=DEVNULL : popen_lin(command,shell,stdin))
 
