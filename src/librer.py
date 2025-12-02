@@ -44,6 +44,9 @@ if TkVersion<9.0:
 else:
     print('no dnd !')
 
+from locale import getencoding
+print('encoding =',getencoding())
+
 from threading import Thread
 from traceback import format_stack
 import sys
@@ -334,12 +337,16 @@ class Gui:
             if not self.key_press_processing:
                 self.key_press_processing=True
                 try:
-                    func(self,*args,**kwargs)
+                    res = func(self,*args,**kwargs)
                 except Exception as e:
                     print(e)
+                    res="break"
 
                 self.key_press_processing=False
-            return
+                return res
+            else:
+                return "break"
+
         return key_press_guard_wrapp
 
     ################################################
@@ -4402,6 +4409,7 @@ class Gui:
                             if parent:=tree.parent(item):
                                 self.sel_item = parent
                                 self.select_and_focus(parent)
+                                return "break"
 
                 elif key == "Right":
                     if tree.get_children(self.sel_item):
