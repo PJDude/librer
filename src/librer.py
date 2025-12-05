@@ -4985,6 +4985,7 @@ class Gui:
         self.last_dir = path_to_scan_from_entry
 
         new_label = self.scan_label_entry_var.get()
+        new_label_filename=safe_filename(new_label)
 
         self.main_update()
 
@@ -5107,7 +5108,7 @@ class Gui:
         except Exception as e:
             print(e)
         else:
-            creation_thread=Thread(target=lambda : librer_core.create_new_record(self.temp_dir,self.single_record_show_schedule,group),daemon=True)
+            creation_thread=Thread(target=lambda : librer_core.create_new_record(self.temp_dir,self.single_record_show_schedule,new_label_filename,group),daemon=True)
             creation_thread.start()
 
             creation_thread_is_alive = creation_thread.is_alive

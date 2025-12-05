@@ -39,7 +39,7 @@ from os.path import abspath,normpath,basename,dirname,join as path_join
 
 from zipfile import ZipFile
 from platform import system as platform_system,release as platform_release,node as platform_node
-from re import search as re_search,compile as re_compile
+from re import search as re_search,compile as re_compile, sub as re_sub
 import sys
 from collections import defaultdict
 from pathlib import Path as pathlib_Path
@@ -50,6 +50,7 @@ from fnmatch import fnmatch
 from zstandard import ZstdCompressor,ZstdDecompressor
 from pympler.asizeof import asizeof
 from send2trash import send2trash as send2trash_delete
+from unicodedata import normalize, combining
 
 from dateparser import parse as parse_datetime
 
@@ -260,6 +261,34 @@ def compress_with_header_update(header,data,compression,datalabel,zip_file):
     header.compression_time[datalabel] = tdiff
     zip_file.writestr(datalabel,data_ser_compr)
 
+WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+
+def safe_filename(text, max_length = 64):
+    try:
+        text = normalize("NFKD", text)
+        text = "".join(c for c in text if not combining(c))
+        text = text.encode("ascii", "ignore").decode("ascii")
+        text = re_sub(r'[<>:"/\\|?*\x00-\x1F]', "_", text)
+        text = re_sub(r"\s+", "_", text)
+        text = text.replace('__','_').replace('__','_').replace('__','_')
+        text = text.strip(" .")
+        name, *rest = text.split(".")
+        if name.upper() in WINDOWS_RESERVED_NAMES:
+            name = f"_{name}"
+
+        text = ".".join([name] + rest)
+        if text:
+            return '.' + text[:max_length]
+        else :
+            return ''
+
+    except Exception as e:
+        return ''
+
 CREATION_CODE = 0
 EXPORT_CODE = 1
 IMPORT_CODE = 2
@@ -334,9 +363,6 @@ class LibrerRecord:
     def find_results_clean(self):
         self.find_results = []
 
-    def new_file_name(self):
-        return f'{self.header.rid}.dat'
-
     def abort(self):
         self.abort_action = True
 
@@ -363,23 +389,23 @@ class LibrerRecord:
 
     label_of_datalabel = {'filestructure':'Filestructure','filenames':'Filenames','customdata':'Custom Data','header':'Header'}
     def save(self,print_func,file_path=None,compression_level=9):
+        self_header = self.header
+
         if file_path:
             self.file_name = basename(normpath(file_path))
         else:
-            self.file_name = self.file_name = self.new_file_name()
+            self.file_name = f'{self.header.rid}{postfix}.dat'
             file_path = sep.join([self.db_dir,self.file_name])
 
         self.file_path = file_path
 
-        self_header = self.header
-
-        self.header.compression_level = compression_level
+        self_header.compression_level = compression_level
 
         self_label_of_datalabel = self.label_of_datalabel
         with ZipFile(file_path, "w") as zip_file:
             def compress_with_header_update_wrapp(data,datalabel):
                 print_func(('save',f'Compressing {self_label_of_datalabel[datalabel]} ({bytes_to_str(asizeof(data))})'),True)
-                compress_with_header_update(self.header,data,compression_level,datalabel,zip_file)
+                compress_with_header_update(self_header,data,compression_level,datalabel,zip_file)
 
             compress_with_header_update_wrapp(self.filestructure,'filestructure')
 
@@ -390,7 +416,7 @@ class LibrerRecord:
             else:
                 self_header.zipinfo['customdata'] = (0,0,0)
 
-            compress_with_header_update_wrapp(self.header,'header')
+            compress_with_header_update_wrapp(self_header,'header')
 
         self.prepare_info()
 
@@ -2444,7 +2470,7 @@ class LibrerCore:
 
         messages = []
 
-        new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
+        new_file_path = sep.join([self.db_dir,f're.{int(time())}.dat'])
 
         try:
             src_file = record.file_path
@@ -2589,11 +2615,11 @@ class LibrerCore:
 
     ########################################################################################################################
 
-    def create_new_record(self,temp_dir,update_callback,group=None):
+    def create_new_record(self,temp_dir,update_callback,new_label_filename,group=None):
         self.log.info('create_new_record')
         self_log_info = self.log.info
 
-        new_file_path = sep.join([self.db_dir,f'rep.{int(time())}.dat'])
+        new_file_path = sep.join([self.db_dir,f're.{int(time())}{new_label_filename}.dat'])
 
         command = list(self.record_exe)
         command.append('create')
