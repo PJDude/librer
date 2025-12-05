@@ -274,7 +274,7 @@ def safe_filename(text, max_length = 64):
         text = text.encode("ascii", "ignore").decode("ascii")
         text = re_sub(r'[<>:"/\\|?*\x00-\x1F]', "_", text)
         text = re_sub(r"\s+", "_", text)
-        text = text.replace('__','_').replace('__','_').replace('__','_')
+        text = text.replace('__','_').replace('__','_').replace('__','_').strip("_")
         text = text.strip(" .")
         name, *rest = text.split(".")
         if name.upper() in WINDOWS_RESERVED_NAMES:
@@ -1263,6 +1263,8 @@ class LibrerRecord:
             info_list.append('')
             info_list.append(f'creation host   : {self_header.creation_host} ({self_header.creation_os})')
             info_list.append(f'creation time   : {local_time}')
+            info_list.append(f'file name       : {file_name}')
+
             info_list_med.append(f'creation time   : {local_time}')
 
             self.txtinfo_short = '\n'.join(info_list)
