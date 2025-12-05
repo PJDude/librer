@@ -2266,7 +2266,9 @@ class LibrerCore:
 
         new_record.filestructure = ('',code,sub_size,mtime,new_record.tupelize_rec(scan_like_data,print))
 
-        new_file_path = sep.join([self.db_dir,f'caf.{int(time())}.{postfix}.dat'])
+        label_filename=safe_filename(label)
+
+        new_file_path = sep.join([self.db_dir,f'caf.{int(time())}.{postfix}{label_filename}.dat'])
 
         new_record.save(print,file_path=new_file_path,compression_level=compr)
 
@@ -2357,7 +2359,9 @@ class LibrerCore:
 
         new_record.filestructure = ('',code,sub_size,mtime,new_record.tupelize_rec(scan_like_data,print))
 
-        new_file_path = sep.join([self.db_dir,f'wii.{int(time())}.{postfix}.dat'])
+        label_filename=safe_filename(label)
+
+        new_file_path = sep.join([self.db_dir,f'wii.{int(time())}.{postfix}{label_filename}.dat'])
 
         new_record.save(print,file_path=new_file_path,compression_level=compr)
 

@@ -2932,7 +2932,9 @@ class Gui:
                 compr=9
                 label=path_splitext(basename(filename))[0]
 
-                sub_res = librer_core.import_records_caf_do(compr,postfix,label,caf_folders_dict, caf_names_dict,self.single_record_show,filenames_set,caf_info,group)
+                postfix_str = ('00' + str(postfix))[-3:]
+
+                sub_res = librer_core.import_records_caf_do(compr,postfix_str,label,caf_folders_dict, caf_names_dict,self.single_record_show,filenames_set,caf_info,group)
                 postfix+=1
 
     def wii_import_to_local(self):
@@ -3027,7 +3029,9 @@ class Gui:
                             self.status(f'importing {disk_name} ... ')
 
                             label = disk_name
-                            sub_res = librer_core.import_records_wii_do(compr,postfix,label,quant_files,quant_folders,filenames_set_per_disk[disk_name],wii_path_tuple_to_data_curr,wii_paths_dict_per_disk[disk_name],cd_set_per_disk[disk_name],self.single_record_show,group)
+                            postfix_str = ('00' + str(postfix))[-3:]
+
+                            sub_res = librer_core.import_records_wii_do(compr,postfix_str,label,quant_files,quant_folders,filenames_set_per_disk[disk_name],wii_path_tuple_to_data_curr,wii_paths_dict_per_disk[disk_name],cd_set_per_disk[disk_name],self.single_record_show,group)
                             postfix+=1
                             if sub_res:
                                 res.append(sub_res)
