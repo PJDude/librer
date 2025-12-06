@@ -324,6 +324,7 @@ class Header :
         self.references_cd = 0
 
         self.cde_list = []
+        self.cde_stats_size={}
         self.files_cde_errors_quant = {}
         self.cde_errors_quant_all = 0
         self.cde_stats_time_all = 0
@@ -740,6 +741,9 @@ class LibrerRecord:
                                 timeout_semi_list[0] = None
                                 break
 
+                        subprocess.stdout.close()
+                        subprocess.wait()
+
                         if self_killed[thread_index]:
                             output_list_append('Killed.')
                             aborted = True
@@ -759,7 +763,6 @@ class LibrerRecord:
                 if returncode or self_killed[thread_index] or aborted:
                     cde_errors_quant[rule_nr]+=1
                     cde_errors_quant_all+=1
-
 
                 if not aborted:
                     files_cde_quant += 1
@@ -1240,7 +1243,10 @@ class LibrerRecord:
         bytes_to_str_mod = lambda x : bytes_to_str(x) if isinstance(x,int) else x
 
         info_list = []
+        info_list_append = info_list.append
+
         info_list_med = []
+        info_list_med_append = info_list_med.append
 
         self.txtinfo = 'init'
         self.txtinfo_basic = 'init-basic'
@@ -1257,15 +1263,15 @@ class LibrerRecord:
 
             local_time = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(self_header.creation_time))
 
-            info_list.append(f'record label    : {self_header.label}')
-            info_list_med.append(f'record label    : {self_header.label}')
+            info_list_append(f'record label    : {self_header.label}')
+            info_list_med_append(f'record label    : {self_header.label}')
 
-            info_list.append('')
-            info_list.append(f'creation host   : {self_header.creation_host} ({self_header.creation_os})')
-            info_list.append(f'creation time   : {local_time}')
-            info_list.append(f'file name       : {file_name}')
+            info_list_append('')
+            info_list_append(f'creation host   : {self_header.creation_host} ({self_header.creation_os})')
+            info_list_append(f'creation time   : {local_time}')
+            info_list_append(f'file name       : {file_name}')
 
-            info_list_med.append(f'creation time   : {local_time}')
+            info_list_med_append(f'creation time   : {local_time}')
 
             self.txtinfo_short = '\n'.join(info_list)
             self.txtinfo_basic = '\n'.join(info_list)
@@ -1276,22 +1282,22 @@ class LibrerRecord:
             except:
                 pass
 
-            info_list.append(f'record file     : {file_name} ({bytes_to_str(file_size)}, compression level:{self.header.compression_level}, cde threads:{threads_str})')
-            info_list.append('')
-            info_list.append(f'scanned path    : {self_header.scan_path}')
-            info_list_med.append(f'scanned path    : {self_header.scan_path}')
-            info_list.append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
-            info_list_med.append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
-            info_list.append(f'scanned files   : {fnumber(self_header.quant_files)}')
-            info_list_med.append(f'scanned files   : {fnumber(self_header.quant_files)}')
-            info_list.append(f'scanned folders : {fnumber(self_header.quant_folders)}')
-            info_list_med.append(f'scanned folders : {fnumber(self_header.quant_folders)}')
+            info_list_append(f'record file     : {file_name} ({bytes_to_str(file_size)}, compression level:{self.header.compression_level}, cde threads:{threads_str})')
+            info_list_append('')
+            info_list_append(f'scanned path    : {self_header.scan_path}')
+            info_list_med_append(f'scanned path    : {self_header.scan_path}')
+            info_list_append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
+            info_list_med_append(f'scanned space   : {bytes_to_str(self_header.sum_size)}')
+            info_list_append(f'scanned files   : {fnumber(self_header.quant_files)}')
+            info_list_med_append(f'scanned files   : {fnumber(self_header.quant_files)}')
+            info_list_append(f'scanned folders : {fnumber(self_header.quant_folders)}')
+            info_list_med_append(f'scanned folders : {fnumber(self_header.quant_folders)}')
 
             self.txtinfo_medium = '\n'.join(info_list_med)
 
             if hasattr(self_header, 'info'):
-                info_list.append('')
-                info_list.append(self_header.info)
+                info_list_append('')
+                info_list_append(self_header.info)
 
             scanning_time_str = f'{str(round(self_header.scanning_time,2))}'
 
@@ -1315,65 +1321,65 @@ class LibrerRecord:
             except:
                 pass
 
-
-            info_list.append('')
-            info_list.append('----------------+------------------------------------------------------------------------------------------------')
-            info_list.append('Internals       |  compressed  serialized    original       items  references   read time  compr.time  CDE errors')
-            info_list.append('----------------+------------------------------------------------------------------------------------------------')
+            info_list_append('')
+            info_list_append('----------------+------------------------------------------------------------------------------------------------')
+            info_list_append('Internals       |  compressed  serialized    original       items  references   read time  compr.time  CDE errors')
+            info_list_append('----------------+------------------------------------------------------------------------------------------------')
 
             h_data = self_header.zipinfo["header"]
             fs_data = self_header.zipinfo["filestructure"]
             fn_data = self_header.zipinfo["filenames"]
             cd_data = self_header.zipinfo["customdata"]
 
-            info_list.append(f'Header          |{bytes_to_str_mod(h_data[0]).rjust(12)          }{bytes_to_str_mod(h_data[1]).rjust(12)     }{bytes_to_str_mod(h_data[2]).rjust(12)    }')
-            info_list.append(f'Filestructure   |{bytes_to_str_mod(fs_data[0]).rjust(12)         }{bytes_to_str_mod(fs_data[1]).rjust(12)    }{bytes_to_str_mod(fs_data[2]).rjust(12)   }{"".rjust(12)}{"".rjust(12)}{scanning_time_str.rjust(11)}s{str(round(filestructure_time,2)).rjust(11)}s')
-            info_list.append(f'File Names      |{bytes_to_str_mod(fn_data[0]).rjust(12)         }{bytes_to_str_mod(fn_data[1]).rjust(12)    }{bytes_to_str_mod(fn_data[2]).rjust(12)   }{fnumber(self_header.items_names).rjust(12)    }{fnumber(self_header.references_names).rjust(12)}{"".rjust(12)}{str(round(filenames_time,2)).rjust(11)}s')
+            info_list_append(f'Header          |{bytes_to_str_mod(h_data[0]).rjust(12)          }{bytes_to_str_mod(h_data[1]).rjust(12)     }{bytes_to_str_mod(h_data[2]).rjust(12)    }')
+            info_list_append(f'Filestructure   |{bytes_to_str_mod(fs_data[0]).rjust(12)         }{bytes_to_str_mod(fs_data[1]).rjust(12)    }{bytes_to_str_mod(fs_data[2]).rjust(12)   }{"".rjust(12)}{"".rjust(12)}{scanning_time_str.rjust(11)}s{str(round(filestructure_time,2)).rjust(11)}s')
+            info_list_append(f'File Names      |{bytes_to_str_mod(fn_data[0]).rjust(12)         }{bytes_to_str_mod(fn_data[1]).rjust(12)    }{bytes_to_str_mod(fn_data[2]).rjust(12)   }{fnumber(self_header.items_names).rjust(12)    }{fnumber(self_header.references_names).rjust(12)}{"".rjust(12)}{str(round(filenames_time,2)).rjust(11)}s')
 
             if cd_data[0]:
-                info_list.append(f'Custom Data     |{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{fnumber(self_header.items_cd).rjust(12)       }{fnumber(self_header.references_cd).rjust(12)}{cde_stats_time_all_str.rjust(11)}s{str(round(customdata_time,2)).rjust(11)}s{fnumber(cde_errors).rjust(12)}')
+                info_list_append(f'Custom Data     |{bytes_to_str_mod(cd_data[0]).rjust(12)     }{bytes_to_str_mod(cd_data[1]).rjust(12)     }{bytes_to_str_mod(cd_data[2]).rjust(12)  }{fnumber(self_header.items_cd).rjust(12)       }{fnumber(self_header.references_cd).rjust(12)}{cde_stats_time_all_str.rjust(11)}s{str(round(customdata_time,2)).rjust(11)}s{fnumber(cde_errors).rjust(12)}')
 
             try:
                 if self_header.cde_list:
-                    info_list.append('----------------+------------------------------------------------------------------------------------------------')
+                    info_list_append('----------------+------------------------------------------------------------------------------------------------')
                     for nr,(expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc) in enumerate(self_header.cde_list):
-                        info_list.append(f'rule nr {str(nr).rjust(2)}      |                        {bytes_to_str(self_header.cde_stats_size[nr]).rjust(12)}{fnumber(self_header.cde_stats_uniq[nr]).rjust(12)}{fnumber(self_header.cde_stats_refs[nr]).rjust(12)}{str(round(self_header.cde_stats_time[nr],2)).rjust(11)}s{"".rjust(12)}{fnumber(self_header.files_cde_errors_quant[nr]).rjust(12)}')
-                    info_list.append('----------------+------------------------------------------------------------------------------------------------')
+                        info_list_append(f'rule nr {str(nr).rjust(2)}      |                        {bytes_to_str(self_header.cde_stats_size[nr]).rjust(12)}{fnumber(self_header.cde_stats_uniq[nr]).rjust(12)}{fnumber(self_header.cde_stats_refs[nr]).rjust(12)}{str(round(self_header.cde_stats_time[nr],2)).rjust(11)}s{"".rjust(12)}{fnumber(self_header.files_cde_errors_quant[nr]).rjust(12)}')
+                    info_list_append('----------------+------------------------------------------------------------------------------------------------')
             except Exception as EE:
-                print('record:',file_name,' error:',str(EE))
+                info_list_append(str(EE))
+                #print('record:',file_name,' error:',str(EE))
 
             try:
                 if self_header.cde_list:
-                    info_list.append('')
-                    info_list.append('Custom Data Extractors and rules:')
+                    info_list_append('')
+                    info_list_append('Custom Data Extractors and rules:')
                     for nr,(expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc) in enumerate(self_header.cde_list):
-                        info_list.append(f'\nrule nr    : {nr}')
+                        info_list_append(f'\nrule nr    : {nr}')
 
                         if expressions:
                             expressions_expanded = ','.join(list(expressions))
-                            info_list.append(f'files      : {expressions_expanded}')
+                            info_list_append(f'files      : {expressions_expanded}')
 
                         if use_smin:
-                            info_list.append(f'min size   : {bytes_to_str(smin_int)}')
+                            info_list_append(f'min size   : {bytes_to_str(smin_int)}')
                         if use_smax:
-                            info_list.append(f'max size   : {bytes_to_str(smax_int)}')
+                            info_list_append(f'max size   : {bytes_to_str(smax_int)}')
 
                         in_shell_string = '(in shell)' if shell else ''
-                        info_list.append(f'command    : {executable} {parameters} {in_shell_string}')
+                        info_list_append(f'command    : {executable} {parameters} {in_shell_string}')
                         if timeout:
-                            info_list.append(f'timeout    : {timeout}s')
+                            info_list_append(f'timeout    : {timeout}s')
             except Exception as EE:
                 print('record:',file_name,' error:',str(EE))
 
             loaded_fs_info = 'filesystem  - ' + ('loaded' if self.decompressed_filestructure else 'not loaded yet')
             loaded_cd_info = 'custom data - ' + ('not present' if not bool(cd_data[0]) else 'loaded' if self.decompressed_customdata else 'not loaded yet')
 
-            info_list.append('')
-            info_list.append(loaded_fs_info)
-            info_list.append(loaded_cd_info)
+            info_list_append('')
+            info_list_append(loaded_fs_info)
+            info_list_append(loaded_cd_info)
 
-            info_list.append('')
-            info_list.append('history:')
+            info_list_append('')
+            info_list_append('history:')
             for hist_entry in self_header.history_stack:
                 line_list = []
 
@@ -1399,24 +1405,24 @@ class LibrerRecord:
                 except Exception as he:
                     line_list.append(str(he))
 
-                info_list.append('  ' + ' '.join(line_list))
+                info_list_append('  ' + ' '.join(line_list))
             self.txtinfo_basic = self.txtinfo_basic + f'\n\n{loaded_fs_info}\n{loaded_cd_info}'
 
             try:
                 sublist=[]
                 for ext,ext_stat in sorted(self.header.ext_stats.items(),key = lambda x : x[1],reverse=True):
                     sublist.append(f'{bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}  {fnumber(ext_stat).rjust(12)}      {ext}')
-                info_list.append('')
-                info_list.append('Files extensions statistics by quantity:')
-                info_list.append('========================================')
+                info_list_append('')
+                info_list_append('Files extensions statistics by quantity:')
+                info_list_append('========================================')
                 info_list.extend(sublist)
 
                 sublist_size=[]
                 for ext,ext_stat in sorted(self.header.ext_stats_size.items(),key = lambda x : x[1],reverse=True):
                     sublist_size.append(f'{bytes_to_str(self.header.ext_stats_size[ext]).rjust(12)}   {fnumber(self.header.ext_stats[ext]).rjust(12)}      {ext}')
-                info_list.append('')
-                info_list.append('Files extensions statistics by space:')
-                info_list.append('========================================')
+                info_list_append('')
+                info_list_append('Files extensions statistics by space:')
+                info_list_append('========================================')
                 info_list.extend(sublist_size)
             except Exception as se:
                 pass
@@ -1642,6 +1648,7 @@ class LibrerCore:
             with scandir(self.db_dir) as res:
                 size_sum=0
                 self.record_files_list=[]
+                self_record_files_list_append=self.record_files_list.append
                 for entry in res:
                     filename = entry.name
                     if filename.endswith('.dat') and filename != 'repo.dat':
@@ -1653,7 +1660,7 @@ class LibrerCore:
                             continue
 
                         size_sum+=size
-                        self.record_files_list.append( (filename,size) )
+                        self_record_files_list_append( (filename,size) )
                 quant_sum=len(self.record_files_list)
             return (quant_sum,size_sum)
         except Exception as e:
@@ -2313,6 +2320,8 @@ class LibrerCore:
         crc=False
 
         new_record.header.cde_list = [ [expressions,use_smin,smin_int,use_smax,smax_int,executable,parameters,shell,timeout,crc] ]
+        new_record.header.cde_stats_size={}
+        new_record.header.cde_stats_size[0]=''
 
         new_record.header.scan_path = 'Imported from "Where Is It?"'
 
@@ -2577,10 +2586,12 @@ class LibrerCore:
     def threaded_read_records(self,load_errors):
         self.log.info('read_records: %s',self.db_dir)
         self.records_to_show=[]
+        self_records_to_show_append=self.records_to_show.append
 
         info_curr_quant = 0
         info_curr_size = 0
 
+        self_create=self.create
         for file_name,size in sorted(self.record_files_list):
             if self.abort_action:
                 break
@@ -2590,14 +2601,14 @@ class LibrerCore:
 
             info_curr_quant+=1
             info_curr_size+=size
-            new_record = self.create()
+            new_record = self_create()
 
             if res:=new_record.load(sep.join([self.db_dir,file_name])) :
                 self.log.warning(f'removing (3): {file_name=}')
                 self.records.remove(new_record)
                 load_errors.append(res)
             else:
-                self.records_to_show.append( (new_record,info_curr_quant,info_curr_size) )
+                self_records_to_show_append( (new_record,info_curr_quant,info_curr_size,file_name) )
         self.update_sorted()
 
     def find_results_clean(self):
@@ -2656,8 +2667,8 @@ class LibrerCore:
             try:
                 subprocess = uni_popen(command,stdin=PIPE)
             except Exception as re:
-                print('threaded_run run error',re)
-                info_semi_list[0].append(f'threaded_run run error: {re}')
+                print('create_new_record threaded_run run error',re)
+                info_semi_list[0].append(f'create_new_record threaded_run run error: {re}')
                 sys.exit() #thread
 
             processes_semi_list[0]=subprocess
@@ -2725,6 +2736,10 @@ class LibrerCore:
                     if subprocess_poll() is not None:
                         break
                     sleep(0.001)
+
+            subprocess.stdout.close()
+            subprocess.wait()
+
             sys.exit() #thread
 
         info_semi_list=[None]
@@ -2774,6 +2789,8 @@ class LibrerCore:
             filename_fuzzy_threshold,cd_fuzzy_threshold,
             type_folders,type_files):
 
+        self.total_search_progress = 0
+
         self.log.info(f'find_items_in_records:{size_min},{size_max},{find_filename_search_kind},{name_expr},{name_case_sens},{find_cd_search_kind},{cd_expr},{cd_case_sens},{filename_fuzzy_threshold},{cd_fuzzy_threshold},{type_folders},{type_files}')
 
         self.find_results_clean()
@@ -2805,7 +2822,6 @@ class LibrerCore:
 
         self.find_res_quant = 0
 
-        self.total_search_progress = 0
 
         self.search_record_nr=0
 
@@ -2826,8 +2842,8 @@ class LibrerCore:
             try:
                 subprocess = uni_popen(commands_list[record_nr])
             except Exception as re:
-                print('threaded_run run error',re)
-                info_list[record_nr].append(f'threaded_run run error: {re}')
+                print('find_items_in_records threaded_run run error',re)
+                info_list[record_nr].append(f'find_items_in_records threaded_run run error: {re}')
                 sys.exit() #thread
 
             processes_list[record_nr]=subprocess
@@ -2852,6 +2868,10 @@ class LibrerCore:
                     if subprocess_poll() is not None:
                         break
                     sleep(0.001)
+
+            subprocess.stdout.close()
+            subprocess.wait()
+
             sys.exit() #thread
 
         #####################################################
@@ -2859,13 +2879,16 @@ class LibrerCore:
         jobs = {}
 
         total_progress=[]
+        total_progress_append=total_progress.append
         info_list=[]
+        info_list_append=info_list.append
         processes_list=[]
+        processes_list_append=processes_list.append
 
         for record_nr,record in enumerate(records_to_process):
-            total_progress.append(0)
-            info_list.append([])
-            processes_list.append(None)
+            total_progress_append(0)
+            info_list_append([])
+            processes_list_append(None)
 
             jobs[record_nr] = [0,None]
 

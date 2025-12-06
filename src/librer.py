@@ -936,6 +936,7 @@ class Gui:
             self_progress_dialog_on_load_lab_r1_configure = self_progress_dialog_on_load.lab_r1.configure
             self_progress_dialog_on_load_lab_r2_configure = self_progress_dialog_on_load.lab_r2.configure
             self_progress_dialog_on_load_lab_0_configure = self_progress_dialog_on_load_lab[0].configure
+            self_progress_dialog_on_load_lab_0_update = self_progress_dialog_on_load_lab[0].update
 
             self_progress_dialog_on_load_progr1var_set = self_progress_dialog_on_load_progr1var.set
             self_progress_dialog_on_load_progr2var_set = self_progress_dialog_on_load_progr2var.set
@@ -946,31 +947,43 @@ class Gui:
             wait_var_get = wait_var.get
             self_main_wait_variable = self.main.wait_variable
 
-            groups_expand = not bool(self.cfg.get(CFG_KEY_groups_collapse))
+            #groups_expand = not bool(self.cfg.get(CFG_KEY_groups_collapse))
 
             self_single_record_show = self.single_record_show
 
+            self_get_hg_ico=self.get_hg_ico
+
             while read_thread_is_alive() or librer_core.records_to_show :
-                self_progress_dialog_on_load_lab[2].configure(image=self.get_hg_ico())
+                self_progress_dialog_on_load_lab[2].configure(image=self_get_hg_ico())
 
                 if librer_core.records_to_show:
-                    new_rec,quant,size = librer_core.records_to_show.pop(0)
+                    new_rec,quant,size,file_name = librer_core.records_to_show.pop(0)
 
                     self_progress_dialog_on_load_lab_r1_configure(text= bytes_to_str(size) + '/' + bytes_to_str_records_size)
                     self_progress_dialog_on_load_lab_r2_configure(text= fnumber(quant) + '/' + fnumber_records_quant)
 
-                    self_progress_dialog_on_load_lab_0_configure(text=librer_core.info_line)
+                    self_progress_dialog_on_load_lab_0_configure(text=file_name[0:48])
+                    self_progress_dialog_on_load_lab_0_update()
 
                     self_progress_dialog_on_load_progr1var_set(100*size/records_size)
                     self_progress_dialog_on_load_progr2var_set(100*quant/records_quant)
 
-                    self_single_record_show(new_rec,groups_expand)
+                    self_single_record_show(new_rec,True)
                 else:
                     self_main_after(25,lambda : wait_var_set(not wait_var_get()))
                     self_main_wait_variable(wait_var)
 
                 if self.action_abort:
                     librer_core.abort()
+
+            if not bool(self.cfg.get(CFG_KEY_groups_collapse)):
+                for group in librer_core.groups:
+                    group_item = self.group_to_item[group]
+                    self.tree.item(group_item, open = True)
+
+            self.column_sort(self.tree)
+
+            #self.single_group_show(group)
 
             self_progress_dialog_on_load.hide(True)
             read_thread.join()
@@ -3979,6 +3992,7 @@ class Gui:
             fnumber_sel_range_len = fnumber(sel_range_len)
 
             time_without_busy_sign=0
+
             while search_thread_is_alive():
                 now=time()
                 ######################################################################################
@@ -5877,7 +5891,8 @@ class Gui:
         self.new_created_record=record
 
     @block_and_log
-    def single_record_show(self,record,expand_groups=True):
+    def single_record_show(self,record,batch_mode=False):
+        #expand_groups=True
         size=record.header.sum_size
 
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
@@ -5891,7 +5906,11 @@ class Gui:
         record_item=self_tree.insert(group_item,'end',iid=None,values=values,open=False,text=librer_core.get_record_name(record),image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
         self_tree.insert(record_item,'end',text='dummy') #dummy_sub_item
 
-        self_tree.item(group_item, open = expand_groups)
+        #self_tree.item(group_item, open = expand_groups)
+        if batch_mode:
+            self_tree.item(group_item, open = False)
+        else:
+            self_tree.item(group_item, open = True)
 
         self.group_to_size_sum[group]+=size
         self.single_group_update_size(group)
@@ -5901,14 +5920,16 @@ class Gui:
         self.item_to_record[record_item]=record
         self.record_to_item[record]=record_item
 
-        if expand_groups:
+        if not batch_mode:
             self_tree.focus(record_item)
             self.wrapped_see(record_item)
-        else:
-            self_tree.focus(group_item)
-            self.wrapped_see(group_item)
 
-        self.tree_on_select()
+        #if expand_groups:
+        #else:
+        #    self_tree.focus(group_item)
+        #    self.wrapped_see(group_item)
+
+            self.tree_on_select()
 
         self.update_records_stats()
 
@@ -5916,9 +5937,10 @@ class Gui:
 
         self.main_update()
 
-        self.find_clear()
+        if not batch_mode:
+            self.column_sort(self_tree)
 
-        self.column_sort(self_tree)
+        self.find_clear()
 
     scan_path_2_records=defaultdict(set)
 
