@@ -2746,7 +2746,7 @@ class Gui:
         from binascii import b2a_hex
         from struct import calcsize, unpack
 
-        DEBUG = True
+        l_info(f"caf_import:{pathcatname}")
 
         ulModus = 1000000000
         ulMagicBase = 500410407
@@ -2787,30 +2787,30 @@ class Gui:
             m_sVersion = int(ul/ulModus)
         else:
             buffer.close()
-            print("Incorrect magic number for caf file",pathcatname, "(", ul % ulModus, ")")
+            l_info("Incorrect magic number for caf file",pathcatname, "(", ul % ulModus, ")")
             return
 
         if m_sVersion > 2:
             m_sVersion = readbuf('h')  # 2 bytes
 
-        #print(f'{m_sVersion=}')
+        l_info(f'{m_sVersion=}')
 
         if m_sVersion > sVersion:
-            print("Incompatible caf version for", pathcatname, "(", m_sVersion, ")")
+            l_info("Incompatible caf version for", pathcatname, "(", m_sVersion, ")")
             return
 
         m_timeDate = readbuf('<L')  # 4 bytes
-        #print(f'{m_timeDate=}')
+        l_info(f'{m_timeDate=}')
 
         if m_sVersion >= 2:
             m_strDevice = readstring()
-            #print(f'{m_strDevice=}')
+            l_info(f'{m_strDevice=}')
 
         m_strVolume = readstring()
-        #print(f'{m_strVolume=}')
+        l_info(f'{m_strVolume=}')
 
         m_strAlias = readstring()
-        #print(f'{m_strAlias=}')
+        l_info(f'{m_strAlias=}')
 
         # m_dwSerialNumber well, odd..
         bytesn = buffer.read(4)  # 4 bytes
@@ -2822,11 +2822,11 @@ class Gui:
             sn += chunk
         m_dwSerialNumber = '%s-%s' % (sn[:4], sn[4:])
 
-        #print(f'{m_dwSerialNumber=}')
+        l_info(f'{m_dwSerialNumber=}')
 
         if m_sVersion >= 4:
             m_strComment = readstring()
-            #print(f'{m_strComment=}')
+            l_info(f'{m_strComment=}')
 
         # m_fFreeSize - Starting version 1 the free size was saved
         if m_sVersion >= 1:
@@ -2834,21 +2834,21 @@ class Gui:
         else:
             m_fFreeSize = -1  # unknow
 
-        #print(f'{m_fFreeSize=}')
+        l_info(f'{m_fFreeSize=}')
 
         if m_sVersion >= 6:
             m_sArchive = readbuf('h')  # 2 bytes
             if m_sArchive == -1:
                 m_sArchive = 0
 
-            #print(f'{m_sArchive=}')
+            l_info(f'{m_sArchive=}')
 
         caf_folders_dict={}
 
-
         #########################################################
         lLen = readbuf('<l')  # 4 bytes
-        #print(f"Folders:{lLen}")
+        l_info(f"Folders:{lLen}")
+
         for l in range(lLen):
             if l == 0 or m_sVersion <= 3:
                 m_pszName = readstring()
@@ -2865,18 +2865,27 @@ class Gui:
 
         #########################################################
         lLen = readbuf('<l')  # 4 bytes
-        #print(f"Files{lLen}")
+        l_info(f"Files:{lLen}")
+
         for l in range(lLen):
             date = readbuf('<L')
-            m_lLength=readbuf('<l')
-            m_sPathId = readbuf('H')
-            m_pszName = readstring()
+            if m_sVersion <= 6:
+                m_lLength=readbuf('<l')
+                m_sPathId = readbuf('H')
+            elif m_sVersion == 8:
+                m_lLength=readbuf('<q')
+                m_sPathId = readbuf('<L')
+            else:
+                l_info("m_sVersion:",m_sVersion)
+                l_info("Aborting")
+                break
 
+            m_pszName = readstring()
             caf_names_dict[m_sPathId].add( (date, m_lLength, m_pszName) )
 
         buffer.close()
 
-        return m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict
+        return m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict
 
     @restore_status_line
     @block
@@ -2934,11 +2943,11 @@ class Gui:
             postfix=0
 
             for filename in import_filenames:
-                m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict = self.caf_import(filename)
+                m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict = self.caf_import(filename)
 
                 m_timeStr = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(m_timeDate))
 
-                caf_info=f'Imported from "Cathy" database: {filename}\n----------------+------------------------------------------------------------------------------------------------\n  creation time : {m_timeStr}\n  device        : {m_strDevice}\n  volume        : {m_strVolume}\n  alias         : {m_strAlias}\n  serial number : {m_dwSerialNumber}\n  comment       : {m_strComment}\n  free size     : {m_fFreeSize}\n  archive       : {m_sArchive}\n----------------+------------------------------------------------------------------------------------------------'
+                caf_info=f'Imported from "Cathy" database: {filename}\n----------------+------------------------------------------------------------------------------------------------\n  version       : {m_sVersion}\n  creation time : {m_timeStr}\n  device        : {m_strDevice}\n  volume        : {m_strVolume}\n  alias         : {m_strAlias}\n  serial number : {m_dwSerialNumber}\n  comment       : {m_strComment}\n  free size     : {m_fFreeSize}\n  archive       : {m_sArchive}\n----------------+------------------------------------------------------------------------------------------------'
 
                 filenames_set={elem[2] for dir_elems in caf_names_dict.values() for elem in dir_elems}
 
@@ -3242,8 +3251,15 @@ class Gui:
                             tooltip_list = [STR('scan path') + f' : {scan_path}']
                             tooltip_list.append(STR('subpath') + f'   : {subpath}')
 
+
                             if item in self.item_to_data:
                                 data_tuple = self.item_to_data[item]
+                                (entry_name,code,size,mtime) = data_tuple[0:4]
+                                if size:
+                                    size_formatted = f"{size:,}".replace(",", " ")
+
+                                    tooltip_list.append(STR('size   ') + f'   : {bytes_to_str(size)} ({size_formatted} B)')
+
                                 code = data_tuple[1]
                                 is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode[code]
 
