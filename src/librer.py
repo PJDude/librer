@@ -2872,11 +2872,14 @@ class Gui:
             if m_sVersion <= 6:
                 m_lLength=readbuf('<l')
                 m_sPathId = readbuf('H')
+            elif m_sVersion == 7:
+                m_lLength=readbuf('<q')
+                m_sPathId = readbuf('H')
             elif m_sVersion == 8:
                 m_lLength=readbuf('<q')
                 m_sPathId = readbuf('<L')
             else:
-                l_info("m_sVersion:",m_sVersion)
+                l_info("m_sVersion:{m_sVersion}")
                 l_info("Aborting")
                 break
 
@@ -4450,8 +4453,6 @@ class Gui:
                         tree.item(self.sel_item, open=True)
                         self.open_item()
                         return "break"
-
-
                 else:
                     #print(key)
 
@@ -4463,7 +4464,7 @@ class Gui:
 
             except Exception as e:
                 l_error(e)
-                self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
+                self.info_dialog_on_main.show('INTERNAL ERROR key_press',str(e))
 
             self.tree_on_select()
 
@@ -5762,7 +5763,6 @@ class Gui:
         else:
             children=tree.get_children(item)
             opened = tree.set(item,'opened')
-
             LUT_decode_loc = LUT_decode
             if opened=='0' and children:
                 colname,sort_index,is_numeric,reverse,group_code,dir_code,non_dir_code = self.column_sort_last_params
@@ -5861,6 +5861,8 @@ class Gui:
                             #    self.open_item(new_item,to_the_bottom)
 
                     tree.set(item,'opened','1')
+                else:
+                    pass
 
         self.visible_items_uptodate=False
 
@@ -6147,6 +6149,7 @@ class Gui:
             self_tree.item(record_item, open=False)
 
             self_tree.item(record_item, image=self.get_record_raw_icon(record),tags=self.RECORD_RAW)
+            self.sel_item = record_item
 
             self.visible_items_update()
 
