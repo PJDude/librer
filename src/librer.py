@@ -85,6 +85,7 @@ l_error = logging.error
 ###########################################################################################################################################
 
 CFG_THEME='theme'
+CFG_EXCLUDE='exclude'
 
 CFG_KEY_CDE_SETTINGS = 'cde_settings'
 CFG_KEY_SINGLE_DEVICE = 'single_device'
@@ -137,6 +138,7 @@ CFG_KEY_expand_search_results = 'expand_search_results'
 
 cfg_defaults={
     CFG_THEME:'Vista' if windows else 'Clam',
+    CFG_EXCLUDE:'pagefile.sys' if windows else 'lost+found',
     CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_CDE_SETTINGS:[],
 
@@ -1990,6 +1992,14 @@ class Gui:
             sfdma.grid_columnconfigure( 0, weight=1)
             sfdma.grid_rowconfigure( 9, weight=1)
 
+            exclude_frame=LabelFrame(sfdma, text=STR("Exclude in scan"),borderwidth=2,bg=self.bg_color)
+            exclude_frame.grid(row=7,column=0,sticky='wens',padx=3,pady=3)
+
+            self.exclude_var = StringVar()
+
+            self.exclude_entry = Entry(exclude_frame,textvariable=self.exclude_var)
+            self.exclude_entry.pack(expand='yes',fill="both",padx=3,pady=3)
+
             bfr=Frame(self.settings_dialog.area_main,bg=self.bg_color)
 
             bfr.grid(row=10,column=0)
@@ -2013,7 +2023,8 @@ class Gui:
             ]
 
             self.settings_str = [
-                (self.theme,CFG_THEME)
+                (self.theme,CFG_THEME),
+                (self.exclude_var,CFG_EXCLUDE)
             ]
 
         self.show_popups_var.set(self.cfg.get(CFG_KEY_show_popups))
@@ -2026,6 +2037,7 @@ class Gui:
         self.expand_search_results_var.set(self.cfg.get(CFG_KEY_expand_search_results))
         self.lang_var.set(self.cfg_get(CFG_LANG))
         self.theme_var.set(self.cfg_get(CFG_THEME))
+        self.exclude_var.set(self.cfg_get(CFG_EXCLUDE))
 
         return self.settings_dialog
 
@@ -2059,6 +2071,9 @@ class Gui:
 
             if not need_restart:
                 self.get_info_dialog_on_settings().show(STR('Theme Changed'),STR('Application restart required\nfor changes to take effect'))
+
+        if self.cfg_get(CFG_EXCLUDE)!=self.exclude_var.get():
+            self.cfg.set(CFG_EXCLUDE,self.exclude_var.get())
 
         if self.cfg.get(CFG_KEY_show_popups)!=self.show_popups_var.get():
             self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
@@ -2843,7 +2858,8 @@ class Gui:
 
             l_info(f'{m_sArchive=}')
 
-        caf_folders_dict={}
+        #useless
+        #caf_folders_dict={}
 
         #########################################################
         lLen = readbuf('<l')  # 4 bytes
@@ -2856,7 +2872,7 @@ class Gui:
                 m_lFiles = readbuf('<l')  # 4 bytes
                 m_dTotalSize = readbuf('<d')  # 8 bytes
 
-            caf_folders_dict[l]=(m_lFiles, m_dTotalSize)
+            #caf_folders_dict[l]=(m_lFiles, m_dTotalSize)
 
         # files  : date, size, parentfolderid, filename
         # folder : date, -thisfolderid, parentfolderid, filename
@@ -2888,7 +2904,7 @@ class Gui:
 
         buffer.close()
 
-        return m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict
+        return m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_names_dict
 
     @restore_status_line
     @block
@@ -2946,7 +2962,7 @@ class Gui:
             postfix=0
 
             for filename in import_filenames:
-                m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_folders_dict, caf_names_dict = self.caf_import(filename)
+                m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_names_dict = self.caf_import(filename)
 
                 m_timeStr = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(m_timeDate))
 
@@ -2959,7 +2975,7 @@ class Gui:
 
                 postfix_str = ('00' + str(postfix))[-3:]
 
-                sub_res = librer_core.import_records_caf_do(compr,postfix_str,label,caf_folders_dict, caf_names_dict,self.single_record_show,filenames_set,caf_info,group)
+                sub_res = librer_core.import_records_caf_do(compr,postfix_str,label,caf_names_dict,self.single_record_show,filenames_set,caf_info,group)
                 postfix+=1
 
     def wii_import_to_local(self):
@@ -4412,11 +4428,12 @@ class Gui:
                 key=event.keysym
 
                 if key in ("Prior","Next"):
-                    self.see_direction = self.KEY_DIRECTION[key]
                     self.visible_items_update()
+                    self.see_direction = self.KEY_DIRECTION[key]
                     self.goto_next_prev_record(self.KEY_DIRECTION[key])
                     return "break"
                 elif key in ("Home","End"):
+                    self.visible_items_update()
                     self.goto_first_last_record(self.KEY_DIRECTION[key])
                     return "break"
                 elif key in ("Up","Down"):
@@ -4479,7 +4496,7 @@ class Gui:
         self_tree.see(item)
         self_tree.update()
 
-        self.see_direction=0
+        #self.see_direction=0
         self.visible_items_update()
 
         self.wrapped_see(item)
@@ -5135,10 +5152,12 @@ class Gui:
         #################################################################################################################################################
 
         include_hidden=self.cfg.get(CFG_KEY_include_hidden)
+        #exclude=tuple(self.cfg_get(CFG_EXCLUDE).split(';' if windows else ':'))
+        exclude=self.cfg_get(CFG_EXCLUDE)
 
         try:
             with open(sep.join([self.temp_dir,SCAN_DAT_FILE]), "wb") as f:
-                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list,include_hidden])))
+                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list,include_hidden,exclude])))
 
         except Exception as e:
             print(e)

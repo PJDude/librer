@@ -339,8 +339,8 @@ if __name__ == "__main__":
             try:
                 with open(sep.join([comm_dir,SCAN_DAT_FILE]),"rb") as f:
                     create_list = loads(ZstdDecompressor().decompress(f.read()))
-
-                label,path_to_scan,check_dev,compression_level,threads,cde_list,include_hidden = create_list
+                    print_info(f'{create_list=}')
+                label,path_to_scan,check_dev,compression_level,threads,cde_list,include_hidden,exclude = create_list
             except Exception as e:
                 print_info(f'create error:{e}')
                 proper_exit(2)
@@ -349,7 +349,7 @@ if __name__ == "__main__":
 
                 try:
                     print_func(('stage',0),True)
-                    new_record.scan(print_func,abort_list,tuple(cde_list),check_dev,include_hidden)
+                    new_record.scan(print_func,abort_list,tuple(cde_list),check_dev,include_hidden,exclude)
                 except Exception as fe:
                     print_info(f'scan error:{fe}')
                 else:
