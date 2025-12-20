@@ -2250,7 +2250,6 @@ class LibrerCore:
         new_record.header.info = caf_info
 
         scan_like_data=self.caf_data_to_scan_like_data(caf_names_dict)
-        print('scan_like_data',scan_like_data)
 
         new_record.filenames = tuple(sorted(list(filenames_set)))
         new_record.header.label = label

@@ -1036,11 +1036,11 @@ class Gui:
         tree_bind("<Leave>", lambda event : self.widget_leave())
 
         tree_bind('<KeyPress>', self.key_press )
-        tree_bind('<<TreeviewOpen>>', lambda event : self.open_item())
+        tree_bind('<<TreeviewOpen>>', lambda event : self.open_item_with_update())
         tree_bind('<<TreeviewClose>>', lambda event : self.close_item())
         tree_bind('<ButtonPress-3>', self.context_menu_show)
 
-        tree_bind("<<TreeviewSelect>>", lambda event : self.tree_on_select() )
+        #tree_bind("<<TreeviewSelect>>", lambda event : self.tree_on_select() )
 
         tree_bind("<Configure>", lambda event : self.tree_configure())
 
@@ -4205,11 +4205,14 @@ class Gui:
                     current_item = child_item
 
                     self_open_item(current_item)
+                    self.visible_items_update()
 
                     self_tree_update()
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
+
+            self.visible_items_update()
 
             #if self.find_dialog_shown:
             #    self.tree.selection_set(current_item)
@@ -4231,11 +4234,10 @@ class Gui:
     KEY_DIRECTION['Next']=1
     KEY_DIRECTION['Up']=-1
     KEY_DIRECTION['Down']=1
-    KEY_DIRECTION['Home']=0
+    KEY_DIRECTION['Home']=1
     KEY_DIRECTION['End']=-1
 
-    @block
-    def goto_next_prev_record(self,direction):
+    def goto_next_prev(self,direction):
         tree=self.tree
 
         item=tree.focus()
@@ -4261,7 +4263,7 @@ class Gui:
                 self.select_and_focus(item_to_sel)
 
     @block
-    def goto_first_last_record(self,index):
+    def goto_border_node(self,index):
         tree=self.tree
 
         item=tree.focus()
@@ -4292,8 +4294,9 @@ class Gui:
 
     def get_visible_items(self,item=""):
         self_tree_get_children = self.tree.get_children
+        self_get_visible_items=self.get_visible_items
         if self.tree.item(item,"open") or item=="":
-            return [item] + [grandchild for child in self_tree_get_children(item) for grandchild in self.get_visible_items(child)]
+            return [item] + [grandchild for child in self_tree_get_children(item) for grandchild in self_get_visible_items(child)]
         else:
             return [item]
 
@@ -4315,7 +4318,7 @@ class Gui:
 
         if self.see_direction<0:
             try:
-                pi=self.get_prev_index(item_index,self.rows_offset)
+                pi=self.get_prev_index(item_index,self.rows_offset_minus)
 
                 prev_item=self.visible_items[pi]
 
@@ -4328,7 +4331,7 @@ class Gui:
 
         elif self.see_direction>0:
             try:
-                ni=self.get_next_index(item_index,self.rows_offset,self.visible_items_max_index)
+                ni=self.get_next_index(item_index,self.rows_offset_plus,self.visible_items_max_index)
                 next_item=self.visible_items[ni]
 
                 if next_item:
@@ -4389,12 +4392,15 @@ class Gui:
             self.current_group = None
             self.current_subpath_list = None
 
-    rows_offset=0
+    rows_offset_plus=0
+    rows_offset_minus=0
     def tree_configure(self):
         try:
-            self.rows_offset = int( (self.tree.winfo_height() / self.rowhight) / 3)
+            self.rows_offset_plus = int( (self.tree.winfo_height() / self.rowhight) * 0.75 - 1)
+            self.rows_offset_minus = int( (self.tree.winfo_height() / self.rowhight) *0.25 - 1)
         except :
-            self.rows_offset = 0
+            self.rows_offset_plus = 0
+            self.rows_offset_minus = 0
 
     def tree_on_select(self,can_move=True):
         item = self.tree.focus()
@@ -4407,6 +4413,35 @@ class Gui:
             self.tree_item_focused(item,can_move)
 
     see_direction=0
+
+    def get_last_visible_descendant(self, item):
+        while self.tree.item(item, "open"):
+
+            children = self.tree.get_children(item)
+            if not children:
+                break
+            item = children[-1]
+        return item
+
+    def get_next_visible_item(self, item):
+        self_tree_get_children=self.tree.get_children
+        if item:
+            if self.tree.item(item, "open"):
+                if children := self_tree_get_children(item):
+                    return children[0]
+
+            self_tree_parent=self.tree.parent
+            while item:
+                parent = self_tree_parent(item)
+                siblings = self_tree_get_children(parent)
+                index = siblings.index(item)
+
+                if index + 1 < len(siblings):
+                    return siblings[index + 1]
+
+                item = parent
+
+        return None
 
     @key_press_guard
     def key_press(self,event):
@@ -4423,22 +4458,45 @@ class Gui:
             except:
                 pass
 
+            self.visible_items_update()
             try:
                 item=tree.focus()
                 key=event.keysym
 
                 if key in ("Prior","Next"):
-                    self.visible_items_update()
                     self.see_direction = self.KEY_DIRECTION[key]
-                    self.goto_next_prev_record(self.KEY_DIRECTION[key])
+                    self.goto_next_prev(self.KEY_DIRECTION[key])
                     return "break"
-                elif key in ("Home","End"):
-                    self.visible_items_update()
-                    self.goto_first_last_record(self.KEY_DIRECTION[key])
+                elif key=="Home":
+                    self.see_direction = -1
+                    self.goto_border_node(0)
                     return "break"
-                elif key in ("Up","Down"):
-                    self.see_direction = self.KEY_DIRECTION[key]
-                    self.visible_items_update()
+                elif key=="End":
+                    self.see_direction = 1
+                    self.goto_border_node(-1)
+                    return "break"
+                elif key == "Up":
+                    self.see_direction = -1
+
+                    if item:
+                        parent = tree.parent(item)
+                        siblings = tree.get_children(parent)
+
+
+                        index = siblings.index(item)
+
+                        if index > 0:
+                            self.select_and_focus(self.get_last_visible_descendant(siblings[index-1]))
+                        else:
+                            if parent:
+                                self.select_and_focus(parent)
+
+                    return "break"
+                elif key=="Down":
+                    self.see_direction = 1
+                    if next_item := self.get_next_visible_item(self.sel_item):
+                        self.select_and_focus(next_item)
+                        return "break"
                 elif key == "Return":
                     event_str=str(event)
                     alt_pressed = ('0x20000' in event_str) if windows else ('Mod1' in event_str or 'Mod5' in event_str)
@@ -4449,7 +4507,7 @@ class Gui:
                         return
                     else:
                         item = tree.focus()
-                        self.open_item(item)
+                        self.open_item_with_update(item)
                         tree.update()
                 elif key == "Alt_L":
                     return "break"
@@ -4468,7 +4526,10 @@ class Gui:
                 elif key == "Right":
                     if tree.get_children(self.sel_item):
                         tree.item(self.sel_item, open=True)
-                        self.open_item()
+                        self.open_item_with_update()
+                        self.see_direction=1
+                        self.select_and_focus(self.sel_item)
+
                         return "break"
                 else:
                     #print(key)
@@ -4483,21 +4544,19 @@ class Gui:
                 l_error(e)
                 self.info_dialog_on_main.show('INTERNAL ERROR key_press',str(e))
 
-            self.tree_on_select()
+            #self.tree_on_select()
 
 #################################################
     def select_and_focus(self,item):
         #print('select_and_focus',item)
         self_tree = self.tree
 
+        self.sel_item=item
         self.tree_focus(item)
         self.tree_item_focused(item)
 
         self_tree.see(item)
         self_tree.update()
-
-        #self.see_direction=0
-        self.visible_items_update()
 
         self.wrapped_see(item)
 
@@ -4529,6 +4588,8 @@ class Gui:
             tree=self.tree
             region = tree.identify("region", event.x, event.y)
 
+            self.see_direction=0
+
             if region != 'separator':
                 if region == 'heading':
                     col_nr = tree.identify_column(event.x)
@@ -4541,8 +4602,9 @@ class Gui:
                 elif item:=tree.identify('item',event.x,event.y):
                     #tree.selection_remove(tree.selection())
 
-                    tree.focus(item)
-                    self.tree_on_select(False)
+                    self.select_and_focus(item)
+                    #tree.focus(item)
+                    #self.tree_on_select(False)
                     self.set_find_result_record_index()
 
                     self.set_find_result_indexes(self.current_subpath_list)
@@ -4596,15 +4658,6 @@ class Gui:
             state_on_records_or_groups = 'normal' if is_record or is_group else 'disabled'
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
-            #c_nav_add_command = c_nav.add_command
-            #c_nav_add_command = pop_add_command
-            #c_nav_add_separator = c_nav.add_separator
-
-            #c_nav_add_command(label = STR('Go to next record')       ,command = lambda : self.goto_next_prev_record(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
-            #c_nav_add_command(label = STR('Go to previous record')   ,command = lambda : self.goto_next_prev_record(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
-            #c_nav_add_separator()
-            #c_nav_add_command(label = STR('Go to first record')       ,command = lambda : self.goto_first_last_record(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
-            #c_nav_add_command(label = STR('Go to last record')   ,command = lambda : self.goto_first_last_record(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
             pop_add_command(label = STR('New record ...'),  command = self.scan_dialog_show,accelerator='Ctrl+N',image = self.ico_record_new,compound='left')
             pop_add_separator()
@@ -4756,7 +4809,7 @@ class Gui:
                         self.group_to_size_sum[group] += size
                         self.single_group_update_size(group)
 
-                        self.open_item(group_item)
+                        self.open_item_with_update(group_item)
                         self.tree.focus(record_item)
                         self.wrapped_see(record_item)
 
@@ -5758,6 +5811,8 @@ class Gui:
                 self.info_dialog_on_main.show('cannot find item:',item_name)
                 break
 
+        self.visible_items_update()
+
         #if self.find_dialog_shown:
         #    self.tree.selection_set(current_item)
         #else:
@@ -5769,6 +5824,10 @@ class Gui:
 
     def close_item(self,item=None):
         self.visible_items_uptodate=False
+
+    def open_item_with_update(self,item=None):
+        self.open_item(item)
+        self.visible_items_update()
 
     @block
     def open_item(self,item=None):
@@ -5883,11 +5942,7 @@ class Gui:
                 else:
                     pass
 
-        self.visible_items_uptodate=False
-
-        self.see_direction=0
-        #self.wrapped_see(item)
-        #self.tree_on_select()
+                self.visible_items_uptodate=False
 
     def get_record_raw_icon(self,record):
         return self.ico_record_raw_cd if record.has_cd() else self.ico_record_raw
@@ -5961,12 +6016,13 @@ class Gui:
             self_tree.focus(record_item)
             self.wrapped_see(record_item)
 
+            self.tree_on_select()
+
         #if expand_groups:
         #else:
         #    self_tree.focus(group_item)
         #    self.wrapped_see(group_item)
 
-            self.tree_on_select()
 
         self.update_records_stats()
 
