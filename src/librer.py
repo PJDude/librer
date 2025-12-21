@@ -1790,6 +1790,9 @@ class Gui:
     def wii_import_comp_set(self):
         self.wii_import_compr_var_int.set(int(self.wii_import_compr_var.get()))
 
+    def cathy_import_comp_set(self):
+        self.cathy_import_compr_var_int.set(int(self.cathy_import_compr_var.get()))
+
     repack_dialog_created = False
     @restore_status_line
     @block
@@ -1837,6 +1840,65 @@ class Gui:
 
             self.repack_dialog_created = True
         return self.repack_dialog
+
+    def cathy_import_dialog_name_state(self):
+        self.cathy_import_label_entry.configure(state='disabled' if self.cathy_import_separate.get() else 'normal')
+
+    cathy_import_dialog_created = False
+    @restore_status_line
+    @block
+    def get_cathy_import_dialog(self):
+        self.cathy_import_dialog_do_it=False
+
+        if not self.cathy_import_dialog_created:
+            self.cathy_import_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Cathy Import Records'),pre_show=self.pre_show,post_close=self.post_close,min_width=400,min_height=200)
+            self.cathy_import_separate = BooleanVar()
+            self.cathy_import_separate.set(False)
+            self.cathy_import_compr_var = IntVar()
+            self.cathy_import_compr_var_int = IntVar()
+            self.cathy_import_label_var = StringVar()
+
+            self.cathy_import_compr_var.set(9)
+            self.cathy_import_compr_var_int.set(9)
+
+            self.cathy_import_brief_label=Label(self.cathy_import_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False,relief='groove',anchor='w',justify='left')
+            self.cathy_import_brief_label.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            try:
+                self.cathy_import_brief_label.configure(font=('Courier', 10))
+            except:
+                try:
+                    self.cathy_import_brief_label.configure(font=('TkFixedFont', 10))
+                except:
+                    pass
+
+            #(label_frame := LabelFrame(self.cathy_import_dialog.area_main,text='Record Label',bd=2,bg=self.bg_color,takefocus=False)).grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+
+            (cathy_import_frame := LabelFrame(self.cathy_import_dialog.area_main,text=STR('Options'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+            self.cathy_import_dialog.area_main.grid_columnconfigure( 0, weight=1)
+            self.cathy_import_dialog.area_main.grid_columnconfigure( 1, weight=1)
+
+            self.cathy_import_dialog.area_main.grid_rowconfigure( 2, weight=1)
+
+            self.cathy_import_separate_cb = Checkbutton(cathy_import_frame,text=' ' + STR('Separate record per each disk (not recommended)'),variable=self.cathy_import_separate,command = self.cathy_import_dialog_name_state)
+            self.cathy_import_separate_cb.grid(row=0, column=0, sticky='wens',padx=4,pady=4,columnspan=2)
+
+            Label(cathy_import_frame,text=STR('Common record label:'),bg=self.bg_color,anchor='w').grid(row=1, column=0, sticky='wens',padx=4,pady=4)
+            self.cathy_import_label_entry = Entry(cathy_import_frame,textvariable=self.cathy_import_label_var)
+            self.cathy_import_label_entry.grid(row=1, column=1, sticky='wens',padx=4,pady=4)
+
+            cathy_import_frame.grid_columnconfigure( 1, weight=1)
+
+            (cathy_import_frame_compr := LabelFrame(self.cathy_import_dialog.area_main,text=STR('Compression (0-22)'),bd=2,bg=self.bg_color,takefocus=False)).grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=2)
+
+            Scale(cathy_import_frame_compr, variable=self.cathy_import_compr_var, orient='horizontal',from_=0, to=22,command=lambda x : self.cathy_import_comp_set(),style="TScale").pack(fill='x',side='left',expand=1,padx=2)
+            Label(cathy_import_frame_compr, textvariable=self.cathy_import_compr_var_int,width=3,bg=self.bg_color,relief='ridge').pack(side='right',padx=2,pady=2)
+
+            Button(self.cathy_import_dialog.area_buttons, text=STR('Proceed'), width=14 , command= self.cathy_import_to_local).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(self.cathy_import_dialog.area_buttons, text=STR('Close'), width=14, command=self.cathy_import_dialog.hide ).pack(side='right', anchor='n',padx=5,pady=5)
+
+            self.cathy_import_dialog_created = True
+
+        return self.cathy_import_dialog
 
     def wii_import_dialog_name_state(self):
         self.wii_import_label_entry.configure(state='disabled' if self.wii_import_separate.get() else 'normal')
@@ -2942,10 +3004,31 @@ class Gui:
 
                 postfix+=1
 
+    def caf_import_thread(self,import_filenames,res_dict):
+        known_volumes=set()
+        i=0
+        for filename in import_filenames:
+            res_dict[filename] = m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_names_dict = self.caf_import(filename)
+            known_volumes.add(m_strVolume)
+            self.cathy_import_known_disk_names_len=len(known_volumes)
+            #self.cathy_import_files_counter=i
+            #self.cathy_import_space
+            i+=1
+
+    def cathy_import_to_local(self):
+        self.cathy_import_dialog_do_it=True
+        self.cathy_import_dialog.hide(True)
+
     @restore_status_line
     @block
     def record_import_caf(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
+
+        def get_nice_table(rows, sep="   "):
+            rows = [[str(c) for c in row] for row in rows]
+            widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+
+            return [sep.join(cell.ljust(widths[i]) for i,cell in enumerate(row)) for row in rows]
 
         group = None
         if self.current_group:
@@ -2958,25 +3041,108 @@ class Gui:
 
         if import_filenames := askopenfilenames(initialdir=self.last_dir,parent = self.main,title=STR('Choose "Cathy" data file') + postfix, defaultextension=".caf",filetypes=[(STR("Cathy Files"),"*.caf"),(STR("All Files"),"*")]):
             self.last_dir = dirname(import_filenames[0])
+            self.main.update()
+            ###########################
 
-            postfix=0
+            res_dict={}
 
-            for filename in import_filenames:
-                m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_names_dict = self.caf_import(filename)
+            cathy_import_thread=Thread(target=lambda : self.caf_import_thread(import_filenames,res_dict) ,daemon=True)
+            cathy_import_thread_is_alive = cathy_import_thread.is_alive
+            cathy_import_thread.start()
 
-                m_timeStr = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(m_timeDate))
+            dialog = self.get_progress_dialog_on_main()
+            dialog.show(STR('Parsing file(s)'))
+            dialog_update_lab_text = dialog.update_lab_text
 
-                caf_info=f'Imported from "Cathy" database: {filename}\n----------------+------------------------------------------------------------------------------------------------\n  version       : {m_sVersion}\n  creation time : {m_timeStr}\n  device        : {m_strDevice}\n  volume        : {m_strVolume}\n  alias         : {m_strAlias}\n  serial number : {m_dwSerialNumber}\n  comment       : {m_strComment}\n  free size     : {m_fFreeSize}\n  archive       : {m_sArchive}\n----------------+------------------------------------------------------------------------------------------------'
+            dialog_update_lab_text(2,'')
 
-                filenames_set={elem[2] for dir_elems in caf_names_dict.values() for elem in dir_elems}
+            wait_var=BooleanVar()
+            wait_var_set = wait_var.set
+            wait_var_set(False)
+            wait_var_get = wait_var.get
 
-                compr=9
-                label=path_splitext(basename(filename))[0]
+            self_main_after = self.main.after
+            self_main_wait_variable = self.main.wait_variable
 
-                postfix_str = ('00' + str(postfix))[-3:]
+            while cathy_import_thread_is_alive():
+                dialog_update_lab_text(0,f'files:{fnumber(self.cathy_import_known_disk_names_len).rjust(14)}')
+                #dialog_update_lab_text(1,f'files:{fnumber(self.cathy_import_files_counter).rjust(14)}' )
+                #dialog_update_lab_text(2,f'space:{bytes_to_str(self.cathy_import_space).rjust(14)}')
 
-                sub_res = librer_core.import_records_caf_do(compr,postfix_str,label,caf_names_dict,self.single_record_show,filenames_set,caf_info,group)
-                postfix+=1
+                self_main_after(10,lambda : wait_var_set(not wait_var_get()))
+                self_main_wait_variable(wait_var)
+                #dialog_area_main_update()
+
+            cathy_import_thread.join()
+            dialog.hide(True)
+
+            if not res_dict:
+                self.info_dialog_on_main.show(STR('Cathy Import failed'),STR("No files / No folders"))
+                return
+
+            dialog = self.get_cathy_import_dialog()
+
+            if len(import_filenames)>1:
+                self.cathy_import_label_var.set('cathy-imported-multiple-files')
+            else:
+                self.cathy_import_label_var.set(f'cathy-imported-{Path(import_filenames[0]).stem}')
+
+            #self.cathy_import_brief_label.configure(text=f'GATHERED DATA:\ndisks   : {fnumber(quant_disks).rjust(14)}\nfiles   : {fnumber(quant_files).rjust(14)}\nspace   : {bytes_to_str(librer_core.cathy_import_space).rjust(14)}')
+            #\nfolders : {fnumber(quant_folders)}
+
+            dialog.show()
+
+            compr = self.cathy_import_compr_var.get()
+
+            if self.cathy_import_dialog_do_it:
+                postfix=0
+
+                if self.cathy_import_separate.get():
+
+                    for filename,(m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_names_dict) in res_dict.items():
+
+                        m_timeStr = strftime('%Y/%m/%d %H:%M:%S',localtime_catched(m_timeDate))
+
+                        caf_info=f'Imported from "Cathy" database: {filename}\n----------------+------------------------------------------------------------------------------------------------\n  version       : {m_sVersion}\n  creation time : {m_timeStr}\n  device        : {m_strDevice}\n  volume        : {m_strVolume}\n  alias         : {m_strAlias}\n  serial number : {m_dwSerialNumber}\n  comment       : {m_strComment}\n  free size     : {m_fFreeSize}\n  archive       : {m_sArchive}\n----------------+------------------------------------------------------------------------------------------------'
+
+                        filenames_set={elem[2] for dir_elems in caf_names_dict.values() for elem in dir_elems}
+
+                        label=path_splitext(basename(filename))[0]
+
+                        postfix_str = ('00' + str(postfix))[-3:]
+                        sub_res = librer_core.import_records_caf_do(compr,postfix_str,label,caf_names_dict,self.single_record_show,filenames_set,caf_info,group)
+                        postfix+=1
+
+                    self.find_clear()
+                    self.column_sort(self.tree)
+                    self.status('Cathy Import completed successfully.')
+
+                else:
+                    label = self.cathy_import_label_var.get()
+                    self.status(f'importing {label} ... ')
+
+                    filenames_set_multi=set()
+                    caf_names_dict_dict={}
+
+                    caf_info=[["Volume","Alias","Date","Device","Ser.Num.","Comment"]]
+
+                    for filename,(m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive, caf_names_dict) in res_dict.items():
+                        filenames_set={elem[2] for dir_elems in caf_names_dict.values() for elem in dir_elems}
+
+                        info=','.join([section for section in (m_strDevice,m_strComment) if section])
+                        semi_foolder_name=m_strVolume
+                        if info:
+                            semi_foolder_name+=" (" + info + ")"
+
+                        caf_names_dict_dict[semi_foolder_name]=(caf_names_dict,m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive)
+
+                        filenames_set_multi.add(semi_foolder_name)
+                        filenames_set_multi.update(filenames_set)
+                        caf_info.append( [m_strVolume,m_strAlias,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(m_timeDate)),m_strDevice,m_dwSerialNumber,m_strComment] )
+
+                    caf_info_str_main=get_nice_table(caf_info)
+                    caf_info_str="================ Multiple Cathy database import ================\n" + caf_info_str_main[0] + "\n\n" + '\n'.join(caf_info_str_main[1:])
+                    sub_res = librer_core.import_records_caf_do_multi(compr,label,caf_names_dict_dict,self.single_record_show,filenames_set_multi,caf_info_str,group)
 
     def wii_import_to_local(self):
         self.wii_import_dialog_do_it=True

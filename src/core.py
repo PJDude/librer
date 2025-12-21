@@ -2038,26 +2038,34 @@ class LibrerCore:
 
         return filenames,sld,customdataset
 
+    def convert_data(self,i,caf_names_dict):
+        this_level_data = {}
+        try:
+            for date, m_lLength, m_pszName in caf_names_dict[i]:
+                mtime=int(date)
+
+                if m_lLength<0:
+                    #[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,subdict]
+                    this_level_data[m_pszName]= [0,True,False,False,False,True,mtime,self.convert_data(abs(m_lLength),caf_names_dict)]
+                else:
+                    #scan_like_data[name] = [size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
+                    this_level_data[m_pszName]=[int(m_lLength),False,True,False,False,False,mtime]
+        except Exception as e:
+            print('ERROR:',e)
+
+        return this_level_data
+
     def caf_data_to_scan_like_data(self, caf_names_dict):
-        def convert_data(i=0):
-            this_level_data = {}
-            try:
-                for date, m_lLength, m_pszName in caf_names_dict[i]:
+        return self.convert_data(0,caf_names_dict)
 
-                    mtime=int(date)
+    def caf_data_to_scan_like_data_multi(self, caf_names_dict_dict):
+        level_zero_data={}
+        for cafname,(caf_names_dict,m_sVersion, m_timeDate, m_strDevice, m_strVolume, m_strAlias, m_dwSerialNumber, m_strComment, m_fFreeSize, m_sArchive) in caf_names_dict_dict.items():
 
-                    if m_lLength<0:
-                        #[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,subdict]
-                        this_level_data[m_pszName]= [0,True,False,False,False,True,mtime,convert_data(abs(m_lLength))]
-                    else:
-                        #scan_like_data[name] = [size,is_dir,is_file,is_symlink,is_bind,has_files,mtime]
-                        this_level_data[m_pszName]=[int(m_lLength),False,True,False,False,False,mtime]
-            except Exception as e:
-                print('ERROR:',e)
+            #[size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,subdict]
+            level_zero_data[cafname]= [0,True,False,False,False,True,m_timeDate,self.convert_data(abs(0),caf_names_dict)]
 
-            return this_level_data
-
-        return convert_data()
+        return level_zero_data
 
     def wii_data_to_scan_like_data(self,path_list,curr_dict_ref,scan_like_data,customdata_helper):
         #path_list_tuple = tuple(path_list)
@@ -2122,7 +2130,7 @@ class LibrerCore:
     def import_records_wii_scan(self,import_filenames,res_list):
         self.log.info(f'import_records_wii:{",".join(import_filenames)}')
 
-        self.wii_import_core_info2 = 'init0'
+        #self.wii_import_core_info2 = 'init0'
 
         gc_disable()
         res = self.get_wii_files_dict(import_filenames)
@@ -2144,6 +2152,35 @@ class LibrerCore:
 
             #return quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
             res_list[0]= quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,wii_path_tuple_to_data,wii_path_tuple_to_data_per_disk,wii_paths_dict,wii_paths_dict_per_disk,cd_set,cd_set_per_disk
+        else:
+            #return res
+            res_list[0]= res
+
+    def import_records_cathy_scan(self,import_filenames,res_list):
+        self.log.info(f'import_records_cathy:{",".join(import_filenames)}')
+
+        #self.cathy_import_core_info2 = 'init0'
+
+        gc_disable()
+        res = self.get_cathy_files_dict(import_filenames)
+        gc_collect()
+        gc_enable()
+
+        if len(res)==8:
+            filenames_set,filenames_set_per_disk,cathy_path_tuple_to_data,cathy_path_tuple_to_data_per_disk,cathy_paths_dict,cathy_paths_dict_per_disk,cd_set,cd_set_per_disk = res
+
+            quant_disks = len(cathy_path_tuple_to_data_per_disk)
+
+            quant_files,quant_folders = 0,0
+            for k,v in cathy_path_tuple_to_data.items():
+                size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,cd = v
+                if is_dir:
+                    quant_folders+=1
+                elif is_file:
+                    quant_files+=1
+
+            #return quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,cathy_path_tuple_to_data,cathy_path_tuple_to_data_per_disk,cathy_paths_dict,cathy_paths_dict_per_disk,cd_set,cd_set_per_disk
+            res_list[0]= quant_disks,quant_files,quant_folders,filenames_set,filenames_set_per_disk,cathy_path_tuple_to_data,cathy_path_tuple_to_data_per_disk,cathy_paths_dict,cathy_paths_dict_per_disk,cd_set,cd_set_per_disk
         else:
             #return res
             res_list[0]= res
@@ -2308,6 +2345,85 @@ class LibrerCore:
             return '\n'.join(import_res)
 
         return None
+
+    def import_records_caf_do_multi(self,compr,label,caf_names_dict_dict,update_callback,filenames_set,caf_info,group=None):
+        import_res=[]
+        new_record = self.create()
+
+        expressions=''
+        use_smin=False
+        smin_int=0
+        use_smax=False
+        smax_int=0
+        executable='Imported from "Cathy" database'
+        parameters=''
+        shell=False
+        timeout=0
+        crc=False
+
+        new_record.header.scan_path = ''
+        new_record.header.info = caf_info
+
+        scan_like_data=self.caf_data_to_scan_like_data_multi(caf_names_dict_dict)
+
+        new_record.filenames = tuple(sorted(list(filenames_set)))
+        new_record.header.label = label
+
+        new_record.filenames_helper = {fsname:fsname_index for fsname_index,fsname in enumerate(new_record.filenames)}
+
+        ##################################
+        mtime = 0
+        is_dir = True
+        is_file = False
+        is_symlink = False
+        is_bind = False
+        has_cd = bool(new_record.customdata)
+        has_files = True
+        cd_ok = False
+
+        new_record.header.references_names=0
+        new_record.header.references_cd=0
+
+        sub_size,sub_quant,sub_folders_quant = new_record.sld_recalc_rec(scan_like_data)
+
+        code = LUT_encode[ (is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,False,False,False) ]
+
+        new_record.header.sum_size = sub_size
+        new_record.header.quant_files = sub_quant
+        new_record.header.quant_folders = sub_folders_quant
+
+        new_record.header.items_names=len(new_record.filenames)
+        new_record.header.items_cd=len(new_record.customdata)
+
+        new_record.filestructure = ('',code,sub_size,mtime,new_record.tupelize_rec(scan_like_data,print))
+
+        label_filename=safe_filename(label)
+
+        new_file_path = sep.join([self.db_dir,f'caf.{int(time())}{label_filename}.dat'])
+
+        new_record.save(print,file_path=new_file_path,compression_level=compr)
+
+        self.records.remove(new_record)
+
+        #############################################
+
+        new_record_really = self.create()
+
+        if res:=new_record_really.load(new_file_path) :
+            self.records.remove(new_record_really)
+            send2trash_delete(new_file_path)
+            import_res.append(str(res))
+        else:
+            if group:
+                self.assign_new_group(new_record_really,group)
+
+            update_callback(new_record_really)
+
+        if import_res:
+            return '\n'.join(import_res)
+
+        return None
+
 
     def import_records_wii_do(self,compr,postfix,label,quant_files,quant_folders,filenames_set,wii_path_tuple_to_data,wii_paths_dict,cd_set,update_callback,group=None):
         import_res=[]
