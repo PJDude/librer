@@ -127,7 +127,8 @@ CFG_geometry = 'geometry'
 CFG_geometry_search = 'geometry_search'
 CFG_SORTING = 'sorting'
 CFG_SORTING_RESULTS = 'sorting_results'
-CFG_KEY_show_popups = 'show_popups'
+CFG_KEY_SHOW_TOOLTIPS_INFO = 'show_tooltips_info'
+CFG_KEY_SHOW_TOOLTIPS_HELP = 'show_tooltips_help'
 CFG_KEY_groups_collapse = 'groups_collapse'
 CFG_KEY_include_hidden = 'include_hidden'
 CFG_KEY_column_time = 'column_time'
@@ -138,7 +139,7 @@ CFG_KEY_expand_search_results = 'expand_search_results'
 
 cfg_defaults={
     CFG_THEME:'Vista' if windows else 'Clam',
-    CFG_EXCLUDE:'pagefile.sys' if windows else 'lost+found',
+    CFG_EXCLUDE:'pagefile.sys' if windows else 'lost+found;System Volume Information',
     CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_CDE_SETTINGS:[],
 
@@ -174,7 +175,8 @@ cfg_defaults={
     CFG_last_dir:'.',
     CFG_geometry:'',
     CFG_geometry_search:'',
-    CFG_KEY_show_popups:True,
+    CFG_KEY_SHOW_TOOLTIPS_HELP:True,
+    CFG_KEY_SHOW_TOOLTIPS_INFO:True,
     CFG_KEY_groups_collapse:True,
     CFG_KEY_include_hidden:False,
     CFG_KEY_column_time:True,
@@ -692,7 +694,7 @@ class Gui:
         self.status_find.pack(fill='x',expand=0,side='right')
 
         self.status_find.bind("<ButtonPress-1>", lambda event : self.finder_wrapper_show() )
-        self.status_find_tooltip = lambda message : self.widget_tooltip(self.status_find,message)
+        self.status_find_tooltip = lambda message : self.widget_tooltip(self.status_find,message,False)
 
         self.status_find_tooltip_default = STR('No search results\nClick to open find dialog.')
         self.status_find_tooltip(self.status_find_tooltip_default)
@@ -758,7 +760,7 @@ class Gui:
         self.progress_dialog_on_load = ProgressDialog(self_main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
         self.progress_dialog_on_load.command_on_close = self.progress_dialog_load_abort
 
-        self.widget_tooltip(self.progress_dialog_on_load.abort_button,'')
+        self.widget_tooltip(self.progress_dialog_on_load.abort_button,'',False)
 
         #######################################################################
 
@@ -1191,11 +1193,9 @@ class Gui:
             is_dir,is_file,is_symlink,is_bind,has_cd,has_files,cd_ok,cd_aborted,cd_empty,aux2 = LUT_decode[code]
         return has_cd
 
-    def widget_tooltip_cget(self,widget,tooltip):
-        widget.bind("<Motion>", lambda event : self.motion_on_widget_cget(event,tooltip))
-        widget.bind("<Leave>", lambda event : self.widget_leave())
-
-    def widget_tooltip(self,widget,tooltip):
+    type_info_or_help={}
+    def widget_tooltip(self,widget,tooltip,type_info_or_help=True):
+        self.type_info_or_help[widget,tooltip] = type_info_or_help
         widget.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip))
         widget.bind("<Leave>", lambda event : self.widget_leave())
 
@@ -2013,28 +2013,32 @@ class Gui:
 
             #self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
 
-            self.show_popups_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text=' ' + STR('Show tooltips'),variable=self.show_popups_var)
-            self.popups_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+            self.show_tooltips_help_var = BooleanVar()
+            self.tooltips_help_cb = Checkbutton(sfdma,text=' ' + STR('Show help tooltips'),variable=self.show_tooltips_help_var)
+            self.tooltips_help_cb.grid(row=1, column=0, sticky='news',padx=4,pady=4)
+
+            self.show_tooltips_info_var = BooleanVar()
+            self.tooltips_info_cb = Checkbutton(sfdma,text=' ' + STR('Show info tooltips'),variable=self.show_tooltips_info_var)
+            self.tooltips_info_cb.grid(row=2, column=0, sticky='news',padx=4,pady=4)
 
             self.groups_collapsed_var = BooleanVar()
-            self.popups_cb = Checkbutton(sfdma,text=' ' + STR('Groups collapsed at startup'),variable=self.groups_collapsed_var)
-            self.popups_cb.grid(row=2, column=0, sticky='news',padx=4,pady=4)
+            self.tooltips_gc = Checkbutton(sfdma,text=' ' + STR('Groups collapsed at startup'),variable=self.groups_collapsed_var)
+            self.tooltips_gc.grid(row=3, column=0, sticky='news',padx=4,pady=4)
 
             self.scan_hidden_var = BooleanVar()
             self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files / folders in scan'),variable=self.scan_hidden_var)
-            self.scan_hidden_cb.grid(row=3, column=0, sticky='news',padx=4,pady=4)
+            self.scan_hidden_cb.grid(row=4, column=0, sticky='news',padx=4,pady=4)
 
             self.column_time_var = BooleanVar()
             self.column_time_cb = Checkbutton(sfdma,text=' ' + STR('Show \'Time\' column'),variable=self.column_time_var)
-            self.column_time_cb.grid(row=4, column=0, sticky='news',padx=4,pady=4)
+            self.column_time_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
 
             self.column_size_var = BooleanVar()
             self.column_size_cb = Checkbutton(sfdma,text=' ' + STR('Show \'Size\' column'),variable=self.column_size_var)
-            self.column_size_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            self.column_size_cb.grid(row=6, column=0, sticky='news',padx=4,pady=4)
 
             find_frame=LabelFrame(sfdma, text=STR("Searching"),borderwidth=2,bg=self.bg_color)
-            find_frame.grid(row=6,column=0,sticky='wens',padx=3,pady=3)
+            find_frame.grid(row=7,column=0,sticky='wens',padx=3,pady=3)
 
             self.search_after_action_var = BooleanVar()
             self.search_after_action0_cb = Radiobutton(find_frame,text=' ' + STR('Close dialog after searching'),variable=self.search_after_action_var,value=0)
@@ -2054,8 +2058,9 @@ class Gui:
             sfdma.grid_columnconfigure( 0, weight=1)
             sfdma.grid_rowconfigure( 9, weight=1)
 
-            exclude_frame=LabelFrame(sfdma, text=STR("Exclude in scan"),borderwidth=2,bg=self.bg_color)
-            exclude_frame.grid(row=7,column=0,sticky='wens',padx=3,pady=3)
+            separator = ';' if windows else ':'
+            exclude_frame=LabelFrame(sfdma, text=STR("Exclude in scan") + f" ( separator sign: '{separator}' )",borderwidth=2,bg=self.bg_color)
+            exclude_frame.grid(row=8,column=0,sticky='wens',padx=3,pady=3)
 
             self.exclude_var = StringVar()
 
@@ -2074,7 +2079,8 @@ class Gui:
             self.settings_dialog_created = True
 
             self.settings = [
-                (self.show_popups_var,CFG_KEY_show_popups),
+                (self.show_tooltips_help_var,CFG_KEY_SHOW_TOOLTIPS_HELP),
+                (self.show_tooltips_info_var,CFG_KEY_SHOW_TOOLTIPS_INFO),
                 (self.groups_collapsed_var,CFG_KEY_groups_collapse),
                 (self.scan_hidden_var,CFG_KEY_include_hidden),
                 (self.column_time_var,CFG_KEY_column_time),
@@ -2089,7 +2095,8 @@ class Gui:
                 (self.exclude_var,CFG_EXCLUDE)
             ]
 
-        self.show_popups_var.set(self.cfg.get(CFG_KEY_show_popups))
+        self.show_tooltips_help_var.set(self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_HELP))
+        self.show_tooltips_info_var.set(self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_INFO))
         self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
         self.scan_hidden_var.set(self.cfg.get(CFG_KEY_include_hidden))
         self.column_time_var.set(self.cfg.get(CFG_KEY_column_time))
@@ -2137,8 +2144,11 @@ class Gui:
         if self.cfg_get(CFG_EXCLUDE)!=self.exclude_var.get():
             self.cfg.set(CFG_EXCLUDE,self.exclude_var.get())
 
-        if self.cfg.get(CFG_KEY_show_popups)!=self.show_popups_var.get():
-            self.cfg.set(CFG_KEY_show_popups,self.show_popups_var.get())
+        if self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_HELP)!=self.show_tooltips_help_var.get():
+            self.cfg.set(CFG_KEY_SHOW_TOOLTIPS_HELP,self.show_tooltips_help_var.get())
+
+        if self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_INFO)!=self.show_tooltips_info_var.get():
+            self.cfg.set(CFG_KEY_SHOW_TOOLTIPS_INFO,self.show_tooltips_info_var.get())
 
         if self.cfg.get(CFG_KEY_groups_collapse)!=self.groups_collapsed_var.get():
             self.cfg.set(CFG_KEY_groups_collapse,self.groups_collapsed_var.get())
@@ -3322,18 +3332,28 @@ class Gui:
         self.menubar_unpost()
         self.hide_tooltip()
 
-    def motion_on_widget_cget(self,event,message=None):
-        new_message= message + '\n' + event.widget.cget('text')
-        self.motion_on_widget(event,new_message)
-
     def motion_on_widget(self,event,message=None):
-        if message:
-            self.tooltip_message[str(event.widget)]=message
-        self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
+        widget = event.widget
+
+        try:
+            if self.type_info_or_help[widget,message] is False:
+                #info
+                allowed=self.cfg_get(CFG_KEY_SHOW_TOOLTIPS_INFO)
+            else:
+                #help
+                allowed=self.cfg_get(CFG_KEY_SHOW_TOOLTIPS_HELP)
+        except:
+            allowed=False
+
+        if allowed:
+            if message:
+                self.tooltip_message[str(event.widget)]=message
+            self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
 
     def motion_on_tree(self,event):
         if not self.block_processing_stack:
-            self.tooltip_show_after_tree = event.widget.after(1, self.show_tooltips_tree(event))
+            if self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_INFO):
+                self.tooltip_show_after_tree = event.widget.after(1, self.show_tooltips_tree(event))
 
     def configure_tooltip(self,widget):
         try:
@@ -3370,7 +3390,7 @@ class Gui:
 
         self.configure_tooltip(event.widget)
 
-        self.tooltip_deiconify_wrapp()
+        self.tooltip_deiconify()
 
         self.adaptive_tooltip_geometry(event)
 
@@ -3398,10 +3418,6 @@ class Gui:
         subpath_list.reverse()
         return (item,current_record_name,subpath_list)
 
-    def tooltip_deiconify_wrapp(self):
-        if self.cfg.get(CFG_KEY_show_popups):
-            self.tooltip_deiconify()
-
     def show_tooltips_tree(self,event):
         self.unschedule_tooltips_tree(event)
         self.menubar_unpost()
@@ -3412,8 +3428,9 @@ class Gui:
             colname=tree.column(col,'id')
             if tree.identify("region", event.x, event.y) == 'heading':
                 if colname in ('path','size_h','ctime_h'):
-                    self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
-                    self.tooltip_deiconify_wrapp()
+                    if self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_HELP):
+                        self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
+                        self.tooltip_deiconify()
                 else:
                     self.hide_tooltip()
 
@@ -3471,7 +3488,8 @@ class Gui:
 
                             self.tooltip_lab_configure(text='\n'.join(tooltip_list))
 
-                        self.tooltip_deiconify_wrapp()
+                        if self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_INFO):
+                            self.tooltip_deiconify()
 
                     elif tree.tag_has(self.GROUP,item):
                         if values := tree.item(item,'values'):
@@ -3488,7 +3506,8 @@ class Gui:
 
                     if coldata:
                         self.tooltip_lab_configure(text=coldata)
-                        self.tooltip_deiconify_wrapp()
+                        if self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_INFO):
+                            self.tooltip_deiconify()
 
                     else:
                         self.hide_tooltip()
@@ -4362,7 +4381,7 @@ class Gui:
             self_open_item(current_item)
 
             self_get_child_of_name = self.get_child_of_name
-            self_tree_update = self_tree.update
+            #self_tree_update = self_tree.update
 
             for item_name in items_names_tuple:
                 child_item = self_get_child_of_name(record,current_item,item_name)
@@ -4373,7 +4392,8 @@ class Gui:
                     self_open_item(current_item)
                     self.visible_items_update()
 
-                    self_tree_update()
+                    #self_tree_update()
+                    self.tree.update()
                 else:
                     self.info_dialog_on_main.show('cannot find item:',item_name)
                     break
@@ -4474,7 +4494,19 @@ class Gui:
         res=index-offset
         return 0 if res<0 else res
 
-    def wrapped_see(self, item):
+    def wrapped_see(self, item, show_children=False):
+        self.tree.see(item)
+
+        if show_children:
+            children = self.tree.get_children(item)
+            children_len=len(children)
+            if children_len:
+                self.tree.see(children[-1 if children_len<self.rows_all else self.rows_all])
+
+        self.tree.update()
+
+        return
+
         self_tree = self.tree
         try:
             item_index=self.visible_items.index(item)
@@ -4558,13 +4590,17 @@ class Gui:
             self.current_group = None
             self.current_subpath_list = None
 
+    rows_all=0
     rows_offset_plus=0
     rows_offset_minus=0
     def tree_configure(self):
         try:
-            self.rows_offset_plus = int( (self.tree.winfo_height() / self.rowhight) * 0.75 - 1)
-            self.rows_offset_minus = int( (self.tree.winfo_height() / self.rowhight) *0.25 - 1)
+            self.rows_all = int(self.tree.winfo_height() / self.rowhight -5 )
+
+            self.rows_offset_plus = int( self.rows_all * 0.75 - 1)
+            self.rows_offset_minus = int( self.rows_all *0.25 - 1)
         except :
+            self.rows_all = 0
             self.rows_offset_plus = 0
             self.rows_offset_minus = 0
 
@@ -4721,7 +4757,7 @@ class Gui:
         self.tree_focus(item)
         self.tree_item_focused(item)
 
-        self_tree.see(item)
+        #self_tree.see(item)
         self_tree.update()
 
         self.wrapped_see(item)
@@ -5964,7 +6000,7 @@ class Gui:
         self_open_item(current_item)
 
         self_get_child_of_name = self.get_child_of_name
-        self_tree_update = self.tree.update
+        #self_tree_update = self.tree.update
 
         for item_name in items_names_tuple:
             child_item = self_get_child_of_name(record,current_item,item_name)
@@ -5972,7 +6008,8 @@ class Gui:
             if child_item:
                 current_item = child_item
                 self_open_item(current_item)
-                self_tree_update()
+                #self_tree_update()
+                self.tree.update()
             else:
                 self.info_dialog_on_main.show('cannot find item:',item_name)
                 break
@@ -5994,6 +6031,10 @@ class Gui:
     def open_item_with_update(self,item=None):
         self.open_item(item)
         self.visible_items_update()
+        if not item:
+            item=self.tree.focus()
+
+        self.wrapped_see(item, True)
 
     @block
     def open_item(self,item=None):
@@ -6189,7 +6230,6 @@ class Gui:
         #    self_tree.focus(group_item)
         #    self.wrapped_see(group_item)
 
-
         self.update_records_stats()
 
         self.record_filename_to_record[record.file_name] = record
@@ -6215,15 +6255,15 @@ class Gui:
 
             self.scan_path_2_records[record_temp.header.scan_path].add(record_temp)
 
-        self.widget_tooltip(self.status_records_all,STR('Records in repository  ') + f': {records_len}\n' + STR('Sum data size         ') + f': {bytes_to_str(sum_size)}\n' + STR('Sum files quantity    ') + f': {fnumber(quant_files)}\n\n' + STR('Click to unload (free memory) data of selected record\nDouble click to unload data of all records.'))
+        self.widget_tooltip(self.status_records_all,STR('Records in repository  ') + f': {records_len}\n' + STR('Sum data size         ') + f': {bytes_to_str(sum_size)}\n' + STR('Sum files quantity    ') + f': {fnumber(quant_files)}\n\n' + STR('Click to unload (free memory) data of selected record\nDouble click to unload data of all records.'),False)
 
         self.status_records_all_configure(STR('Records') + f':{records_len}')
 
-    def tree_update(self,item):
-        self_tree = self.tree
+    #def tree_update(self,item):
+    #    self_tree = self.tree
 
-        self_tree.see(item)
-        self_tree.update()
+        #self_tree.see(item)
+    #    self.tree.update()
 
     folder_items=set()
     folder_items_clear=folder_items.clear
