@@ -1755,7 +1755,7 @@ class LibrerCore:
                                     if in_description:
                                         if match := re_obj_desc_end_search(line):
                                             item['description'].append(match.group(1))
-                                            item['description'] = tuple(item['description'])
+                                            item['description'] = ''.join(item['description'])
                                             in_description=False
                                         else:
                                             item['description'].append(line)
@@ -1767,10 +1767,10 @@ class LibrerCore:
                                             item['description']=match.group(1)
                                             continue
 
-                                    elif match := re_obj_desc_begin_search(line):
-                                        in_description=True
-                                        item['description'].append(match.group(1))
-                                        continue
+                                        elif match := re_obj_desc_begin_search(line):
+                                            in_description=True
+                                            item['description'].append(match.group(1) + '\n')
+                                            continue
 
                                     if not item['name']:
                                         if match := re_obj_name_search(line):
@@ -1886,14 +1886,14 @@ class LibrerCore:
                                                 #scan_like_data
 
                                                 if description:=item['description']:
-                                                    description = description.lstrip('<![CDATA[').rstrip(']]>')
+                                                    description = description.removeprefix('<![CDATA[').removesuffix(']]>')
+                                                    #print('description:\n',item['description'],'\n',description,'\n')
                                                     cd_set_add(description)
                                                     cd_set_per_disk[disk_name].add(description)
                                                     sld_tuple = tuple([size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,description])
                                                 else:
                                                     sld_tuple = tuple([size,is_dir,is_file,is_symlink,is_bind,has_files,mtime,''])
 
-                                                #print('description',item['description'])
                                                 ############################################################
 
                                                 path_splitted = [disk_name] + path + [fileame]
