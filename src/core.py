@@ -1519,6 +1519,7 @@ class LibrerCore:
 
         self.wii_import_known_disk_names_len = 0
         self.wii_import_files_counter = 0
+        self.wii_import_folders_counter = 0
         self.wii_import_space = 0
 
     def update_sorted(self):
@@ -1716,6 +1717,7 @@ class LibrerCore:
         in_report=False
         in_item=False
         in_description=False
+        item_type_is_file=False
 
         demo_str = '*** DEMO ***'
 
@@ -1739,6 +1741,7 @@ class LibrerCore:
 
         self.wii_import_known_disk_names_len = 0
         self.wii_import_files_counter = 0
+        self.wii_import_folders_counter = 0
         self.wii_import_space = 0
         try:
             for import_filename in import_filenames:
@@ -1775,7 +1778,11 @@ class LibrerCore:
                                     if not item['name']:
                                         if match := re_obj_name_search(line):
                                             item['name']=match.group(1)
-                                            self.wii_import_files_counter +=1
+                                            if item_type_is_file:
+                                                self.wii_import_files_counter +=1
+                                            else:
+                                                self.wii_import_folders_counter +=1
+
                                             continue
 
                                     if not item['ext']:
@@ -1789,7 +1796,9 @@ class LibrerCore:
                                                 size = int(match.group(1))
 
                                                 item['size']=size
-                                                self.wii_import_space += size
+
+                                                if item_type_is_file:
+                                                    self.wii_import_space += size
                                             except:
                                                 item['size']=0
                                             continue
@@ -1930,6 +1939,7 @@ class LibrerCore:
                                 elif match := re_obj_item_search(line):
                                     in_item=True
                                     in_description=False
+                                    item_type_is_file=bool(match.group(1)=="File")
 
                                     item = { 'ext':None,'date':None,'time':None,'path':None,'name':None,'disk_name':None,'disk_type':None,'disk_loc':None,'disk_num':None,'category':None,'crc':None,'flag':None,'size':0,'description':[],'type':match.group(1)}
 

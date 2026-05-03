@@ -403,6 +403,11 @@ class Gui:
             return res
         return restore_status_line_wrapp
 
+    def select_all(self,event):
+        event.widget.select_range(0, 'end')
+        event.widget.icursor('end')
+        return 'break'  # Prevents default behavior
+
     def __init__(self,cwd):
         gc_disable()
 
@@ -1090,6 +1095,9 @@ class Gui:
 
         self_main_bind('<BackSpace>', lambda event : self.unload_record())
         self_main_bind('<Control-BackSpace>', lambda event : self.unload_all_recods())
+
+        self_main.bind_class('TEntry', '<Control-a>', self.select_all)
+        self_main.bind_class('TEntry', '<Control-A>', self.select_all)
 
         gc_collect()
         gc_enable()
@@ -3202,7 +3210,8 @@ class Gui:
             while wii_import_thread_is_alive():
                 dialog_update_lab_text(0,f'disks:{fnumber(librer_core.wii_import_known_disk_names_len).rjust(14)}')
                 dialog_update_lab_text(1,f'files:{fnumber(librer_core.wii_import_files_counter).rjust(14)}' )
-                dialog_update_lab_text(2,f'space:{bytes_to_str(librer_core.wii_import_space).rjust(14)}')
+                dialog_update_lab_text(2,f'folders:{fnumber(librer_core.wii_import_folders_counter).rjust(14)}' )
+                dialog_update_lab_text(3,f'space:{bytes_to_str(librer_core.wii_import_space).rjust(14)}')
 
                 self_main_after(10,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
@@ -3229,7 +3238,7 @@ class Gui:
                 else:
                     self.wii_import_label_var.set(f'WII-imported-{Path(import_filenames[0]).stem}')
 
-                self.wii_import_brief_label.configure(text=f'GATHERED DATA:\ndisks   : {fnumber(quant_disks).rjust(14)}\nfiles   : {fnumber(quant_files).rjust(14)}\nspace   : {bytes_to_str(librer_core.wii_import_space).rjust(14)}')
+                self.wii_import_brief_label.configure(text=f'GATHERED DATA:\n\ndisks   : {fnumber(quant_disks).rjust(14)}\nfiles   : {fnumber(quant_files).rjust(14)}\nfiles   : {fnumber(quant_folders).rjust(14)}\nspace   : {bytes_to_str(librer_core.wii_import_space).rjust(14)}')
                 #\nfolders : {fnumber(quant_folders)}
 
                 dialog.show()
@@ -4733,6 +4742,11 @@ class Gui:
                         self.select_and_focus(self.sel_item)
 
                         return "break"
+                elif key == "Q" or key == "q":
+                    event_str=str(event)
+                    ctrl_pressed = 'Control' in event_str
+                    if ctrl_pressed:
+                        self.exit()
                 else:
                     #print(key)
 
