@@ -34,7 +34,7 @@ from pathlib import Path
 from time import strftime,time,mktime
 from signal import signal,SIGINT
 
-from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,TclVersion, TkVersion
+from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,TclVersion, TkVersion, messagebox
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style,Combobox
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
 
@@ -47,6 +47,7 @@ else:
 from locale import getencoding
 print('encoding =',getencoding())
 
+from time import sleep
 from threading import Thread
 from traceback import format_stack
 import sys
@@ -67,6 +68,7 @@ from core import *
 from text import LANGUAGES
 
 from tempfile import mkdtemp
+from shlex import quote as shlex_quote
 
 windows = bool(os_name=='nt')
 
@@ -446,6 +448,10 @@ class Gui:
 
         self_main.minsize(800, 600)
 
+        self_main.option_add('*Dialog.msg.font', 'Courier 10')
+        #self_main.option_add('*Dialog.msg.width', 220)
+        #self_main.option_add("*Dialog.msg.wrapLength", "8i")
+
         if self_main.winfo_screenwidth()>=1600 and self_main.winfo_screenheight()>=1024:
             self_main.geometry('1200x800')
         elif self_main.winfo_screenwidth()>=1200 and self_main.winfo_screenheight()>=800:
@@ -531,6 +537,11 @@ class Gui:
         self.FOUND = 'X'
 
         self.GROUP = 'z'
+
+        #import tkinter.font as tkFont
+        #default_font = tkFont.nametofont("TkDefaultFont")
+        #default_font.configure(family="Monospace regular",size=9)
+        #default_font.configure(size=8)
 
         #self.defaultFont = font.nametofont("TkDefaultFont")
         #self.defaultFont.configure(family="Monospace regular",size=8,weight=font.BOLD)
@@ -4693,7 +4704,6 @@ class Gui:
                         parent = tree.parent(item)
                         siblings = tree.get_children(parent)
 
-
                         index = siblings.index(item)
 
                         if index > 0:
@@ -4711,8 +4721,17 @@ class Gui:
                 elif key == "Return":
                     event_str=str(event)
                     alt_pressed = ('0x20000' in event_str) if windows else ('Mod1' in event_str or 'Mod5' in event_str)
+                    ctrl_pressed = 'Control' in event_str
+                    shift_pressed = 'Shift' in event_str
+
                     if alt_pressed:
                         self.record_info()
+                        return "break"
+                    elif ctrl_pressed:
+                        if shift_pressed:
+                            self.open_location()
+                        else:
+                            self.open_file()
                         return "break"
                     elif self.show_customdata():
                         return
@@ -4720,6 +4739,7 @@ class Gui:
                         item = tree.focus()
                         self.open_item_with_update(item)
                         tree.update()
+
                 elif key == "Alt_L":
                     return "break"
                 elif key == "Left":
@@ -4903,6 +4923,9 @@ class Gui:
             pop_add_command(label = STR('Find prev'),command = self.find_prev,accelerator="Shift+F3",state = any_records_state, image = self.ico_empty,compound='left')
             pop_add_separator()
             pop_add_command(label = STR('Clear Search Results'),command = self.find_clear, image = self.ico_empty,compound='left',state = 'normal' if self.any_valid_find_results else 'disabled')
+            pop_add_separator()
+            pop_add_command(label = STR('Open File'),command = self.open_file, accelerator="Ctrl+Enter", image = self.ico_empty,compound='left')
+            pop_add_command(label = STR('Open Location'),command = self.open_location, accelerator="Ctrl+Shift+Enter", image = self.ico_empty,compound='left')
             pop_add_separator()
             pop_add_command(label = STR('Unload record data'),command = self.unload_record, accelerator="Backspace", image = self.ico_empty,compound='left',state = 'normal' if is_record_loaded else 'disabled')
             pop_add_command(label = STR('Unload all records data'),command = self.unload_all_recods, accelerator="Ctrl+Backspace", image = self.ico_empty,compound='left',state = any_records_state)
@@ -6282,6 +6305,58 @@ class Gui:
     folder_items=set()
     folder_items_clear=folder_items.clear
     folder_items_add=folder_items.add
+
+    @logwrapper
+    def open_file(self):
+        try:
+            item=self.tree.focus()
+            record_item,record_name,subpath_list = self.get_item_record(item)
+            record = self.item_to_record[record_item]
+            file_to_open=normpath(sep.join([record.header.scan_path] + subpath_list))
+
+            l_info(f'open_file {file_to_open=}')
+
+            if path_exists(file_to_open):
+                try:
+                    if windows:
+                        startfile(file_to_open)
+                    else:
+                        system("xdg-open " + shlex_quote(file_to_open))
+                except Exception as e:
+                    l_error(e)
+                    messagebox.showerror("error", str(e))
+            else:
+                messagebox.showerror("Error - No File", str(file_to_open))
+        except:
+            self.get_info_dialog_on_main.show('error',file_to_open)
+            #np seleckcja na grupe
+            pass
+
+    @logwrapper
+    def open_location(self):
+        try:
+            item=self.tree.focus()
+            record_item,record_name,subpath_list = self.get_item_record(item)
+            record = self.item_to_record[record_item]
+            path_to_open=dirname(normpath(sep.join([record.header.scan_path] + subpath_list)))
+
+            l_info(f'open_location {path_to_open=}')
+
+            if path_exists(path_to_open):
+                try:
+                    if windows:
+                        startfile(path_to_open)
+                    else:
+                        system("xdg-open " + shlex_quote(path_to_open))
+                except Exception as e:
+                    l_error(e)
+                    messagebox.showerror("error", str(e))
+            else:
+                messagebox.showerror("Error - No Path", str(path_to_open))
+        except:
+            self.get_info_dialog_on_main.show('error',path_to_open)
+            #np seleckcja na grupe
+            pass
 
     @logwrapper
     def clip_copy_full_path_with_file(self):
