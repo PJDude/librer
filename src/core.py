@@ -51,6 +51,7 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 from pympler.asizeof import asizeof
 from send2trash import send2trash as send2trash_delete
 from unicodedata import normalize, combining
+from psutil import disk_usage
 
 from dateparser import parse as parse_datetime
 
@@ -65,7 +66,7 @@ def is_hidden_lin(filepath):
 is_hidden = is_hidden_win if windows else is_hidden_lin
 
 if windows:
-    from subprocess import CREATE_NO_WINDOW
+    from subprocess import CREATE_NO_WINDOW,DETACHED_PROCESS,CREATE_NEW_PROCESS_GROUP
 else:
     from os import getpgid, killpg
 
@@ -308,6 +309,7 @@ class Header :
         self.quant_files = 0
         self.quant_folders = 0
         self.sum_size = 0
+        self.free = -1
         self.data_format_version=DATA_FORMAT_VERSION
 
         self.files_cde_size = 0
@@ -424,6 +426,7 @@ class LibrerRecord:
         print_func(('save','finished'),True)
 
     def scan_rec(self,print_func,abort_list,path, scan_like_data,filenames_set,check_dev=True,dev_call=None,include_hidden=False,exclude=None) :
+        #print(f'{exclude=}')
         if any(abort_list) :
             return True
 
@@ -448,9 +451,9 @@ class LibrerRecord:
                     if include_hidden or (not is_hidden(entry)):
                         entry_name = entry.name
 
-                        entry_name_to_chheck = entry_name.upper() if windows else entry_name
-                        if (not bool(exclude) or entry_name_to_chheck not in exclude):
-
+                        entry_name_to_check = entry_name.upper() if windows else entry_name
+                        #if (not bool(exclude) or entry_name_to_check not in exclude):
+                        if (not bool(exclude) or all([not fnmatch(entry_name_to_check,exclude_elem) for exclude_elem in exclude]) ):
                             subitems+=1
                             if any(abort_list) :
                                 break
@@ -558,6 +561,8 @@ class LibrerRecord:
         self.scan_rec(print_func,abort_list,self.header.scan_path,self.scan_data,filenames_set,check_dev=check_dev,include_hidden=include_hidden,exclude=exclude)
 
         time_end = perf_counter()
+
+        self.header.free=disk_usage(self.header.scan_path).free
 
         self.header.scanning_time = time_end-time_start
 
@@ -1300,6 +1305,14 @@ class LibrerRecord:
             info_list_med_append(f'scanned files   : {fnumber(self_header.quant_files)}')
             info_list_append(f'scanned folders : {fnumber(self_header.quant_folders)}')
             info_list_med_append(f'scanned folders : {fnumber(self_header.quant_folders)}')
+
+            try:
+                info_list_append(f'free space      : {bytes_to_str(self_header.free)}')
+                info_list_med_append(f'free space      : {bytes_to_str(self_header.free)}')
+            except:
+                info_list_append(f'free space      : unknown')
+                info_list_med_append(f'free space      : unknown')
+
             info_list_med_append(f'custom data     : {bytes_to_str(self_header.cde_size_extracted)}')
 
             self.txtinfo_medium = '\n'.join(info_list_med)

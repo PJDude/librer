@@ -141,7 +141,7 @@ CFG_KEY_expand_search_results = 'expand_search_results'
 
 cfg_defaults={
     CFG_THEME:'Vista' if windows else 'Clam',
-    CFG_EXCLUDE:'pagefile.sys' if windows else 'lost+found;System Volume Information',
+    CFG_EXCLUDE:'pagefile.sys' if windows else 'lost+found:System Volume Information:$RECYCLE.BIN:.Trash-*',
     CFG_KEY_SINGLE_DEVICE:True,
     CFG_KEY_CDE_SETTINGS:[],
 
@@ -2078,7 +2078,7 @@ class Gui:
             sfdma.grid_rowconfigure( 9, weight=1)
 
             separator = ';' if windows else ':'
-            exclude_frame=LabelFrame(sfdma, text=STR("Exclude in scan") + f" ( separator sign: '{separator}' )",borderwidth=2,bg=self.bg_color)
+            exclude_frame=LabelFrame(sfdma, text=STR("Exclude in scan") + f" (glob expressions, separator sign: '{separator}' )",borderwidth=2,bg=self.bg_color)
             exclude_frame.grid(row=8,column=0,sticky='wens',padx=3,pady=3)
 
             self.exclude_var = StringVar()
