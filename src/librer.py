@@ -26,7 +26,7 @@
 #
 ####################################################################################
 
-from os import sep,system,getcwd,name as os_name,cpu_count
+from os import sep,system,getcwd,name as os_name,cpu_count,environ
 from os.path import abspath,normpath,basename,splitext as path_splitext,dirname,join as path_join,isfile as path_isfile,exists as path_exists,isdir
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
@@ -6307,6 +6307,21 @@ class Gui:
     folder_items_clear=folder_items.clear
     folder_items_add=folder_items.add
 
+    def system_wrapper(self,command):
+        env = environ.copy()
+
+        orig = env.pop("LD_LIBRARY_PATH_ORIG", None)
+        if orig is not None:
+            env["LD_LIBRARY_PATH"] = orig
+        else:
+            env.pop("LD_LIBRARY_PATH", None)
+
+        env.pop("LD_PRELOAD", None)
+
+        self.status(f'executing: {command}')
+
+        system(command)
+
     @logwrapper
     def open_file(self):
         try:
@@ -6324,9 +6339,7 @@ class Gui:
                         startfile(file_to_open)
                     else:
                         command = "xdg-open " + shlex_quote(file_to_open)
-                        self.status(f'executing: {command}')
-
-                        system(command)
+                        self.system_wrapper(command)
                 except Exception as e:
                     l_error(e)
                     messagebox.showerror("error", str(e))
@@ -6354,9 +6367,7 @@ class Gui:
                         startfile(path_to_open)
                     else:
                         command = "xdg-open " + shlex_quote(path_to_open)
-                        self.status(f'executing: {command}')
-
-                        system(command)
+                        self.system_wrapper(command)
                 except Exception as e:
                     l_error(e)
                     messagebox.showerror("error", str(e))
@@ -6549,9 +6560,7 @@ class Gui:
                 startfile(log)
             else:
                 command="xdg-open "+ shlex_quote(log)
-                self.status(f'executing: {command}')
-
-                system(command)
+                self.system_wrapper(command)
         except Exception as e:
             l_error(e)
             self.status(str(e))
@@ -6564,10 +6573,7 @@ class Gui:
                 startfile(LOG_DIR)
             else:
                 command="xdg-open " + shlex_quote(LOG_DIR)
-                self.status(f'executing: {command}')
-                l_info(f'executing: {command}')
-
-                system(command)
+                self.system_wrapper(command)
         except Exception as e:
             l_error(e)
             self.status(str(e))
@@ -6580,9 +6586,7 @@ class Gui:
                 startfile(HOMEPAGE)
             else:
                 command="xdg-open " + shlex_quote(HOMEPAGE)
-                self.status(f'executing: {command}')
-
-                system(command)
+                self.system_wrapper(command)
         except Exception as e:
             l_error(e)
             self.status(str(e))
