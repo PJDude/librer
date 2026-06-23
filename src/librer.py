@@ -52,7 +52,7 @@ from threading import Thread
 from traceback import format_stack
 import sys
 import logging
-from shutil import rmtree
+from shutil import rmtree,which as shutil_which
 from collections import defaultdict
 
 from pickle import dumps, loads
@@ -376,6 +376,7 @@ class Gui:
             start = time()
             try:
                 res=func(self,*args,**kwargs)
+                l_info(f"{res=}")
             except Exception as e:
                 self.status('logwrapper_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
                 l_error('logwrapper_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
@@ -700,8 +701,8 @@ class Gui:
 
         self.status_info = Label(status_frame,text='Initializing...',relief='sunken',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_info.pack(fill='x',expand=1,side='left')
-        self_status_info_configure = self.status_info.configure
-        self.status= lambda x : self_status_info_configure(text = x)
+        #self_status_info_configure = self.status_info.configure
+        #self.status= lambda x : self_status_info_configure(text = x)
 
         self.status_info.bind("<ButtonPress-1>", lambda event : self.clip_copy_full_path_with_file() )
         self.widget_tooltip(self.status_info,STR('Click to copy full path'))
@@ -3559,7 +3560,7 @@ class Gui:
             self.status_info.update()
 
             if do_log and text:
-                l_info('STATUS:%s',text)
+                l_info(f'STATUS:{text}')
 
     def status_main_win(self,text='',image='',do_log=True):
         self.status_main(text.replace('\\\\',chr(92)).replace('\\\\',chr(92)),image,do_log)
@@ -6319,9 +6320,13 @@ class Gui:
             if path_exists(file_to_open):
                 try:
                     if windows:
+                        self.status(f'opening: {file_to_open}')
                         startfile(file_to_open)
                     else:
-                        system("xdg-open " + shlex_quote(file_to_open))
+                        command = "xdg-open " + shlex_quote(file_to_open)
+                        self.status(f'executing: {command}')
+
+                        system(command)
                 except Exception as e:
                     l_error(e)
                     messagebox.showerror("error", str(e))
@@ -6345,9 +6350,13 @@ class Gui:
             if path_exists(path_to_open):
                 try:
                     if windows:
+                        self.status(f'opening: {path_to_open}')
                         startfile(path_to_open)
                     else:
-                        system("xdg-open " + shlex_quote(path_to_open))
+                        command = "xdg-open " + shlex_quote(path_to_open)
+                        self.status(f'executing: {command}')
+
+                        system(command)
                 except Exception as e:
                     l_error(e)
                     messagebox.showerror("error", str(e))
@@ -6536,11 +6545,13 @@ class Gui:
     def show_log(self):
         try:
             if windows:
-                self.status('opening: %s' % log)
+                self.status(f'opening: {log}')
                 startfile(log)
             else:
-                self.status('executing: xdg-open "%s"' % log)
-                system("xdg-open "+ '"' + log + '"')
+                command="xdg-open "+ shlex_quote(log)
+                self.status(f'executing: {command}')
+
+                system(command)
         except Exception as e:
             l_error(e)
             self.status(str(e))
@@ -6549,11 +6560,14 @@ class Gui:
     def show_logs_dir(self):
         try:
             if windows:
-                self.status('opening: %s' % LOG_DIR)
+                self.status(f'opening: {LOG_DIR}')
                 startfile(LOG_DIR)
             else:
-                self.status('executing: xdg-open "%s"' % LOG_DIR)
-                system("xdg-open " + '"' + LOG_DIR + '"')
+                command="xdg-open " + shlex_quote(LOG_DIR)
+                self.status(f'executing: {command}')
+                l_info(f'executing: {command}')
+
+                system(command)
         except Exception as e:
             l_error(e)
             self.status(str(e))
@@ -6562,11 +6576,13 @@ class Gui:
     def show_homepage(self):
         try:
             if windows:
-                self.status('opening: %s' % HOMEPAGE)
+                self.status(f'opening: {HOMEPAGE}')
                 startfile(HOMEPAGE)
             else:
-                self.status('executing: xdg-open %s' % HOMEPAGE)
-                system("xdg-open " + HOMEPAGE)
+                command="xdg-open " + shlex_quote(HOMEPAGE)
+                self.status(f'executing: {command}')
+
+                system(command)
         except Exception as e:
             l_error(e)
             self.status(str(e))
@@ -6616,6 +6632,11 @@ if __name__ == "__main__":
         l_info('LIBRER %s',VER_TIMESTAMP)
         l_info('executable: %s',LIBRER_EXECUTABLE_FILE)
 
+        if not windows:
+            if shutil_which("xdg-open") is not None:
+                l_info("xdg-open is available")
+            else:
+                l_info("xdg-open is not available")
 
         try:
             distro_info=Path(path_join(LIBRER_DIR,'distro.info.txt')).read_text(encoding='ASCII')
