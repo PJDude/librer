@@ -6308,12 +6308,15 @@ class Gui:
     folder_items_add=folder_items.add
 
     def system_wrapper(self,command):
+        import os
         env = environ.copy()
 
         orig = env.pop("LD_LIBRARY_PATH_ORIG", None)
         if orig is not None:
+            l_info(f'{LD_LIBRARY_PATH_ORIG=}')
             env["LD_LIBRARY_PATH"] = orig
         else:
+            l_info(f'NO LD_LIBRARY_PATH_ORIG')
             env.pop("LD_LIBRARY_PATH", None)
 
         env.pop("LD_PRELOAD", None)
