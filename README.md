@@ -13,13 +13,13 @@ The primary purpose of this software is to enable users to catalog their files, 
 ## Screenshots:
 
 #### Main window, new record creation dialog and running **custom data** extraction:
-![image info](./info/scanning.png)
+![](info/scanning.png)
 
 #### Search dialog:
-![image info](./info/search.png)
+![](info/search.png)
 
 #### Context menu:
-![image info](./info/menu.png)
+![](info/menu.png)
 
 ## [Download](https://github.com/PJDude/librer/releases) ##
 Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/librer/releases) site. At the same time, separate builds are created with the [Nuitka](https://github.com/Nuitka/Nuitka) compiler.
