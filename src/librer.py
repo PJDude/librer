@@ -68,7 +68,7 @@ from core import *
 from text import LANGUAGES
 
 from tempfile import mkdtemp
-from shlex import quote as shlex_quote
+#from shlex import quote as shlex_quote
 
 windows = bool(os_name=='nt')
 
@@ -6308,22 +6308,10 @@ class Gui:
     folder_items_add=folder_items.add
 
     def system_wrapper(self,command):
-        import os
-        env = environ.copy()
+        command_string=' '.join(command)
+        self.status(f'executing: {command_string}')
 
-        orig = env.pop("LD_LIBRARY_PATH_ORIG", None)
-        if orig is not None:
-            l_info(f'{LD_LIBRARY_PATH_ORIG=}')
-            env["LD_LIBRARY_PATH"] = orig
-        else:
-            l_info(f'NO LD_LIBRARY_PATH_ORIG')
-            env.pop("LD_LIBRARY_PATH", None)
-
-        env.pop("LD_PRELOAD", None)
-
-        self.status(f'executing: {command}')
-
-        system(command)
+        Popen(command,start_new_session=True,env=ENV)
 
     @logwrapper
     def open_file(self):
@@ -6341,7 +6329,7 @@ class Gui:
                         self.status(f'opening: {file_to_open}')
                         startfile(file_to_open)
                     else:
-                        command = "xdg-open " + shlex_quote(file_to_open)
+                        command = ["xdg-open",file_to_open]
                         self.system_wrapper(command)
                 except Exception as e:
                     l_error(e)
@@ -6369,7 +6357,7 @@ class Gui:
                         self.status(f'opening: {path_to_open}')
                         startfile(path_to_open)
                     else:
-                        command = "xdg-open " + shlex_quote(path_to_open)
+                        command = ["xdg-open",path_to_open]
                         self.system_wrapper(command)
                 except Exception as e:
                     l_error(e)
@@ -6562,7 +6550,7 @@ class Gui:
                 self.status(f'opening: {log}')
                 startfile(log)
             else:
-                command="xdg-open "+ shlex_quote(log)
+                command=["xdg-open",log]
                 self.system_wrapper(command)
         except Exception as e:
             l_error(e)
@@ -6575,7 +6563,7 @@ class Gui:
                 self.status(f'opening: {LOG_DIR}')
                 startfile(LOG_DIR)
             else:
-                command="xdg-open " + shlex_quote(LOG_DIR)
+                command=["xdg-open",LOG_DIR]
                 self.system_wrapper(command)
         except Exception as e:
             l_error(e)
@@ -6588,7 +6576,7 @@ class Gui:
                 self.status(f'opening: {HOMEPAGE}')
                 startfile(HOMEPAGE)
             else:
-                command="xdg-open " + shlex_quote(HOMEPAGE)
+                command=["xdg-open",HOMEPAGE]
                 self.system_wrapper(command)
         except Exception as e:
             l_error(e)
@@ -6650,6 +6638,19 @@ if __name__ == "__main__":
         except Exception as exception_1:
             l_error(exception_1)
             distro_info = 'Error. No distro.info.txt file.'
+
+        ENV = environ.copy()
+
+        LD_LIBRARY_PATH_ORIG = ENV.pop("LD_LIBRARY_PATH_ORIG", None)
+
+        if LD_LIBRARY_PATH_ORIG is not None:
+            l_info(f'{LD_LIBRARY_PATH_ORIG=}')
+            ENV["LD_LIBRARY_PATH"] = LD_LIBRARY_PATH_ORIG
+        else:
+            l_info(f'NO LD_LIBRARY_PATH_ORIG')
+            ENV.pop("LD_LIBRARY_PATH", None)
+
+        ENV.pop("LD_PRELOAD", None)
 
         distro_info+= "\nTclVersion  " + str(TclVersion) + "\nTkVersion   " + str(TkVersion) + "\n" + f'\nrecord file format version: {DATA_FORMAT_VERSION}'
 
