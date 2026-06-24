@@ -34,7 +34,7 @@ from pathlib import Path
 from time import strftime,time,mktime
 from signal import signal,SIGINT
 
-from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,TclVersion, TkVersion, messagebox
+from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,TclVersion, TkVersion
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style,Combobox
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
 
@@ -6297,21 +6297,23 @@ class Gui:
 
         self.status_records_all_configure(STR('Records') + f':{records_len}')
 
-    #def tree_update(self,item):
-    #    self_tree = self.tree
-
-        #self_tree.see(item)
-    #    self.tree.update()
-
     folder_items=set()
     folder_items_clear=folder_items.clear
     folder_items_add=folder_items.add
 
-    def system_wrapper(self,command):
-        command_string=' '.join(command)
-        self.status(f'executing: {command_string}')
-
-        Popen(command,start_new_session=True,env=ENV)
+    def system_wrapper(self,to_open):
+        try:
+            if windows:
+                self.status(f'opening: {to_open}')
+                startfile(to_open)
+            else:
+                command=["xdg-open",to_open]
+                command_string=' '.join(command)
+                self.status(f'executing: "{command_string}"')
+                Popen(command,start_new_session=True,env=ENV)
+        except Exception as e:
+            l_error(f'system_wrapper error:{e}')
+            self.status(f'error: {e}')
 
     @logwrapper
     def open_file(self):
@@ -6324,18 +6326,10 @@ class Gui:
             l_info(f'open_file {file_to_open=}')
 
             if path_exists(file_to_open):
-                try:
-                    if windows:
-                        self.status(f'opening: {file_to_open}')
-                        startfile(file_to_open)
-                    else:
-                        command = ["xdg-open",file_to_open]
-                        self.system_wrapper(command)
-                except Exception as e:
-                    l_error(e)
-                    messagebox.showerror("error", str(e))
+                self.system_wrapper(file_to_open)
             else:
-                messagebox.showerror("Error - No File", str(file_to_open))
+                l_error(f'open_file - No File:{file_to_open}')
+                self.status(f'No File:{file_to_open}')
         except:
             self.get_info_dialog_on_main.show('error',file_to_open)
             #np seleckcja na grupe
@@ -6352,18 +6346,10 @@ class Gui:
             l_info(f'open_location {path_to_open=}')
 
             if path_exists(path_to_open):
-                try:
-                    if windows:
-                        self.status(f'opening: {path_to_open}')
-                        startfile(path_to_open)
-                    else:
-                        command = ["xdg-open",path_to_open]
-                        self.system_wrapper(command)
-                except Exception as e:
-                    l_error(e)
-                    messagebox.showerror("error", str(e))
+                self.system_wrapper(path_to_open)
             else:
-                messagebox.showerror("Error - No Path", str(path_to_open))
+                l_error(f'open_location - No File:{path_to_open}')
+                self.status(f'No Location:{path_to_open}')
         except:
             self.get_info_dialog_on_main.show('error',path_to_open)
             #np seleckcja na grupe
@@ -6545,42 +6531,15 @@ class Gui:
 
     @logwrapper
     def show_log(self):
-        try:
-            if windows:
-                self.status(f'opening: {log}')
-                startfile(log)
-            else:
-                command=["xdg-open",log]
-                self.system_wrapper(command)
-        except Exception as e:
-            l_error(e)
-            self.status(str(e))
+        self.system_wrapper(log)
 
     @logwrapper
     def show_logs_dir(self):
-        try:
-            if windows:
-                self.status(f'opening: {LOG_DIR}')
-                startfile(LOG_DIR)
-            else:
-                command=["xdg-open",LOG_DIR]
-                self.system_wrapper(command)
-        except Exception as e:
-            l_error(e)
-            self.status(str(e))
+        self.system_wrapper(LOG_DIR)
 
     @logwrapper
     def show_homepage(self):
-        try:
-            if windows:
-                self.status(f'opening: {HOMEPAGE}')
-                startfile(HOMEPAGE)
-            else:
-                command=["xdg-open",HOMEPAGE]
-                self.system_wrapper(command)
-        except Exception as e:
-            l_error(e)
-            self.status(str(e))
+        self.system_wrapper(HOMEPAGE)
 
 if __name__ == "__main__":
     try:
@@ -6633,24 +6592,24 @@ if __name__ == "__main__":
             else:
                 l_info("xdg-open is not available")
 
+            ENV = environ.copy()
+
+            LD_LIBRARY_PATH_ORIG = ENV.pop("LD_LIBRARY_PATH_ORIG", None)
+
+            if LD_LIBRARY_PATH_ORIG is not None:
+                l_info(f'{LD_LIBRARY_PATH_ORIG=}')
+                ENV["LD_LIBRARY_PATH"] = LD_LIBRARY_PATH_ORIG
+            else:
+                l_info(f'NO LD_LIBRARY_PATH_ORIG')
+                ENV.pop("LD_LIBRARY_PATH", None)
+
+            ENV.pop("LD_PRELOAD", None)
+
         try:
             distro_info=Path(path_join(LIBRER_DIR,'distro.info.txt')).read_text(encoding='ASCII')
         except Exception as exception_1:
             l_error(exception_1)
             distro_info = 'Error. No distro.info.txt file.'
-
-        ENV = environ.copy()
-
-        LD_LIBRARY_PATH_ORIG = ENV.pop("LD_LIBRARY_PATH_ORIG", None)
-
-        if LD_LIBRARY_PATH_ORIG is not None:
-            l_info(f'{LD_LIBRARY_PATH_ORIG=}')
-            ENV["LD_LIBRARY_PATH"] = LD_LIBRARY_PATH_ORIG
-        else:
-            l_info(f'NO LD_LIBRARY_PATH_ORIG')
-            ENV.pop("LD_LIBRARY_PATH", None)
-
-        ENV.pop("LD_PRELOAD", None)
 
         distro_info+= "\nTclVersion  " + str(TclVersion) + "\nTkVersion   " + str(TkVersion) + "\n" + f'\nrecord file format version: {DATA_FORMAT_VERSION}'
 
