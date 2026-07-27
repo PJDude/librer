@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Librer
+GenericName=Librer
+Comment=Librer
+Exec=sas
+Icon=io.github.pjdude.Librer
+Categories=Utility;
+Terminal=false
+StartupNotify=true
+Keywords=catalog;
