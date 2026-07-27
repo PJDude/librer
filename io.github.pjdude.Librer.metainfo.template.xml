@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.pjdude.Librer</id>
+  <name>Librer</name>
+  <summary>Librer. A GUI file cataloging program with extensive customization options to suit user preferences.</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.pjdude">
+    <name>Piotr Jochymek</name>
+  </developer>
+  <description>
+    <p>
+      A cross-platform GUI file cataloging program with extensive customization options to suit user preferences. Highly optimized for multi-core parallel search speed, data integrity, and repository portability.
+    </p>
+    <p>Main functions:</p>
+    <ul>
+      <li>...</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.pjdude.Librer.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://github.com/PJDude/librer/raw/main/info/librer.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/PJDude/librer</url>
+  <url type="bugtracker">https://github.com/PJDude/librer/issues</url>
+  <url type="contact">https://github.com/PJDude</url>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="VERSION_TO_REPLACE" date="DATE_TO_REPLACE"/>
+  </releases>
+</component>
