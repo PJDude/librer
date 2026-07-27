@@ -71,9 +71,8 @@ modules:
       - echo stage_04
       - echo "Flatpak Build" > /app/share/librer/distro.info.txt
       - echo stage_05
-      - cp -v src/images.py /app/share/librer/images.py
+      - cp -v src/librer_images.py /app/share/librer/librer_images.py
       - echo stage_06
-
       - install -Dm644 src/icons/librer.png                     /app/share/icons/hicolor/256x256/apps/io.github.pjdude.Librer.png
       - echo stage_07
       - install -Dm644 io.github.pjdude.Librer.desktop          /app/share/applications/io.github.pjdude.Librer.desktop
@@ -89,7 +88,7 @@ modules:
        - type: file
          path: io.github.pjdude.Librer.metainfo.xml
        - type: file
-         path: src/images.py
+         path: src/librer_images.py
          dest: src
        - type: file
          path: src/librer.py
