@@ -218,7 +218,6 @@ jobs:
         path: ./build-pyinstaller/librer.lin.zip
         if-no-files-found: error
 
-
     #####################################
     - name: build flatpak
       run: |
