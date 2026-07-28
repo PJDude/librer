@@ -38,6 +38,7 @@ from tkinter import Tk,Toplevel,PhotoImage,Menu,Label,LabelFrame,Frame,StringVar
 from tkinter.ttk import Treeview,Checkbutton,Radiobutton,Scrollbar,Button,Menubutton,Entry,Scale,Style,Combobox
 from tkinter.filedialog import askdirectory,asksaveasfilename,askopenfilename,askopenfilenames
 
+
 if TkVersion<9.0:
     print('dnd active !')
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -6543,6 +6544,11 @@ class Gui:
 
 if __name__ == "__main__":
     try:
+        def running_in_flatpak():
+            return "FLATPAK_ID" in environ
+
+        print('running_in_flatpak:',running_in_flatpak())
+
         allocs, g1, g2 = gc_get_threshold()
         gc_set_threshold(100_000, g1*5, g2*10)
 
@@ -6551,7 +6557,7 @@ if __name__ == "__main__":
 
         is_frozen = bool(getattr(sys, 'frozen', False) or "__compiled__" in globals())
 
-        LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.executable if is_frozen else sys.argv[0]))
+        LIBRER_EXECUTABLE_FILE = normpath(abspath(sys.argv[0] if running_in_flatpak() else sys.executable if is_frozen else sys.argv[0]))
         LIBRER_EXECUTABLE_DIR = dirname(LIBRER_EXECUTABLE_FILE)
         DATA_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'data'])
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'logs'])
@@ -6562,6 +6568,8 @@ if __name__ == "__main__":
             else:
                 record_exe = ['python',sep.join([LIBRER_EXECUTABLE_DIR,'record.py']) ]
         else:
+            if running_in_flatpak():
+                record_exe = ['python3',sep.join([LIBRER_EXECUTABLE_DIR,'record.py']) ]
             if is_frozen:
                 record_exe = [sep.join([LIBRER_EXECUTABLE_DIR,'record']) ]
             else:
