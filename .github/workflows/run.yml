@@ -223,6 +223,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y flatpak flatpak-builder xz-utils
+        flatpak-builder --version
         sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
         sudo flatpak install -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
         flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
