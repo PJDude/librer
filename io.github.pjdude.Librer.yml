@@ -39,14 +39,14 @@ modules:
 
   - name: python3-dearpygui
     buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} "dearpygui==2.3.1" --no-build-isolation
     sources:
       - type: file
         url: https://files.pythonhosted.org/packages/cc/e0/df598671f40a7fffb8390946115d9e9cf12d3f4a52f5b9381bddc5699aee/dearpygui-2.3.1-cp313-cp313-manylinux1_x86_64.whl
         sha256: e3f64c8d4cae68a3b5be1b7531d08400ccbf1e4ff03c7acfc85954f98993f864
         only-arches:
           - x86_64
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} "dearpygui==2.3.1" --no-build-isolation
 
   - name: python3-psutil
     buildsystem: simple
@@ -55,10 +55,29 @@ modules:
         url: https://files.pythonhosted.org/packages/b5/70/5d8df3b09e25bce090399cf48e452d25c935ab72dad19406c77f4e828045/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl
         sha256: 076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9
     build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} numpy==2.5.1
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} "psutil==7.2.2" --no-build-isolation --no-deps
 
   - name: librer
     buildsystem: simple
+    sources:
+       - type: file
+         path: librer.sh
+       - type: file
+         path: io.github.pjdude.Librer.desktop
+       - type: file
+         path: io.github.pjdude.Librer.metainfo.xml
+       - type: file
+         path: src/librer_images.py
+         dest: src
+       - type: file
+         path: src/librer.py
+         dest: src
+       - type: file
+         path: src/version.txt
+         dest: src
+       - type: file
+         path: src/icons/librer.png
+         dest: src/icons
     build-commands:
       - echo stage_00
       - mkdir -p /app/share/librer
@@ -80,22 +99,3 @@ modules:
       - install -Dm644 io.github.pjdude.Librer.metainfo.xml     /app/share/metainfo/io.github.pjdude.Librer.metainfo.xml
       - echo stage_09
 
-    sources:
-       - type: file
-         path: librer.sh
-       - type: file
-         path: io.github.pjdude.Librer.desktop
-       - type: file
-         path: io.github.pjdude.Librer.metainfo.xml
-       - type: file
-         path: src/librer_images.py
-         dest: src
-       - type: file
-         path: src/librer.py
-         dest: src
-       - type: file
-         path: src/version.txt
-         dest: src
-       - type: file
-         path: src/icons/librer.png
-         dest: src/icons
