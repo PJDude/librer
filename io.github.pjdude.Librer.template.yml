@@ -1,4 +1,4 @@
-app-id: io.github.pjdude.SimpleAudioSweeper
+app-id: io.github.pjdude.Librer
 runtime: org.freedesktop.Platform
 runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
@@ -22,7 +22,7 @@ finish-args:
   - --persist=.librer
 
 modules:
-  - name: python3-send2trash
+    - name: python3-send2trash
     buildsystem: simple
     build-commands:
       - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
@@ -31,6 +31,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/1c/78/504fdd027da3b84ff1aecd9f6957e65f35134534ccc6da8628eb71e76d3f/send2trash-2.1.0-py3-none-any.whl
         sha256: 0da2f112e6d6bb22de6aa6daa7e144831a4febf2a87261451c4ad849fe9a873c
+
   - name: python3-zstandard
     buildsystem: simple
     build-commands:
@@ -40,6 +41,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/fd/aa/3e0508d5a5dd96529cdc5a97011299056e14c6505b678fd58938792794b1/zstandard-0.25.0.tar.gz
         sha256: 7713e1179d162cf5c7906da876ec2ccb9c3a9dcbdffef0cc7f70c3667a205f0b
+
   - name: python3-tkinterdnd2
     buildsystem: simple
     build-commands:
@@ -49,6 +51,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/33/1b/039642c212c24887a941af706b006365f3733d88aab383f0cf151768403c/tkinterdnd2-0.6.2-py3-none-any.whl
         sha256: b6a8b229d26286c022bb2fbd311c2e431e4d9bbab8133be80e9c98e7bcf9fe59
+
   - name: python3-psutil
     buildsystem: simple
     build-commands:
@@ -58,6 +61,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz
         sha256: 0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372
+
   - name: python3-pympler
     buildsystem: simple
     build-commands:
@@ -67,12 +71,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/79/4f/a6a2e2b202d7fd97eadfe90979845b8706676b41cbd3b42ba75adf329d1f/Pympler-1.1-py3-none-any.whl
         sha256: 5b223d6027d0619584116a0cbc28e8d2e378f7a79c1e5e024f9ff3b673c58506
-  - name: python3-pywin32
-    buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "pywin32==312" --no-build-isolation
-    sources: []
+
   - name: python3-dateparser
     buildsystem: simple
     build-commands:
@@ -100,33 +99,43 @@ modules:
 
   - name: librer
     buildsystem: simple
-    build-commands:
-      - mkdir -p /app/share/librer
-      - echo stage_01
-      - install -Dm755 librer.sh /app/bin/librer
-      - echo stage_02
-      - cp -v src/librer.py /app/share/librer/librer.py
-      - echo stage_03
-      - echo VERSION_TO_REPLACE > /app/share/librer/version.txt
-      - echo stage_04
-      - echo "Flatpak Build" > /app/share/librer/distro.info.txt
-      - echo stage_05
-      - bash -e scripts/icons.convert.sh
-      - echo stage_06
-      - cp -v src/images.py /app/share/librer/images.py
-      - echo stage_07
-      - install -Dm644 src/icons/librer.png                                 /app/share/icons/hicolor/256x256/apps/io.github.pjdude.SimpleAudioSweeper.png
-      - echo stage_08
-      - install -Dm644 io.github.pjdude.SimpleAudioSweeper.desktop          /app/share/applications/io.github.pjdude.SimpleAudioSweeper.desktop
-      - echo stage_09
-      - install -Dm644 io.github.pjdude.SimpleAudioSweeper.metainfo.xml     /app/share/metainfo/io.github.pjdude.SimpleAudioSweeper.metainfo.xml
-      - echo stage_10
-      - ls -l /app/share/librer
-      - echo stage_11
-      - cat /app/share/librer/distro.info.txt
-      - echo stage_12
 
     sources:
        - type: git
          url: https://github.com/PJDude/librer.git
          commit: COMMIT_SHA_TO_REPLACE
+
+    build-commands:
+      - mkdir -p /app/share/librer
+
+      - echo stage_01
+      - install -Dm755 librer.sh /app/bin/librer
+
+      - echo stage_02
+      - cp -v src/librer.py /app/share/librer/librer.py
+      - cp -v src/core.py /app/share/librer/core.py
+      - cp -v src/dialogs.py /app/share/librer/dialogs.py
+      - cp -v src/text.py /app/share/librer/text.py
+      - cp -v src/record.py /app/share/librer/record.py
+
+      - echo stage_03
+      - echo VERSION_TO_REPLACE > /app/share/librer/version.txt
+
+      - echo stage_04
+      - echo "Flatpak Build" > /app/share/librer/distro.info.txt
+
+      - echo stage_05
+      - bash -e scripts/icons.convert.sh
+
+      - echo stage_06
+      - cp -v src/images.py /app/share/librer/images.py
+
+      - echo stage_07
+      - install -Dm644 src/icons/librer.png                     /app/share/icons/hicolor/256x256/apps/io.github.pjdude.Librer.png
+
+      - echo stage_08
+      - install -Dm644 io.github.pjdude.Librer.desktop          /app/share/applications/io.github.pjdude.Librer.desktop
+
+      - echo stage_09
+      - install -Dm644 io.github.pjdude.Librer.metainfo.xml     /app/share/metainfo/io.github.pjdude.Librer.metainfo.xml
+
