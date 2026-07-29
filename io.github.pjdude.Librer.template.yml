@@ -115,7 +115,7 @@ modules:
       - echo stage_06
       - cp -v src/images.py /app/share/librer/images.py
       - echo stage_07
-      - install -Dm644 src/icons/librer.png                                    /app/share/icons/hicolor/256x256/apps/io.github.pjdude.SimpleAudioSweeper.png
+      - install -Dm644 src/icons/librer.png                                 /app/share/icons/hicolor/256x256/apps/io.github.pjdude.SimpleAudioSweeper.png
       - echo stage_08
       - install -Dm644 io.github.pjdude.SimpleAudioSweeper.desktop          /app/share/applications/io.github.pjdude.SimpleAudioSweeper.desktop
       - echo stage_09
