@@ -20,80 +20,16 @@ finish-args:
   - --persist=.librer
 
 modules:
-  - name: python3-send2trash
+  - name: librer_py
     buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "send2trash==2.1.0" --no-build-isolation
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/1c/78/504fdd027da3b84ff1aecd9f6957e65f35134534ccc6da8628eb71e76d3f/send2trash-2.1.0-py3-none-any.whl
-        sha256: 0da2f112e6d6bb22de6aa6daa7e144831a4febf2a87261451c4ad849fe9a873c
 
-  - name: python3-zstandard
-    buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "zstandard==0.25.0" --no-build-isolation
     sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/fd/aa/3e0508d5a5dd96529cdc5a97011299056e14c6505b678fd58938792794b1/zstandard-0.25.0.tar.gz
-        sha256: 7713e1179d162cf5c7906da876ec2ccb9c3a9dcbdffef0cc7f70c3667a205f0b
+      - type: dir
+        path: build-pyinstaller/librer
 
-  - name: python3-tkinterdnd2
-    buildsystem: simple
     build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "tkinterdnd2==0.6.2" --no-build-isolation
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/33/1b/039642c212c24887a941af706b006365f3733d88aab383f0cf151768403c/tkinterdnd2-0.6.2-py3-none-any.whl
-        sha256: b6a8b229d26286c022bb2fbd311c2e431e4d9bbab8133be80e9c98e7bcf9fe59
-
-  - name: python3-psutil
-    buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "psutil==7.2.2" --no-build-isolation
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz
-        sha256: 0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372
-
-  - name: python3-pympler
-    buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "pympler==1.1" --no-build-isolation
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/79/4f/a6a2e2b202d7fd97eadfe90979845b8706676b41cbd3b42ba75adf329d1f/Pympler-1.1-py3-none-any.whl
-        sha256: 5b223d6027d0619584116a0cbc28e8d2e378f7a79c1e5e024f9ff3b673c58506
-
-  - name: python3-dateparser
-    buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "dateparser==1.4.1" --no-build-isolation
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/8b/7c/2e5dcf53909deddd0bf38cbe277ad9806be038276b1c6c436561b4d9b2e2/dateparser-1.4.1-py3-none-any.whl
-        sha256: f25d4e051a84be27a35bd297e3e1dc59ff78373701b89be352ba80372d22d0d0
-      - type: file
-        url: https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl
-        sha256: a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
-      - type: file
-        url: https://files.pythonhosted.org/packages/0f/7b/39c34ca613b0b198cb866466651b26b045e2009864c5183c979a3b83f383/pytz-2026.3.post1-py2.py3-none-any.whl
-        sha256: dd95840dd199baea12d9cc096a1d452caa6596a1c1e4b5f3dbd1541855d5e815
-      - type: file
-        url: https://files.pythonhosted.org/packages/20/98/04b13f1ddfb63158025291c02e03eb42fbb7acb51d091d541050eb4e35e8/regex-2026.7.19.tar.gz
-        sha256: 7e77b324909c1617cbb4c668677e2c6ae13f44d7c1de0d4f15f2e3c10f3315b5
-      - type: file
-        url: https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl
-        sha256: 4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274
-      - type: file
-        url: https://files.pythonhosted.org/packages/9e/a4/017a7a6cbe387d961a688ec31364ae60a5c4e22c96ae9921b79a947c855d/tzlocal-5.4.4-py3-none-any.whl
-        sha256: aae09f0126a8a86fa736be266eb4a471380d26a0de3bc14844e7821fee3e2a15
+      - mkdir -p /app/share/librer
+      - cp -a -v . /app/share/librer/
 
   - name: librer
     buildsystem: simple
@@ -106,53 +42,13 @@ modules:
        - type: file
          path: io.github.pjdude.Librer.metainfo.xml
        - type: file
-         path: src/librer_images.py
-         dest: src
-
-       - type: file
-         path: src/librer.py
-         dest: src
-       - type: file
-         path: src/core.py
-         dest: src
-       - type: file
-         path: src/dialogs.py
-         dest: src
-       - type: file
-         path: src/text.py
-         dest: src
-       - type: file
-         path: src/record.py
-         dest: src
-
-       - type: file
-         path: src/version.txt
-         dest: src
-       - type: file
          path: src/icons/librer.png
          dest: src/icons
 
     build-commands:
       - mkdir -p /app/share/librer
 
-      - echo stage_01
       - install -Dm755 librer.sh /app/bin/librer
-
-      - echo stage_02
-      - cp -v src/librer.py /app/share/librer/librer.py
-      - cp -v src/core.py /app/share/librer/core.py
-      - cp -v src/dialogs.py /app/share/librer/dialogs.py
-      - cp -v src/text.py /app/share/librer/text.py
-      - cp -v src/record.py /app/share/librer/record.py
-
-      - echo stage_03
-      - cp -v src/version.txt /app/share/librer/version.txt
-
-      - echo stage_04
-      - echo "Flatpak Build" > /app/share/librer/distro.info.txt
-
-      - echo stage_05
-      - cp -v src/librer_images.py /app/share/librer/librer_images.py
 
       - echo stage_06
       - install -Dm644 src/icons/librer.png                     /app/share/icons/hicolor/256x256/apps/io.github.pjdude.Librer.png
