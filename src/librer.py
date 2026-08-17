@@ -6570,6 +6570,11 @@ if __name__ == "__main__":
         else:
             if running_in_flatpak():
                 record_exe = ['python3',sep.join([LIBRER_EXECUTABLE_DIR,'record.py']) ]
+
+                XDG_DATA_HOME = abspath(Path(environ['XDG_DATA_HOME']))
+
+                LOG_DIR = sep.join([XDG_DATA_HOME,'librer','logs'])
+                DATA_DIR = sep.join([XDG_DATA_HOME,'librer','data'])
             if is_frozen:
                 record_exe = [sep.join([LIBRER_EXECUTABLE_DIR,'record']) ]
             else:
