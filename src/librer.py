@@ -60,7 +60,7 @@ from pickle import dumps, loads
 from dateparser import parse as parse_datetime
 
 from csv import reader as csv_reader
-from zstandard import ZstdCompressor,ZstdDecompressor
+from zstandard import ZstdCompressor,ZstdDecompressor,train_dictionary
 from psutil import disk_partitions
 from librer_images import librer_image
 
@@ -91,8 +91,6 @@ CFG_THEME='theme'
 CFG_EXCLUDE='exclude'
 
 CFG_KEY_CDE_SETTINGS = 'cde_settings'
-CFG_KEY_SINGLE_DEVICE = 'single_device'
-
 CFG_KEY_SINGLE_DEVICE = 'single_device'
 
 CFG_KEY_find_size_min = 'find_size_min'
@@ -830,7 +828,7 @@ class Gui:
         #######################################################################
         self.sel_item = None
 
-        self_REAL_SORT_COLUMN = self.REAL_SORT_COLUMN = self.REAL_SORT_COLUMN={}
+        self_REAL_SORT_COLUMN = self.REAL_SORT_COLUMN={}
 
         self_REAL_SORT_COLUMN['#0'] = 'data'
         self_REAL_SORT_COLUMN['size_h'] = 'size'
@@ -1481,7 +1479,7 @@ class Gui:
             sf_par3.pack(fill='both',expand=True,side='top')
             self.cde_frame = cde_frame = sf_par3.frame()
 
-            (lab_criteria := Label(cde_frame,text=STR('% File cryteria'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=2,sticky='news',columnspan=3)
+            (lab_criteria := Label(cde_frame,text=STR('% File criteria'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=2,sticky='news',columnspan=3)
             (lab_command := Label(cde_frame,text=STR('Custom Data extractor command'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=0, column=5,sticky='news',columnspan=4)
             (lab_mask := Label(cde_frame,text=STR('File Mask'),bg=self.bg_color,anchor='n',relief='groove',bd=2)).grid(row=1, column=2,sticky='news')
             (lab_min := Label(cde_frame,image=self.ico_bigger,bg=self.bg_color,anchor='center',relief='groove',bd=2,width=40)).grid(row=1, column=3,sticky='news')
@@ -1778,9 +1776,6 @@ class Gui:
 
             self.progress_dialog_on_main.lab_r1.grid_forget()
             self.progress_dialog_on_main.lab_r2.grid_forget()
-
-            self.progress_dialog_on_main.progr1.grid_forget()
-            self.progress_dialog_on_main.progr2.grid_forget()
 
             self.progress_dialog_on_main_created = True
 
@@ -2815,7 +2810,7 @@ class Gui:
                 return processed_dates[date]
             else:
                 try:
-                    res=processed_dates[date]=int(mktime(parse_datetime(modtime).timetuple()))
+                    res=processed_dates[date]=int(mktime(parse_datetime(date).timetuple()))
                 except:
                     print('time not parsed:',date)
                     res=processed_dates[date]=0
@@ -2840,7 +2835,7 @@ class Gui:
                 vol,path,name,size,ext,modtime,descr=rowdata
 
                 temp_set_add( (vol,process_path(path),name,process_size(size),process_date(modtime),descr) )
-            except Exception as p:
+            except Exception as lineex:
                 print('skipped:',rowdata,lineex)
             i+=1
 
@@ -4270,7 +4265,7 @@ class Gui:
                 self_main_wait_variable(wait_var)
                 ######################################################################################
 
-            search_thread.join
+            search_thread.join()
             self_progress_dialog_on_find.hide(True)
 
             #gc_collect()
@@ -5591,7 +5586,7 @@ class Gui:
 
                 ######################################################################################
 
-            creation_thread.join
+            creation_thread.join()
 
         self_progress_dialog_on_scan.hide(True)
 
@@ -5735,8 +5730,8 @@ class Gui:
                     self.CDE_timeout_var_list[e].set(v8)
                     self.CDE_crc_var_list[e].set(bool(v9=='1'))
                     e+=1
-                except Exception as e:
-                    print(e,e_section)
+                except Exception as exc:
+                    print(exc,e,e_section)
                     do_clear_settings=True
 
                     break
@@ -5998,7 +5993,6 @@ class Gui:
         item = self.record_to_item[record]
         self.tree.item(item,image=self.ico_record_cd_loaded)
 
-    find_result_record_index = 0
     find_result_record_index = 0
     def set_find_result_record_index(self):
         if self.current_record:
@@ -6332,7 +6326,7 @@ class Gui:
                 l_error(f'open_file - No File:{file_to_open}')
                 self.status(f'No File:{file_to_open}')
         except:
-            self.get_info_dialog_on_main.show('error',file_to_open)
+            self.get_info_dialog_on_main().show('error',file_to_open)
             #np seleckcja na grupe
             pass
 
@@ -6352,7 +6346,7 @@ class Gui:
                 l_error(f'open_location - No File:{path_to_open}')
                 self.status(f'No Location:{path_to_open}')
         except:
-            self.get_info_dialog_on_main.show('error',path_to_open)
+            self.get_info_dialog_on_main().show('error',path_to_open)
             #np seleckcja na grupe
             pass
 

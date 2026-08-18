@@ -46,8 +46,10 @@ from pathlib import Path as pathlib_Path
 from signal import SIGTERM
 from copy import deepcopy
 from pickle import dumps,loads
+from msgpack import packb, unpackb
+
 from fnmatch import fnmatch
-from zstandard import ZstdCompressor,ZstdDecompressor
+from zstandard import ZstdCompressor,ZstdDecompressor,train_dictionary
 from pympler.asizeof import asizeof
 from send2trash import send2trash as send2trash_delete
 from unicodedata import normalize, combining
@@ -397,7 +399,7 @@ class LibrerRecord:
         if file_path:
             self.file_name = basename(normpath(file_path))
         else:
-            self.file_name = f'{self.header.rid}{postfix}.dat'
+            self.file_name = f'{self.header.rid}.dat'
             file_path = sep.join([self.db_dir,self.file_name])
 
         self.file_path = file_path
@@ -1463,6 +1465,11 @@ class LibrerRecord:
 
                 self.filestructure = loads( decompressor.decompress(zip_file.read('filestructure')) )
                 self.filenames = loads( decompressor.decompress(zip_file.read('filenames')) )
+
+                filenames_msgpacked=packb(self.filenames, use_bin_type=True)
+
+                #with ZipFile(self.file_path + ".debug.zip", "w") as zip_debug_file:
+                #    zip_debug_file.writestr("debug-filestructure",filenames_msgpacked)
 
                 del decompressor
 
