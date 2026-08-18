@@ -2627,6 +2627,7 @@ class Gui:
         #self.found_item_to_data={}
         self.search_results_dialog.hide()
 
+
     about_dialog_created = False
     @restore_status_line
     @block
@@ -2647,7 +2648,7 @@ class Gui:
             frame2 = LabelFrame(self.about_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
 
-            lab2_text=  distro_info + '\n\nCurrent log file: ' + log_file
+            lab2_text=  distro_info + '\n\nData dir: ' + DATA_DIR + '\nLogs dir:' + LOG_DIR + '\n\nCurrent log file: ' + log_file
 
             lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='center')
             lab_courier.pack(expand=1,fill='both')
@@ -6556,9 +6557,12 @@ if __name__ == "__main__":
         DATA_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'data'])
         LOG_DIR = sep.join([LIBRER_EXECUTABLE_DIR,'logs'])
 
+        execution_info='raw python script'
+
         if windows:
             if is_frozen:
                 record_exe = [sep.join([LIBRER_EXECUTABLE_DIR,'record.exe']) ]
+                execution_info='PyInstaller'
             else:
                 record_exe = ['python',sep.join([LIBRER_EXECUTABLE_DIR,'record.py']) ]
         else:
@@ -6569,8 +6573,10 @@ if __name__ == "__main__":
 
                 LOG_DIR = sep.join([XDG_DATA_HOME,'librer','logs'])
                 DATA_DIR = sep.join([XDG_DATA_HOME,'librer','data'])
+                execution_info='PyInstaller in Flatpak'
             if is_frozen:
                 record_exe = [sep.join([LIBRER_EXECUTABLE_DIR,'record']) ]
+                execution_info='PyInstaller'
             else:
                 record_exe = ['python3',sep.join([LIBRER_EXECUTABLE_DIR,'record.py']) ]
 
@@ -6618,7 +6624,7 @@ if __name__ == "__main__":
             l_error(exception_1)
             distro_info = 'Error. No distro.info.txt file.'
 
-        distro_info+= "\nTclVersion  " + str(TclVersion) + "\nTkVersion   " + str(TkVersion) + "\n" + f'\nrecord file format version: {DATA_FORMAT_VERSION}'
+        distro_info+= "\nTclVersion  " + str(TclVersion) + "\nTkVersion   " + str(TkVersion) + f'\n\nrecord file format version: {DATA_FORMAT_VERSION}' + f'\n\nExecutable:{execution_info}'
 
         l_info('distro info:\n%s',distro_info)
 
