@@ -13,7 +13,7 @@ finish-args:
   - --socket=fallback-x11
   - --socket=pulseaudio
   - --device=all
-  - --filesystem=host-root
+  - --filesystem=host
   - --persist=.librer
 
 modules:
