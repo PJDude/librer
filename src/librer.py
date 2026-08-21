@@ -6563,6 +6563,8 @@ if __name__ == "__main__":
 
         execution_info='raw python script'
 
+        from msgpack import __version__ as msgpack_version
+
         if windows:
             if is_frozen:
                 record_exe = [sep.join([LIBRER_EXECUTABLE_DIR,'record.exe']) ]
@@ -6628,7 +6630,9 @@ if __name__ == "__main__":
             l_error(exception_1)
             distro_info = 'Error. No distro.info.txt file.'
 
-        distro_info+= "\nTclVersion  " + str(TclVersion) + "\nTkVersion   " + str(TkVersion) + f'\n\nrecord file format version: {DATA_FORMAT_VERSION}' + f'\n\nExecutable:{execution_info}'
+
+
+        distro_info+= "\nTclVersion  " + str(TclVersion) + "\nTkVersion   " + str(TkVersion) + "\nMessagePack " + str(msgpack_version) +  f'\n\nrecord file format version: {DATA_FORMAT_VERSION}' + f'\n\nExecutable:{execution_info}'
 
         l_info('distro info:\n%s',distro_info)
 
