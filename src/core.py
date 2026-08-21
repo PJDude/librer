@@ -76,7 +76,8 @@ is_frozen = bool(getattr(sys, 'frozen', False) or "__compiled__" in globals())
 
 PARAM_INDICATOR_SIGN = '%'
 
-DATA_FORMAT_VERSION='0019'
+DATA_FORMAT_VERSION_OLD='0019'
+DATA_FORMAT_VERSION='0020'
 
 VERSION_FILE='version.txt'
 
@@ -253,16 +254,52 @@ def kill_subprocess( subproc,print_func=lambda x,force=None : print(x) ):
     except Exception as ke:
         print_func( ('error',f'kill_subprocess error: {ke}'),True )
 
-def compress_with_header_update(header,data,compression,datalabel,zip_file):
-    t0 = perf_counter()
-    data_ser = dumps(data)
-    data_ser_compr = ZstdCompressor(level=compression,threads=-1).compress(data_ser)
-    t1 = perf_counter()
-    tdiff=t1-t0
+def compress_with_header_update(header,data,compression,datalabel,zip_file,print_func=None):
+    if not print_func:
+        print_func=print
 
-    header.zipinfo[datalabel]=(asizeof(data_ser_compr),asizeof(data_ser),asizeof(data))
-    header.compression_time[datalabel] = tdiff
-    zip_file.writestr(datalabel,data_ser_compr)
+    try:
+        filelabel=datalabel if datalabel else "HEADER"
+        tablabel=datalabel if datalabel else "header"
+        #t0 = perf_counter()
+        #data_ser = dumps(data)
+        #data_ser_compr = ZstdCompressor(level=compression,threads=-1).compress(data_ser)
+        #t1 = perf_counter()
+        #tdiff1=t1-t0
+        #print_func(f'{datalabel}:{tdiff1=}',True)
+        #size3,size2,size1=asizeof(data_ser_compr),asizeof(data_ser),asizeof(data)
+
+        #header.zipinfo[datalabel]=(size3,size2,size1)
+        #header.compression_time[datalabel] = tdiff1
+
+        #zip_file.writestr(datalabel,data_ser_compr)
+        #zip_file.writestr(datalabel + '.pickle',str(data_ser))
+
+        #print_func(f'{datalabel}:saved1:{size3},{size2},{size1}',True)
+
+        t0 = perf_counter()
+        #data2pack=data if datalabel else data.__dict__
+        data_ser_mp = packb(data)
+        data_ser_compr = ZstdCompressor(level=compression,threads=-1).compress(data_ser_mp) if datalabel else data_ser_mp
+        t1 = perf_counter()
+        tdiff=t1-t0
+        print_func(f'save-processing:{filelabel}:{tdiff=}',True)
+
+        size3,size2,size1=asizeof(data_ser_compr),asizeof(data_ser_mp),asizeof(data)
+        header.zipinfo[tablabel]=(size3,size2,size1)
+        print_func(f'setting:,{tablabel},{header.zipinfo}')
+        header.compression_time[tablabel] = tdiff
+
+        if not datalabel:
+            unpacked=unpackb(data_ser_compr,strict_map_key=False)
+            print('save-unpacked:',unpacked)
+        #zip_file.writestr(datalabel + '.msgd',data_ser)
+        zip_file.writestr(filelabel,data_ser_compr)
+
+        print_func(f'{filelabel}:saved:{size3,size2,size1}',True)
+
+    except Exception as cwhue:
+        print_func( f'{filelabel}:ERROR:{cwhue}',True)
 
 WINDOWS_RESERVED_NAMES = {
     "CON", "PRN", "AUX", "NUL",
@@ -377,22 +414,39 @@ class LibrerRecord:
 
         try:
             with ZipFile(file_path, "r") as zip_file:
-                header_ser_compr = zip_file.read('header')
-                header_ser = ZstdDecompressor().decompress(header_ser_compr)
-                self.header = loads( header_ser )
-                self.header.zipinfo["header"]=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self.header))
+                try:
+                    header_ser = zip_file.read('HEADER')
+                    header_dict = unpackb( header_ser,strict_map_key=False )
+                    self.header = Header()
+                    self.header.__dict__.update(header_dict)
 
-            if self.header.data_format_version != DATA_FORMAT_VERSION:
-                return f'loading "{file_path}" error: incompatible data format version: {self.header.data_format_version} vs {DATA_FORMAT_VERSION}'
+                    self.header.zipinfo["header"]=(asizeof(header_ser),asizeof(header_ser),asizeof(self.header))
 
-            self.prepare_info()
+                    if self.header.data_format_version != DATA_FORMAT_VERSION:
+                        return f'loading "{file_path}" error: incompatible data format version: {self.header.data_format_version} vs {DATA_FORMAT_VERSION}'
+
+                except Exception as e_h:
+                    print('no HEADER: ',file_path, DATA_FORMAT_VERSION,e_h)
+                    header_ser_compr = zip_file.read('header')
+                    header_ser = ZstdDecompressor().decompress(header_ser_compr)
+
+                    self.header = loads( header_ser )
+                    self.header.zipinfo["header"]=(asizeof(header_ser_compr),asizeof(header_ser),asizeof(self.header))
+
+                    if self.header.data_format_version != DATA_FORMAT_VERSION_OLD:
+                        return f'loading "{file_path}" error: incompatible data format version (old): {self.header.data_format_version} vs {DATA_FORMAT_VERSION_OLD}'
+
+            try:
+                self.prepare_info()
+            except Exception as e_pi:
+                print(f'{e_pi=}')
 
         except Exception as e:
             return f'loading "{file_path}" error: "{e}"'
 
         return False
 
-    label_of_datalabel = {'filestructure':'Filestructure','filenames':'Filenames','customdata':'Custom Data','header':'Header'}
+    #label_of_datalabel = {'filestructure':'Filestructure','filenames':'Filenames','customdata':'Custom Data','header':'Header'}
     def save(self,print_func,file_path=None,compression_level=9):
         self_header = self.header
 
@@ -406,11 +460,11 @@ class LibrerRecord:
 
         self_header.compression_level = compression_level
 
-        self_label_of_datalabel = self.label_of_datalabel
+        #self_label_of_datalabel = self.label_of_datalabel
         with ZipFile(file_path, "w") as zip_file:
-            def compress_with_header_update_wrapp(data,datalabel):
-                print_func(('save',f'Compressing {self_label_of_datalabel[datalabel]} ({bytes_to_str(asizeof(data))})'),True)
-                compress_with_header_update(self_header,data,compression_level,datalabel,zip_file)
+            def compress_with_header_update_wrapp(data,datalabel=None):
+                #print_func(('save',f'Compressing {self_label_of_datalabel[datalabel]} ({bytes_to_str(asizeof(data))})'),True)
+                compress_with_header_update(self_header,data,compression_level,datalabel,zip_file,print_func)
 
             compress_with_header_update_wrapp(self.filestructure,'filestructure')
 
@@ -421,14 +475,13 @@ class LibrerRecord:
             else:
                 self_header.zipinfo['customdata'] = (0,0,0)
 
-            compress_with_header_update_wrapp(self_header,'header')
+            compress_with_header_update_wrapp(self_header.__dict__)
 
         self.prepare_info()
 
         print_func(('save','finished'),True)
 
     def scan_rec(self,print_func,abort_list,path, scan_like_data,filenames_set,check_dev=True,dev_call=None,include_hidden=False,exclude=None) :
-        #print(f'{exclude=}')
         if any(abort_list) :
             return True
 
@@ -1307,6 +1360,8 @@ class LibrerRecord:
             info_list_med_append(f'scanned files   : {fnumber(self_header.quant_files)}')
             info_list_append(f'scanned folders : {fnumber(self_header.quant_folders)}')
             info_list_med_append(f'scanned folders : {fnumber(self_header.quant_folders)}')
+            info_list_append(f'version         : {self_header.data_format_version}')
+            info_list_med_append(f'version         : {self_header.data_format_version}')
 
             try:
                 info_list_append(f'free space      : {bytes_to_str(self_header.free)}')
@@ -1463,13 +1518,12 @@ class LibrerRecord:
             with ZipFile(self.file_path, "r") as zip_file:
                 decompressor = ZstdDecompressor()
 
-                self.filestructure = loads( decompressor.decompress(zip_file.read('filestructure')) )
-                self.filenames = loads( decompressor.decompress(zip_file.read('filenames')) )
-
-                filenames_msgpacked=packb(self.filenames, use_bin_type=True)
-
-                #with ZipFile(self.file_path + ".debug.zip", "w") as zip_debug_file:
-                #    zip_debug_file.writestr("debug-filestructure",filenames_msgpacked)
+                if self.header.data_format_version == DATA_FORMAT_VERSION:
+                    self.filestructure = unpackb( decompressor.decompress(zip_file.read('filestructure')),strict_map_key=False )
+                    self.filenames = unpackb( decompressor.decompress(zip_file.read('filenames')),strict_map_key=False )
+                else:
+                    self.filestructure = loads( decompressor.decompress(zip_file.read('filestructure')) )
+                    self.filenames = loads( decompressor.decompress(zip_file.read('filenames')) )
 
                 del decompressor
 
@@ -1492,10 +1546,17 @@ class LibrerRecord:
         if not self.decompressed_customdata:
             with ZipFile(self.file_path, "r") as zip_file:
                 decompressor = ZstdDecompressor()
-                try:
-                    self.customdata = loads( decompressor.decompress( zip_file.read('customdata') ) )
-                except:
-                    self.customdata = []
+
+                if self.header.data_format_version == DATA_FORMAT_VERSION:
+                    try:
+                        self.customdata = unpackb( decompressor.decompress( zip_file.read('customdata') ),strict_map_key=False )
+                    except:
+                        self.customdata = []
+                else:
+                    try:
+                        self.customdata = loads( decompressor.decompress( zip_file.read('customdata') ) )
+                    except:
+                        self.customdata = []
 
                 del decompressor
                 gc_collect()
@@ -2561,19 +2622,25 @@ class LibrerCore:
 
                     decompressor = ZstdDecompressor()
 
-                    header_ser_compr = src_zip_file.read('header')
-                    header_ser = decompressor.decompress(header_ser_compr)
-                    header = loads( header_ser )
+                    try:
+                        header_ser = src_zip_file.read('HEADER')
+                        header = unpackb( header_ser,strict_map_key=False )
+                    except:
+                        header_ser_compr = src_zip_file.read('header')
+
+                        header_ser = decompressor.decompress(header_ser_compr)
+                        header = loads( header_ser )
 
                     with ZipFile(new_file_path, "w") as zip_file:
                         compressor = ZstdCompressor(level=header.compression_level,threads=-1)
-                        compressor_compress = compressor.compress
 
                         temp_new_header = deepcopy(header)
                         temp_new_header.history_stack.append( (IMPORT_CODE,int(time()),import_file) )
-                        header_ser = dumps(temp_new_header)
-                        header_ser_compr = compressor_compress(header_ser)
-                        zip_file.writestr('header',header_ser_compr)
+                        #header_ser = dumps(temp_new_header)
+                        header_ser = packb(temp_new_header.__dict__)
+                        #header_ser_compr = compressor.compress(header_ser)
+                        #zip_file.writestr('header',header_ser_compr)
+                        zip_file.writestr('header',header_ser)
 
                         zip_file.writestr('filestructure',src_zip_file.read('filestructure'))
                         zip_file.writestr('filenames',src_zip_file.read('filenames'))
@@ -2620,9 +2687,11 @@ class LibrerCore:
 
                     temp_new_header = deepcopy(record.header)
                     temp_new_header.history_stack.append( (EXPORT_CODE,int(time()),new_file_path) )
-                    header_ser = dumps(temp_new_header)
-                    header_ser_compr = ZstdCompressor(level=record.header.compression_level,threads=-1).compress(header_ser)
-                    zip_file.writestr('header',header_ser_compr)
+                    #header_ser = dumps(temp_new_header)
+                    header_ser = packb(temp_new_header)
+                    #header_ser_compr = ZstdCompressor(level=record.header.compression_level,threads=-1).compress(header_ser)
+                    #zip_file.writestr('header',header_ser_compr)
+                    zip_file.writestr('HEADER',header_ser)
 
                     zip_file.writestr('filestructure',src_zip_file.read('filestructure'))
                     zip_file.writestr('filenames',src_zip_file.read('filenames'))
@@ -2649,9 +2718,15 @@ class LibrerCore:
 
                 dec_dec = ZstdDecompressor().decompress
 
-                header_ser_compr = src_zip_file.read('header')
-                header_ser = dec_dec(header_ser_compr)
-                header = loads( header_ser )
+                try:
+                    header_ser = src_zip_file.read('HEADER')
+                    header_dict = unpackb( header_ser,strict_map_key=False )
+                    header = Header()
+                    header.__dict__.update(header_dict)
+                except:
+                    header_ser_compr = src_zip_file.read('header')
+                    header_ser = dec_dec(header_ser_compr)
+                    header = loads( header_ser )
 
                 with ZipFile(new_file_path, "w") as zip_file:
                     new_header = deepcopy(header)
@@ -2702,9 +2777,12 @@ class LibrerCore:
                             self.info_line = f'Compressing Custom Data ({bytes_to_str(asizeof(data_customdata))})'
                             compress_with_header_update(new_header,data_customdata,new_compression,'customdata',zip_file)
 
-                    header_ser = dumps(new_header)
-                    header_ser_compr = ZstdCompressor(level=new_compression,threads=-1).compress(header_ser)
-                    zip_file.writestr('header',header_ser_compr)
+                    new_header.data_format_version=DATA_FORMAT_VERSION
+                    #header_ser = dumps(new_header)
+                    header_ser = packb(new_header.__dict__)
+                    #header_ser_compr = ZstdCompressor(level=new_compression,threads=-1).compress(header_ser)
+                    #zip_file.writestr('header',header_ser_compr)
+                    zip_file.writestr('HEADER',header_ser)
 
                 new_record = self.create()
 

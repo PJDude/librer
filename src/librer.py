@@ -6231,8 +6231,12 @@ class Gui:
         #('data','record','opened','path','size','size_h','ctime','ctime_h','kind')
         values = (librer_core.get_record_name(record),librer_core.get_record_name(record),0,record.header.scan_path,size,bytes_to_str(size),record.header.creation_time,strftime('%Y/%m/%d %H:%M:%S',localtime_catched(record.header.creation_time)),self.RECORD)
 
-        group = librer_core.get_record_group(record)
-        group_item = self.group_to_item[group]
+        try:
+            group = librer_core.get_record_group(record)
+            group_item = self.group_to_item[group]
+        except:
+            group_item=0
+            group=None
 
         self_tree = self.tree
 
