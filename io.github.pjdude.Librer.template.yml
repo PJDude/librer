@@ -12,7 +12,6 @@ finish-args:
   - --socket=x11
   - --socket=fallback-x11
   - --socket=pulseaudio
-  - --socket=jack
   - --device=all
   - --filesystem=host-root
   - --persist=.librer
