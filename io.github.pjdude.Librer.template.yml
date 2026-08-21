@@ -2,23 +2,19 @@ app-id: io.github.pjdude.Librer
 runtime: org.freedesktop.Platform
 runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
+
 command: librer
 
 finish-args:
   - --share=ipc
   - --share=network
   - --socket=wayland
-  - --socket=fallback-x11
   - --socket=x11
+  - --socket=fallback-x11
   - --socket=pulseaudio
   - --socket=jack
-  - --device=dri
-
   - --device=all
-  - --filesystem=xdg-documents
-  - --filesystem=xdg-download
-  - --filesystem=home
-
+  - --filesystem=host-root
   - --persist=.librer
 
 modules:

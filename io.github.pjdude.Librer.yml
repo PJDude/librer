@@ -7,16 +7,14 @@ command: librer
 
 finish-args:
   - --share=ipc
+  - --share=network
   - --socket=wayland
+  - --socket=x11
   - --socket=fallback-x11
-  - --device=dri
-
+  - --socket=pulseaudio
+  - --socket=jack
   - --device=all
-
-  - --filesystem=xdg-documents
-  - --filesystem=xdg-download
-  - --filesystem=home
-
+  - --filesystem=host-root
   - --persist=.librer
 
 modules:
