@@ -1418,8 +1418,11 @@ class Gui:
             self.add_dev_button.grid(row=0, column=3, sticky='news',padx=4,pady=4)
             self.widget_tooltip(self.add_dev_button,STR("Select device to scan."))
 
-            self.drives_menu = Menu(self.add_dev_button, tearoff=0,postcommand=self.set_dev_to_scan_menu)
-            self.add_dev_button["menu"] = self.drives_menu
+            if running_in_flatpak():
+                self.add_dev_button.configure(state='disabled')
+            else:
+                self.drives_menu = Menu(self.add_dev_button, tearoff=0,postcommand=self.set_dev_to_scan_menu)
+                self.add_dev_button["menu"] = self.drives_menu
 
             temp_frame.grid_columnconfigure(1, weight=1)
 
