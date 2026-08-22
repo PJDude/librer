@@ -222,8 +222,13 @@ jobs:
     - name: build flatpak
       run: |
         sudo apt-get update
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y flatpak flatpak-builder xz-utils
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y flatpak flatpak-builder xz-utils p7zip-full unrar ffmpeg libimage-exiftool-perl poppler-utils
         flatpak-builder --version
+        7z
+        unrar
+        ffprobe -version
+        exiftool -ver
+        pdftotext -v
         sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
         sudo flatpak install -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
         flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
