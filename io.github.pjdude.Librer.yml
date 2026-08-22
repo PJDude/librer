@@ -17,6 +17,52 @@ finish-args:
   - --persist=.librer
 
 modules:
+  - name: 7zip
+    buildsystem: simple
+
+    sources:
+      - type: file
+        url: https://www.7-zip.org/a/7z2501-linux-x64.tar.xz
+        sha256: 4ca3b7c6f2f67866b92622818b58233dc70367be2f36b498eb0bdeaaa44b53f4
+
+    build-commands:
+      - install -Dm755 7zz /app/bin/7zz
+      - ln -sf 7zz /app/bin/7z
+
+  - name: ffmpeg
+    buildsystem: autotools
+
+    config-opts:
+      - --disable-programs
+      - --disable-doc
+      - --disable-debug
+      - --disable-ffmpeg
+      - --disable-ffplay
+      - --enable-ffprobe
+
+    sources:
+      - type: archive
+        url: https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz
+        sha256: cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635
+
+  - name: poppler
+    buildsystem: cmake-ninja
+
+    config-opts:
+      - -DBUILD_GTK_TESTS=OFF
+      - -DBUILD_QT5_TESTS=OFF
+      - -DBUILD_CPP_TESTS=OFF
+      - -DBUILD_MANUAL=OFF
+      - -DBUILD_GTK_UTILS=OFF
+      - -DBUILD_QT5_UTILS=OFF
+      - -DENABLE_UNSTABLE_API_ABI_HEADERS=OFF
+
+    sources:
+      - type: archive
+        url: https://poppler.freedesktop.org/poppler-25.08.0.tar.xz
+        sha256: 425ed4d4515a093bdcdbbaac6876f20617451edc710df6a4fd6c45dd67eb418d
+
+
   - name: librer_py
     buildsystem: simple
 
