@@ -166,7 +166,8 @@ jobs:
   lin-pyinstaller:
     permissions: write-all
     needs: [win-pyinstaller-gen-version]
-    runs-on: ubuntu-latest
+    #runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
     - name: checkout
