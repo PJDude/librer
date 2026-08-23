@@ -17,34 +17,15 @@ finish-args:
   - --persist=.librer
 
 modules:
-
-  - name: ffmpeg
-    buildsystem: autotools
-
-    config-opts:
-      - --disable-programs
-      - --disable-doc
-      - --disable-debug
-      - --disable-ffmpeg
-      - --disable-ffplay
-      - --enable-ffprobe
-
-    sources:
-      - type: archive
-        url: https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz
-        sha256: cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635
-
   - name: 7zip
     buildsystem: simple
-
-    sources:
-      - type: file
-        url: https://www.7-zip.org/a/7z2501-linux-x64.tar.xz
-        sha256: 4ca3b7c6f2f67866b92622818b58233dc70367be2f36b498eb0bdeaaa44b53f4
-
     build-commands:
-      - install -Dm755 7z /app/bin/7z
-      - ln -sf 7zz /app/bin/7z
+      - install -Dm755 7zzs /app/bin/7z
+    sources:
+      - type: archive
+        url: https://github.com/ip7z/7zip/releases/download/26.01/7z2601-linux-x64.tar.xz
+        sha256: 8ea0fc8a135e7b848e80a4116fe22dff56c8c4518dde1f43cce67f4e340b437a
+        only-arches: [x86_64]
 
   - name: librer_py
     buildsystem: simple
@@ -73,16 +54,7 @@ modules:
 
     build-commands:
       - mkdir -p /app/share/librer
-
       - install -Dm755 librer.sh /app/bin/librer
-
-      - echo stage_06
       - install -Dm644 src/icons/librer.png                     /app/share/icons/hicolor/256x256/apps/io.github.pjdude.Librer.png
-
-      - echo stage_07
       - install -Dm644 io.github.pjdude.Librer.desktop          /app/share/applications/io.github.pjdude.Librer.desktop
-
-      - echo stage_08
       - install -Dm644 io.github.pjdude.Librer.metainfo.xml     /app/share/metainfo/io.github.pjdude.Librer.metainfo.xml
-
-      - echo stage_09
