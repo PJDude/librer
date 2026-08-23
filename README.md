@@ -28,6 +28,11 @@ Portable executable packages created with [PyInstaller](https://pyinstaller.org/
 
 ## [Review on SOFTPEDIA](https://www.softpedia.com/get/Others/File-CD-DVD-Catalog/Librer.shtml) ##
 
+
+## News in version 2.x
+- data format improved and immune to uncontrolled code injection and execution (mainly pickle replaced by msgpack)
+- flatpak linux installer
+
 ## Guidelines for crafting Custom Data Extractors
 Custom data extractor is a command that can be invoked with a single parameter - the full path to a specific file from which data is extracted. The command should provide the expected data in any textual format to the standard output (stdout). CDE can be an executable file (e.g., 7z, zip, ffmpeg, md5sum etc.) or an executable shell script (extract.sh, extract.bat etc.). The conditions it should meet are reasonably short execution time and reasonably limited information output. The criteria allowing the execution of a particular **Custom data extractor** include the glob expression (on file name) and the file size range.
 
@@ -65,7 +70,7 @@ Simply use the action from the File menu.
 Simply use the action from the File menu. Make sure the CSV data file is exported from VVV using the pipe (|) separator and without including headers.
 
 ## Technical information
-Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [pickle](https://docs.python.org/3/library/pickle.html) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other. Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) module. Searching records is performed as a separate subprocess for each record. The number of parallel searches is limited by the CPU cores.
+Record in librer is the result of a single scan operation and is shown as one of many top nodes in the main tree window. Contains a directory tree with collected custom data. It is stored as a single .dat file in librer database directory. Its internal format is optimized for security, fast initial access and maximum compression (just check :)) Every section is a python data structure serialized by [~~pickle~~](https://docs.python.org/3/library/pickle.html) [MessagePack](https://github.com/msgpack/msgpack-python) and compressed separately by [Zstandard](https://pypi.org/project/zstandard/) algorithm. The record file, once saved, is never modified afterward. It can only be deleted upon request or exported. All record files are independent of each other. Fuzzy matching is implemented using the SequenceMatcher function provided by the [difflib](https://docs.python.org/3/library/difflib.html) module. Searching records is performed as a separate subprocess for each record. The number of parallel searches is limited by the CPU cores.
 
 ###### Manual build (linux):
 ```
