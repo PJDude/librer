@@ -15,6 +15,7 @@ finish-args:
   - --device=all
   - --filesystem=host
   - --persist=.librer
+  - --talk-name=org.freedesktop.Flatpak
 
 modules:
   - name: 7zip
