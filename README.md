@@ -31,7 +31,7 @@ Portable executable packages created with [PyInstaller](https://pyinstaller.org/
 
 ## News in version 2.x
 - data format improved and immune to uncontrolled code injection and execution (mainly pickle replaced by msgpack)
-- flatpak linux installer
+- initial flatpak linux installer (with some limitations)
 
 ## Guidelines for crafting Custom Data Extractors
 Custom data extractor is a command that can be invoked with a single parameter - the full path to a specific file from which data is extracted. The command should provide the expected data in any textual format to the standard output (stdout). CDE can be an executable file (e.g., 7z, zip, ffmpeg, md5sum etc.) or an executable shell script (extract.sh, extract.bat etc.). The conditions it should meet are reasonably short execution time and reasonably limited information output. The criteria allowing the execution of a particular **Custom data extractor** include the glob expression (on file name) and the file size range.
