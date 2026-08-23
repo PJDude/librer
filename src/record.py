@@ -217,7 +217,8 @@ if __name__ == "__main__":
         if comm_dir:
             try:
                 with open(sep.join([comm_dir,SEARCH_DAT_FILE]),"rb") as f:
-                    params = loads(ZstdDecompressor().decompress(f.read()))
+                    #params = loads(ZstdDecompressor().decompress(f.read()))
+                    params = unpackb(ZstdDecompressor().decompress(f.read()))
                     print_info(f'{params=}')
             except Exception as e:
                 print_info(f'search error:{e}')
@@ -338,7 +339,8 @@ if __name__ == "__main__":
         if comm_dir:
             try:
                 with open(sep.join([comm_dir,SCAN_DAT_FILE]),"rb") as f:
-                    create_list = loads(ZstdDecompressor().decompress(f.read()))
+                    #create_list = loads(ZstdDecompressor().decompress(f.read()))
+                    create_list = unpackb(ZstdDecompressor().decompress(f.read()))
                     print_info(f'{create_list=}')
                 label,path_to_scan,check_dev,compression_level,threads,cde_list,include_hidden,exclude = create_list
             except Exception as e:

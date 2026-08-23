@@ -56,7 +56,8 @@ import logging
 from shutil import rmtree,which as shutil_which
 from collections import defaultdict
 
-from pickle import dumps, loads
+#from pickle import dumps, loads
+from msgpack import packb, unpackb
 from dateparser import parse as parse_datetime
 
 from csv import reader as csv_reader
@@ -201,14 +202,15 @@ class Config:
         Path(self.path).mkdir(parents=True,exist_ok=True)
 
         with open(self.file, "wb") as f:
-            f.write(ZstdCompressor(level=8,threads=1).compress(dumps(self.cfg)))
+            #f.write(ZstdCompressor(level=8,threads=1).compress(dumps(self.cfg)))
+            f.write(ZstdCompressor(level=8,threads=1).compress(packb(self.cfg)))
 
     def read(self):
         l_info('reading config')
         if path_isfile(self.file):
             try:
                 with open(self.file, "rb") as f:
-                    self.cfg = loads(ZstdDecompressor().decompress(f.read()))
+                    self.cfg = unpackb(ZstdDecompressor().decompress(f.read()))
 
             except Exception as e:
                 l_error(e)
@@ -5450,7 +5452,8 @@ class Gui:
 
         try:
             with open(sep.join([self.temp_dir,SCAN_DAT_FILE]), "wb") as f:
-                f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list,include_hidden,exclude])))
+                #f.write(ZstdCompressor(level=8,threads=1).compress(dumps([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list,include_hidden,exclude])))
+                f.write(ZstdCompressor(level=8,threads=1).compress(packb([new_label,path_to_scan_from_entry,check_dev,compression_level,threads,cde_list,include_hidden,exclude])))
 
         except Exception as e:
             print(e)
