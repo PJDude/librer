@@ -26,8 +26,8 @@
 #
 ####################################################################################
 
-MAIN_VERSION=1
-VERSION_DATE="2023.10.19"
+MAIN_VERSION=2
+VERSION_DATE="2026.08.23"
 
 VERSION_FILE='version.txt'
 
