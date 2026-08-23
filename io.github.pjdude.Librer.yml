@@ -25,6 +25,7 @@ modules:
       - type: archive
         url: https://github.com/ip7z/7zip/releases/download/26.01/7z2601-linux-x64.tar.xz
         sha256: 8ea0fc8a135e7b848e80a4116fe22dff56c8c4518dde1f43cce67f4e340b437a
+        strip-components: 0
         only-arches: [x86_64]
 
   - name: librer_py
