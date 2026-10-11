@@ -133,6 +133,7 @@ CFG_KEY_SHOW_TOOLTIPS_INFO = 'show_tooltips_info'
 CFG_KEY_SHOW_TOOLTIPS_HELP = 'show_tooltips_help'
 CFG_KEY_groups_collapse = 'groups_collapse'
 CFG_KEY_include_hidden = 'include_hidden'
+CFG_KEY_check_duplicate_path = 'check_duplicate_path'
 CFG_KEY_column_time = 'column_time'
 CFG_KEY_column_size = 'column_size'
 CFG_KEY_select_found = 'select_found'
@@ -181,6 +182,7 @@ cfg_defaults={
     CFG_KEY_SHOW_TOOLTIPS_INFO:True,
     CFG_KEY_groups_collapse:True,
     CFG_KEY_include_hidden:False,
+    CFG_KEY_check_duplicate_path:True,
     CFG_KEY_column_time:True,
     CFG_KEY_column_size:True,
     CFG_KEY_select_found:False,
@@ -2050,16 +2052,20 @@ class Gui:
             self.scan_hidden_cb = Checkbutton(sfdma,text=' ' + STR('Include hidden files / folders in scan'),variable=self.scan_hidden_var)
             self.scan_hidden_cb.grid(row=4, column=0, sticky='news',padx=4,pady=4)
 
+            self.check_duplicate_path_var = BooleanVar()
+            self.check_duplicate_path_cb = Checkbutton(sfdma,text=' ' + STR('Propose deletion of records with the same scanned path'),variable=self.check_duplicate_path_var)
+            self.check_duplicate_path_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+
             self.column_time_var = BooleanVar()
             self.column_time_cb = Checkbutton(sfdma,text=' ' + STR('Show \'Time\' column'),variable=self.column_time_var)
-            self.column_time_cb.grid(row=5, column=0, sticky='news',padx=4,pady=4)
+            self.column_time_cb.grid(row=6, column=0, sticky='news',padx=4,pady=4)
 
             self.column_size_var = BooleanVar()
             self.column_size_cb = Checkbutton(sfdma,text=' ' + STR('Show \'Size\' column'),variable=self.column_size_var)
-            self.column_size_cb.grid(row=6, column=0, sticky='news',padx=4,pady=4)
+            self.column_size_cb.grid(row=7, column=0, sticky='news',padx=4,pady=4)
 
             find_frame=LabelFrame(sfdma, text=STR("Searching"),borderwidth=2,bg=self.bg_color)
-            find_frame.grid(row=7,column=0,sticky='wens',padx=3,pady=3)
+            find_frame.grid(row=8, column=0,sticky='wens',padx=3,pady=3)
 
             self.search_after_action_var = BooleanVar()
             self.search_after_action0_cb = Radiobutton(find_frame,text=' ' + STR('Close dialog after searching'),variable=self.search_after_action_var,value=0)
@@ -2077,11 +2083,11 @@ class Gui:
             self.expand_search_results_cb.grid(row=3, column=0, sticky='news',padx=0,pady=4)
 
             sfdma.grid_columnconfigure( 0, weight=1)
-            sfdma.grid_rowconfigure( 9, weight=1)
+            sfdma.grid_rowconfigure( 10, weight=1)
 
             separator = ';' if windows else ':'
             exclude_frame=LabelFrame(sfdma, text=STR("Exclude in scan") + f" (glob expressions, separator sign: '{separator}' )",borderwidth=2,bg=self.bg_color)
-            exclude_frame.grid(row=8,column=0,sticky='wens',padx=3,pady=3)
+            exclude_frame.grid(row=9,column=0,sticky='wens',padx=3,pady=3)
 
             self.exclude_var = StringVar()
 
@@ -2104,6 +2110,7 @@ class Gui:
                 (self.show_tooltips_info_var,CFG_KEY_SHOW_TOOLTIPS_INFO),
                 (self.groups_collapsed_var,CFG_KEY_groups_collapse),
                 (self.scan_hidden_var,CFG_KEY_include_hidden),
+                (self.check_duplicate_path_var,CFG_KEY_check_duplicate_path),
                 (self.column_time_var,CFG_KEY_column_time),
                 (self.column_size_var,CFG_KEY_column_size),
                 (self.select_found_var,CFG_KEY_select_found),
@@ -2120,6 +2127,7 @@ class Gui:
         self.show_tooltips_info_var.set(self.cfg.get(CFG_KEY_SHOW_TOOLTIPS_INFO))
         self.groups_collapsed_var.set(self.cfg.get(CFG_KEY_groups_collapse))
         self.scan_hidden_var.set(self.cfg.get(CFG_KEY_include_hidden))
+        self.check_duplicate_path_var.set(self.cfg.get(CFG_KEY_check_duplicate_path))
         self.column_time_var.set(self.cfg.get(CFG_KEY_column_time))
         self.column_size_var.set(self.cfg.get(CFG_KEY_column_size))
         self.select_found_var.set(self.cfg.get(CFG_KEY_select_found))
@@ -2176,6 +2184,9 @@ class Gui:
 
         if self.cfg.get(CFG_KEY_include_hidden)!=self.scan_hidden_var.get():
             self.cfg.set(CFG_KEY_include_hidden,self.scan_hidden_var.get())
+
+        if self.cfg.get(CFG_KEY_check_duplicate_path)!=self.check_duplicate_path_var.get():
+            self.cfg.set(CFG_KEY_check_duplicate_path,self.check_duplicate_path_var.get())
 
         cols_change=False
         tree=self.tree
@@ -5230,7 +5241,7 @@ class Gui:
 
         path_to_scan_from_entry = str(abspath(self.path_to_scan_entry_var.get()))
 
-        old_records_to_remove=self.scan_path_2_records.get(path_to_scan_from_entry,[])
+        old_records_to_remove=self.scan_path_2_records.get(path_to_scan_from_entry,[]) if self.cfg.get(CFG_KEY_check_duplicate_path) else []
 
         if self.scanning_in_progress:
             l_warning('scan_wrapper collision')
