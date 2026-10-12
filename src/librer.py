@@ -5797,11 +5797,13 @@ class Gui:
             except Exception as lsblk_ex:
                 print(lsblk_ex)
 
+        l_info("scanning_for_partitions")
         for part in disk_partitions(all=False):
             filesystem_label=None
+            l_info(f"{part=},{part.opts=},{part.fstype=},{part.mountpoint}")
 
             if windows:
-                if 'cdrom' in part.opts or part.fstype == '':
+                if not part.fstype:
                     # skip cd-rom drives with no disk in it; they may raise
                     # ENOENT, pop-up a Windows GUI error for a non-ready
                     # partition or just hang.
